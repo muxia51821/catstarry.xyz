@@ -29,3 +29,10 @@ __pycache__/
 # Logs
 *.log
 .claude/
+
+# Cloudflare
+.wrangler/
+wrangler.toml
+
+# Temporary / scratch files
+_archive/
