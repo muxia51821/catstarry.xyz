@@ -1,4 +1,16 @@
-﻿/// <reference types="@cloudflare/workers-types" />
+/// <reference types="@cloudflare/workers-types" />
+
+
+function corsHeaders(origin: string): HeadersInit {
+  const allowed = ['https://catstarry.xyz', 'https://catstarry-xyz.pages.dev'];
+  const isAllowed = allowed.some((o) => origin.startsWith(o.replace(/\/$/, ''))) || origin.endsWith('.pages.dev');
+  return {
+    'Access-Control-Allow-Origin': isAllowed ? origin : allowed[0],
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Max-Age': '86400',
+  };
+}
 
 export interface Env {
   DB: D1Database;
@@ -12,12 +24,19 @@ interface ViewResponse {
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
+    const origin = request.headers.get('Origin') ?? 'https://catstarry.xyz';
+    const cors = corsHeaders(origin);
+
+    // Handle CORS preflight
+    if (request.method === 'OPTIONS') {
+      return new Response(null, { status: 204, headers: cors });
+    }
     const url = new URL(request.url);
 
     // POST /api/views — record a view
     if (url.pathname === '/api/views' && request.method === 'POST') {
       const { slug } = (await request.json()) as { slug: string };
-      if (!slug) return new Response('Missing slug', { status: 400 });
+      if (!slug) return new Response('Missing slug', { status: 400, headers: cors });
 
       const ip = request.headers.get('CF-Connecting-IP') ?? 'unknown';
       const today = new Date().toISOString().split('T')[0];
@@ -51,7 +70,7 @@ export default {
 
       if (slugParam) {
         const row = await env.DB.prepare('SELECT slug, count FROM blog_views WHERE slug = ?').bind(slugParam).first<ViewResponse>();
-        return Response.json(row ?? { slug: slugParam, count: 0 });
+        return Response.json(row ?? { slug: slugParam, count: 0 }, { headers: cors });
       }
 
       if (slugsParam) {
@@ -66,12 +85,12 @@ export default {
         // Fill in zero for slugs not found
         const found = new Map(result.results.map((r) => [r.slug, r.count]));
         const views = slugs.map((slug) => ({ slug, count: found.get(slug) ?? 0 }));
-        return Response.json({ views });
+        return Response.json({ views }, { headers: cors });
       }
 
-      return new Response('Missing slug or slugs parameter', { status: 400 });
+      return new Response('Missing slug or slugs parameter', { status: 400, headers: cors });
     }
 
-    return new Response('Not found', { status: 404 });
+    return new Response('Not found', { status: 404, headers: cors });
   },
 };

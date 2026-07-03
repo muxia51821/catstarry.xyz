@@ -1,5 +1,6 @@
 ---
 import Base from "../../layouts/Base.astro";
+import ViewCounter from "../../components/ViewCounter";
 import { getCollection } from "astro:content";
 
 export async function getStaticPaths() {
@@ -83,7 +84,7 @@ const formatDate = (d: Date) =>
     </header>
 
     <!-- 正文渲染 -->
-    <div class="post-meta">`r`n    <span class="post-views" data-slug={viewSlug}>--- 次阅读</span>`r`n  </div>`r`n  <div class="post-content">
+    <div class="post-meta">`r`n    <ViewCounter slug={viewSlug} client:load />`r`n  </div>`r`n  <div class="post-content">
       <Content />
     </div>
 
