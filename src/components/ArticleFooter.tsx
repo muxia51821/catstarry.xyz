@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { Giscus } from '@giscus/react';
 
 interface Props {
@@ -71,16 +71,16 @@ export default function ArticleFooter({ slug, title }: Props) {
       <div className="giscus-wrapper">
         <Giscus
           id="comments"
-          repo="catstarry-owner/catstarry.xyz"
-          repoId="R_kg_DO0000000"
-          category="Blog Comments"
-          categoryId="DIC_kwDO0000000"
+          repo="muxia51821/catstarry.xyz"
+          repoId="R_kgDOTMzWDA"
+          category="Announcements"
+          categoryId="DIC_kwDOTMzWDM4DAcAs"
           mapping="specific"
           term={slug}
           reactionsEnabled="1"
           emitMetadata="0"
           inputPosition="top"
-          theme="light"
+          theme="preferred_color_scheme"
           lang="zh-CN"
           loading="lazy"
         />
