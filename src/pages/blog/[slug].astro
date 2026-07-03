@@ -1,6 +1,8 @@
----
+﻿---
 import Base from "../../layouts/Base.astro";
+import ArticleFooter from "../../components/ArticleFooter";
 import ViewCounter from "../../components/ViewCounter";
+import { getCategoryLabel } from "../../lib/category";
 import { getCollection } from "astro:content";
 
 export async function getStaticPaths() {
@@ -14,7 +16,7 @@ export async function getStaticPaths() {
 }
 
 const { post } = Astro.props;
-const viewSlug = post.data.slug ?? post.id.replace(/\.md$/, '');
+const viewSlug = post.data.slug ?? post.id.replace(/\.md$/, "");
 const { Content } = await post.render();
 
 const resolvedSlug = post.data.slug ?? post.id.replace(/\.mdx?$/, "");
@@ -23,12 +25,6 @@ const canonicalUrl = new URL(
   `/blog/${resolvedSlug}/`,
   Astro.site,
 ).href;
-
-const CATEGORY_LABELS: Record<string, string> = {
-  tech: "技术",
-  life: "生活",
-  opinion: "观点",
-};
 
 const formatDate = (d: Date) =>
   d.toLocaleDateString("zh-CN", {
@@ -65,16 +61,16 @@ const formatDate = (d: Date) =>
         </time>
         <a
           class="post-category"
-          href={`/blog/?category=${post.data.category}`}
+          href={`/blog/category/${post.data.category}/`}
         >
-          {CATEGORY_LABELS[post.data.category] ?? post.data.category}
+          {getCategoryLabel(post.data.category)}
         </a>
       </div>
       {
         post.data.tags.length > 0 && (
           <div class="post-tags">
             {post.data.tags.map((tag: string) => (
-              <a class="tag" href={`/blog/?tag=${encodeURIComponent(tag)}`}>
+              <a class="tag" href={`/blog/tag/${tag}/`}>
                 #{tag}
               </a>
             ))}
@@ -83,8 +79,13 @@ const formatDate = (d: Date) =>
       }
     </header>
 
+    <!-- 阅读量 -->
+    <div class="post-views">
+      <ViewCounter slug={viewSlug} client:load />
+    </div>
+
     <!-- 正文渲染 -->
-    <div class="post-meta">`r`n    <ViewCounter slug={viewSlug} client:load />`r`n  </div>`r`n  <div class="post-content">
+    <div class="post-content">
       <Content />
     </div>
 
@@ -94,16 +95,16 @@ const formatDate = (d: Date) =>
         <span class="taxonomy-label">分类：</span>
         <a
           class="post-category"
-          href={`/blog/?category=${post.data.category}`}
+          href={`/blog/category/${post.data.category}/`}
         >
-          {CATEGORY_LABELS[post.data.category] ?? post.data.category}
+          {getCategoryLabel(post.data.category)}
         </a>
         {
           post.data.tags.length > 0 && (
             <>
               <span class="taxonomy-label">标签：</span>
               {post.data.tags.map((tag: string) => (
-                <a class="tag" href={`/blog/?tag=${encodeURIComponent(tag)}`}>
+                <a class="tag" href={`/blog/tag/${tag}/`}>
                   #{tag}
                 </a>
               ))}
@@ -115,4 +116,11 @@ const formatDate = (d: Date) =>
       <a href="/blog/" class="back-link">&larr; 返回博客列表</a>
     </footer>
   </article>
+
+  <!-- Giscus + 分享 -->
+  <ArticleFooter
+    title={post.data.title}
+    slug={resolvedSlug}
+    client:load
+  />
 </Base>

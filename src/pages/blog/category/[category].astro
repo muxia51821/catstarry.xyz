@@ -1,12 +1,7 @@
 ﻿---
 import Layout from '../../../layouts/Base.astro';
+import { getCategoryLabel } from '../../../lib/category';
 import { getCollection } from 'astro:content';
-
-const CATEGORY_LABELS: Record<string, string> = {
-  tech: '技术',
-  life: '生活',
-  opinion: '观点',
-};
 
 export async function getStaticPaths() {
   const posts = await getCollection('blog', ({ data }) => !data.draft);
@@ -18,7 +13,7 @@ const { category } = Astro.params as { category: string };
 const posts = (await getCollection('blog', ({ data }) => !data.draft && data.category === category))
   .sort((a, b) => b.data.date.getTime() - a.data.date.getTime());
 
-const label = CATEGORY_LABELS[category] ?? category;
+const label = getCategoryLabel(category);
 ---
 
 <Layout title={`${label} — 博客`} description={`${label}分类下的所有文章。`}>
@@ -39,12 +34,14 @@ const label = CATEGORY_LABELS[category] ?? category;
               <time datetime={post.data.date.toISOString().split('T')[0]}>
                 {post.data.date.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })}
               </time>
-              <span class="post-category">{CATEGORY_LABELS[post.data.category] ?? post.data.category}</span>
+              <a class="post-category" href={`/blog/category/${post.data.category}/`}>
+                {getCategoryLabel(post.data.category)}
+              </a>
             </div>
             <p class="post-description">{post.data.description}</p>
             {post.data.tags.length > 0 && (
               <div class="post-tags">
-                {post.data.tags.map((tag) => <span class="tag">{tag}</span>)}
+                {post.data.tags.map((tag) => <a class="tag" href={`/blog/tag/${tag}/`}>{tag}</a>)}
               </div>
             )}
           </article>
