@@ -1,0 +1,370 @@
+﻿/* ============================================
+   catstarry.xyz — 全局排版基线 (Slice 2)
+   艺术温暖 · 大字号 · 宽松行高 · ~680px 阅读宽度
+   ============================================ */
+
+/* ----- 1. CSS Custom Properties (Design Tokens) ----- */
+:root {
+  /* --- 暖色系色板 --- */
+  --color-bg:            #fdf6f0;      /* 暖米白底 */
+  --color-surface:       #fff9f4;      /* 卡片/区块底色 */
+  --color-text:          #3e2f24;      /* 暖棕正文 */
+  --color-text-muted:    #8a7a6e;      /* 次要文字 */
+  --color-heading:       #5c3d2b;      /* 标题色 */
+  --color-accent:        #c77a4a;      /* 暖橘强调 */
+  --color-accent-hover:  #a85f35;
+  --color-border:        #e8d9cc;      /* 暖色分割线 */
+  --color-link:          #9b5e3a;      /* 链接色 */
+  --color-link-hover:    #7a3f22;
+  --color-code-bg:       #f3e8de;
+  --color-code-text:     #5c3d2b;
+  --color-tag-bg:        #f0e2d4;
+  --color-tag-text:      #7a5a3e;
+
+  /* --- 排版 --- */
+  --font-body:    "PingFang SC", "Microsoft YaHei", "Noto Sans SC",
+                  system-ui, -apple-system, "Segoe UI", Roboto,
+                  "Helvetica Neue", Arial, sans-serif;
+  --font-mono:    "Cascadia Code", "Fira Code", "JetBrains Mono",
+                  "Courier New", monospace;
+
+  --text-base:     18px;
+  --text-scale:    1.25;     /* major third */
+  --line-height:   1.85;
+  --line-height-heading: 1.35;
+
+  /* 字号层级 (mobile-first, 桌面断点会放大) */
+  --text-xs:   calc(var(--text-base) / var(--text-scale) / var(--text-scale));
+  --text-sm:   calc(var(--text-base) / var(--text-scale));
+  --text-md:   var(--text-base);
+  --text-lg:   calc(var(--text-base) * var(--text-scale));
+  --text-xl:   calc(var(--text-base) * var(--text-scale) * var(--text-scale));
+  --text-2xl:  calc(var(--text-base) * var(--text-scale) * var(--text-scale) * var(--text-scale));
+  --text-3xl:  calc(var(--text-base) * var(--text-scale) * var(--text-scale) * var(--text-scale) * var(--text-scale));
+
+  /* --- 间距 --- */
+  --space-xs:  0.375rem;
+  --space-sm:  0.75rem;
+  --space-md:  1.25rem;
+  --space-lg:  2rem;
+  --space-xl:  3rem;
+  --space-2xl: 5rem;
+
+  /* --- 布局 --- */
+  --content-width: 680px;
+  --content-padding: var(--space-md);
+  --border-radius: 8px;
+  --shadow-sm: 0 1px 3px rgba(94, 63, 42, 0.08);
+  --shadow-md: 0 4px 12px rgba(94, 63, 42, 0.10);
+}
+
+/* ----- 2. Reset & Base ----- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 100%;
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: var(--font-body);
+  font-size: var(--text-md);
+  line-height: var(--line-height);
+  color: var(--color-text);
+  background-color: var(--color-bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ----- 3. Typography ----- */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-body);
+  font-weight: 700;
+  line-height: var(--line-height-heading);
+  color: var(--color-heading);
+  letter-spacing: 0.01em;
+}
+
+h1 { font-size: var(--text-3xl); }
+h2 { font-size: var(--text-2xl); }
+h3 { font-size: var(--text-xl); }
+h4 { font-size: var(--text-lg); }
+h5, h6 { font-size: var(--text-md); }
+
+p {
+  margin-bottom: var(--space-md);
+}
+
+a {
+  color: var(--color-link);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+a:hover {
+  color: var(--color-link-hover);
+  text-decoration: underline;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--border-radius);
+}
+
+blockquote {
+  border-left: 3px solid var(--color-accent);
+  margin: var(--space-lg) 0;
+  padding: var(--space-sm) var(--space-md);
+  color: var(--color-text-muted);
+  background: var(--color-surface);
+  border-radius: 0 var(--border-radius) var(--border-radius) 0;
+}
+
+code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  background: var(--color-code-bg);
+  color: var(--color-code-text);
+  padding: 0.15em 0.4em;
+  border-radius: 4px;
+}
+
+pre {
+  overflow-x: auto;
+  background: var(--color-code-bg);
+  border-radius: var(--border-radius);
+  padding: var(--space-md);
+  margin: var(--space-lg) 0;
+}
+pre code {
+  background: transparent;
+  padding: 0;
+  font-size: 0.85em;
+}
+
+hr {
+  border: none;
+  border-top: 1px solid var(--color-border);
+  margin: var(--space-xl) 0;
+}
+
+/* ---- Tables (Slice 3) ---- */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: var(--space-lg) 0;
+  font-size: var(--text-sm);
+}
+thead {
+  border-bottom: 2px solid var(--color-accent);
+}
+th {
+  text-align: left;
+  padding: var(--space-sm) var(--space-md);
+  font-weight: 700;
+  color: var(--color-heading);
+  background: var(--color-surface);
+}
+td {
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: 1px solid var(--color-border);
+}
+tr:nth-child(even) td {
+  background: var(--color-surface);
+}
+
+/* ---- Shiki code block host (Slice 3) ---- */
+.astro-code {
+  border-radius: var(--border-radius);
+  padding: var(--space-md);
+  margin: var(--space-lg) 0;
+  overflow-x: auto;
+  font-size: 0.85em;
+  line-height: 1.7;
+}
+
+/* ----- 4. Layout Utilities ----- */
+.content-container {
+  max-width: var(--content-width);
+  margin: 0 auto;
+  padding: 0 var(--content-padding);
+}
+
+.page-header {
+  padding: var(--space-xl) 0 var(--space-lg);
+  text-align: center;
+}
+
+.page-header h1 {
+  margin-bottom: var(--space-sm);
+}
+
+/* ----- 5. Post Card (博客列表用) ----- */
+.post-list {
+  max-width: var(--content-width);
+  margin: 0 auto;
+  padding: 0 var(--content-padding);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.post-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius);
+  padding: var(--space-lg);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.25s ease;
+}
+.post-card:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.post-card h2 {
+  font-size: var(--text-xl);
+  margin-bottom: var(--space-xs);
+}
+.post-card h2 a {
+  color: var(--color-heading);
+}
+.post-card h2 a:hover {
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
+.post-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-sm);
+}
+
+.post-category {
+  background: var(--color-tag-bg);
+  color: var(--color-tag-text);
+  padding: 0.1em 0.65em;
+  border-radius: 4px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+a.post-category:hover {
+  background: var(--color-accent);
+  color: #fff;
+  text-decoration: none;
+}
+
+.post-description {
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-sm);
+}
+
+.post-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  margin-top: var(--space-xs);
+}
+
+.tag {
+  display: inline-block;
+  background: var(--color-tag-bg);
+  color: var(--color-tag-text);
+  font-size: var(--text-xs);
+  padding: 0.15em 0.65em;
+  border-radius: 4px;
+}
+a.tag:hover {
+  background: var(--color-accent);
+  color: #fff;
+  text-decoration: none;
+}
+
+/* ----- 6. Article Detail ----- */
+.article-detail {
+  max-width: var(--content-width);
+  margin: 0 auto;
+  padding: var(--space-xl) var(--content-padding);
+}
+
+.article-header {
+  margin-bottom: var(--space-lg);
+  text-align: center;
+}
+.article-header h1 {
+  margin-bottom: var(--space-sm);
+}
+
+.article-detail .post-content {
+  margin-top: var(--space-lg);
+}
+
+.article-detail .post-content > * + * {
+  margin-top: var(--space-md);
+}
+
+/* ---- Article Footer (Slice 3) ---- */
+.article-footer {
+  margin-top: var(--space-xl);
+  padding-top: var(--space-lg);
+  border-top: 1px solid var(--color-border);
+}
+
+.article-taxonomy {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-md);
+}
+
+.taxonomy-label {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+
+.back-link {
+  display: inline-block;
+  margin-top: var(--space-sm);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+.back-link:hover {
+  color: var(--color-accent);
+}
+
+/* ----- 7. Responsive ----- */
+
+/* 手机 (< 640px) — 默认 mobile-first，无需覆盖 */
+
+/* 平板 (640px–1024px) */
+@media (min-width: 640px) {
+  :root {
+    --text-base:     19px;
+    --content-padding: var(--space-lg);
+  }
+  .post-list {
+    gap: var(--space-xl);
+  }
+  .post-card {
+    padding: var(--space-xl);
+  }
+}
+
+/* 桌面 (> 1024px) */
+@media (min-width: 1024px) {
+  :root {
+    --text-base:     20px;
+    --content-padding: var(--space-xl);
+  }
+}

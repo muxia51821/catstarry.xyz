@@ -1,0 +1,58 @@
+﻿---
+import Layout from '../../../layouts/Base.astro';
+import { getCollection } from 'astro:content';
+
+export async function getStaticPaths() {
+  const posts = await getCollection('blog', ({ data }) => !data.draft);
+  const allTags = new Set<string>();
+  for (const post of posts) {
+    for (const tag of post.data.tags) {
+      allTags.add(tag);
+    }
+  }
+  return [...allTags].map((tag) => ({ params: { tag } }));
+}
+
+const { tag } = Astro.params as { tag: string };
+const posts = (await getCollection('blog', ({ data }) => !data.draft && data.tags.includes(tag)))
+  .sort((a, b) => b.data.date.getTime() - a.data.date.getTime());
+
+const CATEGORY_LABELS: Record<string, string> = {
+  tech: '技术',
+  life: '生活',
+  opinion: '观点',
+};
+---
+
+<Layout title={`标签：${tag} — 博客`} description={`「${tag}」标签下的所有文章。`}>
+  <main class="blog-content" style="max-width: var(--content-width); margin: 2rem auto; padding: 0 var(--content-padding);">
+    <h1>标签：{tag}</h1>
+    <p><a href="/blog/" class="back-link">← 返回博客列表</a></p>
+
+    <div class="post-list" style="margin-top: var(--space-lg);">
+      {posts.length === 0 ? (
+        <p>该标签下还没有文章。</p>
+      ) : (
+        posts.map((post) => (
+          <article class="post-card">
+            <h2>
+              <a href={`/blog/${post.data.slug ?? post.id}`}>{post.data.title}</a>
+            </h2>
+            <div class="post-meta">
+              <time datetime={post.data.date.toISOString().split('T')[0]}>
+                {post.data.date.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })}
+              </time>
+              <span class="post-category">{CATEGORY_LABELS[post.data.category] ?? post.data.category}</span>
+            </div>
+            <p class="post-description">{post.data.description}</p>
+            {post.data.tags.length > 0 && (
+              <div class="post-tags">
+                {post.data.tags.map((t) => <span class="tag">{t}</span>)}
+              </div>
+            )}
+          </article>
+        ))
+      )}
+    </div>
+  </main>
+</Layout>

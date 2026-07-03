@@ -1,0 +1,185 @@
+﻿---
+import Layout from '../../layouts/Base.astro';
+import { getCollection } from 'astro:content';
+
+const CATEGORY_LABELS: Record<string, string> = {
+  tech: '技术',
+  life: '生活',
+  opinion: '观点',
+};
+
+const posts = await getCollection('blog', ({ data }) => !data.draft);
+posts.sort((a, b) => b.data.date.getTime() - a.data.date.getTime());
+
+const categoryCounts: Record<string, number> = {};
+const tagCounts: Record<string, number> = {};
+for (const post of posts) {
+  const cat = post.data.category;
+  categoryCounts[cat] = (categoryCounts[cat] ?? 0) + 1;
+  for (const tag of post.data.tags) {
+    tagCounts[tag] = (tagCounts[tag] ?? 0) + 1;
+  }
+}
+
+const sortedTags = Object.entries(tagCounts).sort((a, b) => b[1] - a[1]);
+const maxTagCount = sortedTags.length > 0 ? sortedTags[0][1] : 1;
+---
+
+<Layout title="博客" description="木下的个人博客，写技术、生活和观点。">
+  <link slot="head" rel="alternate" type="application/rss+xml" title="catstarry.xyz · 博客 RSS" href="/blog/rss.xml" />
+  <main class="blog-layout">
+    <section class="blog-content">
+      <h1>博客</h1>
+      <p>技术 · 生活 · 观点 — 每篇都是真心写的东西。</p>
+
+      <div class="post-list">
+        {posts.length === 0 ? (
+          <p>还没有文章，等木下写完第一篇。</p>
+        ) : (
+          posts.map((post) => (
+            <article class="post-card">
+              <h2>
+                <a href={`/blog/${post.data.slug ?? post.id}`}>{post.data.title}</a>
+              </h2>
+              <div class="post-meta">
+                <time datetime={post.data.date.toISOString().split('T')[0]}>
+                  {post.data.date.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })}
+                </time>
+                <span class="post-category">{CATEGORY_LABELS[post.data.category] ?? post.data.category}</span>
+              </div>
+              <p class="post-description">{post.data.description}</p>
+              {post.data.tags.length > 0 && (
+                <div class="post-tags">
+                  {post.data.tags.map((tag) => <span class="tag">{tag}</span>)}
+                </div>
+              )}
+            </article>
+          ))
+        )}
+      </div>
+    </section>
+
+    <aside class="blog-sidebar">
+      <div class="sidebar-section">
+        <h2>分类</h2>
+        <ul class="category-list">
+          {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
+            <li>
+              <a href={`/blog/category/${key}/`}>
+                {label} <span class="count">({categoryCounts[key] ?? 0})</span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div class="sidebar-section">
+        <h2>标签</h2>
+        <div class="tag-cloud">
+          {sortedTags.length === 0 ? (
+            <p class="tag-empty">还没有标签</p>
+          ) : (
+            sortedTags.map(([tag, count]) => {
+              const ratio = count / maxTagCount;
+              const size = 0.75 + ratio * 0.75;
+              return (
+                <a href={`/blog/tag/${tag}/`} class="tag-cloud-item" style={`font-size: ${size.toFixed(2)}rem`}>
+                  {tag}
+                </a>
+              );
+            })
+          )}
+        </div>
+      </div>
+    </aside>
+  </main>
+</Layout>
+
+<style>
+  .blog-layout {
+    display: grid;
+    grid-template-columns: 1fr 260px;
+    gap: 2rem;
+    max-width: 960px;
+    margin: 2rem auto;
+    padding: 0 var(--content-padding);
+  }
+
+  .blog-content {
+    min-width: 0;
+  }
+
+  .blog-sidebar {
+    position: sticky;
+    top: 2rem;
+    align-self: start;
+  }
+
+  .sidebar-section {
+    margin-bottom: 2rem;
+  }
+
+  .sidebar-section h2 {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--color-border);
+    color: var(--color-heading);
+  }
+
+  .category-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .category-list li {
+    margin-bottom: 0.5rem;
+  }
+
+  .category-list a {
+    color: var(--color-text);
+  }
+
+  .category-list .count {
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+  }
+
+  .tag-cloud {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .tag-cloud-item {
+    color: var(--color-tag-text);
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    background: var(--color-tag-bg);
+    transition: background 0.2s, color 0.2s;
+  }
+
+  .tag-cloud-item:hover {
+    background: var(--color-accent);
+    color: #fff;
+    text-decoration: none;
+  }
+
+  .tag-empty {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+  }
+
+  @media (max-width: 700px) {
+    .blog-layout {
+      grid-template-columns: 1fr;
+    }
+    .blog-sidebar {
+      position: static;
+      order: -1;
+      margin-bottom: 2rem;
+    }
+  }
+</style>

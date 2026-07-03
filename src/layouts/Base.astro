@@ -1,0 +1,25 @@
+﻿---
+// src/layouts/Base.astro — 全局布局骨架
+import '../styles/global.css';
+
+export interface Props {
+  title: string;
+  description?: string;
+}
+
+const { title, description } = Astro.props;
+---
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{title} — catstarry.xyz</title>
+  {description && <meta name="description" content={description} />}
+  <slot name="head" />
+</head>
+<body>
+  <slot />
+</body>
+</html>

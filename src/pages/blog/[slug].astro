@@ -1,0 +1,117 @@
+---
+import Base from "../../layouts/Base.astro";
+import { getCollection } from "astro:content";
+
+export async function getStaticPaths() {
+  const posts = await getCollection("blog", ({ data }) => !data.draft);
+  return posts.map((post) => ({
+    params: {
+      slug: post.data.slug ?? post.id.replace(/\.mdx?$/, ""),
+    },
+    props: { post },
+  }));
+}
+
+const { post } = Astro.props;
+const viewSlug = post.data.slug ?? post.id.replace(/\.md$/, '');
+const { Content } = await post.render();
+
+const resolvedSlug = post.data.slug ?? post.id.replace(/\.mdx?$/, "");
+const pageDesc = post.data.description ?? "";
+const canonicalUrl = new URL(
+  `/blog/${resolvedSlug}/`,
+  Astro.site,
+).href;
+
+const CATEGORY_LABELS: Record<string, string> = {
+  tech: "技术",
+  life: "生活",
+  opinion: "观点",
+};
+
+const formatDate = (d: Date) =>
+  d.toLocaleDateString("zh-CN", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+---
+
+<Base title={post.data.title} description={pageDesc}>
+  <!-- SEO + RSS -->
+  <meta slot="head" name="description" content={pageDesc} />
+  <meta slot="head" property="og:title" content={post.data.title} />
+  <meta slot="head" property="og:description" content={pageDesc} />
+  <meta slot="head" property="og:type" content="article" />
+  <meta slot="head" property="og:url" content={canonicalUrl} />
+  <meta slot="head" property="og:site_name" content="catstarry.xyz" />
+  <meta slot="head" name="twitter:card" content="summary" />
+  <link
+    slot="head"
+    rel="alternate"
+    type="application/rss+xml"
+    title="catstarry.xyz 博客 RSS"
+    href="/blog/rss.xml"
+  />
+
+  <article class="article-detail">
+    <!-- 元信息栏 -->
+    <header class="article-header">
+      <h1>{post.data.title}</h1>
+      <div class="post-meta">
+        <time datetime={post.data.date.toISOString().split("T")[0]}>
+          {formatDate(post.data.date)}
+        </time>
+        <a
+          class="post-category"
+          href={`/blog/?category=${post.data.category}`}
+        >
+          {CATEGORY_LABELS[post.data.category] ?? post.data.category}
+        </a>
+      </div>
+      {
+        post.data.tags.length > 0 && (
+          <div class="post-tags">
+            {post.data.tags.map((tag: string) => (
+              <a class="tag" href={`/blog/?tag=${encodeURIComponent(tag)}`}>
+                #{tag}
+              </a>
+            ))}
+          </div>
+        )
+      }
+    </header>
+
+    <!-- 正文渲染 -->
+    <div class="post-meta">`r`n    <span class="post-views" data-slug={viewSlug}>--- 次阅读</span>`r`n  </div>`r`n  <div class="post-content">
+      <Content />
+    </div>
+
+    <!-- 底部栏：分类 + 标签 → 对应列表筛选 -->
+    <footer class="article-footer">
+      <nav class="article-taxonomy" aria-label="文章分类与标签">
+        <span class="taxonomy-label">分类：</span>
+        <a
+          class="post-category"
+          href={`/blog/?category=${post.data.category}`}
+        >
+          {CATEGORY_LABELS[post.data.category] ?? post.data.category}
+        </a>
+        {
+          post.data.tags.length > 0 && (
+            <>
+              <span class="taxonomy-label">标签：</span>
+              {post.data.tags.map((tag: string) => (
+                <a class="tag" href={`/blog/?tag=${encodeURIComponent(tag)}`}>
+                  #{tag}
+                </a>
+              ))}
+            </>
+          )
+        }
+      </nav>
+
+      <a href="/blog/" class="back-link">&larr; 返回博客列表</a>
+    </footer>
+  </article>
+</Base>
