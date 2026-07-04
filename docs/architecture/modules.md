@@ -349,3 +349,79 @@ src/content/            ← 仅被 Astro build 读取
 - `src/content/config.ts`（扩展 learn collection）
 - `src/styles/global.css`（暖色系 CSS 变量）
 - `src/lib/`（前端工具函数位置不变）
+
+
+---
+
+## 8. Workers Best Practices 审查
+
+> 对照 `workers-best-practices` skill 规则审查 Phase 3 数据流设计。
+> Phase 5 开发实现时再次对照最新 docs 验证。
+
+### 8.1 已遵循的规则
+
+| 规则 | 设计中的体现 |
+|------|-------------|
+| **Bindings over REST** | Worker 通过 `env.DB`（D1 binding）和 `env.VIEW_KV`（KV binding）访问存储，不走 REST API |
+| **Secrets management** | 密码 hash 存 KV（`wrangler secret put` 初始设置），不在代码/配置中硬编码 |
+| **Web Crypto** | `crypto.randomUUID()` 生成 session token，非 `Math.random()` |
+| **No global request state** | 路由 handler 函数不依赖模块级变量，session 从 request cookie 读取 |
+| **Cron trigger 独立** | 行情拉取和 R2 清理通过 `[triggers] crons` 配置，不混入 fetch handler |
+| **shared/ adapter** | `shared/auth.ts` + `shared/cors.ts` 提取到独立 module，两个 Worker 共享 |
+
+### 8.2 需要 Phase 5 执行的规则
+
+| 规则 | 现状 | Phase 5 行动 |
+|------|------|-------------|
+| **compatibility_date 更新** | `workers/feed-api/wrangler.toml` 使用 `2025-07-04`（已过期 >1 年） | Phase 5 更新为当天日期 |
+| **nodejs_compat flag** | `compatibility_flags` 未设置 | Phase 5 在 `wrangler.toml` 添加 `compatibility_flags = ["nodejs_compat"]`，bcryptjs 和 bcrypt compare 依赖 Node.js built-ins |
+| **wrangler types** | 当前无 `Env` 类型生成 | Phase 5 运行 `wrangler types` 生成 `Env` 接口，替换手写类型 |
+| **wrangler.jsonc** | 使用 `wrangler.toml` | Phase 5 评估是否迁移到 `.jsonc`。当前 `.toml` 可保留（非新项目），但绑定格式需验证 |
+| **streaming** | 当前 API 返回的分页响应（JSON 数组）数据量可控（≤20 条） | Phase 5 确认不需要 stream。如果 Home 聚合返回大量数据，考虑 streaming |
+| **ctx.waitUntil()** | 未在设计中使用 | Phase 5 Cron handler 中日志写入应使用 `ctx.waitUntil()` |
+| **floating promises** | 设计文档未涉及运行时 Promise 管理 | Phase 5 开发时 lint 规则检查 |
+| **observability** | 未配置 | Phase 5 在 `wrangler.toml` 中添加 `observability` 配置段 |
+
+### 8.3 R2 上传链路裁决
+
+当前设计标注了 A/B 两个选项。基于 workers-best-practices 的 **bindings over REST** 原则：
+
+**推荐 A（Worker 代理上传）**。理由：
+- Worker 通过 R2 binding（`env.MEDIA_R2`）直接写对象，不走 REST API
+- 认证逻辑统一在 Worker middleware 中，不分散
+- Presigned URL（B）需要额外的 auth endpoint 生成签名，增加接口表面积
+
+**Phase 5 实现时**：
+```typescript
+// workers/feed-api/src/routes/upload.ts
+import { verifySession } from "../middleware/auth";
+
+async function handleUpload(request: Request, env: Env): Promise<Response> {
+  const session = await verifySession(request, env);
+  if (!session.authenticated) return new Response("Unauthorized", { status: 401 });
+
+  const formData = await request.formData();
+  const file = formData.get("file");
+  const key = `feed/${new Date().toISOString().slice(0, 7)}/${crypto.randomUUID()}.${ext}`;
+
+  await env.MEDIA_R2.put(key, file.stream());
+  return Response.json({ key }, { status: 201 });
+}
+```
+
+### 8.4 D1 查询注意事项
+
+| 注意事项 | 现有设计 |
+|---------|---------|
+| **游标分页** | ✅ `GET /api/feed` 使用 `(created_at, id)` 复合游标，不依赖 OFFSET |
+| **索引覆盖** | ✅ `idx_feed_posts_created` 支持游标排序，`idx_feed_posts_visibility` 支持过滤 |
+| **LIMIT 限制** | ⚠️ 当前设 LIMIT 20 合理，但 `GET /api/me/feed`（管理后台）可能查询全部帖子。Phase 5 添加默认 LIMIT，防止全表扫描 |
+| **批量查询** | ✅ `GET /api/views?slugs=slug1,slug2,...` 支持批量，减少 N+1 问题 |
+
+### 8.5 KV 使用注意事项
+
+| 注意事项 | 现有设计 |
+|---------|---------|
+| **TTL 设置** | ✅ session TTL 12h，rate-limit TTL 5min，view dedup TTL 24h |
+| **blog-metadata 大小** | ⚠️ KV value 上限 25MB。个人博客元数据远小于此，但 Phase 5 确认 JSON 大小 |
+| **最终一致性** | ⚠️ KV 写入 blog-metadata 后在 deploy hook 中执行，读取时 KV 可能还未全局同步（通常 <60s）。可接受——博客更新频率低，延迟一分钟不影响 |
