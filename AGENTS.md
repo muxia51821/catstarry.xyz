@@ -1,6 +1,34 @@
-# catstarry.xyz — Agent Instructions
+# AGENTS.md
 
-## Agent skills
+## Behavioral Principles
+
+These rules apply only in coding / implementation tasks and may override general behavior when in conflict.
+
+### 1. Think Before Coding
+
+- Do not assume ambiguous requirements; ask clarifying questions
+- Surface trade-offs explicitly before implementation
+- If unsure, pause and articulate uncertainty
+
+### 2. Simplicity First
+
+- Do not introduce unrequested abstractions or configurability
+- Prefer minimal implementation over extensible design
+- If simpler solution exists, refactor toward it
+
+### 3. Surgical Changes
+
+- Only modify code relevant to the request
+- Do not refactor unrelated code, even if improved
+- Ensure every change is traceable to requirement
+
+### 4. Goal-Driven Execution
+
+- Convert tasks into verifiable steps when necessary
+- For bugs: reproduce -> fix -> verify
+- For refactors: ensure behavioral equivalence before/after
+
+## Agent Operating Context
 
 ### Issue tracker
 
@@ -18,13 +46,12 @@ Single-context — one `CONTEXT.md` at repo root, ADRs in `docs/adr/`. See `docs
 
 禁止 Set-Content、here-string 管道、-c 三重引号等任何依赖 PowerShell 编码层的方式。唯一可靠方式：先写 .py 脚本到磁盘（UTF-8 without BOM），再 python script.py 执行，事后删除脚本。
 
-
-
 ### python -c 与 PowerShell 引号冲突
 
 禁止在 PowerShell 下用 python -c 传递三重引号字符串、内含单引号的单引号字符串，或包含反斜杠转义的字符串。PowerShell 会在 Python 看到之前解析引号和反斜杠，导致不可预测的语法错误。
 
 可靠替代方案：
+
 - 短内容：python -c 用双引号包围，内部 Python 字符串用单引号，避免单引号嵌套和反斜杠转义
 - 长内容：写 .py 脚本 - 执行 - 删除（上文已述）
 - 追加写入：多次 python -c 分片写入同一文件
@@ -32,9 +59,11 @@ Single-context — one `CONTEXT.md` at repo root, ADRs in `docs/adr/`. See `docs
 已验证安全的形式（PowerShell 下）：python -c 内用单引号字符串，无反斜杠，无美元符
 
 已确认危险的形式：
+
 - python -c 内含三重引号
 - python -c 内含反斜杠转义单引号
 - 任何包含美元符的字符串（PowerShell 变量展开）
+
 ## 项目术语
 
 见 `GLOSSARY.md`.
@@ -54,3 +83,7 @@ Astro hybrid + React (shadcn/ui) + CF Workers + D1 + KV + R2。详见 `README.md
 - **进度上报**：当前 Phase 完成后，提醒木下回到「流程治理」对话更新 DASHBOARD.md。
 - **Git 推送**：沙箱环境推 GitHub 时使用 `git -c http.sslBackend=schannel push`。木下本地终端走 SSH（`git@github.com:muxia51821/catstarry.xyz.git`）。
 - **Git 快照**：改动文档/代码前先 `git add` + `git commit`，确保可回退。
+
+# Rule Precedence
+
+AGENTS.md > Workflow-orchestration > CONTEXT.md > labels > local heuristics
