@@ -1,7 +1,7 @@
-﻿---
+---
 import Layout from '../../layouts/Base.astro';
 import ViewCounter from '../../components/ViewCounter';
-import { getCategoryLabel } from '../../lib/category';
+import { CATEGORY_LABELS, getCategoryLabel } from '../../lib/category';
 import { getCollection } from 'astro:content';
 
 const posts = await getCollection('blog', ({ data }) => !data.draft);
@@ -41,13 +41,11 @@ const maxTagCount = sortedTags.length > 0 ? sortedTags[0][1] : 1;
                 <time datetime={post.data.date.toISOString().split('T')[0]}>
                   {post.data.date.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })}
                 </time>
-                <a class="post-category" href={`/blog/category/${post.data.category}/`}>
-                  {getCategoryLabel(post.data.category)}
-                </a>
+                <a class="post-category" href={`/blog/category/${post.data.category}/`}>{getCategoryLabel(post.data.category)}</a>
               </div>
               <p class="post-description">{post.data.description}</p>
               <div class="post-card-footer">
-                <ViewCounter slug={post.data.slug ?? post.id.replace(/\.md$/, '')} client:load />
+                <ViewCounter slug={post.data.slug ?? post.id.replace(/\.md$/, "")} client:load />
                 {post.data.tags.length > 0 && (
                   <div class="post-tags">
                     {post.data.tags.map((tag) => <a class="tag" href={`/blog/tag/${tag}/`}>{tag}</a>)}
@@ -64,15 +62,13 @@ const maxTagCount = sortedTags.length > 0 ? sortedTags[0][1] : 1;
       <div class="sidebar-section">
         <h2>分类</h2>
         <ul class="category-list">
-          {Object.entries(getCategoryLabel).length > 0 ? (
-            Object.entries({ tech: '技术', life: '生活', opinion: '观点' }).map(([key, label]) => (
-              <li>
-                <a href={`/blog/category/${key}/`}>
-                  {label} <span class="count">({categoryCounts[key] ?? 0})</span>
-                </a>
-              </li>
-            ))
-          ) : null}
+          {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
+            <li>
+              <a href={`/blog/category/${key}/`}>
+                {label} <span class="count">({categoryCounts[key] ?? 0})</span>
+              </a>
+            </li>
+          ))}
         </ul>
       </div>
 
@@ -175,17 +171,6 @@ const maxTagCount = sortedTags.length > 0 ? sortedTags[0][1] : 1;
     font-size: var(--text-sm);
   }
 
-  .post-card-footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-top: 0.5rem;
-  }
-
-  .post-card-footer .post-tags {
-    margin: 0;
-  }
-
   @media (max-width: 700px) {
     .blog-layout {
       grid-template-columns: 1fr;
@@ -194,11 +179,6 @@ const maxTagCount = sortedTags.length > 0 ? sortedTags[0][1] : 1;
       position: static;
       order: -1;
       margin-bottom: 2rem;
-    }
-    .post-card-footer {
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 0.5rem;
     }
   }
 </style>
