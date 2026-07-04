@@ -14,15 +14,17 @@ Five canonical labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-f
 
 Single-context — one `CONTEXT.md` at repo root, ADRs in `docs/adr/`. See `docs/agents/domain.md`.
 
----
+## 文件写入
+
+所有包含中文的 .md 文件通过 Python `pathlib.write_text(content, encoding='utf-8')` 写入，禁止使用 PowerShell `Set-Content`（中文 Windows GBK 编码导致乱码）。**PowerShell here-string 管道到 Python 同样会经过 GBK 编码，不可用。唯一可靠方式：先写 .py 脚本文件到磁盘，再 `python script.py` 执行。**
 
 ## 项目术语
 
-见 `GLOSSARY.md`。
+见 `GLOSSARY.md`.
 
 ## 技术栈
 
-Astro hybrid + React (shadcn/ui) + CF Workers + D1 + KV + R2。详见 `README.md` 和 `docs/tech-decisions-20260703.md`。
+Astro hybrid + React (shadcn/ui) + CF Workers + D1 + KV + R2。详见 `README.md` 和 `docs/tech-decisions-20260703.md`.
 
 ## 约束
 
@@ -35,5 +37,4 @@ Astro hybrid + React (shadcn/ui) + CF Workers + D1 + KV + R2。详见 `README.md
 - **进度上报**：当前 Phase 完成后，提醒木下回到「流程治理」对话更新 DASHBOARD.md。
 - **Git 推送**：沙箱环境推 GitHub 时使用 `git -c http.sslBackend=schannel push`。木下本地终端走 SSH（`git@github.com:muxia51821/catstarry.xyz.git`）。
 - **Git 快照**：改动文档/代码前先 `git add` + `git commit`，确保可回退。
-- **文件写入**：所有包含中文的 .md 文件通过 Python `pathlib.write_text(content, encoding='utf-8')` 写入，禁止使用 PowerShell `Set-Content`（中文 Windows GBK 编码导致乱码）。
 - **Python -c 调用**：不在 `-c` 内使用三重引号（PowerShell 误解析）；换行用 `chr(10)` 替代 `\n`；单个 `-c` 不超过 3 行；长脚本先写 .py 文件再执行。
