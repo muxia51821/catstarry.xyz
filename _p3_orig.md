@@ -9,10 +9,10 @@
 
 **「流程治理」对话**是项目的中枢。它不执行任何 Phase，只负责：
 
-- 维护 `DASHBOARD.md`（进度）、`workflow-orchestration.md`（本文件）、`CONTEXT.md`（性质标签 + 状态）、`AGENTS.md`（约束 + Rule Precedence）
+- 维护 `DASHBOARD.md`（进度）、`workflow-orchestration.md`（本文件）、`CONTEXT.md`（性质标签 + 状态）、`AGENTS.md`（约束）
 - 审查流程是否合理
 - 协调各 Phase 之间的衔接
-- Rule Precedence 见 `AGENTS.md`：AGENTS.md > workflow-orchestration > CONTEXT.md > triage labels > local heuristics
+- Rule Precedence 见 AGENTS.md：AGENTS.md > workflow-orchestration > CONTEXT.md > triage labels > local heuristics
 
 **触发机制**（手动，非自动）：
 
@@ -114,15 +114,15 @@ Phase 7: 部署上线 ──→ Phase 8: 运营维护 ──→ (循环回 Phase
 
 **输入**：PRD + `docs/tech-decisions-20260703.md`。
 
-**产出物**：`docs/architecture.md`（总览）、`docs/architecture/data-model.md`（D1 schema + API 类型）、`docs/architecture/auth.md`（鉴权）、`docs/architecture/modules.md`（目录结构 + Workers 路由）、`docs/adr/*.md`。
+**产出物**：`docs/architecture.md`、`docs/adr/*.md`。
 
 | # | 动作 | skill |
 |---|------|-------|
-| 3.1 | 领域建模（术语表 → D1 schema、API 数据结构） → `architecture/data-model.md` | `domain-modeling` |
-| 3.2 | 代码库架构（目录结构、模块边界、依赖） → `architecture.md` + `architecture/modules.md` | `codebase-design` |
-| 3.3 | 数据流设计（Workers 路由、D1/KV/R2 读写、Cron） → `architecture/modules.md` | `cloudflare` + `workers-best-practices` |
-| 3.4 | 鉴权方案（/feed + f.catstarry.xyz 的具体实现） → `architecture/auth.md` | `cloudflare-one` |
-| 3.5 | 架构决策记录（每个重大决策一条：为什么选 A 不选 B） → `docs/adr/*.md` | — |
+| 3.1 | 领域建模（术语表 → D1 schema、API 数据结构） | `domain-modeling` |
+| 3.2 | 代码库架构（目录结构、模块边界、依赖） | `codebase-design` |
+| 3.3 | 数据流设计（Workers 路由、D1/KV/R2 读写、Cron） | `cloudflare` + `workers-best-practices` |
+| 3.4 | 鉴权方案（/feed + f.catstarry.xyz 的具体实现） | `cloudflare-one` |
+| 3.5 | 架构决策记录 → `docs/adr/` | — |
 
 ---
 
@@ -253,7 +253,6 @@ docs/
 ├── SITEMAP.md
 ├── tech-decisions-20260703.md
 ├── architecture.md              (Phase 3)
-├── architecture/                (Phase 3: data-model / auth / modules)
 ├── adr/                         (Phase 3: 001-d1-schema.md ...)
 ├── final-requirements-*.json    (Phase 1)
 ├── acceptance-*.md              (Phase 2)
