@@ -1,3 +1,7 @@
+**Category**: enhancement
+**Triage**: ready-for-agent
+**Triage Date**: 2026-07-04
+
 # Slice 8：博客列表分页
 
 > **状态**：`ready-for-agent`

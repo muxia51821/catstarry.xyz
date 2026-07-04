@@ -1,3 +1,7 @@
+**Category**: enhancement
+**Triage**: ready-for-agent
+**Triage Date**: 2026-07-04
+
 # Slice F07：内容管理后台 — 隐藏/删除 + 批量操作 + 筛选
 
 > **状态**：`ready-for-agent`

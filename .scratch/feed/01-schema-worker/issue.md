@@ -1,3 +1,7 @@
+**Category**: enhancement
+**Triage**: ready-for-agent
+**Triage Date**: 2026-07-04
+
 # Slice F01：Feed Worker 基础 — D1 Schema + API 路由骨架
 
 > **状态**：`ready-for-agent`

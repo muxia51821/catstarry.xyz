@@ -1,3 +1,7 @@
+**Category**: enhancement
+**Triage**: ready-for-agent
+**Triage Date**: 2026-07-04
+
 # Slice F03：时间线页面 — 卡片展示 + 无限滚动 + 媒体交互
 
 > **状态**：`ready-for-agent`

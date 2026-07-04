@@ -1,6 +1,10 @@
+**Category**: enhancement
+**Triage**: completed
+**Triage Date**: 2026-07-04
+
 # Slice 6：文章底部栏 — Giscus 评论 + 分享按钮
 
-> **状态**：`ready-for-agent`
+> **状态**：`completed`
 > **创建日期**：2026-07-03
 > **来源 PRD**：`.scratch/blog/issue.md`
 > **覆盖 User Stories**：US6（Giscus 评论）、US8（分享按钮）
@@ -60,4 +64,4 @@
 
 ---
 
-> **Triage**: `ready-for-agent`
+> **Triage**: `completed`

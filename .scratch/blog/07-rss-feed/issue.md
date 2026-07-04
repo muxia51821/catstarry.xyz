@@ -1,6 +1,10 @@
+**Category**: enhancement
+**Triage**: completed
+**Triage Date**: 2026-07-04
+
 # Slice 7：RSS Feed
 
-> **状态**：`ready-for-agent`
+> **状态**：`completed`
 > **创建日期**：2026-07-03
 > **来源 PRD**：`.scratch/blog/issue.md`
 > **覆盖 User Stories**：US7（RSS 订阅）
@@ -46,4 +50,4 @@
 
 ---
 
-> **Triage**: `ready-for-agent`
+> **Triage**: `completed`

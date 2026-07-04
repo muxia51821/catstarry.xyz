@@ -1,3 +1,7 @@
+**Category**: enhancement
+**Triage**: ready-for-agent
+**Triage Date**: 2026-07-04
+
 # /feed 板块 — Product Requirement Document
 
 > **状态**：

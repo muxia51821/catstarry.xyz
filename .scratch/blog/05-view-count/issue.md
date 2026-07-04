@@ -1,6 +1,10 @@
+**Category**: enhancement
+**Triage**: completed
+**Triage Date**: 2026-07-04
+
 # Slice 5：阅读量统计 — API + 前端
 
-> **状态**：`ready-for-agent`
+> **状态**：`completed`
 > **创建日期**：2026-07-03
 > **来源 PRD**：`.scratch/blog/issue.md`
 > **覆盖 User Stories**：US5（文章阅读量显示）、US10（木下查看阅读量统计）
@@ -53,4 +57,4 @@
 
 ---
 
-> **Triage**: `ready-for-agent`
+> **Triage**: `completed`

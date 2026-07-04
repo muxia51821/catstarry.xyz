@@ -1,6 +1,10 @@
+**Category**: enhancement
+**Triage**: completed
+**Triage Date**: 2026-07-04
+
 # Slice 3：文章详情页
 
-> **状态**：`ready-for-agent`
+> **状态**：`completed`
 > **创建日期**：2026-07-03
 > **来源 PRD**：`.scratch/blog/issue.md`
 > **覆盖 User Stories**：US4 部分（slug 路由 + 正文渲染）、US9 完整（代码高亮/图片/表格）、US14（URL 简洁可读）
@@ -50,4 +54,4 @@
 
 ---
 
-> **Triage**: `ready-for-agent`
+> **Triage**: `completed`

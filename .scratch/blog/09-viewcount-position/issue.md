@@ -1,3 +1,7 @@
+**Category**: enhancement
+**Triage**: ready-for-agent
+**Triage Date**: 2026-07-04
+
 # Slice 9：阅读量显示位置 — 从详情页底部移至标题下方 meta 区
 
 > **状态**：`ready-for-agent`

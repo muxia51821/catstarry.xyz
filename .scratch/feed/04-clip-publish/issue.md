@@ -1,3 +1,7 @@
+**Category**: enhancement
+**Triage**: ready-for-agent
+**Triage Date**: 2026-07-04
+
 # Slice F04：剪藏发布 — URL 粘贴 + Open Graph 抓取 + 用户评论
 
 > **状态**：`ready-for-agent`

@@ -1,3 +1,7 @@
+**Category**: enhancement
+**Triage**: ready-for-agent
+**Triage Date**: 2026-07-04
+
 # Slice F06：认证登录 — 用户名+密码 + Session 管理
 
 > **状态**：`ready-for-agent`

@@ -1,3 +1,7 @@
+**Category**: enhancement
+**Triage**: ready-for-agent
+**Triage Date**: 2026-07-04
+
 # Slice F05：媒体上传完善 — HEIC 兼容 + R2 配置 + 上传重试 + 临时文件清理
 
 > **状态**：`ready-for-agent`

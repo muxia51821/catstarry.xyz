@@ -1,3 +1,7 @@
+**Category**: enhancement
+**Triage**: ready-for-agent
+**Triage Date**: 2026-07-04
+
 # Slice 10：代码质量修复 — CORS 统一 + Category 类型安全
 
 > **状态**：`ready-for-agent`

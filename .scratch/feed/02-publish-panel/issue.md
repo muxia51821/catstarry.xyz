@@ -1,3 +1,7 @@
+**Category**: enhancement
+**Triage**: ready-for-agent
+**Triage Date**: 2026-07-04
+
 # Slice F02：发布面板 — 文字输入 + 媒体选择 + 发布流程
 
 > **状态**：`ready-for-agent`

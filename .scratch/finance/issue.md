@@ -1,3 +1,7 @@
+**Category**: enhancement
+**Triage**: ready-for-agent
+**Triage Date**: 2026-07-04
+
 # f.catstarry.xyz - Product Requirement Document
 
 > **Status**: ready-for-agent
