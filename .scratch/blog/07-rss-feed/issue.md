@@ -1,4 +1,4 @@
-﻿# Slice 7：RSS Feed
+# Slice 7：RSS Feed
 
 > **状态**：`ready-for-agent`
 > **创建日期**：2026-07-03

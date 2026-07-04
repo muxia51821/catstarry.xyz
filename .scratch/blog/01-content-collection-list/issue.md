@@ -1,4 +1,4 @@
-﻿# Slice 1：博客骨架 — Content Collection + 列表页
+# Slice 1：博客骨架 — Content Collection + 列表页
 
 > **状态**：`ready-for-agent`
 > **创建日期**：2026-07-03

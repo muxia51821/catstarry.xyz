@@ -1,4 +1,4 @@
-﻿# /feed 板块 — Product Requirement Document
+# /feed 板块 — Product Requirement Document
 
 > **状态**：
 eady-for-agent
@@ -52,9 +52,9 @@ feed_posts 表：
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | id | TEXT PK | UUID |
-| type | TEXT | "thought"（碎碎念）或 "clip"（剪藏） |
-| content_text | TEXT | 文字内容 |
-| media_refs | TEXT (JSON) | R2 对象 key 数组，如 ["feed/2024/abc123.jpg"] |
+| type | TEXT | "note"（碎碎念）或 "clip"（剪藏） |
+| content | TEXT | 文字内容 |
+| media_json | TEXT (JSON) | R2 对象 key 数组，如 ["feed/2024/abc123.jpg"] |
 | link_url | TEXT | 剪藏目标 URL |
 | link_title | TEXT | 剪藏标题（自动抓取或手动输入） |
 | link_summary | TEXT | 剪藏摘要 |
@@ -111,14 +111,15 @@ feed_posts 表：
 - 帖子列表，按 status/type/date 筛选。
 - 操作：隐藏（标记 hidden）、删除（标记 deleted）。
 - 批量操作：多选 → 统一隐藏/删除。
-- 搜索：按 content_text 模糊匹配。
+- 搜索：按 content 模糊匹配。
 - 归档浏览：按月份折叠。
 
 ### 草稿暂存
 
-- 发布面板的文字内容自动保存到 localStorage。
-- 12 小时后自动清除。
+- 发布面板的文字内容自动暂存，避免切出页面后丢失输入。
+- 暂存有效期 12 小时，过期自动清除。
 - 每次打开面板时恢复上次暂存内容。
+- 具体存储方案（localStorage / KV / D1 等）由 Phase 3 架构设计决定。
 
 ### 设计基调
 

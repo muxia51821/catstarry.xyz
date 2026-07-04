@@ -1,0 +1,33 @@
+**Category**: enhancement
+**Triage**: ready-for-agent
+**Triage Date**: 2026-07-04
+
+# H03: Home Timeline - Five-Source Mix + 15/Page + Infinite Scroll
+
+## Parent
+
+docs/final-requirements-homepage.json - Goal G002
+
+## What to build
+
+The main Home timeline below the about card:
+- Mixed timeline of 5 content types: blog, feed notes, feed clips, projects, learn
+- Sorted by date descending
+- 15 items per page
+- Auto-load next page when scrolling to bottom (infinite scroll)
+- No type filter for visitors (filter available only when logged in - see H05)
+- Draft/hidden content excluded
+
+## Acceptance criteria
+
+- [ ] Timeline shows up to 15 mixed content items initially
+- [ ] Scroll to bottom -> auto-load next 15 items
+- [ ] Items sorted by relevant date field, interleaved across all 5 sources
+- [ ] Draft posts, hidden feed items, draft learn notes excluded
+- [ ] Each item links to its source page
+- [ ] Empty state handled gracefully
+
+## Blocked by
+
+- H01: needs Home route and data aggregation
+- H04: needs card design components for rendering each content type

@@ -1,4 +1,4 @@
-﻿# Slice 3：文章详情页
+# Slice 3：文章详情页
 
 > **状态**：`ready-for-agent`
 > **创建日期**：2026-07-03
@@ -18,7 +18,7 @@
 - [ ] Markdown 正文渲染：代码块有语法高亮（如 Shiki）、图片正常显示、表格样式美观
 - [ ] draft: true 的文章访问 `/blog/<draft-slug>/` 返回 404 或不生成页面
 - [ ] 页面 `<head>` 包含完整 SEO meta：`<title>`、`<meta name="description">`、Open Graph（`og:title`、`og:description`、`og:type`、`og:url`、`og:image` 如有封面图）
-- [ ] 使用 Slice 2 的排版基线：正文 ~680px 阅读宽度、≥ 18px 字号
+- [ ] 使用 Slice 2 的排版基线：中文优先、大字号、宽松行高、阅读宽度有限制
 - [ ] URL 格式为 `/blog/<slug>/`，简洁可读
 
 ## 技术要点

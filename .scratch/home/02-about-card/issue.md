@@ -1,0 +1,29 @@
+**Category**: enhancement
+**Triage**: ready-for-agent
+**Triage Date**: 2026-07-04
+
+# H02: About Card - 3D Particle Portrait + Expandable Intro
+
+## Parent
+
+docs/final-requirements-homepage.json - Goal G001
+
+## What to build
+
+The first item on Home page: an about card positioned at the top of the timeline.
+- Default state: AI-generated 3D particle portrait + one-line intro text
+- Click -> expands in-place (not modal) revealing full self-introduction + animation
+- Click again or click outside -> collapses back to default
+- This is the visitor first impression - answers "who is this?"
+
+## Acceptance criteria
+
+- [ ] About card renders as first item on Home (above timeline)
+- [ ] Default: 3D particle image + one-line intro
+- [ ] Click expands in-place with full intro text + animation
+- [ ] Click again / click outside collapses
+- [ ] Smooth expand/collapse animation
+
+## Blocked by
+
+- H01: needs Home route to exist

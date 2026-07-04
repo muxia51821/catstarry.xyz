@@ -1,4 +1,4 @@
-﻿# Slice F01：Feed Worker 基础 — D1 Schema + API 路由骨架
+# Slice F01：Feed Worker 基础 — D1 Schema + API 路由骨架
 
 > **状态**：`ready-for-agent`
 > **创建日期**：2026-07-04

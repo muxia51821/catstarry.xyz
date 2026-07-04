@@ -1,0 +1,32 @@
+**Category**: enhancement
+**Triage**: ready-for-agent
+**Triage Date**: 2026-07-04
+
+# L09: Learn Notes in Home Timeline Mix
+
+## Parent
+
+docs/final-requirements-learn.json - Goals G001, G002
+docs/final-requirements-homepage.json - Goal G002
+
+## What to build
+
+Integrate published learn notes into the Home timeline (see H03):
+- Each learn note appears as a card in the mixed timeline
+- Card shows: title, publish date, excerpt (1-2 lines), colored corner badge
+- Sorted by lastModified (updated notes resurface at top)
+- Click navigates to /learn/[slug]
+- Corner badge color distinct from other content types
+
+## Acceptance criteria
+
+- [ ] Published learn notes appear in Home timeline
+- [ ] Card displays: title, date, excerpt, corner badge
+- [ ] Sorted by lastModified; updated notes resurface
+- [ ] Click navigates to /learn/[slug]
+- [ ] Corner badge color differs from blog/feed/project badges
+
+## Blocked by
+
+- L01+L05: needs learn schema and pages to exist
+- H03: needs the Home timeline component to exist

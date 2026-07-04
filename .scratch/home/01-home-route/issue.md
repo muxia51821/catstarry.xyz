@@ -1,0 +1,32 @@
+**Category**: enhancement
+**Triage**: ready-for-agent
+**Triage Date**: 2026-07-04
+
+# H01: Home Route + Sci-Fi Navbar + SSR Data Aggregation
+
+## Parent
+
+docs/final-requirements-homepage.json - infrastructure
+
+## What to build
+
+Create the root / Home route (SSR) with:
+- Sci-fi inspired navigation bar - simpler than sub-page navbars, distinct design
+- SSR data aggregation layer: fetches latest content from 5 sources
+  (blog, feed notes, feed clips, projects, learn)
+- Each data source returns: title, date, excerpt, type, URL, thumbnail
+- Sorted by date descending, interleaved
+- Consider KV cache with short TTL for performance
+
+## Acceptance criteria
+
+- [ ] / route renders as SSR (dynamic, reflects latest content)
+- [ ] Navbar design visually distinct from /blog and /feed navbars
+- [ ] Data aggregated from all 5 content sources
+- [ ] Results sorted by date, newest first
+- [ ] Performance: first paint under 2s
+
+## Blocked by
+
+None - can start immediately. Requires stubs or mock data until individual content
+source APIs are built.

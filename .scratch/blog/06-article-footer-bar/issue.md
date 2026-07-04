@@ -1,4 +1,4 @@
-﻿# Slice 6：文章底部栏 — Giscus 评论 + 分享按钮
+# Slice 6：文章底部栏 — Giscus 评论 + 分享按钮
 
 > **状态**：`ready-for-agent`
 > **创建日期**：2026-07-03

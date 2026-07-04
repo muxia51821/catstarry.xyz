@@ -1,4 +1,4 @@
-﻿# Slice F06：认证登录 — 用户名+密码 + Session 管理
+# Slice F06：认证登录 — 用户名+密码 + Session 管理
 
 > **状态**：`ready-for-agent`
 > **创建日期**：2026-07-04

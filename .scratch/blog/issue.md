@@ -1,4 +1,4 @@
-﻿# /blog 板块 — Product Requirement Document
+# /blog 板块 — Product Requirement Document
 
 > **状态**：`ready-for-agent`
 > **创建日期**：2026-07-03
@@ -40,7 +40,7 @@
 - **渲染模式**：SSG（纯静态生成）。/blog 板块的全部页面在 `astro build` 时生成静态 HTML，无运行时依赖。与「决策 3」一致。
 - **内容源**：`content/blog/` 目录下的 Markdown 文件，每篇一个 `.md` 文件。使用 Astro Content Collections 管理。
 - **路由**：`/blog/` 为文章列表首页，`/blog/[slug]/` 为文章详情页。slug 从文件名或 frontmatter 的 `slug` 字段派生。
-- **构建触发**：Git push → GitHub Actions → `astro build` + wrangler deploy → Cloudflare Pages。
+- **构建触发**：Git push → main 分支 → Cloudflare Pages 自动构建部署（`astro build`，输出目录 `dist/`）。
 
 ### /blog 页面结构
 

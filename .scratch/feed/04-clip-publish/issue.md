@@ -1,4 +1,4 @@
-﻿# Slice F04：剪藏发布 — URL 粘贴 + Open Graph 抓取 + 用户评论
+# Slice F04：剪藏发布 — URL 粘贴 + Open Graph 抓取 + 用户评论
 
 > **状态**：`ready-for-agent`
 > **创建日期**：2026-07-04
