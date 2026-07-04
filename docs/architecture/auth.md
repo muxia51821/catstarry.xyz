@@ -222,3 +222,40 @@ wrangler kv:key put --binding=FINANCE_AUTH_KV "user:cati" '{"password_hash":"...
 ```
 
 密码哈希使用 `bcryptjs` 预生成（或通过一次性 setup 端点）。
+
+
+---
+
+## 7. Cloudflare One 审查（适用部分）
+
+> cloudflare-one skill 面向企业 Zero Trust 场景。catstarry.xyz 是个人网站，不适用 Access/Tunnel/WARP。
+> 以下仅提取 cloudflare-one 中适用于个人站的安全通用原则进行审查。
+
+### 7.1 适用原则对照
+
+| 原则 | 审查结果 |
+|------|---------|
+| **最小权限** | ✅ 木下 admin（r/w），cati viewer（r/o），访客无权限。角色定义清晰 |
+| **Session 管理** | ✅ 12h 有效期 + KV TTL 自动过期 + 手动登出 |
+| **密码存储** | ✅ bcrypt cost=10，不存明文 |
+| **登录限流** | ✅ IP 级别 rate-limit（5min/10次） |
+| **Cookie 安全** | ✅ HttpOnly + Secure + SameSite=Lax |
+| **MFA** | N/A — 个人网站，木下决定不需要 |
+
+### 7.2 不需要的 cloudflare-one 产品
+
+以下产品对 catstarry.xyz 的鉴权不适用，明确排除：
+
+| 产品 | 排除理由 |
+|------|---------|
+| Cloudflare Access | 企业 ZTNA，需要 IdP（Google Workspace/Azure AD），个人站无 IdP |
+| Cloudflare Tunnel | 网站托管在 CF Pages/Workers，不在私有网络 |
+| WARP / Device Posture | 不要求设备认证 |
+| DLP / CASB | 无企业数据合规需求 |
+
+### 7.3 简化评估
+
+当前自建密码认证 + session + bcrypt 方案对于个人网站是正确的选择。不需要引入 Cloudflare Access 或外部 IdP。复杂度匹配场景——木下和 cati 两个用户，密码认证即可。
+
+一个可以考虑的改进（Phase 5 可选）：
+- **Cloudflare Access with one-time PIN**：如果未来想免去密码输入，可用 Cloudflare Access 的 email OTP 方案。但当前需求不需要——两个用户、低频登录、密码改一次用一年。
