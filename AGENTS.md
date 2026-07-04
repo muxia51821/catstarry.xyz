@@ -18,6 +18,23 @@ Single-context — one `CONTEXT.md` at repo root, ADRs in `docs/adr/`. See `docs
 
 禁止 Set-Content、here-string 管道、-c 三重引号等任何依赖 PowerShell 编码层的方式。唯一可靠方式：先写 .py 脚本到磁盘（UTF-8 without BOM），再 python script.py 执行，事后删除脚本。
 
+
+
+### python -c 与 PowerShell 引号冲突
+
+禁止在 PowerShell 下用 python -c 传递三重引号字符串、内含单引号的单引号字符串，或包含反斜杠转义的字符串。PowerShell 会在 Python 看到之前解析引号和反斜杠，导致不可预测的语法错误。
+
+可靠替代方案：
+- 短内容：python -c 用双引号包围，内部 Python 字符串用单引号，避免单引号嵌套和反斜杠转义
+- 长内容：写 .py 脚本 - 执行 - 删除（上文已述）
+- 追加写入：多次 python -c 分片写入同一文件
+
+已验证安全的形式（PowerShell 下）：python -c 内用单引号字符串，无反斜杠，无美元符
+
+已确认危险的形式：
+- python -c 内含三重引号
+- python -c 内含反斜杠转义单引号
+- 任何包含美元符的字符串（PowerShell 变量展开）
 ## 项目术语
 
 见 `GLOSSARY.md`.
