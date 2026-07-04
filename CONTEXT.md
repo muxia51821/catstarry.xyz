@@ -116,7 +116,7 @@ catstarry.xyz/
 
 ## 开发状态 [快照 | Phase 4 启动前更新]
 
-> Phase 3 已完成（2026-07-05）。架构设计产出 9 份文档。
+> Phase 3 已完成（2026-07-05）。架构设计产出 10 份文档：4 份架构 + 4 份 ADR + 总览 + SITEMAP。Phase 4 就绪。
 
 - /blog：🟡 原型已上线，Phase 5 重做
 - /、/feed、/learn、/projects、f.catstarry.xyz：✅ 需求已锁定 + 架构已锁定，🔴 未开发
