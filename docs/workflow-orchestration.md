@@ -91,20 +91,22 @@ Phase 7: 部署上线 ──→ Phase 8: 运营维护 ──→ (循环回 Phase
 
 ## Phase 2：规格化（需求 → 可执行的卡片）
 
-**目标**：将需求文档拆分为结构化 issue，分类评估优先级。
+**目标**：将需求文档拆分为结构化 issue，分类评估优先级。产出两份：给 AI 的开发 issue + 给木下的验收清单。
 
 **输入**：Phase 1 产出的结构化 JSON。
 
-**产出物**：`.scratch/` 下多个 `issue.md` + triage 标签。
+**产出物**：
+- `.scratch/` 下多个 `issue.md` + triage 标签（给 AI，英文/技术语言，可包含 D1/KV/CORS/schema 等技术细节）
+- `docs/acceptance-*.md`（给木下，纯中文业务语言，不含技术细节，按模块列出"这个功能做到了/没做到"）
 
-| # | 动作 | skill |
-|---|------|-------|
-| 2.1 | 全量需求 → issue | `to-issues` |
-| 2.2 | issue 分类评估 + 打标签 | `triage` |
-| 2.3 | 复杂 issue → PRD（含验收标准） | `to-prd` |
+| # | 动作 | skill | 产出 |
+|---|------|-------|------|
+| 2.1 | 全量需求 → issue | `to-issues` | `.scratch/*/issue.md`（技术细节） |
+| 2.2 | issue 分类评估 + 打标签 | `triage` | 给每个 issue 打 `needs-triage` / `ready-for-agent` 等 |
+| 2.3 | 复杂 issue → PRD（含验收标准） | `to-prd` | 每个模块一份 PRD（给 AI） |
+| 2.4 | 生成验收清单 | — | `docs/acceptance-*.md`（给木下，纯业务语言） |
 
----
-
+**结束条件**：全部模块有开发 issue + triage 标签 + PRD + 验收清单，木下确认验收清单可操作。
 ## Phase 3：架构设计
 
 **目标**：基于 PRD 确定技术架构细节。
