@@ -115,9 +115,9 @@ catstarry.xyz/
 
 ---
 
-## 开发状态 [快照 | 每次 Phase 完成后更新]
+## 开发状态  [快照 | 每次 Phase 完成后更新]
 
-> Phase 1 已完成（2026-07-04）。需求分析产出 docs/final-requirements-\*.json 五份。Phase 2（规格化）已完成。
+> Phase 2 已完成（2026-07-04）。47 个开发 issue + 6 份验收清单已就位。Phase 3（架构设计）待启动。
 
 - /blog：🟡 原型已上线，Phase 5 重做
 - /、/feed、/learn、/projects、.catstarry.xyz：✅ 需求已锁定，🔴 未实现
