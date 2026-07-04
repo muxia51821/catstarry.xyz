@@ -1,8 +1,8 @@
-**Category**: enhancement
+﻿**Category**: enhancement
 **Triage**: ready-for-agent
 **Triage Date**: 2026-07-04
 
-# H03: Home Timeline - Five-Source Mix + 15/Page + Infinite Scroll
+# H03: Home Timeline - Five-Source Mix + 15/Page + Pagination
 
 ## Parent
 
@@ -14,14 +14,14 @@ The main Home timeline below the about card:
 - Mixed timeline of 5 content types: blog, feed notes, feed clips, projects, learn
 - Sorted by date descending
 - 15 items per page
-- Auto-load next page when scrolling to bottom (infinite scroll)
+- Auto-load next page when scrolling to bottom (翻页导航)
 - No type filter for visitors (filter available only when logged in - see H05)
 - Draft/hidden content excluded
 
 ## Acceptance criteria
 
 - [ ] Timeline shows up to 15 mixed content items initially
-- [ ] Scroll to bottom -> auto-load next 15 items
+- [ ] 点击翻页导航切换页面，每页 15 条
 - [ ] Items sorted by relevant date field, interleaved across all 5 sources
 - [ ] Draft posts, hidden feed items, draft learn notes excluded
 - [ ] Each item links to its source page

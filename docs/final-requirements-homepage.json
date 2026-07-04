@@ -8,7 +8,7 @@
     "confidence_overall": "high"
   },
   "original_idea": {
-    "raw_input": "在catstarry.xyz根路径建造聚合首页，像一条流动的河，混合展示木下的数字生活——博客、碎碎念、剪藏、项目、学习笔记。B型首页，不极简，有温度。",
+    "raw_input": "在catstarry.xyz根路径建造聚合首页，像一条流动的河，混合展示猫星云 — 木下的数字生活——博客、碎碎念、剪藏、项目、学习笔记。B型首页，不极简，有温度。",
     "domain": "个人网站聚合首页"
   },
   "clarified_goals": [
@@ -21,7 +21,7 @@
     },
     {
       "goal_id": "G002",
-      "description": "首页按时间倒序混排五个来源的内容（blog、feed碎碎念、feed剪藏、projects、learn），单页15条，超过自动加载下一页（无限滚动）。不提供访客筛选按钮",
+      "description": "首页按时间倒序混排五个来源的内容（blog、feed碎碎念、feed剪藏、projects、learn），单页15条，超过自动加载下一页（翻页导航（上一页/页码/下一页））。不提供访客筛选按钮",
       "measurable_criteria": "访问/→about卡片之后→15条混排内容→按时间倒序→滚动到底自动加载下一页",
       "priority": 1,
       "confidence": "high"

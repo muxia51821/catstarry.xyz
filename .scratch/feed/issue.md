@@ -1,4 +1,4 @@
-**Category**: enhancement
+﻿**Category**: enhancement
 **Triage**: ready-for-agent
 **Triage Date**: 2026-07-04
 
@@ -106,7 +106,7 @@ feed_posts 表：
 - 用户名密码登录，与发布共用同一套。
 - Session 有效期 12 小时。
 - 存储在 KV。
-- /feed/login 登录页。
+- /login 登录页。
 - 认证失败返回 401 + 错误提示。
 
 ### 管理后台

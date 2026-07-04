@@ -1,4 +1,4 @@
-**Category**: enhancement
+﻿**Category**: enhancement
 **Triage**: ready-for-agent
 **Triage Date**: 2026-07-04
 
@@ -20,7 +20,7 @@ Create an independent Astro project deployed at f.catstarry.xyz:
 ## Acceptance criteria
 
 - [ ] f.catstarry.xyz resolves to a CF Pages deployment
-- [ ] Password login page with two credential sets
+- [ ] /login 页面，两套凭证（木下读写 + cati 只读）
 - [ ] Admin login -> full read-write access
 - [ ] cati login -> read-only access
 - [ ] Session persists across page navigation
