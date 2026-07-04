@@ -1,4 +1,4 @@
-﻿# 项目术语表 (GLOSSARY)
+# 项目术语表 (GLOSSARY)
 
 > catstarry.xyz 项目中的关键领域术语。在讨论、开发、AI 对话中保持一致用词。
 
@@ -18,7 +18,7 @@
 
 | 术语 | 含义 |
 |------|------|
-| **聚合首页 (`/`)** | 主站首页，混排时间线展示 /blog、/feed、/projects 最新内容，含 about 卡片 |
+| **Home (`/`)** | 主站首页，混排时间线展示 /blog、/feed、/projects 最新内容，含 about 卡片 |
 | **blog (`/blog`)** | 长文博客，Markdown 写作 + Git push 发布到 Cloudflare Pages，技术/生活/观点混合 |
 | **feed (`/feed`)** | 统一时间线页面，展示碎碎念和剪藏两种卡片，公开浏览，认证后发布 |
 | **learn (`/learn`)** | 编程学习笔记板块，基于 teach skill 的 lesson 产出，按 track 组织 |

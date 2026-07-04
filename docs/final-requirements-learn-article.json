@@ -1,0 +1,227 @@
+﻿{
+  "module": "/learn 单篇笔记页面（角度 B）",
+  "version": "1.0.0",
+  "created": "2026-07-04",
+  "phase": "Phase 1 — 需求澄清",
+  "drill_depth": "6 层 + 2 补充层",
+  "direction": "方向 2：混合型笔记页（知识体 + 学习过程）",
+  "drill_log": {
+    "layer_1": {
+      "topic": "内容来源边界",
+      "decisions": {
+        "Q1_source": "D：需要先看 teach-skill 产出物结构才能判断",
+        "Q2_metadata_source": "C：耗时/日期自动（从 learning-records 提取），难度/心得手动（发布时填写）",
+        "discovery": "teach/ 目录结构已摸清：lessons/*.html（正文）、learning-records/*.md（元数据）、reference/*.html（速查表）、assets/（可复用组件）"
+      }
+    },
+    "layer_2": {
+      "topic": "HTML lesson → 笔记页内容转换策略",
+      "decisions": {
+        "Q_conversion": "C：混合策略 — MDX 提取正文（丢弃交互组件如 quiz/模拟器）+ 可选保留「打开原 lesson」按钮"
+      }
+    },
+    "layer_3": {
+      "topic": "笔记页内容体结构",
+      "decisions": {
+        "Q5_TOC": "A：侧边栏 TOC（桌面端侧边，移动端折叠）",
+        "Q6_resources": "C：如果 lesson 里有推荐资源就显示，没有就跳过",
+        "Q7_glossary": "C：正文里不处理术语解释，读者自己查"
+      }
+    },
+    "layer_4": {
+      "topic": "难度标记体系 + 元数据",
+      "decisions": {
+        "Q8_difficulty_levels": "6 级（Bloom 分类法）：Lv.1 记忆 / Lv.2 理解 / Lv.3 应用 / Lv.4 分析 / Lv.5 评价 / Lv.6 创造，每级附说明文字",
+        "Q9_time_granularity": "B：模糊区间 — < 30 分钟 / 30-60 分钟 / 1-2 小时 / > 2 小时",
+        "Q10_numbering": "A：显示序号「第 N 篇」"
+      }
+    },
+    "layer_5": {
+      "topic": "区块布局 + 代码块处理",
+      "decisions": {
+        "Q11_insight_position": "A：心得摘要放在元数据条下方、正文上方，作为阅读导引",
+        "Q12_code_block": "A：语法高亮 + 一键复制按钮 + 语言标签（如 TypeScript）",
+        "Q13_original_lesson_button": "C：正文底部固定按钮 + 文中缺失交互处有提示框"
+      }
+    },
+    "layer_6": {
+      "topic": "URL 设计 + 移动端",
+      "decisions": {
+        "Q14_url": "C：/learn/programming/angular-basics — 按 MISSION 主题分类做路径前缀",
+        "Q15_mobile_code": "A：水平滚动，代码块内部可左右滑动，不截断不换行",
+        "Q16_mobile_TOC": "B：正文顶部内嵌折叠式目录（展开/收起，在文章流内）"
+      }
+    },
+    "supplement_a": {
+      "topic": "笔记发布流程",
+      "decisions": {
+        "Q17_publishing": "B：/learn 管理面板（登录后可见），选 lesson → 填元数据 → 预览 → 发布"
+      }
+    },
+    "supplement_b": {
+      "topic": "可见性",
+      "decisions": {
+        "Q18_visibility": "B：公开但 noindex（不收录搜索引擎），页面可见但搜索引擎不索引"
+      }
+    }
+  },
+  "content_model": {
+    "source_files": {
+      "lesson_body": "teach/lessons/000N-slug.html — 单文件 HTML，包含标题、正文、代码块、quiz/交互组件、推荐资源",
+      "learning_metadata_auto": "teach/learning-records/000N-slug.md — 日期、耗时、关键洞察",
+      "reference": "teach/reference/*.html — 速查表、术语表（笔记页不直接引用，仅做 reference 链接可选）"
+    },
+    "conversion_pipeline": "lesson HTML → AI 提取（标题 + 正文 + 代码块 + 推荐资源）→ MDX（丢弃 quiz/模拟器等交互组件）→ Astro 渲染",
+    "manual_fields": ["difficulty_level（Lv.1-Lv.6）", "insight_summary（心得摘要）", "should_publish（是否发布）"],
+    "auto_fields": ["date（从 learning-record 提取）", "time_range（从 learning-record 提取耗时，映射到模糊区间）", "lesson_number（递增序号）", "track_category（从 MISSION.md 或 lesson 路径推断 programming/english/typing）"]
+  },
+  "page_structure": {
+    "blocks": [
+      {
+        "id": "title",
+        "description": "笔记标题，从 lesson <h1> 提取",
+        "required": true
+      },
+      {
+        "id": "metadata_bar",
+        "description": "发布日期 + 耗时区间 + 难度等级（Lv.X + 说明文字） + 第 N 篇",
+        "required": true
+      },
+      {
+        "id": "insight_summary",
+        "description": "木下手动填写的心得/领悟，作为阅读导引。样式上引用块或高亮卡片",
+        "required": true
+      },
+      {
+        "id": "toc",
+        "description": "桌面端：侧边栏固定 TOC。移动端：正文顶部内嵌折叠式目录。从 MDX 的 h2/h3 自动生成",
+        "required": true
+      },
+      {
+        "id": "mdx_body",
+        "description": "从 lesson HTML 提取的 MDX 正文，包含：小节标题、段落、代码块（语法高亮 + 复制按钮 + 语言标签）、列表、图片（如有）。文中被丢弃的交互组件位置插入提示框：'此处原有互动练习，查看完整课程 →'",
+        "required": true
+      },
+      {
+        "id": "extended_resources",
+        "description": "如果 lesson 里有推荐资源/primary source，在正文后展示「延伸阅读」区块",
+        "required": false
+      },
+      {
+        "id": "original_lesson_button",
+        "description": "正文底部固定按钮：「📖 查看完整互动课程」，新标签页打开 lesson HTML",
+        "required": true
+      },
+      {
+        "id": "prev_next_nav",
+        "description": "上一篇 / 下一篇笔记导航，按同一 track 内的发布时间排序",
+        "required": true
+      }
+    ],
+    "seo": {
+      "meta_robots": "noindex, follow",
+      "og_tags": true,
+      "meta_description": "从 insight_summary 或 body 前 160 字自动生成"
+    }
+  },
+  "interactions": {
+    "reader": "纯阅读，无评论/无互动组件",
+    "owner": "管理面板：选 lesson → 填难度/心得 → 预览 → 发布（Phase 5 开发）"
+  },
+  "url_design": {
+    "pattern": "/learn/{track}/{lesson-slug}/",
+    "track_values": ["programming", "english", "typing"],
+    "slug_source": "从 lesson 文件名去除编号前缀（如 0001-angular-basics.html → angular-basics）",
+    "example": "/learn/programming/angular-basics/",
+    "canonical": true
+  },
+  "mobile": {
+    "code_blocks": "水平滚动（保持代码原样，不折行）",
+    "toc": "正文顶部内嵌折叠式目录",
+    "sidebar_toc": "桌面端固定侧边栏，移动端隐藏（改用顶部折叠式）"
+  },
+  "difficulty_system": {
+    "levels": [
+      {"level": 1, "name": "记忆", "description": "死记硬背，直接复述。例：'网站域名是什么？'"},
+      {"level": 2, "name": "理解", "description": "用自己的话解释意思。例：'解释一下DNS解析的过程。'"},
+      {"level": 3, "name": "应用", "description": "把知识用在新场景。例：'根据这个报错，把这段代码改对。'"},
+      {"level": 4, "name": "分析", "description": "拆解结构，找出因果关系。例：'分析这个网站加载慢的原因有哪些。'"},
+      {"level": 5, "name": "评价", "description": "基于标准做出判断和辩护。例：'对比React和Vue，论证哪个更适合这个项目。'"},
+      {"level": 6, "name": "创造", "description": "整合知识产出新东西。例：'独立设计并搭建一个完整的全栈电商网站。'"}
+    ],
+    "display_format": "笔记页显示为「Lv.X 名称」（如 Lv.3 应用），hover 时显示完整说明文字"
+  },
+  "time_display": {
+    "ranges": [
+      {"label": "< 30 分钟", "min_minutes": 0, "max_minutes": 29},
+      {"label": "30-60 分钟", "min_minutes": 30, "max_minutes": 60},
+      {"label": "1-2 小时", "min_minutes": 61, "max_minutes": 120},
+      {"label": "> 2 小时", "min_minutes": 121, "max_minutes": null}
+    ],
+    "source": "从 learning-record 提取实际耗时，映射到最近区间"
+  },
+  "publishing_flow": {
+    "step_1": "木下完成一次 teach-skill 学习（产出 lessons/*.html + learning-records/*.md）",
+    "step_2": "木下登录 /learn 管理面板（鉴权后可见）",
+    "step_3": "系统列出 teach/lessons/ 中尚未发布的 lesson，显示自动提取的预览（标题 + 正文预览 + 自动元数据）",
+    "step_4": "木下手动选择难度等级（Lv.1-Lv.6）、填写心得摘要、确认发布",
+    "step_5": "系统生成 MDX → 存储 → 笔记页上线（SSG 预渲染或 SSR）",
+    "step_6": "木下回到流程治理对话报告 Phase 1.3 完成"
+  },
+  "open_questions": [
+    {
+      "id": "OQ-01",
+      "question": "/learn 笔记页渲染模式矛盾",
+      "context": "tech-decisions-20260703.md 决策 3 中 /learn 标记为 SSG，SITEMAP.md 也标记为 SSG。但需求明确了管理面板（需要登录鉴权），而管理面板的发布动作需要触发内容更新。SSG 意味着每次发布需要重新构建部署，和「选 lesson → 填元数据 → 发布」的即时体验矛盾",
+      "candidates": [
+        "改为 SSR（/learn 笔记页按需渲染，管理面板操作即时生效，无需重新构建）",
+        "保持 SSG + Webhook 触发重新构建（发布后等几分钟部署完成，木下可接受延迟）",
+        "/learn 列表页 SSG + 单篇笔记页 SSR（混合，列表预渲染、详情按需）"
+      ],
+      "decision_phase": "Phase 3 架构设计时裁决",
+      "priority": "high"
+    },
+    {
+      "id": "OQ-02",
+      "question": "lesson HTML → MDX 的 AI 提取质量与可靠性",
+      "context": "lesson 是 teach-skill 生成的 HTML，内部结构取决于 teach-skill 的实现。HTML 标签语义化程度未知（可能全是 <div> 而非 <section>/<article>）。AI 提取可能存在：遗漏小节、代码块语言标注错误、图片路径断裂",
+      "mitigation": "Phase 5 开发时先跑几个 sample lesson，验证提取 pipeline 质量。管理面板的「预览」步骤可以让木下在发布前人工检查",
+      "decision_phase": "Phase 5 开发实现时验证",
+      "priority": "medium"
+    },
+    {
+      "id": "OQ-03",
+      "question": "管理面板的鉴权方案",
+      "context": "tech-decisions-20260703.md 提到 feed-api 有鉴权逻辑（shared/auth.ts），但 /learn 管理面板的鉴权是否复用此方案尚未明确",
+      "candidates": [
+        "复用 shared/auth.ts（统一鉴权，feed 和 learn 管理面板用同一套登录）",
+        "独立鉴权（/learn 管理面板有自己的密码，和 feed 隔离）"
+      ],
+      "decision_phase": "Phase 3 架构设计时裁决",
+      "priority": "medium"
+    },
+    {
+      "id": "OQ-04",
+      "question": "笔记发布后 MDX 的存储位置",
+      "context": "提取后的 MDX 存哪里？目前 content/ 目录用于 blog Markdown。learn 笔记是否也走 content/ 目录（content/learn/）由 Astro content collections 管理？还是存 D1/KV？",
+      "candidates": [
+        "content/learn/（Astro content collections，和 blog 一致，SSG 友好）",
+        "D1（管理面板直接写入数据库，SSR 读取）"
+      ],
+      "decision_phase": "取决于 OQ-01 的渲染模式裁决",
+      "priority": "medium"
+    },
+    {
+      "id": "OQ-05",
+      "question": "teach-skill lesson HTML 的交互组件（quiz/模拟器）在笔记页中如何标记",
+      "context": "Q13 选了 C：正文底部固定按钮 + 文中缺失交互处有提示框。但 AI 如何识别 HTML 中的交互组件边界？如果 lesson HTML 结构不规范，可能漏标或误标",
+      "mitigation": "Phase 5 开发时根据实际 lesson HTML 结构设计检测规则，最简单方案：检测 <script>/<button>/<input>/<form> 标签所在区块，自动插入提示框",
+      "decision_phase": "Phase 5 开发实现时处理",
+      "priority": "low"
+    }
+  ],
+  "phase_1_completion": {
+    "status": "completed",
+    "next_step": "木下回到「流程治理」对话报告 Phase 1.3（/learn 单篇笔记页需求澄清）已完成，产物为 docs/final-requirements-learn-article.json。提醒更新 DASHBOARD.md 中 /learn 的状态"
+  }
+}

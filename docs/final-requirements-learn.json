@@ -1,0 +1,630 @@
+{
+  "meta": {
+    "task_id": "phase1-learn-v1",
+    "created_at": "2026-07-04T00:00:00+08:00",
+    "termination_reason": "3-angle parallel drill complete; 13 OQs deferred to later phases",
+    "model_used": "gpt-5.5 (main) + 3x worker subagents",
+    "confidence_overall": "high",
+    "source_files": [
+      "docs/final-requirements-learn-structure.json",
+      "docs/final-requirements-learn-article.json",
+      "docs/final-requirements-learn-homepage.json"
+    ]
+  },
+  "original_idea": {
+    "raw_input": "learn板块通过teach-skill产出内容，做一个按track组织的学习笔记目录页，初期无搜索，用readme结构；单篇笔记从teach lesson HTML提取为MDX发布",
+    "domain": "学习笔记/知识蒸馏"
+  },
+  "clarified_goals": [
+    {
+      "goal_id": "G001",
+      "description": "确定 /learn 的 Track 定义与数量",
+      "measurable_criteria": "列出所有 track 名称、数量、增长策略",
+      "priority": 1,
+      "confidence": "high"
+    },
+    {
+      "goal_id": "G002",
+      "description": "确定 /learn 首页布局与板块设计",
+      "measurable_criteria": "明确首页各板块（知识图谱 banner、最近更新列表、track 入口、搜索框）的摆放与交互",
+      "priority": 1,
+      "confidence": "high"
+    },
+    {
+      "goal_id": "G003",
+      "description": "确定 Track 内部的内容组织与层级结构",
+      "measurable_criteria": "明确 tab 切换子分类、无限嵌套节点、wikilink 知识关联的具体行为",
+      "priority": 1,
+      "confidence": "high"
+    },
+    {
+      "goal_id": "G004",
+      "description": "确定笔记详情页的核心元素",
+      "measurable_criteria": "明确 wikilink 侧边预览卡片、侧边栏目录树、相关内容区",
+      "priority": 1,
+      "confidence": "high"
+    },
+    {
+      "goal_id": "G005",
+      "description": "确定搜索功能范围与行为",
+      "measurable_criteria": "标题+标签搜索、即时建议+补全、实现方式留待后期裁决",
+      "priority": 2,
+      "confidence": "high"
+    },
+    {
+      "goal_id": "G006",
+      "description": "确定 URL 结构与生成规则",
+      "measurable_criteria": "扁平 /learn/notes/{slug}，英文 ASCII slug，AI 自动从中文标题生成",
+      "priority": 2,
+      "confidence": "high"
+    },
+    {
+      "goal_id": "G007",
+      "description": "确定草稿权限模型",
+      "measurable_criteria": "草稿仅自己可见，已发布公开；认证方式待确认",
+      "priority": 1,
+      "confidence": "medium"
+    },
+    {
+      "goal_id": "G001",
+      "description": "聚合首页时间线混排/learn笔记，展示标题+日期+摘要+彩色角标文字标签「学习笔记」",
+      "measurable_criteria": "首页时间线中出现/learn笔记卡片时，包含标题、发布日期、1-2句摘要、彩色角标+文字标签；角标颜色与其他内容类型（blog/碎碎念/剪藏/projects）各自不同",
+      "priority": 1,
+      "confidence": "high"
+    },
+    {
+      "goal_id": "G002",
+      "description": "/learn笔记在时间线中按最后更新时间统一倒序混排",
+      "measurable_criteria": "任何已发布/learn笔记的最后编辑时间发生变更后，该笔记在首页时间线中的排序位置更新为对应时间点",
+      "priority": 1,
+      "confidence": "high"
+    },
+    {
+      "goal_id": "G003",
+      "description": "草稿不出现在首页时间线，手动发布后生效",
+      "measurable_criteria": "草稿状态笔记：首页时间线不可见、全站RSS不可见、/learn管理后台可见；手动点击发布后立即在首页时间线和RSS中出现",
+      "priority": 1,
+      "confidence": "high"
+    },
+    {
+      "goal_id": "G004",
+      "description": "全站RSS（blog + /learn）统一标题+摘要+链接，仅已发布内容，碎碎念不进RSS",
+      "measurable_criteria": "RSS feed中仅出现blog和/learn的已发布条目，每条含标题、摘要、原文链接；碎碎念不在feed中出现",
+      "priority": 2,
+      "confidence": "high"
+    },
+    {
+      "goal_id": "G005",
+      "description": "/learn笔记在首页点击后跳转到/learn列表页，不展示分类标签",
+      "measurable_criteria": "时间线中/learn卡片点击 → 导航至/learn板块列表页；时间线卡片不渲染所属主题分类标签",
+      "priority": 2,
+      "confidence": "high"
+    },
+    {
+      "goal_id": "G006",
+      "description": "所有内容类型（blog/碎碎念/剪藏/projects/learn）统一加彩色角标",
+      "measurable_criteria": "时间线中每种内容类型有独立的角标颜色，/learn角标更为醒目",
+      "priority": 3,
+      "confidence": "high"
+    }
+  ],
+  "decision_points": [
+    {
+      "point_id": "D001",
+      "question": "/learn 的组织模式：Track-first vs Tag/搜索驱动 vs 混合",
+      "options": [
+        "Track-first",
+        "Tag/搜索驱动",
+        "混合模式（Track 为主 + 辅助切片）"
+      ],
+      "tradeoffs": "Track-first 结构清晰但跨主题关联弱；Tag 驱动灵活但结构感弱；混合兼顾两者",
+      "recommendation": "混合模式（用户选择 C）"
+    },
+    {
+      "point_id": "D002",
+      "question": "/learn 首页是 track 集合页还是直接显示默认内容",
+      "options": [
+        "独立 track 集合页",
+        "sidebar + 默认内容"
+      ],
+      "tradeoffs": "集合页提供全局视图但多一层跳转；默认内容直达但 track 入口不明显",
+      "recommendation": "track 集合页，多个板块设计感布局（非简单卡片网格）"
+    },
+    {
+      "point_id": "D003",
+      "question": "知识图谱可视化形式：aichainmap 全屏 vs banner 区域",
+      "options": [
+        "全屏力导向图",
+        "banner 区域图谱",
+        "仅文本 wikilink 无图谱"
+      ],
+      "tradeoffs": "全屏沉浸感强但占据首屏；banner 兼顾视觉与信息密度；纯文本简单但缺乏视觉冲击",
+      "recommendation": "banner 区域知识图谱 + 首页其他板块组合"
+    },
+    {
+      "point_id": "D004",
+      "question": "Wikilink 点击行为：直接跳转 vs 侧边预览卡片 vs 两者结合",
+      "options": [
+        "直接跳转目标页",
+        "侧边弹出预览卡片",
+        "hover 预览 + 点击跳转"
+      ],
+      "tradeoffs": "跳转打断阅读流；预览卡片保留上下文但增加前端复杂度",
+      "recommendation": "侧边弹出预览卡片（显示目标笔记摘要，不离开当前页）"
+    },
+    {
+      "point_id": "D005",
+      "question": "URL 结构：按 track 层级 vs 扁平化 vs 混合",
+      "options": [
+        "/learn/{track}/{note}",
+        "/learn/notes/{slug}",
+        "混合-主 track 归属+跨 track 标记"
+      ],
+      "tradeoffs": "层级 URL 笔记归属明确但跨 track 偏向一侧；扁平 URL 跨 track 自然但失去层级感",
+      "recommendation": "扁平 /learn/notes/{slug}（用户选择 B）"
+    },
+    {
+      "point_id": "D006",
+      "question": "Slug 语言：英文 ASCII vs 中文",
+      "options": [
+        "英文 ASCII slug（AI 自动生成）",
+        "中文 slug"
+      ],
+      "tradeoffs": "英文 slug URL 干净、分享不乱码、国际 SEO 友好；中文 slug 直观但分享时出现百分号编码",
+      "recommendation": "英文 ASCII slug，AI 从中文标题自动生成（用户选择）"
+    },
+    {
+      "point_id": "D001",
+      "question": "首页与/learn的方向选择：时间线混排 vs 独立区块 vs 不放",
+      "options": [
+        "A: 时间线混排 — /learn笔记与blog/碎碎念等按发布时间统一混排",
+        "B: 独立区块 — 首页单独设「最新学习」模块，与时间线物理分离",
+        "C: 不放 — 首页不展示/learn，独立运营"
+      ],
+      "tradeoffs": "A最大化聚合定位但低频内容可能被淹没；B牺牲混排一致性但保证可见性；C简化首页但降低/learn被发现概率",
+      "recommendation": "选择A — 木下偏好统一的聚合时间线，低频问题通过醒目角标缓解"
+    },
+    {
+      "point_id": "D002",
+      "question": "/learn笔记在时间线中的展示粒度",
+      "options": [
+        "A: 展示摘要（类似blog摘要1-2句）",
+        "B: 不展示摘要，仅标题+日期+标签",
+        "C: 由笔记元数据决定"
+      ],
+      "tradeoffs": "A信息量最大但排版更重；B更轻量但缺乏上下文；C灵活但一致性弱",
+      "recommendation": "选择A — 提供足够上下文帮助访客判断是否点击"
+    },
+    {
+      "point_id": "D003",
+      "question": "来源标签的视觉形式",
+      "options": [
+        "A: 纯文字标签",
+        "B: 彩色角标",
+        "C: 图标区分"
+      ],
+      "tradeoffs": "A最简洁但区分度低；B视觉清晰但需设计颜色体系；C直观但图标语义依赖文化",
+      "recommendation": "选择彩色角标+文字标签组合 — 兼顾视觉区分和语义明确"
+    },
+    {
+      "point_id": "D004",
+      "question": "排序基准日期",
+      "options": [
+        "A: 首次发布时间",
+        "B: 最后更新时间",
+        "C: 实际学习日期"
+      ],
+      "tradeoffs": "A符合博客习惯；B允许修订后重新曝光；C反映学习时间线但与内容管理脱节",
+      "recommendation": "选择B — 木下希望在修订笔记后能重新出现在时间线前方"
+    },
+    {
+      "point_id": "D005",
+      "question": "草稿笔记在首页的可见性",
+      "options": [
+        "A: 草稿在首页可见（标记灰色角标），仅木下登录后",
+        "B: 草稿完全不出现在首页，仅在/learn管理后台可见",
+        "C: 无草稿概念，写完即公开"
+      ],
+      "tradeoffs": "A便于预览但污染首页；B保持首页干净但需切换后台预览；C最简单但失去发布控制",
+      "recommendation": "选择B — 首页保持已发布内容的纯净性，草稿管理在/learn内部闭环"
+    },
+    {
+      "point_id": "D006",
+      "question": "发布状态触发机制",
+      "options": [
+        "A: 手动点击发布按钮，默认草稿",
+        "B: AI自动发布，可撤回",
+        "C: 无草稿/发布概念"
+      ],
+      "tradeoffs": "A控制权完全在木下；B省力但可能误发；C无发布流程不适合筛选场景",
+      "recommendation": "选择A — 手动发布符合/learn「值得公开分享的笔记才发」的筛选标准"
+    },
+    {
+      "point_id": "D007",
+      "question": "低频/learn笔记是否需要额外视觉强化",
+      "options": [
+        "A: 不需要，与其他内容一致",
+        "B: 角标颜色更醒目",
+        "C: 首次出现时动画/高亮"
+      ],
+      "tradeoffs": "A最一致但容易被淹没；B简单有效；C引人注目但可能造成干扰",
+      "recommendation": "选择B — 以更醒目的角标颜色提升低频内容的可见性，不与动画耦合"
+    },
+    {
+      "point_id": "D008",
+      "question": "RSS订阅策略",
+      "options": [
+        "A: 全站RSS（blog + /learn）",
+        "B: /learn专属RSS",
+        "C: 不需要RSS",
+        "D: 邮件订阅"
+      ],
+      "tradeoffs": "A一站式但/learn低频会被blog淹没；B精准但维护多feed；C最简但错过低频内容分发；D需额外基础设施",
+      "recommendation": "选择A — 全站RSS统一入口，碎碎念排除在外避免刷屏"
+    },
+    {
+      "point_id": "D009",
+      "question": "RSS内容粒度",
+      "options": [
+        "A: 统一标题+摘要+链接",
+        "B: 短内容全文，长内容摘要",
+        "C: 全部全文"
+      ],
+      "tradeoffs": "A引导回站最大化流量；B灵活但规则复杂；C离线可读但减少站内访问",
+      "recommendation": "选择A — 统一规则简单可维护，RSS定位为引流工具"
+    },
+    {
+      "point_id": "D010",
+      "question": "碎碎念是否进入RSS",
+      "options": [
+        "A: 全部进入",
+        "B: 每日/每周合并摘要",
+        "C: 不进入RSS"
+      ],
+      "tradeoffs": "A最全但刷屏；B折中但实现复杂；C干净但碎碎念粉丝无法订阅",
+      "recommendation": "选择C — 碎碎念定位为轻量即时内容，RSS聚焦长内容（blog + /learn）"
+    },
+    {
+      "point_id": "D011",
+      "question": "首页点击/learn笔记的跳转行为",
+      "options": [
+        "A: /learn独立详情页",
+        "B: /learn列表页",
+        "C: 首页模态弹窗预览"
+      ],
+      "tradeoffs": "A独立URL利于分享但增加页面复杂度；B复用已有列表页结构简单；C不离开首页但破坏导航预期",
+      "recommendation": "选择B — /learn当前定位为列表页无独立详情页，跳转列表页最自然"
+    },
+    {
+      "point_id": "D012",
+      "question": "所有内容类型是否统一加角标",
+      "options": [
+        "A: 全部类型各自有角标颜色",
+        "B: 仅/learn有角标",
+        "C: 用图标代替角标"
+      ],
+      "tradeoffs": "A统一体系但需设计完整颜色方案；B突出重点但其他类型缺乏区分；C图标语义不如文字明确",
+      "recommendation": "选择A — 统一角标体系与已有的/learn醒目角标目标一致，各类型视觉区分清晰"
+    },
+    {
+      "point_id": "D013",
+      "question": "时间线中是否展示/learn笔记的分类标签",
+      "options": [
+        "A: 展示分类标签",
+        "B: 不展示，进入/learn后自然展示",
+        "C: 由笔记元数据决定"
+      ],
+      "tradeoffs": "A帮助快速判断相关性但增加卡片信息密度；B保持时间线简洁；C灵活但不一致",
+      "recommendation": "选择B — 时间线保持简洁，分类信息在/learn列表页自然呈现"
+    }
+  ],
+  "constraints": {
+    "hard": [
+      "所有文档和用户对话用中文",
+      "代码标识符、文件名、Git commit 用英文 ASCII",
+      "非程序员用户（Vibe Coding），AI agent 负责编码",
+      "流程约束：遵循 docs/workflow-orchestration.md 的 Phase 顺序，Phase 不可跳",
+      "CONTEXT.md [已锁定] 标记的内容不可改",
+      "/learn 内容来源：teach-skill 产出的 lessons/reference/learning-records",
+      "/learn 筛选标准：值得公开分享的笔记，不是每课都发",
+      "/learn 更新频率：不强制定期，有值得发的才发",
+      "草稿笔记仅自己可见",
+      "空 track 不展示在首页",
+      "空子分类不展示 tab",
+      "URL 扁平化 /learn/notes/{slug}",
+      "slug 为英文 ASCII，AI 自动生成",
+      "代码标识符/文件名/Git commit用英文ASCII",
+      "非程序员用户（Vibe Coding），AI agent负责编码",
+      "草稿笔记不出现在首页时间线和RSS",
+      "/learn笔记仅手动发布后进入首页和RSS",
+      "碎碎念不进入RSS feed"
+    ],
+    "soft": [
+      "搜索实现方式（前端静态 vs 后端 API）后期裁决",
+      "知识图谱的力导向图渲染库选型后期裁决",
+      "首页设计感板块的具体视觉设计后期裁决",
+      "/learn笔记更新频率低暂可接受，内容增长后自然改善",
+      "旧笔记在时间线深处可接受",
+      "RSS统一标题+摘要+链接策略可在二期调整"
+    ],
+    "unknown": [
+      "草稿认证方式（GitHub OAuth / Cloudflare Access / 密码）",
+      "笔记详情页是否需要面包屑、上/下篇导航、评论区",
+      "移动端知识图谱是否显示、tab 在窄屏的处理",
+      "侧边栏默认展开层级、移动端折叠行为",
+      "知识图谱 hover/点击/筛选 track 的交互细节"
+    ]
+  },
+  "boundaries": {
+    "确定要聊的": [
+      "Track 定义：5 个 track（编程、英语、打字、艺术、金融），动态增长",
+      "首页结构：知识图谱 banner + 最近更新列表 + track 入口 + 搜索框",
+      "Track 按更新时间排序，隐藏空 track",
+      "Track 内部：顶部 tab 切换子分类 + 下方内容列表",
+      "无限嵌套层级 + wikilink 知识关联",
+      "笔记详情页：wikilink 侧边预览卡片 + 侧边栏目录树",
+      "搜索：标题+标签、即时建议+补全",
+      "URL：/learn/notes/{english-slug}",
+      "草稿仅自己可见",
+      "首页时间线混排/learn笔记的展示形式与粒度",
+      "排序规则（最后更新时间倒序混排）",
+      "草稿可见性与发布机制",
+      "低频内容的视觉强化策略（醒目角标）",
+      "全站RSS的覆盖范围和粒度",
+      "角标颜色统一体系（所有内容类型）",
+      "首页点击/learn的跳转目标",
+      "分类标签不在时间线展示"
+    ],
+    "待确认的": [
+      "草稿认证方式（GitHub OAuth / Cloudflare Access / 密码）",
+      "笔记详情页是否需要面包屑、上/下篇导航、评论区、阅读进度",
+      "移动端图谱显示策略、tab 窄屏处理",
+      "侧边栏默认展开层级、移动端折叠行为（抽屉/底部 tab）",
+      "知识图谱交互细节（hover 显示内容、点击行为、track 筛选）",
+      "搜索实现方式（前端静态 vs 后端 API）",
+      "五种内容类型各自的角标颜色值 — 属于视觉设计阶段确认",
+      "登录后的筛选交互细节 — 属于交互设计阶段确认",
+      "/learn列表页的分类结构和布局 — 属于/learn板块内部设计",
+      "RSS feed的技术实现方案 — 属于技术实现阶段确认"
+    ]
+  },
+  "assumptions": [
+    {
+      "assumption": "Track 当前为 0 篇内容，所有结构设计基于未来增长假设",
+      "validity": "validated",
+      "basis": "用户明确表述当前为 0 篇"
+    },
+    {
+      "assumption": "learnbuffett.com 的 wikilink + 侧边栏模式是笔记详情页的参考标准",
+      "validity": "validated",
+      "basis": "用户提供 learnbuffett.com 链接作为参考并确认"
+    },
+    {
+      "assumption": "aichainmap.com 的力导向图谱风格是首页 banner 的参考标准",
+      "validity": "validated",
+      "basis": "用户引用 aichainmap.com 并确认"
+    },
+    {
+      "assumption": "5 个 track 是当前完整列表",
+      "validity": "validated",
+      "basis": "用户明确列出的 track 名称"
+    },
+    {
+      "assumption": "笔记之间可能跨 track 关联",
+      "validity": "validated",
+      "basis": "用户确认 wikilink 可跨 track，选择扁平 URL 结构支持跨 track 关联"
+    },
+    {
+      "assumption": "/learn笔记的摘要由teach-skill产出物自带，无需手动编写",
+      "validity": "unverified",
+      "basis": "teach-skill流程产出物包含摘要字段（基于已有结论推断）"
+    },
+    {
+      "assumption": "木下登录态通过现有认证体系实现，/learn草稿管理后台复用同一认证",
+      "validity": "unverified",
+      "basis": "已有结论「登录后可筛选类型」暗示已存在登录态"
+    },
+    {
+      "assumption": "全站RSS feed可通过Astro的rss包或CF Workers生成",
+      "validity": "unverified",
+      "basis": "技术栈Astro + CF Workers原生支持RSS生成"
+    },
+    {
+      "assumption": "五种内容类型（blog/碎碎念/剪藏/projects/learn）均为独立数据实体，各自有发布状态字段",
+      "validity": "unverified",
+      "basis": "已有CONTEXT.md中的内容类型划分"
+    }
+  ],
+  "risks": [
+    {
+      "risk": "知识图谱 banner 在笔记量增长到数百篇后可能性能下降",
+      "severity": "major",
+      "mitigation": "初期用前端渲染（<200 节点无需优化）；超过阈值后考虑后端聚类/分层懒加载或 Web Worker 渲染"
+    },
+    {
+      "risk": "扁平 URL 结构导致笔记在文件系统中缺乏物理归属",
+      "severity": "minor",
+      "mitigation": "通过元数据（frontmatter）标记主 track 归属 + 关联 track，D1 数据库维护层级关系"
+    },
+    {
+      "risk": "无限嵌套层级可能导致边栏目录树在深度嵌套时难以使用",
+      "severity": "minor",
+      "mitigation": "侧边栏默认展开前 2 层，更深层级按需展开；提供面包屑导航作为辅助"
+    },
+    {
+      "risk": "Wikilink 侧边预览卡片的技术实现复杂度可能高于预期",
+      "severity": "medium",
+      "mitigation": "笔记数据量较小时全量预加载到前端缓存；增长后改为 hover 时异步 fetch 摘要 API"
+    },
+    {
+      "risk": "/learn笔记更新频率极低（可能数月无更新），即使角标醒目，访客也可能在很长一段时间内看不到任何/learn内容，导致角标体系的/learn颜色长期不出现",
+      "severity": "minor",
+      "mitigation": "接受此现状；如果未来/learn内容持续稀缺，可考虑回退至方向B（独立区块）用推荐位保证曝光"
+    },
+    {
+      "risk": "五种内容类型统一角标颜色体系增加视觉设计复杂度，可能需要多轮调整才达到协调",
+      "severity": "minor",
+      "mitigation": "在设计阶段先出颜色方案原型，木下确认后再落地"
+    },
+    {
+      "risk": "按最后更新时间排序可能导致旧笔记反复顶到时间线顶部（如批量修订时），访客可能看到多篇/learn连续出现",
+      "severity": "minor",
+      "mitigation": "木下手动发布时注意节奏；如需批量修订，可考虑修订时是否触发重新排序"
+    },
+    {
+      "risk": "全站RSS中blog可能淹没有/learn（blog频率高于/learn），/learn在RSS阅读器中同样不可见",
+      "severity": "minor",
+      "mitigation": "当前接受；未来如有需求可增加/learn专属RSS作为补充"
+    }
+  ],
+  "stakeholders": [
+    {
+      "role": "木下(owner)",
+      "power_level": "decision-maker",
+      "needs": [
+        "通过公开发布学习笔记建立个人品牌",
+        "不增加太多维护负担",
+        "保持网站一致性"
+      ],
+      "concerns": [
+        "内容质量",
+        "更新频率"
+      ]
+    },
+    {
+      "role": "访客",
+      "power_level": "user",
+      "needs": [
+        "按主题浏览木下的学习笔记",
+        "找到感兴趣的内容"
+      ],
+      "concerns": [
+        "内容结构清晰",
+        "阅读体验好"
+      ]
+    },
+    {
+      "role": "AI(teach-skill)",
+      "power_level": "influencer",
+      "needs": [
+        "产出结构化lesson供提取"
+      ],
+      "concerns": [
+        "html→mdx提取准确性"
+      ]
+    }
+  ],
+  "open_questions": [
+    {
+      "source_angle": "A",
+      "question": "草稿权限的认证方式是什么？（GitHub OAuth / Cloudflare Access / 简单密码）",
+      "blocker_level": "medium",
+      "suggested_next_step": "在 Phase 2（原型验证）阶段确定，当前可用简单环境变量密码做 MVP",
+      "resolve_phase": "Phase 3 架构设计"
+    },
+    {
+      "source_angle": "A",
+      "question": "知识图谱 banner 的交互细节：hover 显示什么？点击节点是跳转还是展开关联？是否支持按 track 筛选？",
+      "blocker_level": "medium",
+      "suggested_next_step": "Phase 2 原型前确定：hover 显示标题+摘要、点击跳转笔记详情、支持按 track 高亮筛选",
+      "resolve_phase": "Phase 2 原型验证"
+    },
+    {
+      "source_angle": "A",
+      "question": "笔记详情页除了 wikilink + 侧边栏外，是否需要面包屑、上一篇/下一篇导航、评论区？",
+      "blocker_level": "low",
+      "suggested_next_step": "Phase 2 原型时先按 MVP（仅 wikilink + 侧边栏）实现，后续根据实际使用反馈迭代",
+      "resolve_phase": "Phase 2 原型验证"
+    },
+    {
+      "source_angle": "A",
+      "question": "侧边栏在移动端的折叠策略和默认展开层级？",
+      "blocker_level": "low",
+      "suggested_next_step": "Phase 2 原型时移动端先使用抽屉式侧边栏（hamburger 触发），默认展开前 2 层",
+      "resolve_phase": "Phase 2 原型验证"
+    },
+    {
+      "source_angle": "A",
+      "question": "移动端知识图谱是否显示？track 内部 tab 在窄屏如何适配？",
+      "blocker_level": "low",
+      "suggested_next_step": "Phase 2 原型时移动端隐藏图谱 banner（或缩小为静态缩略图），tab 改为横向滚动或下拉选择",
+      "resolve_phase": "Phase 2 原型验证"
+    },
+    {
+      "source_angle": "B",
+      "question": "/learn 笔记页渲染模式矛盾",
+      "blocker_level": "low",
+      "suggested_next_step": "",
+      "resolve_phase": "Phase 3 架构设计"
+    },
+    {
+      "source_angle": "B",
+      "question": "lesson HTML → MDX 的 AI 提取质量与可靠性",
+      "blocker_level": "low",
+      "suggested_next_step": "",
+      "resolve_phase": "Phase 3 架构设计"
+    },
+    {
+      "source_angle": "B",
+      "question": "管理面板的鉴权方案",
+      "blocker_level": "low",
+      "suggested_next_step": "",
+      "resolve_phase": "Phase 3 架构设计"
+    },
+    {
+      "source_angle": "B",
+      "question": "笔记发布后 MDX 的存储位置",
+      "blocker_level": "low",
+      "suggested_next_step": "",
+      "resolve_phase": "Phase 3 架构设计"
+    },
+    {
+      "source_angle": "B",
+      "question": "teach-skill lesson HTML 的交互组件（quiz/模拟器）在笔记页中如何标记",
+      "blocker_level": "low",
+      "suggested_next_step": "",
+      "resolve_phase": "Phase 5 开发实现"
+    },
+    {
+      "source_angle": "C",
+      "question": "五种内容类型的角标颜色具体值（hex色号）未确定",
+      "blocker_level": "low",
+      "suggested_next_step": "进入UI/视觉设计阶段时确定颜色方案",
+      "resolve_phase": "Phase 4 UI设计"
+    },
+    {
+      "source_angle": "C",
+      "question": "批量修订多篇/learn笔记时，是否全部重新顶到时间线顶部",
+      "blocker_level": "low",
+      "suggested_next_step": "技术实现阶段确认排序逻辑：更新时是否始终触发时间戳变更",
+      "resolve_phase": "Phase 5 开发实现"
+    },
+    {
+      "source_angle": "C",
+      "question": "RSS feed的技术实现选型（Astro内置 vs CF Worker自定义）",
+      "blocker_level": "low",
+      "suggested_next_step": "实现阶段确定技术方案",
+      "resolve_phase": "Phase 5 开发实现"
+    }
+  ],
+  "model_notes": {
+    "grill_me_model": "gpt-5.5 + 3x subagents"
+  },
+  "cross_angle_conflicts": [
+    {
+      "description": "SSG vs SSR 矛盾：SITEMAP/tech-decisions 标记 /learn 为 SSG，但 drill 确认需要管理面板+即时发布，需 SSR",
+      "related_oqs": [
+        "/learn 笔记页渲染模式矛盾"
+      ],
+      "suggested_resolution": "Phase 3 架构设计时统一裁决：/learn 改用 SSR 或 SSG+Webhook"
+    },
+    {
+      "description": "管理面板鉴权：/feed 和 /learn 管理后台可能共享认证，需统一",
+      "related_oqs": [
+        "管理面板的鉴权方案",
+        "草稿权限的认证方式"
+      ],
+      "suggested_resolution": "Phase 3 架构设计时确定 shared/auth.ts 方案"
+    }
+  ]
+}

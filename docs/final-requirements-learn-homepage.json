@@ -1,0 +1,331 @@
+﻿{
+  "meta": {
+    "task_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "created_at": "2026-07-04T12:00:00+08:00",
+    "rounds_completed": 6,
+    "termination_reason": "NATURAL — 6轮drill完成，覆盖度检查无遗漏，用户确认结束",
+    "model_used": "gpt-5.1-codex-max",
+    "confidence_overall": "high"
+  },
+  "original_idea": {
+    "raw_input": "角度C：与首页的关系 — /learn板块（编程学习笔记/知识蒸馏）在聚合首页中的展示、排序、草稿可见性、订阅分发等关系设计",
+    "domain": "个人网站内容架构 / 首页信息聚合"
+  },
+  "clarified_goals": [
+    {
+      "goal_id": "G001",
+      "description": "聚合首页时间线混排/learn笔记，展示标题+日期+摘要+彩色角标文字标签「学习笔记」",
+      "measurable_criteria": "首页时间线中出现/learn笔记卡片时，包含标题、发布日期、1-2句摘要、彩色角标+文字标签；角标颜色与其他内容类型（blog/碎碎念/剪藏/projects）各自不同",
+      "priority": 1,
+      "confidence": "high"
+    },
+    {
+      "goal_id": "G002",
+      "description": "/learn笔记在时间线中按最后更新时间统一倒序混排",
+      "measurable_criteria": "任何已发布/learn笔记的最后编辑时间发生变更后，该笔记在首页时间线中的排序位置更新为对应时间点",
+      "priority": 1,
+      "confidence": "high"
+    },
+    {
+      "goal_id": "G003",
+      "description": "草稿不出现在首页时间线，手动发布后生效",
+      "measurable_criteria": "草稿状态笔记：首页时间线不可见、全站RSS不可见、/learn管理后台可见；手动点击发布后立即在首页时间线和RSS中出现",
+      "priority": 1,
+      "confidence": "high"
+    },
+    {
+      "goal_id": "G004",
+      "description": "全站RSS（blog + /learn）统一标题+摘要+链接，仅已发布内容，碎碎念不进RSS",
+      "measurable_criteria": "RSS feed中仅出现blog和/learn的已发布条目，每条含标题、摘要、原文链接；碎碎念不在feed中出现",
+      "priority": 2,
+      "confidence": "high"
+    },
+    {
+      "goal_id": "G005",
+      "description": "/learn笔记在首页点击后跳转到/learn列表页，不展示分类标签",
+      "measurable_criteria": "时间线中/learn卡片点击 → 导航至/learn板块列表页；时间线卡片不渲染所属主题分类标签",
+      "priority": 2,
+      "confidence": "high"
+    },
+    {
+      "goal_id": "G006",
+      "description": "所有内容类型（blog/碎碎念/剪藏/projects/learn）统一加彩色角标",
+      "measurable_criteria": "时间线中每种内容类型有独立的角标颜色，/learn角标更为醒目",
+      "priority": 3,
+      "confidence": "high"
+    }
+  ],
+  "decision_points": [
+    {
+      "point_id": "D001",
+      "question": "首页与/learn的方向选择：时间线混排 vs 独立区块 vs 不放",
+      "options": [
+        "A: 时间线混排 — /learn笔记与blog/碎碎念等按发布时间统一混排",
+        "B: 独立区块 — 首页单独设「最新学习」模块，与时间线物理分离",
+        "C: 不放 — 首页不展示/learn，独立运营"
+      ],
+      "tradeoffs": "A最大化聚合定位但低频内容可能被淹没；B牺牲混排一致性但保证可见性；C简化首页但降低/learn被发现概率",
+      "recommendation": "选择A — 木下偏好统一的聚合时间线，低频问题通过醒目角标缓解"
+    },
+    {
+      "point_id": "D002",
+      "question": "/learn笔记在时间线中的展示粒度",
+      "options": [
+        "A: 展示摘要（类似blog摘要1-2句）",
+        "B: 不展示摘要，仅标题+日期+标签",
+        "C: 由笔记元数据决定"
+      ],
+      "tradeoffs": "A信息量最大但排版更重；B更轻量但缺乏上下文；C灵活但一致性弱",
+      "recommendation": "选择A — 提供足够上下文帮助访客判断是否点击"
+    },
+    {
+      "point_id": "D003",
+      "question": "来源标签的视觉形式",
+      "options": [
+        "A: 纯文字标签",
+        "B: 彩色角标",
+        "C: 图标区分"
+      ],
+      "tradeoffs": "A最简洁但区分度低；B视觉清晰但需设计颜色体系；C直观但图标语义依赖文化",
+      "recommendation": "选择彩色角标+文字标签组合 — 兼顾视觉区分和语义明确"
+    },
+    {
+      "point_id": "D004",
+      "question": "排序基准日期",
+      "options": [
+        "A: 首次发布时间",
+        "B: 最后更新时间",
+        "C: 实际学习日期"
+      ],
+      "tradeoffs": "A符合博客习惯；B允许修订后重新曝光；C反映学习时间线但与内容管理脱节",
+      "recommendation": "选择B — 木下希望在修订笔记后能重新出现在时间线前方"
+    },
+    {
+      "point_id": "D005",
+      "question": "草稿笔记在首页的可见性",
+      "options": [
+        "A: 草稿在首页可见（标记灰色角标），仅木下登录后",
+        "B: 草稿完全不出现在首页，仅在/learn管理后台可见",
+        "C: 无草稿概念，写完即公开"
+      ],
+      "tradeoffs": "A便于预览但污染首页；B保持首页干净但需切换后台预览；C最简单但失去发布控制",
+      "recommendation": "选择B — 首页保持已发布内容的纯净性，草稿管理在/learn内部闭环"
+    },
+    {
+      "point_id": "D006",
+      "question": "发布状态触发机制",
+      "options": [
+        "A: 手动点击发布按钮，默认草稿",
+        "B: AI自动发布，可撤回",
+        "C: 无草稿/发布概念"
+      ],
+      "tradeoffs": "A控制权完全在木下；B省力但可能误发；C无发布流程不适合筛选场景",
+      "recommendation": "选择A — 手动发布符合/learn「值得公开分享的笔记才发」的筛选标准"
+    },
+    {
+      "point_id": "D007",
+      "question": "低频/learn笔记是否需要额外视觉强化",
+      "options": [
+        "A: 不需要，与其他内容一致",
+        "B: 角标颜色更醒目",
+        "C: 首次出现时动画/高亮"
+      ],
+      "tradeoffs": "A最一致但容易被淹没；B简单有效；C引人注目但可能造成干扰",
+      "recommendation": "选择B — 以更醒目的角标颜色提升低频内容的可见性，不与动画耦合"
+    },
+    {
+      "point_id": "D008",
+      "question": "RSS订阅策略",
+      "options": [
+        "A: 全站RSS（blog + /learn）",
+        "B: /learn专属RSS",
+        "C: 不需要RSS",
+        "D: 邮件订阅"
+      ],
+      "tradeoffs": "A一站式但/learn低频会被blog淹没；B精准但维护多feed；C最简但错过低频内容分发；D需额外基础设施",
+      "recommendation": "选择A — 全站RSS统一入口，碎碎念排除在外避免刷屏"
+    },
+    {
+      "point_id": "D009",
+      "question": "RSS内容粒度",
+      "options": [
+        "A: 统一标题+摘要+链接",
+        "B: 短内容全文，长内容摘要",
+        "C: 全部全文"
+      ],
+      "tradeoffs": "A引导回站最大化流量；B灵活但规则复杂；C离线可读但减少站内访问",
+      "recommendation": "选择A — 统一规则简单可维护，RSS定位为引流工具"
+    },
+    {
+      "point_id": "D010",
+      "question": "碎碎念是否进入RSS",
+      "options": [
+        "A: 全部进入",
+        "B: 每日/每周合并摘要",
+        "C: 不进入RSS"
+      ],
+      "tradeoffs": "A最全但刷屏；B折中但实现复杂；C干净但碎碎念粉丝无法订阅",
+      "recommendation": "选择C — 碎碎念定位为轻量即时内容，RSS聚焦长内容（blog + /learn）"
+    },
+    {
+      "point_id": "D011",
+      "question": "首页点击/learn笔记的跳转行为",
+      "options": [
+        "A: /learn独立详情页",
+        "B: /learn列表页",
+        "C: 首页模态弹窗预览"
+      ],
+      "tradeoffs": "A独立URL利于分享但增加页面复杂度；B复用已有列表页结构简单；C不离开首页但破坏导航预期",
+      "recommendation": "选择B — /learn当前定位为列表页无独立详情页，跳转列表页最自然"
+    },
+    {
+      "point_id": "D012",
+      "question": "所有内容类型是否统一加角标",
+      "options": [
+        "A: 全部类型各自有角标颜色",
+        "B: 仅/learn有角标",
+        "C: 用图标代替角标"
+      ],
+      "tradeoffs": "A统一体系但需设计完整颜色方案；B突出重点但其他类型缺乏区分；C图标语义不如文字明确",
+      "recommendation": "选择A — 统一角标体系与已有的/learn醒目角标目标一致，各类型视觉区分清晰"
+    },
+    {
+      "point_id": "D013",
+      "question": "时间线中是否展示/learn笔记的分类标签",
+      "options": [
+        "A: 展示分类标签",
+        "B: 不展示，进入/learn后自然展示",
+        "C: 由笔记元数据决定"
+      ],
+      "tradeoffs": "A帮助快速判断相关性但增加卡片信息密度；B保持时间线简洁；C灵活但不一致",
+      "recommendation": "选择B — 时间线保持简洁，分类信息在/learn列表页自然呈现"
+    }
+  ],
+  "constraints": {
+    "hard": [
+      "所有文档和用户对话用中文",
+      "代码标识符/文件名/Git commit用英文ASCII",
+      "非程序员用户（Vibe Coding），AI agent负责编码",
+      "草稿笔记不出现在首页时间线和RSS",
+      "/learn笔记仅手动发布后进入首页和RSS",
+      "碎碎念不进入RSS feed"
+    ],
+    "soft": [
+      "/learn笔记更新频率低暂可接受，内容增长后自然改善",
+      "旧笔记在时间线深处可接受",
+      "RSS统一标题+摘要+链接策略可在二期调整"
+    ],
+    "unknown": []
+  },
+  "boundaries": {
+    "确定要聊的": [
+      "首页时间线混排/learn笔记的展示形式与粒度",
+      "排序规则（最后更新时间倒序混排）",
+      "草稿可见性与发布机制",
+      "低频内容的视觉强化策略（醒目角标）",
+      "全站RSS的覆盖范围和粒度",
+      "角标颜色统一体系（所有内容类型）",
+      "首页点击/learn的跳转目标",
+      "分类标签不在时间线展示"
+    ],
+    "待确认的": [
+      "五种内容类型各自的角标颜色值 — 属于视觉设计阶段确认",
+      "登录后的筛选交互细节 — 属于交互设计阶段确认",
+      "/learn列表页的分类结构和布局 — 属于/learn板块内部设计",
+      "RSS feed的技术实现方案 — 属于技术实现阶段确认"
+    ]
+  },
+  "assumptions": [
+    {
+      "assumption": "/learn笔记的摘要由teach-skill产出物自带，无需手动编写",
+      "validity": "unverified",
+      "basis": "teach-skill流程产出物包含摘要字段（基于已有结论推断）"
+    },
+    {
+      "assumption": "木下登录态通过现有认证体系实现，/learn草稿管理后台复用同一认证",
+      "validity": "unverified",
+      "basis": "已有结论「登录后可筛选类型」暗示已存在登录态"
+    },
+    {
+      "assumption": "全站RSS feed可通过Astro的rss包或CF Workers生成",
+      "validity": "unverified",
+      "basis": "技术栈Astro + CF Workers原生支持RSS生成"
+    },
+    {
+      "assumption": "五种内容类型（blog/碎碎念/剪藏/projects/learn）均为独立数据实体，各自有发布状态字段",
+      "validity": "unverified",
+      "basis": "已有CONTEXT.md中的内容类型划分"
+    }
+  ],
+  "risks": [
+    {
+      "risk": "/learn笔记更新频率极低（可能数月无更新），即使角标醒目，访客也可能在很长一段时间内看不到任何/learn内容，导致角标体系的/learn颜色长期不出现",
+      "severity": "minor",
+      "mitigation": "接受此现状；如果未来/learn内容持续稀缺，可考虑回退至方向B（独立区块）用推荐位保证曝光"
+    },
+    {
+      "risk": "五种内容类型统一角标颜色体系增加视觉设计复杂度，可能需要多轮调整才达到协调",
+      "severity": "minor",
+      "mitigation": "在设计阶段先出颜色方案原型，木下确认后再落地"
+    },
+    {
+      "risk": "按最后更新时间排序可能导致旧笔记反复顶到时间线顶部（如批量修订时），访客可能看到多篇/learn连续出现",
+      "severity": "minor",
+      "mitigation": "木下手动发布时注意节奏；如需批量修订，可考虑修订时是否触发重新排序"
+    },
+    {
+      "risk": "全站RSS中blog可能淹没有/learn（blog频率高于/learn），/learn在RSS阅读器中同样不可见",
+      "severity": "minor",
+      "mitigation": "当前接受；未来如有需求可增加/learn专属RSS作为补充"
+    }
+  ],
+  "stakeholders": [
+    {
+      "role": "木下（网站所有者/内容创作者）",
+      "power_level": "decision-maker",
+      "needs": [
+        "在聚合首页自然展示/learn更新，增强学习成果的可见性",
+        "控制发布节奏，草稿不泄露",
+        "通过RSS分发blog和/learn内容",
+        "保持首页时间线的统一性和简洁性"
+      ],
+      "concerns": [
+        "低频更新可能让/learn显得荒凉",
+        "草稿管理需要在/learn后台闭环"
+      ]
+    },
+    {
+      "role": "访客",
+      "power_level": "user",
+      "needs": [
+        "快速浏览首页时间线获取全站更新概览",
+        "通过角标颜色识别内容类型",
+        "订阅RSS追踪blog和/learn更新"
+      ],
+      "concerns": [
+        "碎碎念不进RSS可能导致碎片化订阅体验",
+        "/learn低频更新在RSS中几乎不可见"
+      ]
+    }
+  ],
+  "open_questions": [
+    {
+      "question": "五种内容类型的角标颜色具体值（hex色号）未确定",
+      "blocker_level": "low",
+      "suggested_next_step": "进入UI/视觉设计阶段时确定颜色方案"
+    },
+    {
+      "question": "批量修订多篇/learn笔记时，是否全部重新顶到时间线顶部",
+      "blocker_level": "low",
+      "suggested_next_step": "技术实现阶段确认排序逻辑：更新时是否始终触发时间戳变更"
+    },
+    {
+      "question": "RSS feed的技术实现选型（Astro内置 vs CF Worker自定义）",
+      "blocker_level": "low",
+      "suggested_next_step": "实现阶段确定技术方案"
+    }
+  ],
+  "model_notes": {
+    "grill_me_model": "gpt-5.1-codex-max"
+  }
+}

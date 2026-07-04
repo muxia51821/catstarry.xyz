@@ -1,4 +1,4 @@
-﻿# catstarry.xyz 技术选型决策记录
+# catstarry.xyz 技术选型决策记录
 
 > 2026-07-03 | 主 agent + Curie 共同决策 | 待木下审查
 
@@ -58,7 +58,7 @@
 | /projects | SSG | 静态卡片 |
 | /learn | SSG | 笔记目录（未来可改 SSR） |
 | /feed | SSR | 鉴权 + 动态时间线 + 隐藏帖子筛选 |
-| / | SSR | 聚合首页需拉取最新数据 |
+| / | SSR | Home 需拉取最新数据 |
 | f.catstarry.xyz | 独立部署 | 独立子域名，但同样 SSR |
 
 ---
