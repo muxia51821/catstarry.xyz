@@ -1,0 +1,85 @@
+/* =========================================
+   catstarry.xyz Design System v1.4 - Typography
+   使用语义 Token 与 :lang() 实现中英自适应
+   ========================================= */
+
+body {
+  margin: 0;
+  font-family: var(--font-cjk);
+  background-color: var(--bg-base); /* 语义 Token */
+  color: var(--text-primary); /* 语义 Token */
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Display 层级 */
+.text-display {
+  font-family: var(--font-display);
+  font-size: clamp(48px, 8vw, var(--text-size-display-en));
+  font-weight: 300;
+  letter-spacing: -0.04em;
+  line-height: var(--line-height-display);
+  margin-bottom: var(--space-xl);
+}
+
+/* 现有的系统浅色覆盖 */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) .text-display {
+    font-weight: 400;
+    letter-spacing: -0.02em;
+  }
+}
+
+/* 新增：手动强制浅色模式覆盖 */
+[data-theme="light"] .text-display {
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}
+
+/* CJK 覆盖 */
+:lang(zh) .text-display,
+:lang(zh-Hans) .text-display {
+  font-family: var(--font-cjk);
+  font-size: clamp(40px, 7vw, var(--text-size-display-cn));
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: var(--line-height-display-cjk);
+}
+
+
+/* Heading LG 层级 */
+.text-heading-lg {
+  font-family: var(--font-display);
+  font-size: clamp(40px, 6vw, var(--text-size-heading-lg-en));
+  font-weight: 300;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  margin-bottom: var(--space-lg);
+}
+:lang(zh) .text-heading-lg {
+  font-family: var(--font-cjk);
+  font-size: clamp(36px, 5.5vw, var(--text-size-heading-lg-cn));
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 1.3;
+}
+
+/* Body 层级 */
+.text-body {
+  font-size: var(--text-size-body);
+  line-height: var(--line-height-body);
+  margin-bottom: var(--space-md);
+}
+:lang(zh) .text-body {
+  line-height: var(--line-height-body-cjk); /* ≥1.85 */
+}
+
+/* Caption 层级 */
+.text-caption {
+  font-size: var(--text-size-caption);
+  color: var(--text-secondary); /* 语义 Token */
+  line-height: 1.5;
+}

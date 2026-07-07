@@ -1,0 +1,8 @@
+/* =========================================
+   catstarry.xyz Design System v1.4 - Main Entry
+   顺序：Tokens -> Typography -> Components
+   ========================================= */
+
+@import "./variables.css";
+@import "./typography.css";
+@import "./components.css";

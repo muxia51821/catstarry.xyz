@@ -143,12 +143,12 @@ Phase 7: 部署上线 ──→ Phase 8: 运营维护 ──→ (循环回 Phase
 
 **CJK 约束**：taste-skill 原生基于拉丁排版。中文排版需叠加 CJK 适配规则（行高 ≥1.85、字间距不调整、标点挤压规则）。
 
-| #   | 动作                                                                                                          | skill                                                                          | 产出                            |
-| --- | ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ | ------------------------------- |
-| 4.0 | 木下人工选参照：浏览 getdesign.md 挑选 2-3 个视觉锚点，笔记提取至 `docs/design/reference-design/`             | —（人工）                                                                      | `docs/design/reference-design/` |
-| 4.1 | Design Read + DESIGN.md：AI 读 reference-design → 声明 Design Read → 生成根目录 DESIGN.md（9 节）             | `design-an-interface`                                                          | `DESIGN.md`                     |
-| 4.2 | 原型生成：加载 taste-skill(minimalist+soft) 作为 Policy Engine 控制布局，禁用 GSAP，风格由 DESIGN.md 驱动     | `prototype` + taste-skill (minimalist-skill + soft-skill)                      | 关键页面 HTML 原型              |
-| 4.3 | 原型落地 + 质检：落地 HTML/CSS → taste-skill pre-flight check（防紫蓝渐变、模板布局、平庸间距、CJK 标点挤压） | `web-design-engineer` + taste-skill (pre-flight check + output-skill 完整输出) | 质检通过的 HTML/CSS 原型        |
+| #   | 动作                                                                                              | skill                                                                          | 产出                            |
+| --- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ | ------------------------------- |
+| 4.0 | 木下人工选参照：浏览 getdesign.md 挑选 2-3 个视觉锚点，笔记提取至 `docs/design/reference-design/` | —（人工）                                                                      | `docs/design/reference-design/` |
+| 4.1 | Design Read + DESIGN.md：AI 读 reference-design → 声明 Design Read → 生成根目录 DESIGN.md（9 节） | `design-an-interface`                                                          | `DESIGN.md`                     |
+| 4.2 | 原型生成：加载 taste-skill(minimalist+soft) 作为 Policy Engine 控制布局，风格由 DESIGN.md 驱动    | `prototype` + taste-skill (minimalist-skill + soft-skill)                      | 关键页面 HTML 原型              |
+| 4.3 | 原型落地 + 质检：落地 HTML/CSS → taste-skill pre-flight check（模板布局、平庸间距、CJK 标点挤压） | `web-design-engineer` + taste-skill (pre-flight check + output-skill 完整输出) | 质检通过的 HTML/CSS 原型        |
 
 > Phase 3 对话结束后，木下回到流程治理报告完成状态，流程治理确认后 fork Phase 4。避免原型先行导致设计绑架架构。
 

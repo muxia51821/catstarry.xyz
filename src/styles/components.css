@@ -1,0 +1,129 @@
+/* =========================================
+   catstarry.xyz Design System v1.4 - Components
+   基于 Layer 2 语义 Token 构建
+   ========================================= */
+
+/* --- Buttons --- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 24px;
+  font-family: var(--font-cjk); /* 按钮使用通用无衬线 */
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s var(--ease-monopo); /* 微观交互 0.2s */
+  text-decoration: none;
+  border: 1px solid transparent;
+}
+
+/* Primary CTA (自适应深浅模式) */
+.btn-primary {
+  background-color: var(--btn-primary-bg);
+  color: #ffffff;
+  border-radius: var(--radius-btn-content);
+}
+.btn-primary:hover {
+  background-color: var(--btn-primary-bg-hover);
+  box-shadow: 0 0 12px rgba(51, 92, 255, 0.4);
+}
+.btn-primary:active {
+  transform: translateY(1px);
+}
+.btn-primary:focus-visible {
+  outline: 2px solid var(--text-primary);
+  outline-offset: 2px;
+}
+
+/* Home 专属 Pill 按钮覆盖 */
+.btn-primary-home {
+  border-radius: var(--radius-btn-home);
+}
+
+/* Secondary Button */
+.btn-secondary {
+  background-color: transparent;
+  color: var(--text-primary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-btn-home);
+}
+.btn-secondary:hover {
+  border-color: var(--text-secondary);
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Finance CTA */
+.btn-finance {
+  background-color: var(--finance-cta-green);
+  color: var(--finance-dark); /* 必须黑字 */
+  border-radius: var(--radius-btn-finance);
+  font-family: var(--font-mono);
+}
+.btn-finance:hover { filter: brightness(1.1); }
+
+/* --- Cards --- */
+.card {
+  padding: var(--space-xl);
+  transition: box-shadow 0.3s var(--ease-monopo);
+}
+
+/* Home Card (暗底) */
+.card-home {
+  background-color: var(--bg-surface-card);
+  border-radius: var(--radius-home);
+  border: 1px solid transparent;
+}
+.card-home:hover {
+  box-shadow: 0 0 0 2px var(--border-default);
+}
+
+/* Content Card (奶油画廊) */
+.card-content-normal {
+  background-color: var(--bg-surface-card);
+  border-radius: var(--radius-content);
+  border: 1px solid var(--border-default);
+}
+
+/* Content Featured Card */
+.card-content-featured {
+  background-color: var(--bg-surface-card);
+  border-radius: var(--radius-content);
+  box-shadow: var(--shadow-webflow-featured);
+}
+
+/* --- Timeline Card (Home 混合时间线 + 五色标记) --- */
+.card-timeline {
+  position: relative;
+  padding-left: calc(var(--space-xl) + 4px); /* 为左边缘色条留出空间 */
+}
+.card-timeline::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 16px;
+  bottom: 16px;
+  width: 3px;
+  border-radius: 2px;
+  background-color: var(--cat-blog); /* 默认博客色 */
+}
+/* 五色边缘变体 */
+.card-timeline[data-cat="feed"]::before { background-color: var(--cat-feed); }
+.card-timeline[data-cat="bookmark"]::before { background-color: var(--cat-bookmark); }
+.card-timeline[data-cat="project"]::before { background-color: var(--cat-project); }
+.card-timeline[data-cat="learn"]::before { background-color: var(--cat-learn); }
+
+/* --- Input --- */
+.input-text {
+  background-color: var(--bg-surface-soft);
+  border: 1px solid var(--border-default);
+  color: var(--text-primary);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-content);
+  font-family: var(--font-cjk);
+  width: 100%;
+}
+.input-text:focus {
+  outline: none;
+  border-color: var(--klein-400);
+  box-shadow: 0 0 0 2px rgba(51, 92, 255, 0.2);
+}

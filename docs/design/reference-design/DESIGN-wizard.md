@@ -91,7 +91,7 @@ Weights: 400 (body text context)
 
 #### Primary Button
 
-- **Background**: `rgba(170, 251, 178, 1)` (Solid lime green)
+- **Background**: `rgb(149, 218, 156)` (Solid lime green)
 - **Text Color**: `#000000`
 - **Padding**: `12px 32px`
 - **Border Radius**: `8px`

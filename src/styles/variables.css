@@ -1,0 +1,181 @@
+/* =========================================
+   catstarry.xyz Design System v1.4
+   LAYER 1: PRIMITIVES & LAYER 2: SEMANTIC TOKENS
+   ========================================= */
+:root {
+  /* --- 1. Brand: Klein Blue Scale (WCAG 2.1 AA) --- */
+  --klein-600: #001f70; /* 亮底 Hover/Active (深压) */
+  --klein-500: #002fa7; /* 品牌主色，亮底 CTA */
+  --klein-400: #335cff; /* 暗底主 CTA (对比度 3.5:1 on Void) */
+  --klein-300: #6685ff; /* 暗底 Hover/次级图标 */
+  --klein-100: #e6ecff; /* 亮底选中背景 */
+
+  /* --- 2. Canvas: Home (Sci-Fi Dark) --- */
+  --home-void: #0a0a0c;
+  --home-surface-soft: #121722;
+  --home-surface-card: #1a2030;
+  --home-border-hover: rgba(255, 255, 255, 0.16);
+  --home-text-primary: #e5e7eb;
+  --home-text-secondary: #9ca3af;
+  --home-text-muted: #6b7280;
+
+  /* --- 3. Canvas: Content (Cream Gallery) --- */
+  --content-gallery: #faf9f5; /* 奶油画布底色 */
+  --content-surface-soft: #e6dfd8;
+  --content-surface-card: #efe9de; /* 卡片底色 (深奶油) */
+  --content-hairline: #e6dfd8; /* 暖咖色发际线 */
+  --content-text-primary: #141413; /* 暖墨黑 */
+  --content-text-body: #3d3d3a;
+  --content-text-secondary: #6c6a64;
+
+  /* --- 4. Canvas: Finance (Cyber Arena) --- */
+  --finance-dark: #0b0e11;
+  --finance-surface: #1e2329;
+  --finance-surface-elevated: #2b3139;
+  --finance-cta-green: #5eaf9e;
+  --finance-down: #0ecb81;
+  --finance-up: #f6465d;
+  --finance-text-primary: #eaecef;
+  --finance-text-secondary: #848e9c;
+
+  /* --- 5. Signature: Dala & Monopo --- */
+  --particle-core: #4f71ff;
+  --particle-glow: #00e5ff;
+  --gradient-iris: linear-gradient(
+    135deg,
+    rgba(79, 113, 255, 0.4),
+    rgba(0, 229, 255, 0.1),
+    rgba(255, 184, 41, 0.05)
+  );
+  --saffron-spark: #ffb829;
+
+  /* --- 6. Category Accents (五色分类) --- */
+  --cat-blog: #7a3dff;
+  --cat-feed: #3b89ff;
+  --cat-bookmark: #00d722;
+  --cat-project: #ff6b00;
+  --cat-learn: #ed52cb;
+
+  /* --- 7. Typography Tokens --- */
+  --font-display: "IBM Plex Sans", var(--font-cjk), sans-serif;
+  --font-body: "Geist", var(--font-cjk), system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --font-cjk: "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+
+  --text-size-display-en: 94px;
+  --text-size-display-cn: 84px;
+  --text-size-heading-lg-en: 78px;
+  --text-size-heading-lg-cn: 70px;
+  --text-size-heading-md-en: 54px;
+  --text-size-heading-md-cn: 48px;
+  --text-size-body: 16px;
+  --text-size-caption: 12px;
+
+  --line-height-display: 0.9;
+  --line-height-display-cjk: 1.25;
+  --line-height-body: 1.6;
+  --line-height-body-cjk: 1.85;
+
+  /* --- 8. Geometry & Motion --- */
+  --radius-home: 20px;
+  --radius-content: 8px;
+  --radius-btn-home: 100px;
+  --radius-btn-content: 8px;
+  --radius-btn-finance: 8px;
+  --ease-monopo: cubic-bezier(0.19, 1, 0.22, 1);
+
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-xxl: 48px;
+  --card-gap: 46px;
+
+  /* --- 9. Webflow Featured Shadow --- */
+  --shadow-webflow-featured:
+    0 84px 24px rgba(0, 0, 0, 0), 0 54px 22px rgba(0, 0, 0, 0.01),
+    0 30px 18px rgba(0, 0, 0, 0.04), 0 13px 13px rgba(0, 0, 0, 0.08),
+    0 3px 7px rgba(0, 0, 0, 0.09);
+
+}
+
+/* =========================================
+   LAYER 2: SEMANTIC TOKENS (变色龙层)
+   组件必须且只能引用此层变量
+   ========================================= */
+:root {
+  /* 默认：深色模式 (Home Sci-Fi) */
+  color-scheme: dark;
+  --bg-base: var(--home-void);
+  --bg-surface-soft: var(--home-surface-soft);
+  --bg-surface-card: var(--home-surface-card);
+  --text-primary: var(--home-text-primary);
+  --text-secondary: var(--home-text-secondary);
+  --border-default: var(--home-border-hover);
+  --btn-primary-bg: var(--klein-400);
+  --btn-primary-bg-hover: var(--klein-300);
+}
+
+/* 浅色模式 (Content Cream Gallery) */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    color-scheme: light;
+    --bg-base: var(--content-gallery);
+    --bg-surface-soft: var(--content-surface-soft);
+    --bg-surface-card: var(--content-surface-card);
+    --text-primary: var(--content-text-primary);
+    --text-secondary: var(--content-text-secondary);
+    --text-muted: var(--contente-text-secondary);
+    --border-default: var(--content-hairline);
+    --btn-primary-bg: var(--klein-500);
+    --btn-primary-bg-hover: var(--klein-600);
+    --font-weight-display: 400;
+    --letter-spacing-display: -0.02em;
+  }
+}
+
+/* =========================================
+   Finance 画布专属语义覆盖 (强制赛博暗面)
+   无视全局 theme，只要进入 Finance 页面即刻生效
+   ========================================= */
+[data-canvas="finance"] {
+  color-scheme: dark;
+  --bg-base: var(--finance-dark);
+  --bg-surface-soft: var(--finance-surface);
+  --bg-surface-card: var(--finance-surface-elevated);
+  --text-primary: var(--finance-text-primary);
+  --text-secondary: var(--finance-text-secondary);
+  --text-muted: var(--finance-text-secondary);
+  --border-default: rgba(255, 255, 255, 0.08);
+  --btn-primary-bg: var(--finance-cta-green);
+  --btn-primary-bg-hover: #73c9b6;
+}
+
+/* 手动强制深色 (供 JS 切换使用) */
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg-base: var(--home-void);
+  --bg-surface-soft: var(--home-surface-soft);
+  --bg-surface-card: var(--home-surface-card);
+  --text-primary: var(--home-text-primary);
+  --text-secondary: var(--home-text-secondary);
+  --border-default: var(--home-border-hover);
+  --btn-primary-bg: var(--klein-400);
+  --btn-primary-bg-hover: var(--klein-300);
+}
+
+/* 手动强制浅色 (供 JS 切换使用) */
+[data-theme="light"] {
+  color-scheme: light;
+  --bg-base: var(--content-gallery);
+  --bg-surface-soft: var(--content-surface-soft);
+  --bg-surface-card: var(--content-surface-card);
+  --text-primary: var(--content-text-primary);
+  --text-secondary: var(--content-text-secondary);
+  --border-default: var(--content-hairline);
+  --btn-primary-bg: var(--klein-500);
+  --btn-primary-bg-hover: var(--klein-600);
+  --font-weight-display: 400;
+  --letter-spacing-display: -0.02em;
+}
