@@ -7,10 +7,10 @@
 
 ## 架构决策：数据库拆分
 
-| 数据库 | D1 Binding | 用途 |
-|--------|-----------|------|
-| `catstarry-db` | `env.DB`（主站 Worker） | /feed 帖子、/blog 阅读量、认证 session |
-| `finance-db` | `env.DB`（finance Worker） | 交易记录、持仓快照、行情数据、熔断日志 |
+| 数据库         | D1 Binding                 | 用途                                   |
+| -------------- | -------------------------- | -------------------------------------- |
+| `catstarry-db` | `env.DB`（主站 Worker）    | /feed 帖子、/blog 阅读量、认证 session |
+| `finance-db`   | `env.DB`（finance Worker） | 交易记录、持仓快照、行情数据、熔断日志 |
 
 **理由**：财务数据隔离更安全（ADN-001）。主站模块共库可简化 Home 聚合查询。
 
@@ -40,19 +40,19 @@ CREATE TABLE IF NOT EXISTS feed_posts (
 
 **字段说明**：
 
-| 字段 | 类型 | 约束 | 说明 |
-|------|------|------|------|
-| `id` | TEXT PK | UUID v7 | 时间有序的 UUID，用于游标分页 |
-| `type` | TEXT | `note` or `clip` | 帖子类型，不可混用 |
-| `content` | TEXT | 可为空（纯图碎碎念） | 文字内容 |
-| `media_json` | TEXT | JSON 数组 | R2 key 列表，如 `["feed/2026-07/abc.jpg"]` |
-| `link_url` | TEXT | clip 类型必填 | 剪藏目标 URL |
-| `link_title` | TEXT | | og:title 自动抓取 |
-| `link_summary` | TEXT | | og:description |
-| `link_image` | TEXT | | og:image URL |
-| `visibility` | TEXT | `public`/`private` | 公开/仅我可见 |
-| `created_at` | TEXT | NOT NULL, ISO 8601 | 创建时间 |
-| `updated_at` | TEXT | NOT NULL, ISO 8601 | 最后更新时间 |
+| 字段           | 类型    | 约束                 | 说明                                       |
+| -------------- | ------- | -------------------- | ------------------------------------------ |
+| `id`           | TEXT PK | UUID v7              | 时间有序的 UUID，用于游标分页              |
+| `type`         | TEXT    | `note` or `clip`     | 帖子类型，不可混用                         |
+| `content`      | TEXT    | 可为空（纯图碎碎念） | 文字内容                                   |
+| `media_json`   | TEXT    | JSON 数组            | R2 key 列表，如 `["feed/2026-07/abc.jpg"]` |
+| `link_url`     | TEXT    | clip 类型必填        | 剪藏目标 URL                               |
+| `link_title`   | TEXT    |                      | og:title 自动抓取                          |
+| `link_summary` | TEXT    |                      | og:description                             |
+| `link_image`   | TEXT    |                      | og:image URL                               |
+| `visibility`   | TEXT    | `public`/`private`   | 公开/仅我可见                              |
+| `created_at`   | TEXT    | NOT NULL, ISO 8601   | 创建时间                                   |
+| `updated_at`   | TEXT    | NOT NULL, ISO 8601   | 最后更新时间                               |
 
 **索引**：
 
@@ -178,20 +178,20 @@ CREATE TABLE IF NOT EXISTS circuit_breaker_log (
 
 ## 3. KV Namespace
 
-| Namespace | Key Pattern | 用途 | TTL |
-|-----------|-------------|------|-----|
-| **VIEW_KV** | `view:{slug}:{date}` | 阅读量去重（IP→count） | 24h |
-| **VIEW_KV** | `blog-metadata` | blog 元数据 JSON（用于 Home 聚合） | 构建时写入 |
-| **AUTH_KV** | `user:{username}` | 用户密码 bcrypt hash | 永久 |
-| **AUTH_KV** | `session:{token}` | 登录 session | 12h |
-| **AUTH_KV** | `ratelimit:{ip}` | 登录限流计数器 | 5min |
+| Namespace   | Key Pattern          | 用途                               | TTL        |
+| ----------- | -------------------- | ---------------------------------- | ---------- |
+| **VIEW_KV** | `view:{slug}:{date}` | 阅读量去重（IP→count）             | 24h        |
+| **VIEW_KV** | `blog-metadata`      | blog 元数据 JSON（用于 Home 聚合） | 构建时写入 |
+| **AUTH_KV** | `user:{username}`    | 用户密码 bcrypt hash               | 永久       |
+| **AUTH_KV** | `session:{token}`    | 登录 session                       | 12h        |
+| **AUTH_KV** | `ratelimit:{ip}`     | 登录限流计数器                     | 5min       |
 
 ---
 
 ## 4. R2 Bucket
 
-| Bucket | 路径模式 | 用途 | CORS |
-|--------|---------|------|------|
+| Bucket            | 路径模式                      | 用途           | CORS                 |
+| ----------------- | ----------------------------- | -------------- | -------------------- |
 | `catstarry-media` | `feed/{YYYY-MM}/{uuid}.{ext}` | /feed 媒体文件 | Allow: catstarry.xyz |
 
 ---
@@ -215,8 +215,8 @@ Phase 5 开发时扩展 `src/content/config.ts`。
 const learnCollection = defineCollection({
   type: "content",
   schema: z.object({
-    title: z.string(),              // 笔记标题
-    track: z.string(),              // 学习轨道（如 astro）
+    title: z.string(), // 笔记标题
+    track: z.string(), // 学习轨道（如 astro）
     section: z.string().optional(), // 分节（如 pages-routing）
     tags: z.array(z.string()).default([]),
     draft: z.boolean().default(false),
@@ -282,19 +282,19 @@ export interface FeedPost {
   id: string;
   type: PostType;
   content: string | null;
-  media_json: string | null;          // JSON 字符串，前端 parse
+  media_json: string | null; // JSON 字符串，前端 parse
   link_url: string | null;
   link_title: string | null;
   link_summary: string | null;
   link_image: string | null;
   visibility: Visibility;
-  created_at: string;                 // ISO 8601
-  updated_at: string;                 // ISO 8601
+  created_at: string; // ISO 8601
+  updated_at: string; // ISO 8601
 }
 
 export interface PaginatedResponse<T> {
   items: T[];
-  cursor: string | null;              // 下一页游标
+  cursor: string | null; // 下一页游标
   has_more: boolean;
 }
 
@@ -373,3 +373,4 @@ KV:                               R2:
   user:{username} → bcrypt hash
   session:{token} → session data
   ratelimit:{ip} → counter
+```

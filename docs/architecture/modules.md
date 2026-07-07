@@ -36,6 +36,7 @@
 ```
 
 **Seam 规则**：
+
 - Seam A 之上（Astro）不 import Seam A 之下（Workers 源码）。仅通过 HTTP fetch 通信。
 - Seam B 之上（Workers）不直接操作 D1/KV/R2 底层 API。复杂的存储操作封装在 adapter 内。
 - Seam C 之上无代码。D1/KV/R2 是 Cloudflare 托管基础设施。
@@ -173,21 +174,21 @@ catstarry.xyz/
 
 ### 3.1 深度模块（Deep Modules）
 
-| Module | Interface | Implementation Depth | 为什么深 |
-|--------|-----------|---------------------|---------|
-| **shared/auth.ts** | `verifySession(request, env) → { authenticated, user? }` | bcrypt compare, KV session lookup, D1 fallback, rate-limit check | 4 个 endpoint (login/logout/session/password) 和 2 个 Worker 共用同样的 1 个函数。删除它 = 在每个路由手动重复认证逻辑。 |
-| **routes/feed.ts** | `handleFeed(request, env) → Response` | 游标分页 SQL, 帖子的 CRUD, visibility 过滤, media_json 解析 | `GET /api/feed` 的游标分页逻辑（复合游标 + LIMIT）封装在一处，5 个调用点（公开时间线、管理后台、Home 聚合）复用。 |
-| **components/MediaUploader.tsx** | `<MediaUploader onComplete={fn} />` | 文件选择→类型检测→R2 直传→进度回调→失败重试→HEIC 转换 | 一个组件包裹了上传的全部复杂行为。调用者只需 `onComplete` 拿结果。 |
-| **shared/cors.ts** | `CORS_HEADERS` + `wrapCors(response)` | 所有 Worker 路由共享同一份 CORS 配置 | 10+ 个 endpoint 只需一个常量。新增 endpoint 不重写 CORS。 |
+| Module                           | Interface                                                | Implementation Depth                                             | 为什么深                                                                                                                |
+| -------------------------------- | -------------------------------------------------------- | ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| **shared/auth.ts**               | `verifySession(request, env) → { authenticated, user? }` | bcrypt compare, KV session lookup, D1 fallback, rate-limit check | 4 个 endpoint (login/logout/session/password) 和 2 个 Worker 共用同样的 1 个函数。删除它 = 在每个路由手动重复认证逻辑。 |
+| **routes/feed.ts**               | `handleFeed(request, env) → Response`                    | 游标分页 SQL, 帖子的 CRUD, visibility 过滤, media_json 解析      | `GET /api/feed` 的游标分页逻辑（复合游标 + LIMIT）封装在一处，5 个调用点（公开时间线、管理后台、Home 聚合）复用。       |
+| **components/MediaUploader.tsx** | `<MediaUploader onComplete={fn} />`                      | 文件选择→类型检测→R2 直传→进度回调→失败重试→HEIC 转换            | 一个组件包裹了上传的全部复杂行为。调用者只需 `onComplete` 拿结果。                                                      |
+| **shared/cors.ts**               | `CORS_HEADERS` + `wrapCors(response)`                    | 所有 Worker 路由共享同一份 CORS 配置                             | 10+ 个 endpoint 只需一个常量。新增 endpoint 不重写 CORS。                                                               |
 
 ### 3.2 浅模块（Minimal / Pass-through）
 
-| Module | 说明 | 是否保留 |
-|--------|------|---------|
-| `routes/views.ts` | 2 个 endpoint (GET/POST)，直接委托 D1 查询 | ✅ 保留 — endpoint 匹配需要路由分发 |
-| `routes/learn.ts` | /api/learn 目前仅草稿发布状态切换 | ✅ 保留 — Phase 5 可能扩展 |
-| `lib/category.ts` | 3 行映射 `{tech: "技术", ...}` | ✅ 保留 — 一处定义，多处引用 |
-| `layouts/BlogLayout.astro` | 薄包装 `Base.astro` + blog 特定 SEO | ✅ 保留 — 避免每个 blog 页面重复 `<Base>` |
+| Module                     | 说明                                       | 是否保留                                  |
+| -------------------------- | ------------------------------------------ | ----------------------------------------- |
+| `routes/views.ts`          | 2 个 endpoint (GET/POST)，直接委托 D1 查询 | ✅ 保留 — endpoint 匹配需要路由分发       |
+| `routes/learn.ts`          | /api/learn 目前仅草稿发布状态切换          | ✅ 保留 — Phase 5 可能扩展                |
+| `lib/category.ts`          | 3 行映射 `{tech: "技术", ...}`             | ✅ 保留 — 一处定义，多处引用              |
+| `layouts/BlogLayout.astro` | 薄包装 `Base.astro` + blog 特定 SEO        | ✅ 保留 — 避免每个 blog 页面重复 `<Base>` |
 
 **删除测试**：拿掉 `layouts/BlogLayout.astro` → 每个 blog 页面要手动写 `<Base>` + SEO head → 复杂度分散到 N 个页面。保留。
 
@@ -195,11 +196,11 @@ catstarry.xyz/
 
 ## 4. Seam 决策
 
-| Seam | 位置 | 为什么放这里 | 替代方案 |
-|------|------|-------------|---------|
-| **Seam A** (Pages ↔ Workers) | HTTP fetch (`api-client.ts`) | Workers 和 Astro 运行在不同 runtime（CF Workers vs Node.js build），天然需要网络边界 | ❌ 共享 import：Workers runtime 不支持 Astro 依赖 |
-| **Seam B** (Workers ↔ Adapters) | `shared/` 目录 import | Auth 逻辑在两个 Worker 中完全相同，抽到 shared 避免重复 | ❌ 各自实现：bug 修复要改两处 |
-| **Seam C** (Adapters ↔ Infrastructure) | CF Bindings (`env.DB`, `env.KV`, `env.R2`) | Cloudflare 提供的托管接口，无法也不应替换 | — |
+| Seam                                   | 位置                                       | 为什么放这里                                                                         | 替代方案                                          |
+| -------------------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------ | ------------------------------------------------- |
+| **Seam A** (Pages ↔ Workers)           | HTTP fetch (`api-client.ts`)               | Workers 和 Astro 运行在不同 runtime（CF Workers vs Node.js build），天然需要网络边界 | ❌ 共享 import：Workers runtime 不支持 Astro 依赖 |
+| **Seam B** (Workers ↔ Adapters)        | `shared/` 目录 import                      | Auth 逻辑在两个 Worker 中完全相同，抽到 shared 避免重复                              | ❌ 各自实现：bug 修复要改两处                     |
+| **Seam C** (Adapters ↔ Infrastructure) | CF Bindings (`env.DB`, `env.KV`, `env.R2`) | Cloudflare 提供的托管接口，无法也不应替换                                            | —                                                 |
 
 **Seam C 的特殊性**：D1/KV/R2 是 CF 托管服务，不是我们写的代码。`env.DB` / `env.KV` 已经是 CF 提供的 adapter。`shared/auth.ts` 在它们之上做了**第二层 adapter**——业务语义的 adapter（"验证 session"而非"读 KV key"）。
 
@@ -325,6 +326,7 @@ src/content/            ← 仅被 Astro build 读取
 ```
 
 **硬规则**：
+
 1. `workers/` 不 import `src/` 下任何文件
 2. `src/` 不 import `workers/` 下任何文件（仅通过 HTTP fetch）
 3. `shared/` 不 import `workers/` 或 `src/` 下任何文件
@@ -334,22 +336,22 @@ src/content/            ← 仅被 Astro build 读取
 
 ## 7. 与 Phase 1 原型的差异
 
-| 变更 | 原 Phase 1 | Phase 3 |
-|------|-----------|---------|
-| `shared/` | 不存在 | 新建 adapter 层 (types + auth + cors) |
-| `src/components/` | 平铺 2 个文件 | 按模块分子目录 (feed/home/learn/shared/ui) |
-| `src/layouts/` | 仅 `Base.astro` | 新增 `BlogLayout.astro`, `FeedLayout.astro` |
-| `workers/feed-api/` | 单文件 `index.ts` | `src/routes/` + `src/middleware/` |
-| `workers/finance-api/` | 不存在 | 完整新建（routes + middleware + tasks） |
-| `src/pages/` | 仅 blog 有 | 新增 feed/、learn/、projects/、index.astro |
-| `src/content/learn/` | 不存在 | 新建 MDX 笔记目录 |
+| 变更                   | 原 Phase 1        | Phase 3                                     |
+| ---------------------- | ----------------- | ------------------------------------------- |
+| `shared/`              | 不存在            | 新建 adapter 层 (types + auth + cors)       |
+| `src/components/`      | 平铺 2 个文件     | 按模块分子目录 (feed/home/learn/shared/ui)  |
+| `src/layouts/`         | 仅 `Base.astro`   | 新增 `BlogLayout.astro`, `FeedLayout.astro` |
+| `workers/feed-api/`    | 单文件 `index.ts` | `src/routes/` + `src/middleware/`           |
+| `workers/finance-api/` | 不存在            | 完整新建（routes + middleware + tasks）     |
+| `src/pages/`           | 仅 blog 有        | 新增 feed/、learn/、projects/、index.astro  |
+| `src/content/learn/`   | 不存在            | 新建 MDX 笔记目录                           |
 
 **保留不变**：
+
 - `src/content/blog/`（Markdown 博客）
 - `src/content/config.ts`（扩展 learn collection）
 - `src/styles/global.css`（暖色系 CSS 变量）
 - `src/lib/`（前端工具函数位置不变）
-
 
 ---
 
@@ -360,45 +362,48 @@ src/content/            ← 仅被 Astro build 读取
 
 ### 8.1 已遵循的规则
 
-| 规则 | 设计中的体现 |
-|------|-------------|
-| **Bindings over REST** | Worker 通过 `env.DB`（D1 binding）和 `env.VIEW_KV`（KV binding）访问存储，不走 REST API |
-| **Secrets management** | 密码 hash 存 KV（`wrangler secret put` 初始设置），不在代码/配置中硬编码 |
-| **Web Crypto** | `crypto.randomUUID()` 生成 session token，非 `Math.random()` |
-| **No global request state** | 路由 handler 函数不依赖模块级变量，session 从 request cookie 读取 |
-| **Cron trigger 独立** | 行情拉取和 R2 清理通过 `[triggers] crons` 配置，不混入 fetch handler |
-| **shared/ adapter** | `shared/auth.ts` + `shared/cors.ts` 提取到独立 module，两个 Worker 共享 |
+| 规则                        | 设计中的体现                                                                            |
+| --------------------------- | --------------------------------------------------------------------------------------- |
+| **Bindings over REST**      | Worker 通过 `env.DB`（D1 binding）和 `env.VIEW_KV`（KV binding）访问存储，不走 REST API |
+| **Secrets management**      | 密码 hash 存 KV（`wrangler secret put` 初始设置），不在代码/配置中硬编码                |
+| **Web Crypto**              | `crypto.randomUUID()` 生成 session token，非 `Math.random()`                            |
+| **No global request state** | 路由 handler 函数不依赖模块级变量，session 从 request cookie 读取                       |
+| **Cron trigger 独立**       | 行情拉取和 R2 清理通过 `[triggers] crons` 配置，不混入 fetch handler                    |
+| **shared/ adapter**         | `shared/auth.ts` + `shared/cors.ts` 提取到独立 module，两个 Worker 共享                 |
 
 ### 8.2 需要 Phase 5 执行的规则
 
-| 规则 | 现状 | Phase 5 行动 |
-|------|------|-------------|
-| **compatibility_date 更新** | `workers/feed-api/wrangler.toml` 使用 `2025-07-04`（已过期 >1 年） | Phase 5 更新为当天日期 |
-| **nodejs_compat flag** | `compatibility_flags` 未设置 | Phase 5 在 `wrangler.toml` 添加 `compatibility_flags = ["nodejs_compat"]`，bcryptjs 和 bcrypt compare 依赖 Node.js built-ins |
-| **wrangler types** | 当前无 `Env` 类型生成 | Phase 5 运行 `wrangler types` 生成 `Env` 接口，替换手写类型 |
-| **wrangler.jsonc** | 使用 `wrangler.toml` | Phase 5 评估是否迁移到 `.jsonc`。当前 `.toml` 可保留（非新项目），但绑定格式需验证 |
-| **streaming** | 当前 API 返回的分页响应（JSON 数组）数据量可控（≤20 条） | Phase 5 确认不需要 stream。如果 Home 聚合返回大量数据，考虑 streaming |
-| **ctx.waitUntil()** | 未在设计中使用 | Phase 5 Cron handler 中日志写入应使用 `ctx.waitUntil()` |
-| **floating promises** | 设计文档未涉及运行时 Promise 管理 | Phase 5 开发时 lint 规则检查 |
-| **observability** | 未配置 | Phase 5 在 `wrangler.toml` 中添加 `observability` 配置段 |
+| 规则                        | 现状                                                               | Phase 5 行动                                                                                                                 |
+| --------------------------- | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
+| **compatibility_date 更新** | `workers/feed-api/wrangler.toml` 使用 `2025-07-04`（已过期 >1 年） | Phase 5 更新为当天日期                                                                                                       |
+| **nodejs_compat flag**      | `compatibility_flags` 未设置                                       | Phase 5 在 `wrangler.toml` 添加 `compatibility_flags = ["nodejs_compat"]`，bcryptjs 和 bcrypt compare 依赖 Node.js built-ins |
+| **wrangler types**          | 当前无 `Env` 类型生成                                              | Phase 5 运行 `wrangler types` 生成 `Env` 接口，替换手写类型                                                                  |
+| **wrangler.jsonc**          | 使用 `wrangler.toml`                                               | Phase 5 评估是否迁移到 `.jsonc`。当前 `.toml` 可保留（非新项目），但绑定格式需验证                                           |
+| **streaming**               | 当前 API 返回的分页响应（JSON 数组）数据量可控（≤20 条）           | Phase 5 确认不需要 stream。如果 Home 聚合返回大量数据，考虑 streaming                                                        |
+| **ctx.waitUntil()**         | 未在设计中使用                                                     | Phase 5 Cron handler 中日志写入应使用 `ctx.waitUntil()`                                                                      |
+| **floating promises**       | 设计文档未涉及运行时 Promise 管理                                  | Phase 5 开发时 lint 规则检查                                                                                                 |
+| **observability**           | 未配置                                                             | Phase 5 在 `wrangler.toml` 中添加 `observability` 配置段                                                                     |
 
 ### 8.3 R2 上传链路裁决
 
 当前设计标注了 A/B 两个选项。基于 workers-best-practices 的 **bindings over REST** 原则：
 
 **推荐 A（Worker 代理上传）**。理由：
+
 - Worker 通过 R2 binding（`env.MEDIA_R2`）直接写对象，不走 REST API
 - 认证逻辑统一在 Worker middleware 中，不分散
 - Presigned URL（B）需要额外的 auth endpoint 生成签名，增加接口表面积
 
 **Phase 5 实现时**：
+
 ```typescript
 // workers/feed-api/src/routes/upload.ts
 import { verifySession } from "../middleware/auth";
 
 async function handleUpload(request: Request, env: Env): Promise<Response> {
   const session = await verifySession(request, env);
-  if (!session.authenticated) return new Response("Unauthorized", { status: 401 });
+  if (!session.authenticated)
+    return new Response("Unauthorized", { status: 401 });
 
   const formData = await request.formData();
   const file = formData.get("file");
@@ -411,17 +416,17 @@ async function handleUpload(request: Request, env: Env): Promise<Response> {
 
 ### 8.4 D1 查询注意事项
 
-| 注意事项 | 现有设计 |
-|---------|---------|
-| **游标分页** | ✅ `GET /api/feed` 使用 `(created_at, id)` 复合游标，不依赖 OFFSET |
-| **索引覆盖** | ✅ `idx_feed_posts_created` 支持游标排序，`idx_feed_posts_visibility` 支持过滤 |
+| 注意事项       | 现有设计                                                                                                         |
+| -------------- | ---------------------------------------------------------------------------------------------------------------- |
+| **游标分页**   | ✅ `GET /api/feed` 使用 `(created_at, id)` 复合游标，不依赖 OFFSET                                               |
+| **索引覆盖**   | ✅ `idx_feed_posts_created` 支持游标排序，`idx_feed_posts_visibility` 支持过滤                                   |
 | **LIMIT 限制** | ⚠️ 当前设 LIMIT 20 合理，但 `GET /api/me/feed`（管理后台）可能查询全部帖子。Phase 5 添加默认 LIMIT，防止全表扫描 |
-| **批量查询** | ✅ `GET /api/views?slugs=slug1,slug2,...` 支持批量，减少 N+1 问题 |
+| **批量查询**   | ✅ `GET /api/views?slugs=slug1,slug2,...` 支持批量，减少 N+1 问题                                                |
 
 ### 8.5 KV 使用注意事项
 
-| 注意事项 | 现有设计 |
-|---------|---------|
-| **TTL 设置** | ✅ session TTL 12h，rate-limit TTL 5min，view dedup TTL 24h |
-| **blog-metadata 大小** | ⚠️ KV value 上限 25MB。个人博客元数据远小于此，但 Phase 5 确认 JSON 大小 |
-| **最终一致性** | ⚠️ KV 写入 blog-metadata 后在 deploy hook 中执行，读取时 KV 可能还未全局同步（通常 <60s）。可接受——博客更新频率低，延迟一分钟不影响 |
+| 注意事项               | 现有设计                                                                                                                            |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| **TTL 设置**           | ✅ session TTL 12h，rate-limit TTL 5min，view dedup TTL 24h                                                                         |
+| **blog-metadata 大小** | ⚠️ KV value 上限 25MB。个人博客元数据远小于此，但 Phase 5 确认 JSON 大小                                                            |
+| **最终一致性**         | ⚠️ KV 写入 blog-metadata 后在 deploy hook 中执行，读取时 KV 可能还未全局同步（通常 <60s）。可接受——博客更新频率低，延迟一分钟不影响 |

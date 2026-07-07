@@ -7,16 +7,16 @@
 
 ## 技术栈映射
 
-| 层 | 选型 | 部署 | 用途 |
-|----|------|------|------|
-| **前端框架** | Astro (hybrid: SSG + SSR) | CF Pages | 全站页面渲染 |
-| **交互组件** | React 18 + shadcn/ui | 嵌入 Astro island | 发布面板、时间线、管理后台、about 卡片 |
-| **API** | CF Workers (feed-api + finance-api) | wrangler deploy | 数据读写、认证、Cron 任务 |
-| **数据库** | D1 (catstarry-db + finance-db) | CF | 结构化数据（帖子、交易、阅读量、session） |
-| **缓存/配置** | KV (3 namespace) | CF | 阅读量去重、blog 元数据、认证、限流 |
-| **文件存储** | R2 (catstarry-media) | CF | /feed 媒体文件（图片/视频） |
-| **CI/CD** | GitHub Actions + wrangler | GitHub | Git push → build → deploy |
-| **域名** | catstarry.xyz + f.catstarry.xyz | CF DNS | 主站 + 财务子域名 |
+| 层            | 选型                                | 部署              | 用途                                      |
+| ------------- | ----------------------------------- | ----------------- | ----------------------------------------- |
+| **前端框架**  | Astro (hybrid: SSG + SSR)           | CF Pages          | 全站页面渲染                              |
+| **交互组件**  | React 18 + shadcn/ui                | 嵌入 Astro island | 发布面板、时间线、管理后台、about 卡片    |
+| **API**       | CF Workers (feed-api + finance-api) | wrangler deploy   | 数据读写、认证、Cron 任务                 |
+| **数据库**    | D1 (catstarry-db + finance-db)      | CF                | 结构化数据（帖子、交易、阅读量、session） |
+| **缓存/配置** | KV (3 namespace)                    | CF                | 阅读量去重、blog 元数据、认证、限流       |
+| **文件存储**  | R2 (catstarry-media)                | CF                | /feed 媒体文件（图片/视频）               |
+| **CI/CD**     | GitHub Actions + wrangler           | GitHub            | Git push → build → deploy                 |
+| **域名**      | catstarry.xyz + f.catstarry.xyz     | CF DNS            | 主站 + 财务子域名                         |
 
 ---
 
@@ -142,17 +142,18 @@ Cron (每日收盘) → fetch-pe task → PE-TTM 数据 → D1 market_data
 
 ## 产出物清单
 
-| 文件 | 内容 | 步骤 |
-|------|------|------|
-| `docs/architecture/data-model.md` | D1 schema + KV + R2 + Content Collections + API 类型定义 | 3.1 |
-| `docs/architecture/modules.md` | 目录结构 + 模块边界 + Workers 路由 | 3.2 + 3.3 |
-| `docs/architecture/auth.md` | /feed + finance 鉴权方案 | 3.4 |
-| `docs/adr/001-d1-split.md` | 1 个 D1 vs 2 个 | 3.5 |
-| `docs/adr/002-blog-metadata-kv-bridge.md` | KV bridge vs D1 迁移 | 3.5 |
-| `docs/adr/003-worker-count.md` | 2 个 Worker vs 多 Worker | 3.5 |
-| `docs/adr/004-feed-visibility-two-state.md` | visibility 两状态 vs 三状态 | 3.5 |
-| `docs/adr/005-about-card-inline.md` | about 卡片原地展开 vs 模态弹窗 | 3.5 |
-| `docs/architecture.md` | 本文件（架构总览） | 汇总 |
+| 文件                                        | 内容                                                                            | 步骤      |
+| ------------------------------------------- | ------------------------------------------------------------------------------- | --------- |
+| `docs/architecture/data-model.md`           | D1 schema + KV + R2 + Content Collections + API 类型定义                        | 3.1       |
+| `docs/architecture/modules.md`              | 目录结构 + 模块边界 + Workers 路由                                              | 3.2 + 3.3 |
+| `docs/architecture/auth.md`                 | /feed + finance 鉴权方案                                                        | 3.4       |
+| `docs/adr/001-d1-split.md`                  | 1 个 D1 vs 2 个                                                                 | 3.5       |
+| `docs/adr/002-blog-metadata-kv-bridge.md`   | KV bridge vs D1 迁移                                                            | 3.5       |
+| `docs/adr/003-worker-count.md`              | 2 个 Worker vs 多 Worker                                                        | 3.5       |
+| `docs/adr/004-feed-visibility-two-state.md` | visibility 两状态 vs 三状态                                                     | 3.5       |
+| `docs/adr/005-about-card-inline.md`         | about 卡片原地展开 vs 模态弹窗                                                  | 3.5       |
+| `docs/architecture.md`                      | 本文件（架构总览）                                                              | 汇总      |
+| `DESIGN.md`                                 | 根目录下的视觉设计系统文件，9 节标准格式（Visual Theme → Agent Prompt Guide）。 | 4.1       |
 
 ---
 
@@ -173,6 +174,7 @@ tech-decisions-20260703.md 中的 7 项决策全部保留，但以下三点在 P
 Phase 3 完成。木下回到「流程治理」对话报告：
 
 > Phase 3 架构设计已完成。产出物：
+>
 > - `docs/architecture/data-model.md`
 > - `docs/architecture/modules.md`
 > - `docs/architecture/auth.md`
@@ -180,6 +182,7 @@ Phase 3 完成。木下回到「流程治理」对话报告：
 > - `docs/adr/001-005` 共 5 份决策记录
 >
 > 需要流程治理更新的文件：
+>
 > - DASHBOARD.md: Phase 3 = ✅
 > - CONTEXT.md: [原型约定 | Phase 3 重新裁决] → [已锁定]，开发状态更新
 > - GLOSSARY.md: about 卡片定义修正（原地展开，非模态弹窗）

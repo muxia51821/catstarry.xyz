@@ -42,13 +42,10 @@ Five canonical labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-f
 
 Single-context — one `CONTEXT.md` at repo root, ADRs in `docs/adr/`. See `docs/agents/domain.md`.
 
-## 文件写入
+## 文件写入方式
 
-禁止 Set-Content、here-string 管道、-c 三重引号等任何依赖 PowerShell 编码层的方式。唯一可靠方式：先写 .py 脚本到磁盘（UTF-8 without BOM），再 python script.py 执行，事后删除脚本。
-
-### python -c 与 PowerShell 引号冲突
-
-禁止在 PowerShell 下用 python -c 传递三重引号字符串、内含单引号的单引号字符串，或包含反斜杠转义的字符串。PowerShell 会在 Python 看到之前解析引号和反斜杠，导致不可预测的语法错误。
+禁止 Set-Content、禁止在 PowerShell 下用 python -c 传递三重引号字符串、内含单引号的单引号字符串，或包含反斜杠转义的字符串等任何依赖 PowerShell 编码层的方式。唯一可靠方式：先写 .py 脚本到磁盘（UTF-8 without BOM），再 python script.py 执行，事后删除脚本。
+PowerShell 会在 Python 看到之前解析引号和反斜杠，导致不可预测的语法错误。
 
 可靠替代方案：
 
@@ -70,7 +67,7 @@ Single-context — one `CONTEXT.md` at repo root, ADRs in `docs/adr/`. See `docs
 
 ## 技术栈
 
-Astro hybrid + React (shadcn/ui) + CF Workers + D1 + KV + R2。详见 `README.md` 和 `docs/tech-decisions-20260703.md`.
+Astro hybrid + React (shadcn/ui) + CF Workers + D1 + KV + R2。详见 `docs/architecture.md`.
 
 ## 约束
 

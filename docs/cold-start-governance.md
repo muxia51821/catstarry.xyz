@@ -53,20 +53,22 @@ docs/handoff-20260702.md            — 需求分析产出
 docs/finance-requirements-*.json    — 需求分析产出
 docs/final-requirements-*.json      — Phase 1 产出（已完成，5 份）
 docs/acceptance-*.md                — Phase 2 产出（已完成，6 份）
-docs/architecture.md                — Phase 3 产出（待产出）
-docs/adr/                           — Phase 3 产出（待产出）
+docs/architecture.md                — Phase 3 产出（已完成）
+docs/adr/                           — Phase 3 产出（已完成，4 份）
 docs/agents/                        — Phase 0 产出（已完成）
+docs/design/                        — Phase 4 产出（进行中）
+DESIGN.md                           — Phase 4 产出（待生成）
 ```
 
 ## GLOSSARY.md 维护规则
 
-- Phase 1 / Phase 3 完成后，可能产生新术语需要加入 GLOSSARY
+- Phase 1 / Phase 3 / Phase 4完成后，可能产生新术语需要加入 GLOSSARY
 - **引入术语的 Phase 对话负责产出术语定义**，流程治理对话只审核一致性（冲突、重复、不清晰）
 - 操作流程：木下报告 Phase 完成 → 流程治理提醒木下确认是否有新术语 → 由产出对话补，或流程治理代为合并
 
 ## 登录鉴权
 
-统一 `/login` 入口，全站共用。详见 CONTEXT.md § 登录鉴权。
+统一 `/login` 入口，全站共用。详见 docs/architecture/auth.md 登录鉴权。
 
 ---
 
@@ -76,9 +78,9 @@ docs/agents/                        — Phase 0 产出（已完成）
 | ---------- | ---------------------- | ------------------ |
 | 0 基础设施 | ✅ 已完成              | —                  |
 | 1 需求澄清 | 需求分析对话（独立）   | ✅ 已完成          |
-| 2 规格化   | fork 自 Phase 1        | 🔶 进行中          |
-| 3 架构设计 | fork 自 Phase 2        | ✅ 需要报告        |
-| 4 UI/原型  | 独立（Phase 3 确认后） | ✅ 需要报告        |
+| 2 规格化   | fork 自 Phase 1        | ✅ 已完成          |
+| 3 架构设计 | fork 自 Phase 2        | ✅ 已完成          |
+| 4 UI/原型  | 独立（Phase 3 确认后） | 🔶 进行中          |
 | 5 开发实现 | 多线程 fork            | ✅ 需要报告        |
 | 6 测试/QA  | fork 自 Phase 5        | ✅ 需要报告        |
 | 7 部署上线 | 流程治理协调           | ✅ 需要报告        |

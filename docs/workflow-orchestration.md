@@ -43,6 +43,7 @@ Phase 7: 部署上线 ──→ Phase 8: 运营维护 ──→ (循环回 Phase
 ```
 
 **核心原则**：
+
 - 每个 Phase 独立一个 Codex 对话线程，fork 自上一个 Phase，继承上下文
 - 产出物全部落在 `docs/` 或 `.scratch/` 中，Git 提交
 - 木下（非程序员）审核文档层面的产出物；AI agent 负责编码
@@ -59,12 +60,12 @@ Phase 7: 部署上线 ──→ Phase 8: 运营维护 ──→ (循环回 Phase
 
 **产出物**：`GLOSSARY.md`、`CONTEXT.md`、`AGENTS.md`、`docs/agents/*.md`、`.scratch/`。
 
-| # | 动作 | skill |
-|---|------|-------|
-| 0.1 | 从 handoff 提取术语 → `GLOSSARY.md` | `ubiquitous-language` |
-| 0.2 | 配置 issue tracker + triage labels + domain docs | `setup-matt-pocock-skills` |
-| 0.3 | 写 `CONTEXT.md`：项目简介、技术栈、约束 | — |
-| 0.4 | 配置 Git 规范 | `git-guardrails-claude-code` |
+| #   | 动作                                             | skill                        |
+| --- | ------------------------------------------------ | ---------------------------- |
+| 0.1 | 从 handoff 提取术语 → `GLOSSARY.md`              | `ubiquitous-language`        |
+| 0.2 | 配置 issue tracker + triage labels + domain docs | `setup-matt-pocock-skills`   |
+| 0.3 | 写 `CONTEXT.md`：项目简介、技术栈、约束          | —                            |
+| 0.4 | 配置 Git 规范                                    | `git-guardrails-claude-code` |
 
 ---
 
@@ -78,13 +79,13 @@ Phase 7: 部署上线 ──→ Phase 8: 运营维护 ──→ (循环回 Phase
 
 **执行方式**：使用 `grill-me` 或 `grill-with-docs` 加载「需求解剖师」角色定义（`D:/business analyst/AGENTS.md`）和输出 schema（`D:/business analyst/output_schema.json`），按 6 层深挖 + 发散前置的规则执行。对话结束后按 schema 输出结构化 JSON。
 
-| # | 动作 | 深度 |
-|---|------|------|
-| 1.1 | B2 /feed 媒体处理 | 6 层深挖 |
-| 1.2 | B3 /feed 内容管理 | 6 层深挖 |
-| 1.3 | /learn 内容结构 | 轻量 |
-| 1.4 | /projects 页面布局 | 轻量 |
-| 1.5 | /finance 技术需求 | 中等 |
+| #   | 动作               | 深度     |
+| --- | ------------------ | -------- |
+| 1.1 | B2 /feed 媒体处理  | 6 层深挖 |
+| 1.2 | B3 /feed 内容管理  | 6 层深挖 |
+| 1.3 | /learn 内容结构    | 轻量     |
+| 1.4 | /projects 页面布局 | 轻量     |
+| 1.5 | /finance 技术需求  | 中等     |
 
 **结束条件**：所有 drill 完成，无遗漏分支，每个模块产出符合 `output_schema.json` 的结构化 JSON，木下确认不再修改。
 
@@ -97,17 +98,19 @@ Phase 7: 部署上线 ──→ Phase 8: 运营维护 ──→ (循环回 Phase
 **输入**：Phase 1 产出的结构化 JSON。
 
 **产出物**：
+
 - `.scratch/` 下多个 `issue.md` + triage 标签（给 AI，英文/技术语言，可包含 D1/KV/CORS/schema 等技术细节）
 - `docs/acceptance-*.md`（给木下，纯中文业务语言，不含技术细节，按模块列出"这个功能做到了/没做到"）
 
-| # | 动作 | skill | 产出 |
-|---|------|-------|------|
-| 2.1 | 全量需求 → issue | `to-issues` | `.scratch/*/issue.md`（技术细节） |
-| 2.2 | issue 分类评估 + 打标签 | `triage` | 给每个 issue 打 `needs-triage` / `ready-for-agent` 等 |
-| 2.3 | 复杂 issue → PRD（含验收标准） | `to-prd` | 每个模块一份 PRD（给 AI） |
-| 2.4 | 生成验收清单 | — | `docs/acceptance-*.md`（给木下，纯业务语言） |
+| #   | 动作                           | skill       | 产出                                                  |
+| --- | ------------------------------ | ----------- | ----------------------------------------------------- |
+| 2.1 | 全量需求 → issue               | `to-issues` | `.scratch/*/issue.md`（技术细节）                     |
+| 2.2 | issue 分类评估 + 打标签        | `triage`    | 给每个 issue 打 `needs-triage` / `ready-for-agent` 等 |
+| 2.3 | 复杂 issue → PRD（含验收标准） | `to-prd`    | 每个模块一份 PRD（给 AI）                             |
+| 2.4 | 生成验收清单                   | —           | `docs/acceptance-*.md`（给木下，纯业务语言）          |
 
 **结束条件**：全部模块有开发 issue + triage 标签 + PRD + 验收清单，木下确认验收清单可操作。
+
 ## Phase 3：架构设计
 
 **目标**：基于 PRD 确定技术架构细节。
@@ -116,29 +119,36 @@ Phase 7: 部署上线 ──→ Phase 8: 运营维护 ──→ (循环回 Phase
 
 **产出物**：`docs/architecture.md`（总览）、`docs/architecture/data-model.md`（D1 schema + API 类型）、`docs/architecture/auth.md`（鉴权）、`docs/architecture/modules.md`（目录结构 + Workers 路由）、`docs/adr/*.md`。
 
-| # | 动作 | skill |
-|---|------|-------|
-| 3.1 | 领域建模（术语表 → D1 schema、API 数据结构） → `architecture/data-model.md` | `domain-modeling` |
-| 3.2 | 代码库架构（目录结构、模块边界、依赖） → `architecture.md` + `architecture/modules.md` | `codebase-design` |
-| 3.3 | 数据流设计（Workers 路由、D1/KV/R2 读写、Cron） → `architecture/modules.md` | `cloudflare` + `workers-best-practices` |
-| 3.4 | 鉴权方案（/feed + f.catstarry.xyz 的具体实现） → `architecture/auth.md` | `cloudflare-one` |
-| 3.5 | 架构决策记录（每个重大决策一条：为什么选 A 不选 B） → `docs/adr/*.md` | — |
+| #   | 动作                                                                                   | skill                                   |
+| --- | -------------------------------------------------------------------------------------- | --------------------------------------- |
+| 3.1 | 领域建模（术语表 → D1 schema、API 数据结构） → `architecture/data-model.md`            | `domain-modeling`                       |
+| 3.2 | 代码库架构（目录结构、模块边界、依赖） → `architecture.md` + `architecture/modules.md` | `codebase-design`                       |
+| 3.3 | 数据流设计（Workers 路由、D1/KV/R2 读写、Cron） → `architecture/modules.md`            | `cloudflare` + `workers-best-practices` |
+| 3.4 | 鉴权方案（/feed + f.catstarry.xyz 的具体实现） → `architecture/auth.md`                | `cloudflare-one`                        |
+| 3.5 | 架构决策记录（每个重大决策一条：为什么选 A 不选 B） → `docs/adr/*.md`                  | —                                       |
 
 ---
 
 ## Phase 4：UI/原型
 
-**目标**：产出视觉方向 + 关键页面原型。
+**目标**：产出 catstarry.xyz 专属视觉设计系统 + 关键页面原型。DESIGN.md 为全站视觉约束，原型验证可行性。
 
-**输入**：SITEMAP + 设计定调（artistic warm）。
+**输入**：SITEMAP + `docs/architecture.md` + `docs/design/reference-design/`（木下人工选取的设计参照）。
 
-**产出物**：moodboard + 可交互 HTML 原型。
+**产出物**：根目录 `DESIGN.md`（9 节标准格式）+ `docs/design/notes.md`（木下笔记）+ 可交互 HTML 原型。
 
-| # | 动作 | skill |
-|---|------|-------|
-| 4.1 | 视觉方向探索 | `design-an-interface` |
-| 4.2 | 关键页面原型（/blog、/feed、/finance） | `prototype` |
-| 4.3 | 原型落地 HTML/CSS | `web-design-engineer` |
+**taste-skill 角色**：Phase 4.2 作为 Policy Engine 控制布局策略；Phase 4.3 作为 Quality Gate 执行 pre-flight 质检。
+
+**设计基调**：由 4.0 木下挑选的 reference-design 决定。不做预设（不预设色系、不预设风格）。
+
+**CJK 约束**：taste-skill 原生基于拉丁排版。中文排版需叠加 CJK 适配规则（行高 ≥1.85、字间距不调整、标点挤压规则）。
+
+| #   | 动作                                                                                                          | skill                                                                          | 产出                            |
+| --- | ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ | ------------------------------- |
+| 4.0 | 木下人工选参照：浏览 getdesign.md 挑选 2-3 个视觉锚点，笔记提取至 `docs/design/reference-design/`             | —（人工）                                                                      | `docs/design/reference-design/` |
+| 4.1 | Design Read + DESIGN.md：AI 读 reference-design → 声明 Design Read → 生成根目录 DESIGN.md（9 节）             | `design-an-interface`                                                          | `DESIGN.md`                     |
+| 4.2 | 原型生成：加载 taste-skill(minimalist+soft) 作为 Policy Engine 控制布局，禁用 GSAP，风格由 DESIGN.md 驱动     | `prototype` + taste-skill (minimalist-skill + soft-skill)                      | 关键页面 HTML 原型              |
+| 4.3 | 原型落地 + 质检：落地 HTML/CSS → taste-skill pre-flight check（防紫蓝渐变、模板布局、平庸间距、CJK 标点挤压） | `web-design-engineer` + taste-skill (pre-flight check + output-skill 完整输出) | 质检通过的 HTML/CSS 原型        |
 
 > Phase 3 对话结束后，木下回到流程治理报告完成状态，流程治理确认后 fork Phase 4。避免原型先行导致设计绑架架构。
 
@@ -148,7 +158,11 @@ Phase 7: 部署上线 ──→ Phase 8: 运营维护 ──→ (循环回 Phase
 
 **目标**：逐模块实现功能代码。
 
-**输入**：PRD + ADR + UI 原型 + triage 后的 issue。
+**输入**：PRD + ADR + UI 原型 + DESIGN.md + triage 后的 issue + `docs/agents/frontend-rules.md`。
+
+| #   | 动作                                                                                                                                       | skill                                                            | 产出 |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------- | ---- | ------------------------------- |
+| 5.0 | 前端规则固化：将 DESIGN.md 核心规则 + taste-skill CJK 质检清单 + 暖色系强制覆盖规则固化至 `docs/agents/frontend-rules.md`。标记 `[原型验证 | Phase 5 可微调]`，核心不可改细项可调。**各模块开发线程必须引用** | —    | `docs/agents/frontend-rules.md` |
 
 **策略**：分两波执行。
 
@@ -156,19 +170,21 @@ Phase 7: 部署上线 ──→ Phase 8: 运营维护 ──→ (循环回 Phase
 
 D1 schema、类型定义、鉴权逻辑、CI/CD 配置必须先完成，其他线程才可独立开发。
 
-| 线程 | 负责模块 | skills |
-|------|---------|--------|
-| F | 共享基础设施 | `implement`、`workers-best-practices` |
+……（后面不动）
+
+| 线程 | 负责模块     | skills                                |
+| ---- | ------------ | ------------------------------------- |
+| F    | 共享基础设施 | `implement`、`workers-best-practices` |
 
 ### 第二波：业务模块（开发-F 完成后 fork 并行）
 
-| 线程 | 负责模块 | skills |
-|------|---------|--------|
-| A | /blog（列表 + 详情 + 分类 + 标签 + RSS） | `tdd`、`implement`、`code-review` |
-| B | /feed（时间线 + 发布面板 + 媒体上传 + 鉴权） | `tdd`、`implement`、`code-review`、`cloudflare`、`wrangler` |
-| C | /projects + /learn | `implement`、`scaffold-exercises` |
-| D | `/` Home | `tdd`、`implement` |
-| E | f.catstarry.xyz | `tdd`、`implement`、`code-review`、`a-stock-data`、`cloudflare-one` |
+| 线程 | 负责模块                                     | skills                                                              |
+| ---- | -------------------------------------------- | ------------------------------------------------------------------- |
+| A    | /blog（列表 + 详情 + 分类 + 标签 + RSS）     | `tdd`、`implement`、`code-review`                                   |
+| B    | /feed（时间线 + 发布面板 + 媒体上传 + 鉴权） | `tdd`、`implement`、`code-review`、`cloudflare`、`wrangler`         |
+| C    | /projects + /learn                           | `implement`、`scaffold-exercises`                                   |
+| D    | `/` Home                                     | `tdd`、`implement`                                                  |
+| E    | f.catstarry.xyz                              | `tdd`、`implement`、`code-review`、`a-stock-data`、`cloudflare-one` |
 
 **每个模块的 micro loop**：
 
@@ -182,11 +198,11 @@ tdd → implement → code-review → 木下按 acceptance 验收 → 通过/回
 
 **目标**：全站集成测试 + 性能验证。
 
-| # | 动作 | skill |
-|---|------|-------|
-| 6.1 | 全站按 PRD 验收 | `qa` |
-| 6.2 | Core Web Vitals | `web-perf` |
-| 6.3 | Excel 迁移正确性 + 实时行情准确性 | `qa` |
+| #   | 动作                              | skill      |
+| --- | --------------------------------- | ---------- |
+| 6.1 | 全站按 PRD 验收                   | `qa`       |
+| 6.2 | Core Web Vitals                   | `web-perf` |
+| 6.3 | Excel 迁移正确性 + 实时行情准确性 | `qa`       |
 
 ---
 
@@ -194,11 +210,11 @@ tdd → implement → code-review → 木下按 acceptance 验收 → 通过/回
 
 **目标**：推送到生产环境。
 
-| # | 动作 | skill |
-|---|------|-------|
-| 7.1 | D1 schema、KV namespace、R2 bucket 创建 | `wrangler` |
-| 7.2 | CF Pages + Workers 部署 | `wrangler` |
-| 7.3 | 域名 DNS + 环境变量/密钥 | `cloudflare` + `wrangler` |
+| #   | 动作                                    | skill                     |
+| --- | --------------------------------------- | ------------------------- |
+| 7.1 | D1 schema、KV namespace、R2 bucket 创建 | `wrangler`                |
+| 7.2 | CF Pages + Workers 部署                 | `wrangler`                |
+| 7.3 | 域名 DNS + 环境变量/密钥                | `cloudflare` + `wrangler` |
 
 ---
 
@@ -208,23 +224,23 @@ tdd → implement → code-review → 木下按 acceptance 验收 → 通过/回
 
 ### 木下的日常操作（上线后）
 
-| 操作 | 路径 | 方式 |
-|------|------|------|
-| 发博客 | /blog | 本地写 Markdown → Git push → CF Pages 自动部署 |
-| 发碎碎念 | /feed | 网站右下角 + 按钮 → 登录 → 发布面板 |
-| 剪藏 | /feed | 发布面板切换到剪藏 tab → 粘贴链接 → 自动拉取摘要 → 补评论 → 发布 |
-| 录交易 | f.catstarry.xyz | 登录财务面板 → 录入交易 |
-  | 看持仓 | f.catstarry.xyz | 打开面板即可查看（cati 登录后只读） |
-| 年度导出 | f.catstarry.xyz | D1 → Excel 导出 → 存档签署 |
+| 操作     | 路径            | 方式                                                             |
+| -------- | --------------- | ---------------------------------------------------------------- |
+| 发博客   | /blog           | 本地写 Markdown → Git push → CF Pages 自动部署                   |
+| 发碎碎念 | /feed           | 网站右下角 + 按钮 → 登录 → 发布面板                              |
+| 剪藏     | /feed           | 发布面板切换到剪藏 tab → 粘贴链接 → 自动拉取摘要 → 补评论 → 发布 |
+| 录交易   | f.catstarry.xyz | 登录财务面板 → 录入交易                                          |
+| 看持仓   | f.catstarry.xyz | 打开面板即可查看（cati 登录后只读）                              |
+| 年度导出 | f.catstarry.xyz | D1 → Excel 导出 → 存档签署                                       |
 
 ### AI 维护（按需触发）
 
-| 触发 | 动作 | skills |
-|------|------|--------|
-| 线上 bug | 诊断 → 修 → 部署 | `diagnosing-bugs` → `tdd` → `implement` |
-| 性能退化 | 定位 → 优化 | `web-perf` → `improve-codebase-architecture` |
-| 技术债 | 分析 → 重构方案 → issue | `improve-codebase-architecture` → `to-issues` |
-| 新功能 | 回到 Phase 1 | `grill-me` → … |
+| 触发     | 动作                    | skills                                        |
+| -------- | ----------------------- | --------------------------------------------- |
+| 线上 bug | 诊断 → 修 → 部署        | `diagnosing-bugs` → `tdd` → `implement`       |
+| 性能退化 | 定位 → 优化             | `web-perf` → `improve-codebase-architecture`  |
+| 技术债   | 分析 → 重构方案 → issue | `improve-codebase-architecture` → `to-issues` |
+| 新功能   | 回到 Phase 1            | `grill-me` → …                                |
 
 **周期维护**：每季度 D1 备份（`wrangler d1 backup`）。
 
@@ -232,41 +248,62 @@ tdd → implement → code-review → 木下按 acceptance 验收 → 通过/回
 
 ## 木下的角色
 
-| Phase | 你做什么 |
-|-------|---------|
-| 0-1 | 需求讨论、决策确认（产品经理） |
-| 2-3 | 审核 issue 优先级、确认架构方向 |
-| 4 | 审美判断、选设计方向 |
-| 5 | 审核 tdd 测试用例、确认 code review 关键点 |
-| 6 | 手动验收关键功能 |
-| 7 | 配置域名/DNS（AI 指导操作） |
-| 8 | 日常操作（发博客、发碎碎念、录交易）+ 提新需求 |
+| Phase | 你做什么                                                 |
+| ----- | -------------------------------------------------------- |
+| 0-1   | 需求讨论、决策确认（产品经理）                           |
+| 2-3   | 审核 issue 优先级、确认架构方向                          |
+| 4     | 从 reference-design 挑参照 + 审系统定调 + 确认 DESIGN.md |
+| 5     | 审核 tdd 测试用例、确认 code review 关键点               |
+| 6     | 手动验收关键功能                                         |
+| 7     | 配置域名/DNS（AI 指导操作）                              |
+| 8     | 日常操作（发博客、发碎碎念、录交易）+ 提新需求           |
 
 ---
 
 ## 产出物清单
 
 ```
-docs/
-├── workflow-orchestration.md    ← 本文件
-├── DASHBOARD.md
-├── SITEMAP.md
-├── tech-decisions-20260703.md
-├── architecture.md              (Phase 3)
-├── architecture/                (Phase 3: data-model / auth / modules)
-├── adr/                         (Phase 3: 001-d1-schema.md ...)
-├── final-requirements-*.json    (Phase 1)
-├── acceptance-*.md              (Phase 2)
-└── agents/
-    ├── issue-tracker.md
-    ├── triage-labels.md
-    └── domain.md
-
-.scratch/
-├── blog/                        (Phase 2: issue.md + PRD)
-├── feed/                        (Phase 2: issue.md + PRD)
-├── learn/                       (Phase 2: issue.md + PRD)
-├── projects/                    (Phase 2: issue.md + PRD)
-├── finance/                     (Phase 2: issue.md + PRD)
-└── (各模块 PRD 含验收标准)
+catstarry.xyz/
+├── README.md                        (Phase 0)
+├── AGENTS.md                        (Phase 0)
+├── GLOSSARY.md                      (Phase 0)
+├── CONTEXT.md                       (Phase 0)
+├── DESIGN.md                        (Phase 4.1)
+├── docs/
+│   ├── workflow-orchestration.md    ← 本文件
+│   ├── DASHBOARD.md
+│   ├── SITEMAP.md
+│   ├── cold-start-governance.md
+│   ├── tech-decisions-20260703.md
+│   ├── phase2-briefing.md
+│   ├── phase3-briefing.md
+│   ├── phase4-briefing.md           (Phase 4 启动前)
+│   ├── handoff-20260702.md
+│   ├── architecture.md              (Phase 3)
+│   ├── architecture/                (Phase 3)
+│   │   ├── data-model.md
+│   │   ├── auth.md
+│   │   └── modules.md
+│   ├── adr/                         (Phase 3)
+│   ├── design/                      (Phase 4)
+│   │   └── reference-design/        (木下人工选取的参照)
+│   ├── final-requirements-.json    (Phase 1)
+│   ├── acceptance-.md              (Phase 2)
+│   └── agents/
+│       ├── issue-tracker.md
+│       ├── triage-labels.md
+│       ├── domain.md
+│       └── frontend-rules.md        (Phase 5.0)
+├── .scratch/
+     ├── blog/                        (Phase 2)
+     ├── feed/                        (Phase 2)
+     ├── learn/                       (Phase 2)
+     ├── projects/                    (Phase 2)
+     ├── finance/                     (Phase 2)
+     ├── home/                        (Phase 2)
+├── src/                             (Phase 5)
+├── workers/                         (Phase 5)
+├── shared/                          (Phase 5)
+├── public/                          (Phase 5)
+└── teach/                           (teach skill workspace)
 ```

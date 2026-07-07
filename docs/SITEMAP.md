@@ -63,12 +63,12 @@
 
 ### `/feed/` — 统一时间线
 
-| 属性 | 值                                    |
-| ---- | ------------------------------------- |
-| 渲染 | SSR                                   |
-| 内容 | 碎碎念 + 剪藏混合时间线，单列垂直滚动 |
-| 认证 | 发布需登录（右下角浮动 + 按钮）       |
-| 状态 | ✅ 需求已锁定，🔴 未开发              |
+| 属性 | 值                                                               |
+| ---- | ---------------------------------------------------------------- |
+| 渲染 | SSR                                                              |
+| 内容 | 碎碎念 + 剪藏混合时间线，单列垂直滚动，SSR 依赖 D1 feed_posts 表 |
+| 认证 | 发布需登录（右下角浮动 + 按钮）                                  |
+| 状态 | ✅ 需求已锁定，🔴 未开发                                         |
 
 ### `/projects/` — 项目展示
 
@@ -110,7 +110,14 @@
 
 ## API 端点
 
-| 端点                                       | 部署       | 说明                                 |
-| ------------------------------------------ | ---------- | ------------------------------------ |
-| `feed-api.catstarry.workers.dev/api/views` | CF Workers | 阅读量计数（POST/GET），D1 + KV 去重 |
-| 更多端点                                   | 🔴 未开发  | /feed 发布、鉴权等                   |
+| 端点            | Worker      | 方法     | 说明                                      |
+| --------------- | ----------- | -------- | ----------------------------------------- |
+| `/api/views`    | feed-api    | GET/POST | 阅读量计数，D1 + KV 去重                  |
+| `/api/feed`     | feed-api    | GET/POST | 时间线数据 + 发布帖子                     |
+| `/api/auth`     | feed-api    | POST     | 登录/登出，bcrypt + KV session            |
+| `/api/home`     | feed-api    | GET      | Home 聚合数据（blog/feed/learn/projects） |
+| `/api/trades`   | finance-api | GET/POST | 交易记录 CRUD                             |
+| `/api/holdings` | finance-api | GET      | 实时持仓 + 偏离预警                       |
+| `/api/market`   | finance-api | GET      | 行情数据（15 分钟延迟）                   |
+| `/api/pe`       | finance-api | GET      | PE 温度计数据                             |
+| `/api/circuit`  | finance-api | GET      | 熔断状态                                  |
