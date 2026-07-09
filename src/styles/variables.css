@@ -1,123 +1,244 @@
 /* =========================================
-   catstarry.xyz Design System v1.4
-   LAYER 1: PRIMITIVES & LAYER 2: SEMANTIC TOKENS
-   ========================================= */
+  catstarry.xyz Design System v1.5
+  
+  THREE-LAYER TOKEN ARCHITECTURE
+  Layer 1 — Global Primitives (absolute values, freely tunable)
+  Layer 2 — Semantic Aliases  (meaning-bound, dark/light + data-canvas dynamic)
+  Layer 3 — Component Tokens   (component-specific, never directly use Layer 1)
+  
+  RULE: Components reference Layer 3 only. Layer 3 references Layer 2 only. 
+        Layer 2 references Layer 1 only. Never skip a layer.
+  ========================================= */
+
+/* =========================================
+  LAYER 1: GLOBAL PRIMITIVES
+  Phase 4 freely adjustable. Changing a value here ripples through
+  the entire system without touching any component code.
+  ========================================= */
 :root {
-  /* --- 1. Brand: Klein Blue Scale (WCAG 2.1 AA) --- */
-  --klein-600: #001f70; /* 亮底 Hover/Active (深压) */
-  --klein-500: #002fa7; /* 品牌主色，亮底 CTA */
-  --klein-400: #335cff; /* 暗底主 CTA (对比度 3.5:1 on Void) */
-  --klein-300: #6685ff; /* 暗底 Hover/次级图标 */
-  --klein-100: #e6ecff; /* 亮底选中背景 */
+  /* --- 1.1 Color Primitives: Blue Scale (Klein Blue Base) --- */
+  /* 克莱因蓝纯 brand voltage色。暗底 CTA 用 blue-500/400，亮底 CTA 用 blue-700/950，选中态用 blue-100。不可用于正文或装饰元素。改 blue-700 波及：所有 CTA 按钮、品牌标记、focus 环。blue-700 在 warm-50 上满足 WCAG AA，blue-500 在 gray-975 上满足 AA。 */
+  --blue-950: #001f70;
+  --blue-700: #002fa7;
+  --blue-500: #335cff;
+  --blue-400: #6685ff;
+  --blue-100: #e6ecff;
 
-  /* --- 2. Canvas: Home (Sci-Fi Dark) --- */
-  --home-void: #0a0a0c;
-  --home-surface-soft: #121722;
-  --home-surface-card: #1a2030;
-  --home-border-hover: rgba(255, 255, 255, 0.16);
-  --home-text-primary: #e5e7eb;
-  --home-text-secondary: #9ca3af;
-  --home-text-muted: #6b7280;
+  /* --- 1.2 Color Primitives: Neutral Gray Scale --- */
+  /* 暗底画布 + 表面深度栈，纯中性无品牌语义。gray-975~Home 虚空底色，gray-950~Finance 画布，gray-925/900~表面层级(soft~card)，gray-850/800~Finance 表面栈，gray-300/400/500~暗底三级文字。改 gray-975 波及：Home 背景、导航栏、所有暗底表面。注意：gray-975(#0a0a0c) 刻意非纯黑，避免 OLED 光晕效应。 */
+  --gray-975: #0a0a0c; /* Home canvas — near-black cold gray */
+  --gray-950: #0b0e11; /* Finance canvas */
+  --gray-925: #121722; /* Home surface soft */
+  --gray-900: #1a2030; /* Home surface card */
+  --gray-850: #1e2329; /* Finance surface */
+  --gray-800: #2b3139; /* Finance elevated */
+  --gray-300: #e5e7eb; /* Home text primary */
+  --gray-400: #9ca3af; /* Home text secondary */
+  --gray-500: #6b7280; /* Home text muted */
+  --gray-600: #848e9c; /* Finance text secondary */
 
-  /* --- 3. Canvas: Content (Cream Gallery) --- */
-  --content-gallery: #faf9f5; /* 奶油画布底色 */
-  --content-surface-soft: #e6dfd8;
-  --content-surface-card: #efe9de; /* 卡片底色 (深奶油) */
-  --content-hairline: #e6dfd8; /* 暖咖色发际线 */
-  --content-text-primary: #141413; /* 暖墨黑 */
-  --content-text-body: #3d3d3a;
-  --content-text-secondary: #6c6a64;
+  /* --- 1.3 Color Primitives: Warm Neutral Scale (Cream Gallery) --- */
+  /* 亮底画布 + 表面深度栈，用于内容页面。暖来自底色基调(非品牌色)。warm-50~内容画布，warm-100~卡片底，warm-200~发丝线+soft 表面，warm-900/800/700~三级文字。改 warm-50 波及：所有 blog/feed/learn/projects 页面背景。注意：亮底画布比卡片更浅(与暗底深浅关系相反)。 */
+  --warm-50: #faf9f5; /* Content canvas */
+  --warm-100: #efe9de; /* Content card */
+  --warm-200: #e6dfd8; /* Content hairline + surface soft */
+  --warm-900: #141413; /* Content text primary */
+  --warm-800: #3d3d3a; /* Content text body */
+  --warm-700: #6c6a64; /* Content text secondary */
 
-  /* --- 4. Canvas: Finance (Cyber Arena) --- */
-  --finance-dark: #0b0e11;
-  --finance-surface: #1e2329;
-  --finance-surface-elevated: #2b3139;
-  --finance-cta-green: #5eaf9e;
-  --finance-down: #0ecb81;
-  --finance-up: #f6465d;
-  --finance-text-primary: #eaecef;
-  --finance-text-secondary: #848e9c;
+  /* --- 1.4 Color Primitives: Brand Accents --- */
+  /* 品牌强调色。green-400~Finance CTA(可操作绿)，green-500~上涨/正值(非 CTA 色)，red-500~下跌/负值，amber-400~极稀缺强调火花，purple/cyan/mint/orange/pink-500~五色分类标记。 */
+  --green-400: #5eaf9e; /* Finance CTA */
+  --green-500: #0ecb81; /* Trading up */
+  --red-500: #f6465d; /* Trading down */
+  --amber-400: #ffb829; /* Saffron spark */
+  --purple-500: #7a3dff; /* Cat: blog */
+  --cyan-500: #3b89ff; /* Cat: feed */
+  --mint-500: #00d722; /* Cat: bookmark */
+  --orange-500: #ff6b00; /* Cat: project */
+  --pink-500: #ed52cb; /* Cat: learn */
 
-  /* --- 5. Signature: Dala & Monopo --- */
-  --particle-core: #4f71ff;
-  --particle-glow: #00e5ff;
-  --gradient-iris: linear-gradient(
+  /* --- 1.5 Signature Primitives (Dala + Monopo) --- */
+  /* 灵魂层——粒子星座、虹彩渐变、强调火花。signature-core(#4f71ff) 仅用于 about 卡片粒子，不可与 klein 蓝互换。signature-glow(#00e5ff) 冷调青色，与豹猫暖铜形成对位。saffron-spark(#ffb829) 极稀缺强调色，仅用于注意力标点。signature-gradient 仅 Hero 环境微光，不可做组件填充。 */
+  --signature-core: #4f71ff;
+  --signature-glow: #00e5ff;
+  --signature-gradient: linear-gradient(
     135deg,
     rgba(79, 113, 255, 0.4),
     rgba(0, 229, 255, 0.1),
     rgba(255, 184, 41, 0.05)
   );
-  --saffron-spark: #ffb829;
 
-  /* --- 6. Category Accents (五色分类) --- */
-  --cat-blog: #7a3dff;
-  --cat-feed: #3b89ff;
-  --cat-bookmark: #00d722;
-  --cat-project: #ff6b00;
-  --cat-learn: #ed52cb;
-
-  /* --- 7. Typography Tokens --- */
-  --font-display: "IBM Plex Sans", var(--font-cjk), sans-serif;
-  --font-body: "Geist", var(--font-cjk), system-ui, sans-serif;
+  /* --- 1.6 Font Family Primitives --- */
+  /* 四轨字体架构: --font-sans-display(IBM Plex Sans~标题)、--font-sans-body(Geist~UI+正文)、--font-mono(JetBrains Mono~数据)、--font-cjk(HarmonyOS Sans SC~中文回退)。--font-cjk 不是独立字体，而是注入到 display/body 栈的回退链，组件禁止直接引用 --font-cjk。改 --font-sans-display 波及：所有 Hero 标题、卡片标题、导航品牌名。 */
+  --font-sans-display: "IBM Plex Sans", "HarmonyOS Sans SC", sans-serif;
+  --font-sans-body: "Geist", "HarmonyOS Sans SC", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
   --font-cjk: "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
 
-  --text-size-display-en: 94px;
-  --text-size-display-cn: 84px;
-  --text-size-heading-lg-en: 78px;
-  --text-size-heading-lg-cn: 70px;
-  --text-size-heading-md-en: 54px;
-  --text-size-heading-md-cn: 48px;
-  --text-size-body: 16px;
-  --text-size-caption: 12px;
+  /* --- 1.7 Type Scale Primitives --- */
+  /* 字号阶梯(text-8xl~xs)，中英文分离(英文 display 94px, 中文 display 84px)。所有 Display~Heading 层级生产环境需配合 :lang(zh) clamp() 覆盖。 */
+  --text-8xl: 94px;
+  --text-7xl: 84px;
+  --text-6xl: 78px;
+  --text-5xl: 70px;
+  --text-4xl: 54px;
+  --text-3xl: 48px;
+  --text-2xl: 36px;
+  --text-xl: 24px;
+  --text-lg: 18px;
+  --text-base: 16px;
+  --text-sm: 14px;
+  --text-xs: 12px;
 
-  --line-height-display: 0.9;
-  --line-height-display-cjk: 1.25;
-  --line-height-body: 1.6;
-  --line-height-body-cjk: 1.85;
+  /* --- 1.8 Line Height Primitives --- */
+  /* 行高阶梯。中英文分离: 英文 display 0.9(极紧)，CJK display 1.25(中文字符高需额外空间)，CJK body 1.85(WCAG + GB/T 44808 硬约束)。 */
+  --leading-display-en: 0.9;
+  --leading-display-cjk: 1.25;
+  --leading-body-en: 1.6;
+  --leading-body-cjk: 1.85;
 
-  /* --- 8. Geometry & Motion --- */
-  --radius-home: 20px;
-  --radius-content: 8px;
-  --radius-btn-home: 100px;
-  --radius-btn-content: 8px;
-  --radius-btn-finance: 8px;
-  --ease-monopo: cubic-bezier(0.19, 1, 0.22, 1);
-
+  /* --- 1.9 Spatial Scale Primitives --- */
+  /* 4px 基准单位(monopo 基因)。阶梯: xs(4) sm(8) md(16) lg(24) xl(32) 2xl(48) 3xl(46) 4xl(64) 5xl(80) 6xl(120)。--space-3xl(46px) 为 monopo 有意非整数值——卡片间隙节奏。改基准单位需整体重新思考空间节奏，建议逐个调整阶梯步长。 */
   --space-xs: 4px;
   --space-sm: 8px;
   --space-md: 16px;
   --space-lg: 24px;
   --space-xl: 32px;
-  --space-xxl: 48px;
-  --card-gap: 46px;
+  --space-2xl: 48px;
+  --space-3xl: 46px; /* card-gap (monopo 46px rhythm) */
+  --space-4xl: 64px;
+  --space-5xl: 80px;
+  --space-6xl: 120px;
 
-  /* --- 9. Webflow Featured Shadow --- */
-  --shadow-webflow-featured:
+  /* --- 1.10 Radius Primitives --- */
+  /* 圆角四阶梯: sm(8px Content)、md(20px Home card)、lg(24px)、full(100px Home pill按钮)。 */
+  --radius-sm: 8px;
+  --radius-md: 20px;
+  --radius-lg: 24px;
+  --radius-full: 100px;
+
+  /* --- 1.11 Motion Primitives --- */
+  /* 三条缓动曲线各有性格: --ease-monopo 耐心滑行(大范围变换: 卡片上浮、about 展开)、--ease-scroll-in 轻柔淡入(滚动显现)、--ease-hover 灵敏吸附(微交互: hover/active)。--stagger-base(80ms) 列表逐项延迟基数，只乘不改。所有动效统一通过 @media (prefers-reduced-motion) 降级，见 components.css。 */
+  --ease-monopo: cubic-bezier(0.19, 1, 0.22, 1);
+  --ease-scroll-in: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-hover: cubic-bezier(0.32, 0.72, 0, 1);
+  --duration-fast: 0.2s;
+  --duration-base: 0.6s;
+  --duration-monopo: 0.8s;
+  --stagger-base: 80ms;
+
+  /* --- 1.12 Shadow Primitives --- */
+  /* Webflow 风格 7 层环境投影。仅限 .card-content-featured 使用。Home 和 Finance 零投影。不可用于暗底——该校准基于亮底画布。 */
+  --shadow-featured:
     0 84px 24px rgba(0, 0, 0, 0), 0 54px 22px rgba(0, 0, 0, 0.01),
     0 30px 18px rgba(0, 0, 0, 0.04), 0 13px 13px rgba(0, 0, 0, 0.08),
     0 3px 7px rgba(0, 0, 0, 0.09);
-
 }
 
 /* =========================================
-   LAYER 2: SEMANTIC TOKENS (变色龙层)
-   组件必须且只能引用此层变量
-   ========================================= */
+  LAYER 2: SEMANTIC ALIASES
+  Meaning-bound. "What it is", not "what it looks like".
+  Components reference these ONLY (never Layer 1).
+  ========================================= */
+
+/* --- 2.1 Brand Semantic Aliases --- */
 :root {
-  /* 默认：深色模式 (Home Sci-Fi) */
+  --klein-600: var(--blue-950);
+  --klein-500: var(--blue-700); /* Brand primary, light-bg CTA */
+  --klein-400: var(--blue-500); /* Dark-bg CTA */
+  --klein-300: var(--blue-400); /* Dark-bg hover / secondary icons */
+  --klein-100: var(--blue-100); /* Light-bg selected bg */
+}
+
+/* --- 2.2 Canvas Semantic Aliases (Home defaults) --- */
+:root {
+  --home-void: var(--gray-975);
+  --home-surface-soft: var(--gray-925);
+  --home-surface-card: var(--gray-900);
+  --home-border-hover: rgba(255, 255, 255, 0.16);
+  --home-text-primary: var(--gray-300);
+  --home-text-secondary: var(--gray-400);
+  --home-text-muted: var(--gray-500);
+
+  --content-gallery: var(--warm-50);
+  --content-surface-soft: var(--warm-200);
+  --content-surface-card: var(--warm-100);
+  --content-hairline: var(--warm-200);
+  --content-text-primary: var(--warm-900);
+  --content-text-body: var(--warm-800);
+  --content-text-secondary: var(--warm-700);
+
+  --finance-dark: var(--gray-950);
+  --finance-surface: var(--gray-850);
+  --finance-surface-elevated: var(--gray-800);
+  --finance-cta-green: var(--green-400);
+  --finance-up: var(--green-500);
+  --finance-down: var(--red-500);
+  --finance-text-primary: var(--gray-300);
+  --finance-text-secondary: var(--gray-600);
+
+  /* Signature */
+  --particle-core: var(--signature-core);
+  --particle-glow: var(--signature-glow);
+  --gradient-iris: var(--signature-gradient);
+  --saffron-spark: var(--amber-400);
+
+  /* Category Accents */
+  --cat-blog: var(--purple-500);
+  --cat-feed: var(--cyan-500);
+  --cat-bookmark: var(--mint-500);
+  --cat-project: var(--orange-500);
+  --cat-learn: var(--pink-500);
+
+  /* Typography */
+  --font-display: var(--font-sans-display);
+  --font-body: var(--font-sans-body);
+  /* --font-mono and --font-cjk inherited directly from Layer 1 */
+
+  --text-size-display-en: var(--text-8xl);
+  --text-size-display-cn: var(--text-7xl);
+  --text-size-heading-lg-en: var(--text-6xl);
+  --text-size-heading-lg-cn: var(--text-5xl);
+  --text-size-heading-md-en: var(--text-4xl);
+  --text-size-heading-md-cn: var(--text-3xl);
+  --text-size-body: var(--text-base);
+  --text-size-caption: var(--text-xs);
+
+  --line-height-display: var(--leading-display-en);
+  --line-height-display-cjk: var(--leading-display-cjk);
+  --line-height-body: var(--leading-body-en);
+  --line-height-body-cjk: var(--leading-body-cjk);
+
+  /* Geometry */
+  --radius-home: var(--radius-md);
+  --radius-content: var(--radius-sm);
+  --radius-btn-home: var(--radius-full);
+  --radius-btn-content: var(--radius-sm);
+  --radius-btn-finance: var(--radius-sm);
+
+  /* Spacing */
+  --card-gap: var(--space-3xl);
+
+  /* Shadow */
+  --shadow-webflow-featured: var(--shadow-featured);
+}
+
+/* --- 2.3 Chameleon Layer: Dark Mode (Home Sci-Fi) --- */
+:root {
   color-scheme: dark;
   --bg-base: var(--home-void);
   --bg-surface-soft: var(--home-surface-soft);
   --bg-surface-card: var(--home-surface-card);
   --text-primary: var(--home-text-primary);
   --text-secondary: var(--home-text-secondary);
+  --text-muted: var(--home-text-muted);
   --border-default: var(--home-border-hover);
   --btn-primary-bg: var(--klein-400);
   --btn-primary-bg-hover: var(--klein-300);
 }
 
-/* 浅色模式 (Content Cream Gallery) */
+/* --- 2.4 Chameleon Layer: Light Mode (Cream Gallery) --- */
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) {
     color-scheme: light;
@@ -126,7 +247,7 @@
     --bg-surface-card: var(--content-surface-card);
     --text-primary: var(--content-text-primary);
     --text-secondary: var(--content-text-secondary);
-    --text-muted: var(--contente-text-secondary);
+    --text-muted: var(--content-text-secondary);
     --border-default: var(--content-hairline);
     --btn-primary-bg: var(--klein-500);
     --btn-primary-bg-hover: var(--klein-600);
@@ -135,10 +256,7 @@
   }
 }
 
-/* =========================================
-   Finance 画布专属语义覆盖 (强制赛博暗面)
-   无视全局 theme，只要进入 Finance 页面即刻生效
-   ========================================= */
+/* --- 2.5 Finance Canvas Override --- */
 [data-canvas="finance"] {
   color-scheme: dark;
   --bg-base: var(--finance-dark);
@@ -152,7 +270,7 @@
   --btn-primary-bg-hover: #73c9b6;
 }
 
-/* 手动强制深色 (供 JS 切换使用) */
+/* --- 2.6 Manual Theme Overrides (JS-driven) --- */
 [data-theme="dark"] {
   color-scheme: dark;
   --bg-base: var(--home-void);
@@ -160,12 +278,12 @@
   --bg-surface-card: var(--home-surface-card);
   --text-primary: var(--home-text-primary);
   --text-secondary: var(--home-text-secondary);
+  --text-muted: var(--home-text-muted);
   --border-default: var(--home-border-hover);
   --btn-primary-bg: var(--klein-400);
   --btn-primary-bg-hover: var(--klein-300);
 }
 
-/* 手动强制浅色 (供 JS 切换使用) */
 [data-theme="light"] {
   color-scheme: light;
   --bg-base: var(--content-gallery);
@@ -173,9 +291,57 @@
   --bg-surface-card: var(--content-surface-card);
   --text-primary: var(--content-text-primary);
   --text-secondary: var(--content-text-secondary);
+  --text-muted: var(--content-text-secondary);
   --border-default: var(--content-hairline);
   --btn-primary-bg: var(--klein-500);
   --btn-primary-bg-hover: var(--klein-600);
   --font-weight-display: 400;
   --letter-spacing-display: -0.02em;
+}
+
+/* =========================================
+  LAYER 3: COMPONENT TOKENS
+  Component-specific. Map component anatomy to semantic values.
+  Components reference these ONLY (never Layer 1 or Layer 2 directly).
+  ========================================= */
+:root {
+  /* --- 3.1 About Card --- */
+  --about-min-height: 480px;
+  --about-radius: var(--radius-home);
+  --about-bg: var(--bg-surface-card);
+  --about-particle-count: 200; /* Desktop; reduce to 80 on mobile via JS */
+  --about-particle-color: var(--particle-core);
+  --about-particle-glow: var(--particle-glow);
+  --about-expand-duration: var(--duration-monopo);
+  --about-expand-ease: var(--ease-monopo);
+
+  /* --- 3.2 Timeline Card (Home mixed timeline) --- */
+  --timeline-gap: var(--card-gap);
+  --timeline-padding: var(--space-xl);
+  --timeline-radius: var(--radius-home);
+  --timeline-bg: var(--bg-surface-card);
+  --timeline-accent-width: 3px;
+  --timeline-hover-lift: -4px;
+  --timeline-hover-duration: var(--duration-fast);
+  --timeline-hover-ease: var(--ease-monopo);
+
+  /* --- 3.3 Finance Dashboard Card --- */
+  --finance-card-padding: var(--space-lg);
+  --finance-card-radius: var(--radius-sm);
+  --finance-card-bg: var(--bg-surface-card);
+  --finance-table-font: var(--font-mono);
+  --finance-up-color: var(--finance-up);
+  --finance-down-color: var(--finance-down);
+
+  /* --- 3.4 Blog Card (Content pages) --- */
+  --blog-card-padding: var(--space-xl);
+  --blog-card-radius: var(--radius-content);
+  --blog-card-bg: var(--bg-surface-card);
+  --blog-card-border: 1px solid var(--border-default);
+
+  /* --- 3.5 Feed Card (Content pages) --- */
+  --feed-card-padding: var(--space-lg);
+  --feed-card-radius: var(--radius-content);
+  --feed-card-bg: var(--bg-surface-card);
+  --feed-card-border: 1px solid var(--border-default);
 }
