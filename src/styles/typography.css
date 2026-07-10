@@ -1,21 +1,43 @@
 /* =========================================
-   catstarry.xyz Design System v1.4 - Typography
+   catstarry.xyz Design System v1.5 — Typography
    使用语义 Token 与 :lang() 实现中英自适应
+   追加：CJK 标点挤压规则
+   中英混排 1/4em 间距 -> 推迟到 Phase 5 用 JS 处理
    ========================================= */
 
 body {
   margin: 0;
   font-family: var(--font-cjk);
-  background-color: var(--bg-base); /* 语义 Token */
-  color: var(--text-primary); /* 语义 Token */
+  background-color: var(--bg-base);
+  color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
 }
 
-* {
-  box-sizing: border-box;
+* { box-sizing: border-box; }
+
+/* =========================================
+   CJK 标点挤压 (Punctuation Trimming)
+   行首禁止标点，依赖浏览器 text-spacing-trim
+   Chrome 123+ / Safari 17+ 支持
+   ========================================= */
+:root {
+  text-spacing-trim: trim-start trim-end trim-adjacent;
 }
 
-/* Display 层级 */
+/* 降级：手动标点悬挂 */
+:lang(zh) .cjk-punctuation-trim,
+:lang(zh-Hans) .cjk-punctuation-trim {
+  hanging-punctuation: first allow-end last;
+}
+
+:lang(zh) h1, :lang(zh) h2, :lang(zh) h3,
+:lang(zh) p, :lang(zh) li, :lang(zh) blockquote {
+  hanging-punctuation: first allow-end;
+}
+
+/* =========================================
+   Display 层级
+   ========================================= */
 .text-display {
   font-family: var(--font-display);
   font-size: clamp(48px, 8vw, var(--text-size-display-en));
@@ -25,7 +47,6 @@ body {
   margin-bottom: var(--space-xl);
 }
 
-/* 现有的系统浅色覆盖 */
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) .text-display {
     font-weight: 400;
@@ -33,13 +54,11 @@ body {
   }
 }
 
-/* 新增：手动强制浅色模式覆盖 */
 [data-theme="light"] .text-display {
   font-weight: 400;
   letter-spacing: -0.02em;
 }
 
-/* CJK 覆盖 */
 :lang(zh) .text-display,
 :lang(zh-Hans) .text-display {
   font-family: var(--font-cjk);
@@ -49,8 +68,9 @@ body {
   line-height: var(--line-height-display-cjk);
 }
 
-
-/* Heading LG 层级 */
+/* =========================================
+   Heading LG 层级
+   ========================================= */
 .text-heading-lg {
   font-family: var(--font-display);
   font-size: clamp(40px, 6vw, var(--text-size-heading-lg-en));
@@ -59,6 +79,7 @@ body {
   line-height: 1;
   margin-bottom: var(--space-lg);
 }
+
 :lang(zh) .text-heading-lg {
   font-family: var(--font-cjk);
   font-size: clamp(36px, 5.5vw, var(--text-size-heading-lg-cn));
@@ -67,19 +88,24 @@ body {
   line-height: 1.3;
 }
 
-/* Body 层级 */
+/* =========================================
+   Body 层级
+   ========================================= */
 .text-body {
   font-size: var(--text-size-body);
   line-height: var(--line-height-body);
   margin-bottom: var(--space-md);
 }
+
 :lang(zh) .text-body {
-  line-height: var(--line-height-body-cjk); /* ≥1.85 */
+  line-height: var(--line-height-body-cjk);
 }
 
-/* Caption 层级 */
+/* =========================================
+   Caption 层级
+   ========================================= */
 .text-caption {
   font-size: var(--text-size-caption);
-  color: var(--text-secondary); /* 语义 Token */
+  color: var(--text-secondary);
   line-height: 1.5;
 }

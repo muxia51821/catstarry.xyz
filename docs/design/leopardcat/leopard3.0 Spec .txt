@@ -1,0 +1,534 @@
+
+# 生成完整的 v3.0 Spec 文档
+
+spec = """# 🐆 豹猫粒子系统 v3.0 — 工程 Spec
+
+> 版本：v3.0  
+> 日期：2026-07-10  
+> 作者：木下 + Kimi  
+> 目标：基于 v2.0 和标注数据，修复比例/色彩/斑纹三大缺陷  
+> 约束：纯浏览器端 Three.js r128，无外部依赖，无 Blender  
+
+---
+
+## 0. 术语表（继承 v2.0，新增）
+
+| 术语 | 含义 |
+|------|------|
+| **Rosette Ring** | 斑纹外环（深色 #1A0E08） |
+| **Rosette Core** | 斑纹中心（浅色 #A67B3D） |
+| **Dorsal Highlight** | 脊线高光（金色 #e0bf45，极窄条带） |
+| **Coat Gold** | 棕金过渡色 #A67B3D，背部主色 |
+| **Annotated Proportion** | 基于 31 点标注数据计算的像素比例 |
+
+---
+
+## 1. 色彩体系（v3.0 修订）
+
+### 1.1 豹猫粒子色（6 色 + 1 过渡）
+
+| Token | HEX | 用途 | 粒子类型 | 分布条件 |
+|-------|-----|------|----------|----------|
+| `--particle-gold-core` | `#e0bf45` | 脊线高光（极窄） | type=0 | Y>0.35 && \|Z\|<0.15 && random<0.30 |
+| `--particle-coat-gold` | `#A67B3D` | 背部主色（棕金） | type=5 | Y>0.35 && \|Z\|≥0.15 |
+| `--particle-coat-brown` | `#8B5E3C` | 主毛棕 | type=1 | 默认底色 |
+| `--particle-shadow-deep` | `#3A2418` | 暗影褐 | type=2 | Y<-0.3 |
+| `--particle-pattern-ring` | `#1A0E08` | 斑纹环（深色） | type=3a | rosette=1 && ring |
+| `--particle-pattern-core` | `#A67B3D` | 斑纹心（浅色） | type=3b | rosette=1 && core |
+| `--particle-eye-emerald` | `#4A7C59` | 瞳光翡翠绿 | type=4 | partId=1 && X>2.0 && \|Z\|<0.4 |
+
+**v3.0 关键变更**：
+- 删除 type=0 的"大面积背部金色"分配
+- 新增 type=5 `#A67B3D` 作为背部主色
+- 斑纹从单色实心(type=3)拆分为双色：环(type=3a)+心(type=3b)
+- 金色(type=0)仅限脊线附近 30% 粒子，呈极窄高光条
+
+### 1.2 线框色（不变）
+
+继承 v2.0：
+- `--wireframe-hard`: `#F0D060` alpha 0.8
+- `--wireframe-soft`: `#F5F5F5` alpha 0.15
+- `--wireframe-skeleton`: `#F0D060` alpha 0.9
+
+### 1.3 背景粒子色（不变）
+
+继承 v2.0：
+- Nebula: `#E8C547` alpha 0.08 / `#8B5E3C` alpha 0.06
+- Stars: `#E8C547` alpha 0.35 / `#3A2418` alpha 0.25
+
+---
+
+## 2. 几何规范（v3.0 重构 — 基于标注比例）
+
+### 2.0 比例基准
+
+以标注数据为基准，躯干长度（肩峰→臀尖）= **3.0 单位**。
+
+| 部位 | 标注像素 | 3D 长度 | 相对躯干 |
+|------|----------|---------|----------|
+| 头长（鼻尖→耳后） | 179px | 1.47 | 0.49× |
+| 躯干（肩峰→臀尖） | 365px | **3.00** | 1.00× |
+| 尾长（尾根→尾尖） | 400px | 3.29 | 1.10× |
+| 前腿（肩峰→前爪） | 402px | 3.31 | 1.10× |
+| 后腿（臀尖→后爪） | 338px | 2.78 | 0.93× |
+| 背高（肩峰→腹底） | 185px | 1.52 | 0.51× |
+| 全身（鼻尖→尾尖） | 1179px | 9.69 | 3.23× |
+
+### 2.1 躯干
+
+```js
+// 脊柱曲线 — 5 个控制点
+const spineCurve = new THREE.CatmullRomCurve3([
+new THREE.Vector3(-1.50, 0.30, 0),   // 尾根/臀尖
+new THREE.Vector3(-0.75, 0.50, 0),   // 后腰
+new THREE.Vector3( 0.00, 0.70, 0),   // 背峰最高点
+new THREE.Vector3( 1.05, 0.50, 0),   // 肩胛
+new THREE.Vector3( 1.94, 0.30, 0)    // 颈根
+]);
+```
+
+- `TubeGeometry` 扫掠，**10 边形截面**（v2.0 为 8 边形，提升圆滑度）
+- Y 轴压扁 **0.80**（v2.0 为 0.85，更扁平更接近真实猫科）
+
+**半径插值关键点**：
+
+| u | 半径 | 说明 |
+|---|------|------|
+| 0.00 | 0.40 | 尾根（最细） |
+| 0.15 | 0.55 | 后腰 |
+| 0.35 | **0.65** | 背峰（最粗） |
+| 0.55 | 0.55 | 中背 |
+| 0.75 | 0.60 | 肩胛（次粗） |
+| 0.90 | 0.50 | 颈根 |
+| 1.00 | 0.40 | 头连接处 |
+
+### 2.2 头部
+
+```js
+const headCenter = new THREE.Vector3(2.24, 0.10, 0);
+const headGeo = new THREE.SphereGeometry(0.70, 12, 12);  // 细分提升
+```
+
+**顶点位移规则**（v3.0 细化）：
+- 吻部前突：**1.35×**（v2.0 为 1.3×）
+- 颧骨外扩：**1.20×**（v2.0 为 1.15×）
+- 下颌收束：**0.75×**（v2.0 为 0.8×，更尖）
+- 头顶隆起：**1.10×** Y+（新增，猫科头顶微隆）
+- 颈部压缩：X<0 时，Y×(1-neckT×0.40), Z×(1-neckT×0.30)
+
+### 2.3 耳朵
+
+继承 v2.0 三角贝塞尔曲面片，但调整比例：
+- 耳尖更高：Y = 1.00（相对头中心 Y=0.1）
+- 耳根更宽：Z = ±0.55（v2.0 为 ±0.5）
+- 耳厚递减：耳根 0.18 → 耳尖 0.06
+
+### 2.4 尾巴
+
+```js
+const tailCurve = new THREE.CatmullRomCurve3([
+new THREE.Vector3(-1.50, 0.30,  0.00),  // 尾根
+new THREE.Vector3(-2.32, 0.10,  0.30),  // 尾中段1
+new THREE.Vector3(-3.31, -0.20, -0.20),  // 尾中段2（下沉）
+new THREE.Vector3(-4.13,  0.30,  0.40),  // 尾中段3（上扬）
+new THREE.Vector3(-4.79,  0.80,  0.10)   // 尾尖（螺旋上扬）
+]);
+```
+
+- 长度：**3.29 单位**（v2.0 仅 2.3，显著加长）
+- 半径衰减：`0.38 * (1-u)^1.6`（v2.0 为 0.35*(1-u)^1.5，略粗）
+- Y 轴压扁：0.90
+
+### 2.5 四肢
+
+每腿 3 段 `TubeGeometry`，**6 边形截面**（v2.0 为 5 边形）。
+
+**前腿**（垂直，略前倾）：
+```js
+// 左前腿
+start:  ( 1.30, -0.20,  0.40)
+elbow:  ( 1.30, -1.10,  0.40)   // v2.0: -0.9
+wrist:  ( 1.30, -1.80,  0.40)   // v2.0: -1.5
+paw:    ( 1.30, -2.50,  0.40)   // v2.0: -1.8
+radius: 0.16 → 0.14 → 0.12
+```
+
+**后腿**（后倾 110°，更符合猫科站姿）：
+```js
+// 左后腿
+start:  (-1.30, -0.10,  0.40)
+knee:   (-1.50, -0.90,  0.40)   // 后膝外突
+ankle:  (-1.60, -1.60,  0.40)
+paw:    (-1.60, -2.20,  0.40)
+radius: 0.18 → 0.16 → 0.14
+```
+
+### 2.6 斑纹标记（v3.0 重大变更）
+
+**不再使用简单的 0/1 rosette attribute**。
+
+引入 **rosette 状态机**：
+
+```js
+// rosetteState: Float32
+// 0.0 = 非斑纹区（底色）
+// 0.5 = 斑纹环（深色外圈）
+// 1.0 = 斑纹心（浅色中心）
+```
+
+**斑纹生成算法**（基于标注 JSON 的 40 个 rosette 区域）：
+
+```
+对于每个采样点 P(x,y,z)：
+1. 将 P 投影到 X-Y 平面（侧视图对应）
+2. 计算 P 到每个 rosette 中心 (R01-R40) 的平面距离 d
+3. 找到最近的 rosette R_nearest
+4. 获取 R_nearest 的 outer_ring 参数（长轴 a, 短轴 b, 旋转角 θ）
+5. 计算椭圆归一化距离：
+    d_ellipse = sqrt((dx*cosθ + dy*sinθ)^2 / a^2 + (-dx*sinθ + dy*cosθ)^2 / b^2)
+
+6. if d_ellipse < 0.45: rosetteState = 1.0  // 斑纹心
+    else if d_ellipse < 1.0: rosetteState = 0.5  // 斑纹环
+    else: rosetteState = 0.0  // 底色
+```
+
+**颜色映射**：
+- rosetteState = 0.0 → type=1 `#8B5E3C` 或 type=5 `#A67B3D`
+- rosetteState = 0.5 → type=3a `#1A0E08` 斑纹环
+- rosetteState = 1.0 → type=3b `#A67B3D` 斑纹心
+
+**尾巴环纹**：按 u 参数正弦环纹，但同样使用双色（环+心）：
+```js
+const tailRing = Math.sin(tailU * Math.PI * 10);
+if (tailRing > 0.5) {
+const ringT = (tailRing - 0.5) / 0.5;  // 0→1
+if (ringT > 0.6) rosetteState = 1.0;   // 心
+else rosetteState = 0.5;                  // 环
+}
+```
+
+---
+
+## 3. 粒子类型分配（v3.0 修订）
+
+| 条件 | type | 子类型 | 颜色 | 尺寸 |
+|------|------|--------|------|------|
+| 眼睛区域 | 4 | — | `#4A7C59` | 1.8 |
+| 脊线高光区 | 0 | — | `#e0bf45` | 1.4+random |
+| 背部非高光 | 5 | — | `#A67B3D` | 1.2+random |
+| 斑纹环 | 3 | a | `#1A0E08` | **2.4**（加粗） |
+| 斑纹心 | 3 | b | `#A67B3D` | 1.0（较小） |
+| 腹部/腿内侧 | 2 | — | `#3A2418` | 1.0+random |
+| 其余 | 1 | — | `#8B5E3C` | 1.2+random |
+
+**速度分层**（新增 type=5）：
+
+| type | speedMult | 说明 |
+|------|-----------|------|
+| 0 金 | 1.0 | 高光粒子最活跃 |
+| 1 棕 | 0.7 | |
+| 2 褐 | 0.4 | |
+| 3a 环 | 0.3 | 斑纹环最稳定 |
+| 3b 心 | 0.35 | 斑纹心略活跃 |
+| 4 翡翠 | 0.9 | |
+| 5 棕金 | 0.8 | 背部主色 |
+
+---
+
+## 4. 泊松采样（v3.0 修订）
+
+### 4.1 斑纹密度控制
+
+基于标注 JSON 的 `density` 字段：
+
+| density | d_min 系数 | 说明 |
+|---------|-----------|------|
+| high | ×0.50 | 斑纹最密（肩部、上背） |
+| medium | ×0.65 | 中等密度（侧腹、尾） |
+| low | ×0.80 | 较疏（臀部、下腹） |
+
+**泊松采样时**：
+```js
+let dMin = dMinBase;
+if (rosetteState > 0) {
+dMin *= densityFactor;  // 根据 rosette 密度等级
+} else if (y < -0.2) {
+dMin *= 1.4;  // 腹部稀疏
+}
+```
+
+### 4.2 成对采样（斑纹环+心）
+
+对于每个被标记为 rosette 的采样点：
+
+```js
+// 若当前点是环上点（rosetteState=0.5）
+// 在其法线方向内侧偏移，生成一个"心"点
+if (rosetteState === 0.5) {
+const coreOffset = normal.clone().multiplyScalar(0.08);  // 向表面内侧
+const corePoint = point.clone().add(coreOffset);
+// corePoint 的 rosetteState = 1.0
+// 确保 corePoint 与环上点距离 < dMin/2
+}
+```
+
+---
+
+## 5. 线框规范（继承 v2.0，微调）
+
+### 5.1 硬边提取
+
+二面角阈值保持 **25°**。
+
+### 5.2 手动脊骨线
+
+5 条 `THREE.Line`，但坐标更新为 v3.0：
+
+```js
+// 1. 脊柱线
+lines.push(bodyPart.curve.getPoints(50));
+
+// 2. 左肩胛线（肩峰 → 前左腿根）
+lines.push([
+new THREE.Vector3(1.05, 0.80, 0.30),   // 肩峰上方
+new THREE.Vector3(1.30, -0.20, 0.40)    // 前左腿根
+]);
+
+// 3. 右肩胛线
+lines.push([
+new THREE.Vector3(1.05, 0.80, -0.30),
+new THREE.Vector3(1.30, -0.20, -0.40)
+]);
+
+// 4. 左髋线（后腰 → 后左腿根）
+lines.push([
+new THREE.Vector3(-0.75, 0.60, 0.30),
+new THREE.Vector3(-1.30, -0.10, 0.40)
+]);
+
+// 5. 右髋线
+lines.push([
+new THREE.Vector3(-0.75, 0.60, -0.30),
+new THREE.Vector3(-1.30, -0.10, -0.40)
+]);
+```
+
+---
+
+## 6. 粒子着色器（v3.0 修订）
+
+### 6.1 片段着色器
+
+```glsl
+// 形状选择（基于 gl_VertexID % 3）
+float shape = mod(float(gl_VertexID), 3.0);
+
+// 旋转
+float angle = random(gl_VertexID) * 6.28318;
+vec2 rot = vec2(cos(angle), sin(angle));
+vec2 coord = gl_PointCoord - vec2(0.5);
+coord = vec2(coord.x * rot.x - coord.y * rot.y, coord.x * rot.y + coord.y * rot.x);
+
+// 硬 discard（无 smoothstep）
+if (shape < 1.0) {
+if (abs(coord.x) + abs(coord.y) > 0.5) discard;  // 菱形
+} else if (shape < 2.0) {
+if (coord.y < -0.5 + abs(coord.x)) discard;       // 三角形
+} else {
+if (max(abs(coord.x), abs(coord.y)) > 0.5) discard; // 方形
+}
+
+// 深度 glow
+float depth = gl_FragCoord.z / gl_FragCoord.w;
+float depthGlow = 1.0 / (1.0 + depth * 0.08);
+
+// v3.0: 类型特定的发光
+float typeGlow = uGlow;
+if (vType == 0) typeGlow *= 1.5;      // 金色更强发光
+if (vType == 3) typeGlow *= 0.7;      // 斑纹环较弱发光
+
+vec3 finalColor = vColor * (0.7 + depthGlow * 0.6 * typeGlow);
+gl_FragColor = vec4(finalColor, 1.0);
+```
+
+### 6.2 混合模式（不变）
+
+- Cat Particles: `THREE.NormalBlending`
+- Nebula/Stars: `THREE.AdditiveBlending`
+
+---
+
+## 7. 物理规范（继承 v2.0，参数微调）
+
+### 7.1 状态参数映射
+
+| 状态 | k | c | turbulence | expandForce | spiralForce | damping |
+|------|---|---|-----------|------------|------------|---------|
+| RESTING | 80.0 | 15.0 | 0.0 | 0.0 | 0.0 | 0.90 |
+| AWAKENING | 40.0 | 8.0 | 0.02 | 0.0 | 0.0 | 0.92 |
+| DISSOLVING | 5.0 | 2.0 | 0.08 | 0.2 | 0.1 | 0.95 |
+| EXPANDING | 0.5 | 1.0 | 0.15 | 2.0 | 0.8 | 0.96 |
+| AMBIENT | 0.1 | 0.5 | 0.05 | 0.0 | 0.2 | 0.98 |
+| RECOLLECTING | **60.0→80.0** | 10.0 | 0.01 | 0.0 | 0.0 | 0.88 |
+
+### 7.2 Simplex 噪声
+
+继承 v2.0 的 3D Simplex Noise 实现。
+
+---
+
+## 8. 渲染规范（继承 v2.0）
+
+### 8.1 ACES 色调映射
+
+```js
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.2;
+```
+
+### 8.2 背景粒子
+
+继承 v2.0 参数，无变更。
+
+### 8.3 雾效
+
+```js
+scene.fog = new THREE.FogExp2(0x0A0A0C, 0.012);
+```
+
+---
+
+## 9. 状态机（继承 v2.0）
+
+| 状态 | 持续时间 | 触发条件 | 核心表现 |
+|------|---------|---------|---------|
+| RESTING | 无限 | 默认 | 线框完整，粒子微弱呼吸 |
+| AWAKENING | 0.4s | Hover | 细分线先断裂，金色粒子亮度激增 |
+| DISSOLVING | 0.8s | 自动 | 线框消失，粒子脱离，双色斑纹分离 |
+| EXPANDING | 1.2s | 点击展开 | 粒子 3D 径向爆发，金色先锋 |
+| AMBIENT | 无限/4s | 自动 | 稀薄粒子漂浮 |
+| RECOLLECTING | 0.6s | 鼠标离开 | 弹性吸附，线框重新浮现 |
+
+---
+
+## 10. 响应式（继承 v2.0）
+
+| 断点 | 粒子数 | 卡片尺寸 | 其他 |
+|------|--------|---------|------|
+| Desktop (≥1024px) | 5000-6000 | 420×480 | 完整效果 |
+| Tablet (640-1023px) | 4000 | 80vw | 简化动画 |
+| Mobile (<640px) | 2000 | calc(100vw-32px) | 触控触发、无脊骨线 |
+
+---
+
+## 11. 代码架构（v3.0 分层）
+
+```
+LeopardCatSystem
+├── GeometryBuilder          // 第 1 层：几何生成（v3.0 坐标重构）
+│   ├── buildBody()
+│   ├── buildHead()
+│   ├── buildEars()
+│   ├── buildTail()          // 加长至 3.29 单位
+│   ├── buildLegs()          // 加长，6边形截面
+│   └── mergeAndMark()       // rosetteState Float32
+├── WireframeBuilder         // 第 2 层：线框
+│   ├── extractHardEdges()
+│   ├── extractSoftEdges()
+│   └── buildSkeletonLines()
+├── RosetteMapper            // 第 3 层：斑纹映射（v3.0 新增）
+│   ├── loadAnnotatedRosettes()  // 解析 JSON 的 R01-R40
+│   ├── projectToSurface()       // 3D 点投影到标注平面
+│   └── computeRosetteState()    // 0.0/0.5/1.0
+├── ParticleSampler          // 第 4 层：泊松采样
+│   └── poissonSample()      // 支持成对采样（环+心）
+├── PhysicsEngine            // 第 5 层：物理
+│   ├── simplex3D()
+│   ├── stateParams
+│   └── update()
+├── ParticleRenderer         // 第 6 层：渲染
+│   ├── buildCatShader()     // 7 类型颜色
+│   ├── buildNebulaShader()
+│   └── buildStarShader()
+└── StateMachine             // 第 7 层：状态
+  ├── transitionTo()
+  └── update()
+```
+
+---
+
+## 12. 验收清单
+
+### 12.1 致命 Bug
+- [ ] 无 `ReferenceError` / `TypeError`
+- [ ] 所有材质变量在 `animate()` 前已定义
+- [ ] 状态切换不崩溃
+
+### 12.2 设计体系合规
+- [ ] 金色(type=0)仅出现在脊线附近 30% 粒子
+- [ ] 背部主色为 `#A67B3D`(type=5)，非大面积金色
+- [ ] 斑纹为双色：环 `#1A0E08` + 心 `#A67B3D`
+- [ ] 无 `#4F71FF` / `#00E5FF` / `#6685FF` 出现在猫粒子上
+- [ ] Cat Particles: `NormalBlending`
+- [ ] Nebula/Stars: `AdditiveBlending`
+- [ ] 启用 `ACESFilmicToneMapping`
+
+### 12.3 形态识别
+- [ ] 3 秒内识别为猫科动物
+- [ ] 头身比约 1:3.2（符合标注）
+- [ ] 尾巴长度占全身 34%（符合标注）
+- [ ] 能看出弓背、长尾、尖耳
+
+### 12.4 斑纹质量
+- [ ] 斑纹呈"玫瑰环"状，非实心黑块
+- [ ] 环粗于心，颜色对比明显
+- [ ] 背部/肩部密度高于腹部
+- [ ] 尾巴环纹同样双色
+
+### 12.5 粒子质量
+- [ ] 5000-8000 颗（桌面），不卡顿
+- [ ] 扩散时有毛流感（切线漂移）
+- [ ] 回收时有弹性吸附感
+- [ ] Simplex 噪声扰动（非同步 sin）
+
+### 12.6 背景质量
+- [ ] Nebula 朦胧、大、暗、慢
+- [ ] Stars 锐利、小、亮、快
+- [ ] 无"LED 灯珠"感
+
+---
+
+## 13. v2.0 → v3.0 变更摘要
+
+| 维度 | v2.0 | v3.0 |
+|------|------|------|
+| **躯干长度** | 3.5 单位 | **3.0 单位**（基准） |
+| **头长** | 1.5 单位（偏大） | **1.47 单位**（符合标注 15%） |
+| **尾长** | 2.3 单位（偏短） | **3.29 单位**（符合标注 34%） |
+| **背部主色** | `#e0bf45` 金色（面积过大） | `#A67B3D` 棕金 |
+| **脊线高光** | 无专门定义 | 新增 type=0，仅 30% 粒子 |
+| **斑纹** | 单色实心 `#1A0E08` | **双色环+心** |
+| **rosette 属性** | Float32 0/1 | **Float32 0.0/0.5/1.0** |
+| **躯干截面** | 8 边形 | **10 边形** |
+| **腿截面** | 5 边形 | **6 边形** |
+| **头部细分** | 10×10 | **12×12** |
+| **斑纹密度** | 统一 d_min×0.6 | **按标注 density 分级** |
+
+---
+
+## 14. 参考资源
+
+- 标注数据：`leopard_cat_master_v4_4_complete.json`
+- v2.0 Spec：`leopard_cat_v2_spec.md`
+- 基线代码：`phase2_complete.html`
+- 生物学参考：豹猫头身比约 1:3，尾长约占头身长 40-50% citeweb_search:1#2web_search:1#3
+- Rosette 形态学：深色环包围浅色中心 citeweb_search:4#2web_search:4#3
+"""
+
+# 保存 spec
+with open('/mnt/agents/output/leopard_cat_v3_spec.md', 'w', encoding='utf-8') as f:
+  f.write(spec)
+
+print("✅ v3.0 Spec 已生成")
+print(f"📄 文件路径: /mnt/agents/output/leopard_cat_v3_spec.md")
+print(f"📊 文件大小: {len(spec)} 字符")

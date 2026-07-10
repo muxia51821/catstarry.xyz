@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>catstarry.xyz — Phase 1: Geometry Rebuild</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+
+  :root {
+    --klein-500: #002fa7;
+    --klein-400: #335cff;
+    --home-void: #0a0a0c;
+    --home-surface-card: #1a2030;
+    --home-text-primary: #e5e7eb;
+    --home-text-secondary: #9ca3af;
+    --home-text-muted: #6b7280;
+    --particle-core: #4f71ff;
+    --ease-monopo: cubic-bezier(0.19, 1, 0.22, 1);
+    --font-display: "IBM Plex Sans", "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+    --font-body: "Geist", "HarmonyOS Sans SC", system-ui, sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: var(--home-void); font-family: var(--font-display); color: var(--home-text-primary); -webkit-font-smoothing: antialiased; }
+  #canvas-container { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; }
+  canvas { display: block; }
+
+  .about-card { position: fixed; bottom: 40px; right: 40px; width: 420px; min-height: 480px; background: rgba(26, 32, 48, 0.88); backdrop-filter: blur(24px) saturate(1.2); -webkit-backdrop-filter: blur(24px) saturate(1.2); border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; padding: 32px; z-index: 10; cursor: pointer; transition: all 0.8s var(--ease-monopo); overflow: hidden; box-shadow: 0 0 0 1px rgba(79, 113, 255, 0.05), 0 20px 60px rgba(0,0,0,0.4); }
+  .about-card:hover { border-color: rgba(255,255,255,0.16); transform: translateY(-2px); box-shadow: 0 0 0 1px rgba(79, 113, 255, 0.1), 0 24px 72px rgba(0,0,0,0.5); }
+  .about-card.expanded { width: min(90vw, 720px); height: min(90vh, 640px); bottom: calc(50vh - min(45vh, 320px)); right: calc(50vw - min(45vw, 360px)); background: rgba(10,10,12,0.96); cursor: default; border-color: rgba(79, 113, 255, 0.15); }
+  .about-header { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; }
+  .avatar { width: 64px; height: 64px; border-radius: 50%; background: linear-gradient(135deg, var(--klein-400), var(--particle-core)); display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 300; color: #fff; flex-shrink: 0; border: 2px solid rgba(79, 113, 255, 0.35); box-shadow: 0 0 20px rgba(79, 113, 255, 0.15); }
+  .about-title { font-size: clamp(22px, 2.5vw, 28px); font-weight: 300; letter-spacing: -0.03em; line-height: 1.2; color: var(--home-text-primary); }
+  .about-subtitle { font-size: 14px; color: var(--home-text-secondary); margin-top: 4px; font-weight: 400; font-family: var(--font-body); }
+  .about-body { font-size: 16px; line-height: 1.85; color: var(--home-text-secondary); opacity: 0; max-height: 0; overflow: hidden; transition: all 0.8s var(--ease-monopo); font-family: var(--font-body); }
+  .about-card.expanded .about-body { opacity: 1; max-height: 500px; margin-top: 24px; }
+  .about-body p { margin-bottom: 16px; }
+  .tag-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+  .tag { padding: 5px 14px; border-radius: 100px; font-size: 12px; font-weight: 500; border: 1px solid rgba(255,255,255,0.08); color: var(--home-text-secondary); background: rgba(255,255,255,0.03); font-family: var(--font-body); transition: all 0.2s var(--ease-monopo); }
+  .tag:hover { border-color: rgba(79, 113, 255, 0.3); color: #6685ff; background: rgba(79, 113, 255, 0.06); }
+  .tag.particle-core { border-color: rgba(79, 113, 255, 0.25); color: #6685ff; }
+  .state-indicator { position: absolute; top: 20px; right: 24px; font-size: 11px; font-family: var(--font-mono); color: var(--home-text-muted); text-transform: uppercase; letter-spacing: 0.08em; opacity: 0.7; }
+  .particle-hint { position: absolute; bottom: 20px; left: 24px; font-size: 11px; color: var(--home-text-muted); opacity: 0.5; font-family: var(--font-body); transition: opacity 0.3s var(--ease-monopo); }
+  .about-card.expanded .particle-hint { opacity: 0; }
+  .close-btn { position: absolute; top: 20px; right: 60px; width: 32px; height: 32px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.1); background: transparent; color: var(--home-text-secondary); cursor: pointer; display: none; align-items: center; justify-content: center; font-size: 20px; line-height: 1; transition: all 0.2s var(--ease-monopo); font-family: var(--font-display); }
+  .close-btn:hover { background: rgba(255,255,255,0.08); color: var(--home-text-primary); border-color: rgba(255,255,255,0.2); }
+  .about-card.expanded .close-btn { display: flex; }
+
+  @media (max-width: 640px) {
+    .about-card { width: calc(100vw - 32px); right: 16px; bottom: 16px; min-height: 360px; padding: 24px; }
+    .about-card.expanded { width: calc(100vw - 32px); height: calc(100vh - 32px); right: 16px; bottom: 16px; }
+    .about-title { font-size: 22px; }
+  }
+</style>
+</head>
+<body>
+<div id="canvas-container"></div>
+<div class="about-card" id="aboutCard">
+  <div class="state-indicator" id="stateIndicator">RESTING</div>
+  <button class="close-btn" id="closeBtn">&times;</button>
+  <div class="about-header">
+    <div class="avatar">木</div>
+    <div>
+      <div class="about-title">木下</div>
+      <div class="about-subtitle">数字生活流 / Digital Life Stream</div>
+    </div>
+  </div>
+  <div class="about-body">
+    <p>这里是 catstarry.xyz，我的数字生活流。不是名片，不是产品落地页，也不是传统博客列表——而是一个持续生长的个人数字花园。</p>
+    <p>我关注技术、金融、设计与生活的交叉地带。在这个空间里，文字、数据与视觉经验交织成流，记录思考的痕迹与发现的惊喜。</p>
+    <p>那只几何豹猫是我的视觉签名：由拓扑线框与粒子构成的数字生命体，在苏醒与溶解之间循环，象征着信息时代中身份的不断重构。</p>
+    <div class="tag-row">
+      <span class="tag particle-core">WebGL</span>
+      <span class="tag">Three.js</span>
+      <span class="tag">粒子系统</span>
+      <span class="tag">克莱因蓝</span>
+      <span class="tag">CJK 排版</span>
+      <span class="tag">数字花园</span>
+    </div>
+  </div>
+  <div class="particle-hint">点击卡片 · 唤醒豹猫</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// =========================================
+// Phase 1: Geometry Rebuild (Fixed)
+// =========================================
+
+const container = document.getElementById('canvas-container');
+const aboutCard = document.getElementById('aboutCard');
+const stateIndicator = document.getElementById('stateIndicator');
+const closeBtn = document.getElementById('closeBtn');
+
+const STATES = { RESTING: 0, AWAKENING: 1, DISSOLVING: 2, EXPANDING: 3, AMBIENT: 4, RECOLLECTING: 5 };
+let currentState = STATES.RESTING, stateTimer = 0, isExpanded = false, mouseOnCard = false;
+
+const COLORS = {
+  goldCore: new THREE.Color('#E8C547'), goldGleam: new THREE.Color('#F0D060'),
+  coatBrown: new THREE.Color('#8B5E3C'), shadowDeep: new THREE.Color('#3A2418'),
+  patternVoid: new THREE.Color('#1A0E08'), eyeEmerald: new THREE.Color('#4A7C59'),
+  wireframe: new THREE.Color('#F5F5F5'), particleCore: new THREE.Color('#4F71FF')
+};
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x0A0A0C, 0.015);
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+camera.position.set(0, 0, 18);
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setClearColor(0x0A0A0C, 1);
+container.appendChild(renderer.domElement);
+
+// =========================================
+// 1. GEOMETRY BUILDER
+// =========================================
+
+function interpolateRadius(u, keypoints) {
+  for (let i = 0; i < keypoints.length - 1; i++) {
+    if (u >= keypoints[i].u && u <= keypoints[i+1].u) {
+      const t = (u - keypoints[i].u) / (keypoints[i+1].u - keypoints[i].u);
+      return keypoints[i].r * (1-t) + keypoints[i+1].r * t;
+    }
+  }
+  return keypoints[keypoints.length-1].r;
+}
+
+function processTubeRadius(geometry, curve, radiusFunc, flattenY) {
+  const pos = geometry.attributes.position;
+  const tubularSegments = geometry.parameters.tubularSegments;
+  const radialSegments = geometry.parameters.radialSegments;
+
+  for (let i = 0; i <= tubularSegments; i++) {
+    const u = i / tubularSegments;
+    const radius = radiusFunc(u);
+    const point = curve.getPointAt(u);
+
+    for (let j = 0; j <= radialSegments; j++) {
+      const idx = i * (radialSegments + 1) + j;
+      const dx = pos.getX(idx) - point.x;
+      const dy = pos.getY(idx) - point.y;
+      const dz = pos.getZ(idx) - point.z;
+      const dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
+
+      if (dist > 0.001) {
+        const scale = radius / dist;
+        pos.setXYZ(idx,
+          point.x + dx * scale,
+          point.y + dy * scale * flattenY,
+          point.z + dz * scale
+        );
+      }
+    }
+  }
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
+function buildBody() {
+  const spineCurve = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(-2.0, 0.3, 0),
+    new THREE.Vector3(-1.0, 0.5, 0),
+    new THREE.Vector3(0.0, 0.6, 0),
+    new THREE.Vector3(1.0, 0.4, 0),
+    new THREE.Vector3(1.5, 0.3, 0)
+  ]);
+
+  const bodyKeypoints = [
+    {u: 0.0, r: 0.35}, {u: 0.15, r: 0.5}, {u: 0.35, r: 0.55},
+    {u: 0.55, r: 0.5}, {u: 0.75, r: 0.6}, {u: 0.9, r: 0.45}, {u: 1.0, r: 0.35}
+  ];
+
+  const geo = new THREE.TubeGeometry(spineCurve, 64, 0.5, 8, false);
+  processTubeRadius(geo, spineCurve, u => interpolateRadius(u, bodyKeypoints), 0.85);
+  return { geometry: geo, curve: spineCurve, partId: 0 };
+}
+
+function buildHead() {
+  const headCenter = new THREE.Vector3(1.8, 0.1, 0);
+  const headGeo = new THREE.SphereGeometry(0.75, 10, 10);
+  const pos = headGeo.attributes.position;
+
+  for (let i = 0; i < pos.count; i++) {
+    let x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+    if (x > 0.3) x *= 1.3;
+    if (Math.abs(z) > 0.4) z *= 1.15;
+    if (y < -0.3) y *= 0.8;
+    if (x < 0.0) {
+      const neckT = Math.max(0, (-x) / 0.6);
+      y *= (1 - neckT * 0.35);
+      z *= (1 - neckT * 0.25);
+    }
+    pos.setXYZ(i, x + headCenter.x, y + headCenter.y, z + headCenter.z);
+  }
+  headGeo.computeVertexNormals();
+  return { geometry: headGeo, partId: 1 };
+}
+
+function buildEars() {
+  const ears = [];
+  const headCenter = new THREE.Vector3(1.8, 0.1, 0);
+
+  [-1, 1].forEach(side => {
+    const zDir = side;
+    const tip = new THREE.Vector3(1.8, 0.9, 0.5 * zDir);
+    const baseL = new THREE.Vector3(1.6, 0.2, 0.65 * zDir);
+    const baseR = new THREE.Vector3(2.0, 0.2, 0.45 * zDir);
+    const back = new THREE.Vector3(1.8, 0.45, 0.8 * zDir);
+
+    const vertices = new Float32Array([
+      tip.x, tip.y, tip.z,
+      baseL.x, baseL.y, baseL.z,
+      baseR.x, baseR.y, baseR.z,
+      back.x, back.y, back.z
+    ]);
+    const indices = [0, 1, 2, 0, 2, 3];
+
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+    geo.setIndex(indices);
+    geo.computeVertexNormals();
+    ears.push(geo);
+  });
+
+  const merged = new THREE.BufferGeometry();
+  const v0 = ears[0].attributes.position.array;
+  const v1 = ears[1].attributes.position.array;
+  const i0 = ears[0].index.array;
+  const i1 = ears[1].index.array;
+  const allVerts = new Float32Array(v0.length + v1.length);
+  allVerts.set(v0, 0);
+  allVerts.set(v1, v0.length);
+  const allIdx = new Uint16Array(i0.length + i1.length);
+  allIdx.set(i0, 0);
+  for (let i = 0; i < i1.length; i++) allIdx[i0.length + i] = i1[i] + 4;
+  merged.setAttribute('position', new THREE.BufferAttribute(allVerts, 3));
+  merged.setIndex(new THREE.BufferAttribute(allIdx, 1));
+  merged.computeVertexNormals();
+  return { geometry: merged, partId: 2 };
+}
+
+function buildTail() {
+  const tailCurve = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(-2.0, 0.3, 0),
+    new THREE.Vector3(-2.8, 0.1, 0.25),
+    new THREE.Vector3(-3.5, -0.3, -0.15),
+    new THREE.Vector3(-4.0, 0.2, 0.35),
+    new THREE.Vector3(-4.3, 0.9, 0.1)
+  ]);
+
+  const geo = new THREE.TubeGeometry(tailCurve, 48, 0.3, 6, false);
+  processTubeRadius(geo, tailCurve, u => 0.35 * Math.pow(1 - u, 1.5), 0.9);
+  return { geometry: geo, partId: 3 };
+}
+
+function buildLegs() {
+  const legs = [];
+  const legDefs = [
+    { start: new THREE.Vector3(1.0, -0.15, 0.4), elbow: new THREE.Vector3(1.0, -0.9, 0.4), wrist: new THREE.Vector3(1.0, -1.5, 0.4), paw: new THREE.Vector3(1.0, -1.8, 0.4), radius: 0.16 },
+    { start: new THREE.Vector3(1.0, -0.15, -0.4), elbow: new THREE.Vector3(1.0, -0.9, -0.4), wrist: new THREE.Vector3(1.0, -1.5, -0.4), paw: new THREE.Vector3(1.0, -1.8, -0.4), radius: 0.16 },
+    { start: new THREE.Vector3(-1.0, -0.05, 0.4), knee: new THREE.Vector3(-1.2, -0.8, 0.4), ankle: new THREE.Vector3(-1.3, -1.4, 0.4), paw: new THREE.Vector3(-1.3, -1.7, 0.4), radius: 0.17 },
+    { start: new THREE.Vector3(-1.0, -0.05, -0.4), knee: new THREE.Vector3(-1.2, -0.8, -0.4), ankle: new THREE.Vector3(-1.3, -1.4, -0.4), paw: new THREE.Vector3(-1.3, -1.7, -0.4), radius: 0.17 }
+  ];
+
+  legDefs.forEach((def, idx) => {
+    const isFront = idx < 2;
+    const segs = isFront ? [def.start, def.elbow, def.wrist, def.paw] : [def.start, def.knee, def.ankle, def.paw];
+
+    for (let s = 0; s < 3; s++) {
+      const curve = new THREE.LineCurve3(segs[s], segs[s+1]);
+      const r = def.radius * (1 - s * 0.15);
+      const geo = new THREE.TubeGeometry(curve, 3, r, 5, false);
+      legs.push({ geometry: geo, partId: 4 + idx });
+    }
+  });
+
+  return legs;
+}
+
+function mergeGeometries(parts) {
+  let totalVerts = 0, totalIdx = 0;
+  parts.forEach(p => {
+    totalVerts += p.geometry.attributes.position.count;
+    totalIdx += p.geometry.index ? p.geometry.index.count : 0;
+  });
+
+  const mPos = new Float32Array(totalVerts * 3);
+  const mNorm = new Float32Array(totalVerts * 3);
+  const mRoset = new Float32Array(totalVerts);
+  const mPart = new Uint8Array(totalVerts);
+  const mIdx = new Uint32Array(totalIdx);
+
+  let vOff = 0, iOff = 0;
+
+  parts.forEach(p => {
+    const geo = p.geometry;
+    const pos = geo.attributes.position;
+    const norm = geo.attributes.normal;
+    const idx = geo.index;
+    const count = pos.count;
+
+    for (let i = 0; i < count; i++) {
+      mPos[(vOff+i)*3] = pos.getX(i);
+      mPos[(vOff+i)*3+1] = pos.getY(i);
+      mPos[(vOff+i)*3+2] = pos.getZ(i);
+
+      if (norm) {
+        mNorm[(vOff+i)*3] = norm.getX(i);
+        mNorm[(vOff+i)*3+1] = norm.getY(i);
+        mNorm[(vOff+i)*3+2] = norm.getZ(i);
+      }
+
+      mPart[vOff+i] = p.partId;
+
+      const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+      let rosette = 0;
+
+      if (p.partId === 0) {
+        if (y > 0.25 && Math.abs(z) < 0.35 && x > -1.5 && x < 1.0) rosette = 1;
+      } else if (p.partId === 3) {
+        const tailU = Math.max(0, Math.min(1, (-x - 2.0) / 2.3));
+        if (Math.sin(tailU * Math.PI * 10) > 0.3) rosette = 1;
+      } else if (p.partId >= 4) {
+        if (Math.random() > 0.7) rosette = 1;
+      }
+      mRoset[vOff+i] = rosette;
+    }
+
+    if (idx) {
+      for (let i = 0; i < idx.count; i++) {
+        mIdx[iOff+i] = idx.getX(i) + vOff;
+      }
+      iOff += idx.count;
+    }
+
+    vOff += count;
+  });
+
+  const merged = new THREE.BufferGeometry();
+  merged.setAttribute('position', new THREE.BufferAttribute(mPos, 3));
+  merged.setAttribute('normal', new THREE.BufferAttribute(mNorm, 3));
+  merged.setAttribute('rosette', new THREE.BufferAttribute(mRoset, 1));
+  merged.setAttribute('partId', new THREE.BufferAttribute(mPart, 1));
+  merged.setIndex(new THREE.BufferAttribute(mIdx, 1));
+  merged.computeVertexNormals();
+  return merged;
+}
+
+const bodyPart = buildBody();
+const headPart = buildHead();
+const earPart = buildEars();
+const tailPart = buildTail();
+const legParts = buildLegs();
+
+const allParts = [bodyPart, headPart, earPart, tailPart, ...legParts];
+const catGeometry = mergeGeometries(allParts);
+
+// =========================================
+// 2. WIREFRAME: EdgesGeometry (hard edges)
+// =========================================
+
+const edgesGeo = new THREE.EdgesGeometry(catGeometry, 22);
+const wireframeMat = new THREE.LineBasicMaterial({ color: 0xF5F5F5, transparent: true, opacity: 0.6 });
+const wireframe = new THREE.LineSegments(edgesGeo, wireframeMat);
+scene.add(wireframe);
+
+const spinePoints = bodyPart.curve.getPoints(50);
+const spineGeo = new THREE.BufferGeometry().setFromPoints(spinePoints);
+const spineMat = new THREE.LineBasicMaterial({ color: 0xF0D060, transparent: true, opacity: 0.35 });
+const spineLine = new THREE.Line(spineGeo, spineMat);
+scene.add(spineLine);
+
+// =========================================
+// 3. CAT PARTICLES (vertices)
+// =========================================
+
+const particleCount = catGeometry.attributes.position.count;
+const positions = new Float32Array(particleCount * 3);
+const originalPositions = new Float32Array(particleCount * 3);
+const colors = new Float32Array(particleCount * 3);
+const sizes = new Float32Array(particleCount);
+const particleTypes = new Int8Array(particleCount);
+
+const posAttr = catGeometry.attributes.position;
+const rosetteAttr = catGeometry.attributes.rosette;
+
+for (let i = 0; i < particleCount; i++) {
+  const x = posAttr.getX(i), y = posAttr.getY(i), z = posAttr.getZ(i);
+  positions[i*3] = x; positions[i*3+1] = y; positions[i*3+2] = z;
+  originalPositions[i*3] = x; originalPositions[i*3+1] = y; originalPositions[i*3+2] = z;
+
+  const rosette = rosetteAttr ? rosetteAttr.getX(i) : 0;
+  const partId = catGeometry.attributes.partId.getX(i);
+
+  let type;
+  if (partId === 1 && x > 2.0 && Math.abs(z) < 0.4 && Math.abs(y - 0.1) < 0.2) {
+    type = 4;
+  } else if (rosette > 0.5) {
+    type = 3;
+  } else if (y > 0.35) {
+    type = 0;
+  } else if (y < -0.3) {
+    type = 2;
+  } else {
+    type = 1;
+  }
+  particleTypes[i] = type;
+
+  let c;
+  switch(type) {
+    case 0: c = COLORS.goldCore; break;
+    case 1: c = COLORS.coatBrown; break;
+    case 2: c = COLORS.shadowDeep; break;
+    case 3: c = COLORS.patternVoid; break;
+    case 4: c = COLORS.eyeEmerald; break;
+    default: c = COLORS.goldCore;
+  }
+  colors[i*3] = c.r; colors[i*3+1] = c.g; colors[i*3+2] = c.b;
+  sizes[i] = 1.5 + Math.random() * 3.5;
+}
+
+const particleGeo = new THREE.BufferGeometry();
+particleGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+particleGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+particleGeo.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+
+const particleUniforms = { uTime: { value: 0 }, uGlow: { value: 1.0 } };
+
+const particleMat = new THREE.ShaderMaterial({
+  uniforms: particleUniforms,
+  vertexShader: `
+    attribute float size; attribute vec3 color;
+    varying vec3 vColor; varying float vSize;
+    uniform float uTime; uniform float uGlow;
+    void main() {
+      vColor = color; vSize = size;
+      vec4 mv = modelViewMatrix * vec4(position, 1.0);
+      gl_PointSize = size * (300.0 / -mv.z);
+      gl_Position = projectionMatrix * mv;
+    }
+  `,
+  fragmentShader: `
+    varying vec3 vColor; varying float vSize;
+    uniform float uTime; uniform float uGlow;
+    void main() {
+      vec2 c = gl_PointCoord - vec2(0.5);
+      float d = abs(c.x) + abs(c.y);
+      if (d > 0.5) discard;
+      float glow = 1.0 - smoothstep(0.0, 0.5, d);
+      vec3 fc = vColor * (0.8 + glow * 0.5 * uGlow);
+      float a = 1.0 - smoothstep(0.3, 0.5, d);
+      gl_FragColor = vec4(fc, a);
+    }
+  `,
+  transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
+});
+
+const particles = new THREE.Points(particleGeo, particleMat);
+scene.add(particles);
+
+// =========================================
+// 4. AMBIENT BACKGROUND PARTICLES
+// =========================================
+
+// Layer 1: Nebula (large, faint, slow)
+const nebulaCount = 400;
+const nebulaPos = new Float32Array(nebulaCount * 3);
+const nebulaCol = new Float32Array(nebulaCount * 3);
+const nebulaSize = new Float32Array(nebulaCount);
+const nebulaVel = new Float32Array(nebulaCount * 3);
+
+for (let i = 0; i < nebulaCount; i++) {
+  nebulaPos[i*3] = (Math.random() - 0.5) * 60;
+  nebulaPos[i*3+1] = (Math.random() - 0.5) * 60;
+  nebulaPos[i*3+2] = (Math.random() - 0.5) * 40 - 10;
+
+  const isGold = Math.random() > 0.6;
+  const c = isGold ? COLORS.goldCore : COLORS.particleCore;
+  nebulaCol[i*3] = c.r; nebulaCol[i*3+1] = c.g; nebulaCol[i*3+2] = c.b;
+  nebulaSize[i] = 2.5 + Math.random() * 6.0;
+  nebulaVel[i*3] = (Math.random() - 0.5) * 0.003;
+  nebulaVel[i*3+1] = (Math.random() - 0.5) * 0.003;
+  nebulaVel[i*3+2] = (Math.random() - 0.5) * 0.002;
+}
+
+const nebulaGeo = new THREE.BufferGeometry();
+nebulaGeo.setAttribute('position', new THREE.BufferAttribute(nebulaPos, 3));
+nebulaGeo.setAttribute('color', new THREE.BufferAttribute(nebulaCol, 3));
+nebulaGeo.setAttribute('size', new THREE.BufferAttribute(nebulaSize, 1));
+
+const nebulaMat = new THREE.ShaderMaterial({
+  uniforms: {
+    uTime: particleUniforms.uTime,
+    uGlow: { value: 0.6 }
+  },
+  vertexShader: `
+    attribute float size; attribute vec3 color;
+    varying vec3 vColor;
+    uniform float uTime;
+    void main() {
+      vColor = color;
+      vec4 mv = modelViewMatrix * vec4(position, 1.0);
+      gl_PointSize = size * (400.0 / -mv.z);
+      gl_Position = projectionMatrix * mv;
+    }
+  `,
+  fragmentShader: `
+    varying vec3 vColor;
+    uniform float uTime;
+    void main() {
+      vec2 c = gl_PointCoord - vec2(0.5);
+      float d = length(c);
+      if (d > 0.5) discard;
+      float glow = 1.0 - smoothstep(0.0, 0.5, d);
+      vec3 fc = vColor * (0.4 + glow * 0.8);
+      float a = (1.0 - smoothstep(0.1, 0.5, d)) * 0.35;
+      gl_FragColor = vec4(fc, a);
+    }
+  `,
+  transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
+});
+
+const nebulaParticles = new THREE.Points(nebulaGeo, nebulaMat);
+scene.add(nebulaParticles);
+
+// Layer 2: Stars (small, bright)
+const starCount = 800;
+const starPos = new Float32Array(starCount * 3);
+const starCol = new Float32Array(starCount * 3);
+const starSize = new Float32Array(starCount);
+const starVel = new Float32Array(starCount * 3);
+
+for (let i = 0; i < starCount; i++) {
+  starPos[i*3] = (Math.random() - 0.5) * 40;
+  starPos[i*3+1] = (Math.random() - 0.5) * 40;
+  starPos[i*3+2] = (Math.random() - 0.5) * 25 - 5;
+
+  const t = Math.random();
+  let c;
+  if (t > 0.75) c = COLORS.goldCore;
+  else if (t > 0.5) c = COLORS.particleCore;
+  else if (t > 0.25) c = new THREE.Color('#00E5FF');
+  else c = new THREE.Color('#6685FF');
+
+  starCol[i*3] = c.r; starCol[i*3+1] = c.g; starCol[i*3+2] = c.b;
+  starSize[i] = 1.0 + Math.random() * 2.5;
+  starVel[i*3] = (Math.random() - 0.5) * 0.008;
+  starVel[i*3+1] = (Math.random() - 0.5) * 0.008;
+  starVel[i*3+2] = (Math.random() - 0.5) * 0.005;
+}
+
+const starGeo = new THREE.BufferGeometry();
+starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+starGeo.setAttribute('color', new THREE.BufferAttribute(starCol, 3));
+starGeo.setAttribute('size', new THREE.BufferAttribute(starSize, 1));
+
+const starMat = new THREE.ShaderMaterial({
+  uniforms: {
+    uTime: particleUniforms.uTime,
+    uGlow: { value: 1.2 }
+  },
+  vertexShader: `
+    attribute float size; attribute vec3 color;
+    varying vec3 vColor;
+    uniform float uTime;
+    void main() {
+      vColor = color;
+      vec4 mv = modelViewMatrix * vec4(position, 1.0);
+      gl_PointSize = size * (300.0 / -mv.z);
+      gl_Position = projectionMatrix * mv;
+    }
+  `,
+  fragmentShader: `
+    varying vec3 vColor;
+    uniform float uTime;
+    void main() {
+      vec2 c = gl_PointCoord - vec2(0.5);
+      float d = length(c);
+      if (d > 0.5) discard;
+      float glow = 1.0 - smoothstep(0.0, 0.5, d);
+      vec3 fc = vColor * (0.9 + glow * 1.2);
+      float a = 1.0 - smoothstep(0.15, 0.5, d);
+      gl_FragColor = vec4(fc, a);
+    }
+  `,
+  transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
+});
+
+const starParticles = new THREE.Points(starGeo, starMat);
+scene.add(starParticles);
+
+// Lighting
+scene.add(new THREE.AmbientLight(0x1a1a2e, 0.6));
+const pl1 = new THREE.PointLight(0x4F71FF, 0.8, 60); pl1.position.set(6, 6, 12); scene.add(pl1);
+const pl2 = new THREE.PointLight(0xE8C547, 0.4, 40); pl2.position.set(-6, -4, 10); scene.add(pl2);
+
+// =========================================
+// 5. STATE MACHINE & ANIMATION
+// =========================================
+
+let time = 0, targetRotY = 0, currentRotY = 0, dissolveFactor = 0, expandFactor = 0;
+const clock = new THREE.Clock();
+let mouseX = 0, mouseY = 0;
+document.addEventListener('mousemove', e => {
+  mouseX = (e.clientX/window.innerWidth-0.5)*2;
+  mouseY = (e.clientY/window.innerHeight-0.5)*2;
+});
+
+aboutCard.addEventListener('mouseenter', () => {
+  mouseOnCard = true;
+  if (currentState === STATES.RESTING) transitionTo(STATES.AWAKENING);
+});
+aboutCard.addEventListener('mouseleave', () => {
+  mouseOnCard = false;
+  if (currentState === STATES.AMBIENT && !isExpanded) transitionTo(STATES.RECOLLECTING);
+});
+aboutCard.addEventListener('click', e => {
+  if (e.target === closeBtn) return;
+  isExpanded = !isExpanded;
+  aboutCard.classList.toggle('expanded', isExpanded);
+  transitionTo(isExpanded ? STATES.EXPANDING : STATES.RECOLLECTING);
+});
+closeBtn.addEventListener('click', e => { e.stopPropagation(); isExpanded = false; aboutCard.classList.remove('expanded'); transitionTo(STATES.RECOLLECTING); });
+
+function transitionTo(s) { currentState = s; stateTimer = 0; stateIndicator.textContent = ['RESTING','AWAKENING','DISSOLVING','EXPANDING','AMBIENT','RECOLLECTING'][s]; }
+
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = clock.getDelta();
+  time += dt; stateTimer += dt;
+  particleUniforms.uTime.value = time;
+
+  switch(currentState) {
+    case STATES.RESTING:
+      targetRotY = Math.sin(time*0.25)*0.06;
+      wireframeMat.opacity = 0.6;
+      particleMat.uniforms.uGlow.value = 0.5 + (Math.sin(time*1.2)*0.5+0.5)*0.25;
+      dissolveFactor = 0; expandFactor = 0;
+      break;
+    case STATES.AWAKENING:
+      var p = Math.min(stateTimer/0.4, 1);
+      wireframeMat.opacity = 0.6*(1-p*0.6);
+      particleMat.uniforms.uGlow.value = 0.8+p*1.5;
+      dissolveFactor = p*0.35; expandFactor = 0;
+      targetRotY = Math.sin(time*0.4)*0.12;
+      if (p>=1) transitionTo(STATES.DISSOLVING);
+      break;
+    case STATES.DISSOLVING:
+      var p = Math.min(stateTimer/0.8, 1);
+      wireframeMat.opacity = 0.24*(1-p);
+      dissolveFactor = 0.35+p*0.65; expandFactor = p*0.15;
+      particleMat.uniforms.uGlow.value = 2.0-p*0.4;
+      targetRotY = time*0.15;
+      if (p>=1) transitionTo(isExpanded?STATES.EXPANDING:STATES.AMBIENT);
+      break;
+    case STATES.EXPANDING:
+      var p = Math.min(stateTimer/1.2, 1);
+      wireframeMat.opacity = 0;
+      dissolveFactor = 1; expandFactor = 0.15+p*0.85;
+      particleMat.uniforms.uGlow.value = 1.4*(1-p*0.25);
+      targetRotY = time*0.25;
+      if (p>=1) transitionTo(STATES.AMBIENT);
+      break;
+    case STATES.AMBIENT:
+      wireframeMat.opacity = 0; dissolveFactor = 1; expandFactor = 1;
+      particleMat.uniforms.uGlow.value = 0.7+Math.sin(time*1.8)*0.15;
+      targetRotY = time*0.08;
+      if (!mouseOnCard && !isExpanded && stateTimer>4) transitionTo(STATES.RECOLLECTING);
+      break;
+    case STATES.RECOLLECTING:
+      var p = Math.min(stateTimer/0.6, 1);
+      wireframeMat.opacity = p*0.6;
+      dissolveFactor = 1-p; expandFactor = 1-p;
+      particleMat.uniforms.uGlow.value = 0.8+p*0.4;
+      targetRotY = Math.sin(time*0.25)*0.06*p;
+      if (p>=1) transitionTo(STATES.RESTING);
+      break;
+  }
+
+  currentRotY += (targetRotY - currentRotY) * 0.04;
+  wireframe.rotation.y = currentRotY;
+  particles.rotation.y = currentRotY;
+  spineLine.rotation.y = currentRotY;
+
+  // Update cat particles
+  const posArr = particleGeo.attributes.position.array;
+  const colArr = particleGeo.attributes.color.array;
+  for (let i = 0; i < particleCount; i++) {
+    const ox = originalPositions[i*3], oy = originalPositions[i*3+1], oz = originalPositions[i*3+2];
+    const noiseX = Math.sin(time*1.8+i*0.13)*0.025*dissolveFactor;
+    const noiseY = Math.cos(time*1.4+i*0.17)*0.025*dissolveFactor;
+    const noiseZ = Math.sin(time*1.6+i*0.11)*0.025*dissolveFactor;
+
+    const type = particleTypes[i];
+    let sm = 1.0;
+    if (type===0) sm=1.0; else if (type===1) sm=0.7; else if (type===2) sm=0.4; else if (type===3) sm=0.3; else sm=0.9;
+
+    const ex = ox*expandFactor*10*sm, ey = oy*expandFactor*10*sm, ez = oz*expandFactor*6*sm;
+    const sa = time*0.4*sm+i*0.5;
+    const sr = expandFactor*2.5*sm;
+    const spiralX = Math.cos(sa)*sr, spiralZ = Math.sin(sa)*sr;
+
+    const mx = mouseX*6, my = -mouseY*6;
+    const dx = ox-mx, dy = oy-my;
+    const dist = Math.sqrt(dx*dx+dy*dy)+0.1;
+    const mf = (1/dist)*0.25*expandFactor;
+
+    posArr[i*3] = ox+ex+spiralX+noiseX+dx*mf*0.008;
+    posArr[i*3+1] = oy+ey+noiseY+dy*mf*0.008;
+    posArr[i*3+2] = oz+ez+spiralZ+noiseZ;
+
+    let tc;
+    switch(type) {
+      case 0: tc = (currentState===STATES.AWAKENING||currentState===STATES.DISSOLVING)?COLORS.goldGleam:COLORS.goldCore; break;
+      case 1: tc = COLORS.coatBrown; break;
+      case 2: tc = COLORS.shadowDeep; break;
+      case 3: tc = COLORS.patternVoid; break;
+      case 4: tc = COLORS.eyeEmerald; break;
+      default: tc = COLORS.goldCore;
+    }
+    colArr[i*3] += (tc.r-colArr[i*3])*0.08;
+    colArr[i*3+1] += (tc.g-colArr[i*3+1])*0.08;
+    colArr[i*3+2] += (tc.b-colArr[i*3+2])*0.08;
+
+    const baseSize = 1.5+(i%5)*0.7;
+    const pulse = (currentState===STATES.AWAKENING)?1+Math.sin(time*12+i)*0.25:1;
+    sizes[i] = baseSize*(1-expandFactor*0.25)*pulse;
+  }
+  particleGeo.attributes.position.needsUpdate = true;
+  particleGeo.attributes.color.needsUpdate = true;
+  particleGeo.attributes.size.needsUpdate = true;
+
+  // Update nebula
+  const nPos = nebulaGeo.attributes.position.array;
+  for (let i = 0; i < nebulaCount; i++) {
+    nPos[i*3] += nebulaVel[i*3];
+    nPos[i*3+1] += nebulaVel[i*3+1];
+    nPos[i*3+2] += nebulaVel[i*3+2];
+    if (Math.abs(nPos[i*3]) > 30) nPos[i*3] *= -0.9;
+    if (Math.abs(nPos[i*3+1]) > 30) nPos[i*3+1] *= -0.9;
+  }
+  nebulaGeo.attributes.position.needsUpdate = true;
+
+  // Update stars
+  const sPos = starGeo.attributes.position.array;
+  for (let i = 0; i < starCount; i++) {
+    sPos[i*3] += starVel[i*3] + Math.sin(time*0.2+i)*0.002;
+    sPos[i*3+1] += starVel[i*3+1] + Math.cos(time*0.15+i)*0.002;
+    sPos[i*3+2] += starVel[i*3+2];
+    if (Math.abs(sPos[i*3]) > 20) sPos[i*3] *= -0.9;
+    if (Math.abs(sPos[i*3+1]) > 20) sPos[i*3+1] *= -0.9;
+  }
+  starGeo.attributes.position.needsUpdate = true;
+
+  camera.position.x += (mouseX*1.5-camera.position.x)*0.015;
+  camera.position.y += (-mouseY*1.5-camera.position.y)*0.015;
+  camera.lookAt(0, 0, 0);
+  renderer.render(scene, camera);
+}
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+animate();
+</script>
+</body>
+</html>

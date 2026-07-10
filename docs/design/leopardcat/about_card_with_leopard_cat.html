@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>catstarry.xyz — 木下的数字生活流</title>
+<style>
+  /* =========================================
+     catstarry.xyz Design System v1.4
+     Home Canvas — Sci-Fi Editorial
+     ========================================= */
+
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+
+  :root {
+    /* Brand: Klein Blue Scale */
+    --klein-600: #001f70;
+    --klein-500: #002fa7;
+    --klein-400: #335cff;
+    --klein-300: #6685ff;
+    --klein-100: #e6ecff;
+
+    /* Home Canvas */
+    --home-void: #0a0a0c;
+    --home-surface-soft: #121722;
+    --home-surface-card: #1a2030;
+    --home-border-hover: rgba(255, 255, 255, 0.16);
+    --home-text-primary: #e5e7eb;
+    --home-text-secondary: #9ca3af;
+    --home-text-muted: #6b7280;
+
+    /* Signature */
+    --particle-core: #4f71ff;
+    --particle-glow: #00e5ff;
+
+    /* Typography */
+    --font-display: "IBM Plex Sans", "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+    --font-body: "Geist", "HarmonyOS Sans SC", system-ui, sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+    /* Geometry & Motion */
+    --radius-home: 20px;
+    --ease-monopo: cubic-bezier(0.19, 1, 0.22, 1);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: var(--home-void);
+    font-family: var(--font-display);
+    color: var(--home-text-primary);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  #canvas-container {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    z-index: 1;
+  }
+
+  canvas { display: block; }
+
+  /* =========================================
+     About Card
+     ========================================= */
+  .about-card {
+    position: fixed;
+    bottom: 40px;
+    right: 40px;
+    width: 420px;
+    min-height: 480px;
+    background: rgba(26, 32, 48, 0.88);
+    backdrop-filter: blur(24px) saturate(1.2);
+    -webkit-backdrop-filter: blur(24px) saturate(1.2);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: var(--radius-home);
+    padding: 32px;
+    z-index: 10;
+    cursor: pointer;
+    transition: all 0.8s var(--ease-monopo);
+    overflow: hidden;
+    box-shadow: 
+      0 0 0 1px rgba(79, 113, 255, 0.05),
+      0 20px 60px rgba(0, 0, 0, 0.4);
+  }
+
+  .about-card:hover {
+    border-color: rgba(255, 255, 255, 0.16);
+    transform: translateY(-2px);
+    box-shadow: 
+      0 0 0 1px rgba(79, 113, 255, 0.1),
+      0 24px 72px rgba(0, 0, 0, 0.5);
+  }
+
+  .about-card.expanded {
+    width: min(90vw, 720px);
+    height: min(90vh, 640px);
+    bottom: calc(50vh - min(45vh, 320px));
+    right: calc(50vw - min(45vw, 360px));
+    background: rgba(10, 10, 12, 0.96);
+    cursor: default;
+    border-color: rgba(79, 113, 255, 0.15);
+  }
+
+  .about-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  .avatar {
+    width: 64px; height: 64px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--klein-400), var(--particle-core));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    font-weight: 300;
+    color: #ffffff;
+    flex-shrink: 0;
+    border: 2px solid rgba(79, 113, 255, 0.35);
+    box-shadow: 0 0 20px rgba(79, 113, 255, 0.15);
+  }
+
+  .about-title-block {
+    flex: 1;
+  }
+
+  .about-title {
+    font-size: clamp(22px, 2.5vw, 28px);
+    font-weight: 300;
+    letter-spacing: -0.03em;
+    line-height: 1.2;
+    color: var(--home-text-primary);
+  }
+
+  .about-subtitle {
+    font-size: 14px;
+    color: var(--home-text-secondary);
+    margin-top: 4px;
+    font-weight: 400;
+    font-family: var(--font-body);
+  }
+
+  .about-body {
+    font-size: 16px;
+    line-height: 1.85;
+    color: var(--home-text-secondary);
+    opacity: 0;
+    max-height: 0;
+    overflow: hidden;
+    transition: all 0.8s var(--ease-monopo);
+    font-family: var(--font-body);
+  }
+
+  .about-card.expanded .about-body {
+    opacity: 1;
+    max-height: 500px;
+    margin-top: 24px;
+  }
+
+  .about-body p {
+    margin-bottom: 16px;
+  }
+
+  .tag-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 20px;
+  }
+
+  .tag {
+    padding: 5px 14px;
+    border-radius: 100px;
+    font-size: 12px;
+    font-weight: 500;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: var(--home-text-secondary);
+    background: rgba(255, 255, 255, 0.03);
+    font-family: var(--font-body);
+    transition: all 0.2s var(--ease-monopo);
+  }
+
+  .tag:hover {
+    border-color: rgba(79, 113, 255, 0.3);
+    color: var(--klein-300);
+    background: rgba(79, 113, 255, 0.06);
+  }
+
+  .tag.particle-core {
+    border-color: rgba(79, 113, 255, 0.25);
+    color: var(--klein-300);
+  }
+
+  .state-indicator {
+    position: absolute;
+    top: 20px; right: 24px;
+    font-size: 11px;
+    font-family: var(--font-mono);
+    color: var(--home-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    opacity: 0.7;
+  }
+
+  .particle-hint {
+    position: absolute;
+    bottom: 20px; left: 24px;
+    font-size: 11px;
+    color: var(--home-text-muted);
+    opacity: 0.5;
+    font-family: var(--font-body);
+    transition: opacity 0.3s var(--ease-monopo);
+  }
+
+  .about-card.expanded .particle-hint {
+    opacity: 0;
+  }
+
+  .close-btn {
+    position: absolute;
+    top: 20px; right: 60px;
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: transparent;
+    color: var(--home-text-secondary);
+    cursor: pointer;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    line-height: 1;
+    transition: all 0.2s var(--ease-monopo);
+    font-family: var(--font-display);
+  }
+
+  .close-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--home-text-primary);
+    border-color: rgba(255, 255, 255, 0.2);
+  }
+
+  .about-card.expanded .close-btn { display: flex; }
+
+  /* Navigation hint */
+  .nav-hint {
+    position: fixed;
+    top: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 5;
+    display: flex;
+    gap: 32px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--home-text-muted);
+    font-family: var(--font-body);
+    letter-spacing: 0.025em;
+    pointer-events: none;
+    opacity: 0.6;
+  }
+
+  .nav-hint span { pointer-events: auto; cursor: pointer; transition: color 0.2s; }
+  .nav-hint span:hover { color: var(--home-text-primary); }
+  .nav-hint .active { color: var(--klein-400); }
+
+  /* Responsive */
+  @media (max-width: 640px) {
+    .about-card {
+      width: calc(100vw - 32px);
+      right: 16px; bottom: 16px;
+      min-height: 360px;
+      padding: 24px;
+    }
+    .about-card.expanded {
+      width: calc(100vw - 32px);
+      height: calc(100vh - 32px);
+      right: 16px; bottom: 16px;
+    }
+    .about-title { font-size: 22px; }
+    .nav-hint { display: none; }
+  }
+
+  @media (min-width: 641px) and (max-width: 1023px) {
+    .about-card.expanded {
+      width: 80vw;
+      right: 10vw;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="nav-hint">
+  <span class="active">Home</span>
+  <span>Blog</span>
+  <span>Feed</span>
+  <span>Projects</span>
+  <span>Learn</span>
+</div>
+
+<div id="canvas-container"></div>
+
+<div class="about-card" id="aboutCard">
+  <div class="state-indicator" id="stateIndicator">RESTING</div>
+  <button class="close-btn" id="closeBtn">&times;</button>
+
+  <div class="about-header">
+    <div class="avatar">木</div>
+    <div class="about-title-block">
+      <div class="about-title">木下</div>
+      <div class="about-subtitle">数字生活流 / Digital Life Stream</div>
+    </div>
+  </div>
+
+  <div class="about-body">
+    <p>这里是 catstarry.xyz，我的数字生活流。不是名片，不是产品落地页，也不是传统博客列表——而是一个持续生长的个人数字花园。</p>
+    <p>我关注技术、金融、设计与生活的交叉地带。在这个空间里，文字、数据与视觉经验交织成流，记录思考的痕迹与发现的惊喜。</p>
+    <p>那只几何豹猫是我的视觉签名：由拓扑线框与粒子构成的数字生命体，在苏醒与溶解之间循环，象征着信息时代中身份的不断重构。</p>
+
+    <div class="tag-row">
+      <span class="tag particle-core">WebGL</span>
+      <span class="tag">Three.js</span>
+      <span class="tag">粒子系统</span>
+      <span class="tag">克莱因蓝</span>
+      <span class="tag">CJK 排版</span>
+      <span class="tag">数字花园</span>
+    </div>
+  </div>
+
+  <div class="particle-hint">点击卡片 · 唤醒豹猫</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// =========================================
+// Leopard Cat Particle System
+// Procedural Low-Poly Geometry + 5-State Machine
+// =========================================
+
+const container = document.getElementById('canvas-container');
+const aboutCard = document.getElementById('aboutCard');
+const stateIndicator = document.getElementById('stateIndicator');
+const closeBtn = document.getElementById('closeBtn');
+
+// --- State Machine ---
+const STATES = {
+  RESTING: 0,
+  AWAKENING: 1,
+  DISSOLVING: 2,
+  EXPANDING: 3,
+  AMBIENT: 4,
+  RECOLLECTING: 5
+};
+
+let currentState = STATES.RESTING;
+let stateTimer = 0;
+let isExpanded = false;
+let mouseOnCard = false;
+
+// --- Color Palette ---
+const COLORS = {
+  goldCore: new THREE.Color('#E8C547'),
+  goldGleam: new THREE.Color('#F0D060'),
+  coatBrown: new THREE.Color('#8B5E3C'),
+  shadowDeep: new THREE.Color('#3A2418'),
+  patternVoid: new THREE.Color('#1A0E08'),
+  eyeEmerald: new THREE.Color('#4A7C59'),
+  wireframe: new THREE.Color('#F5F5F5'),
+  particleCore: new THREE.Color('#4F71FF')
+};
+
+// --- Scene Setup ---
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x0A0A0C, 0.018);
+
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+camera.position.set(0, 0, 18);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setClearColor(0x0A0A0C, 1);
+container.appendChild(renderer.domElement);
+
+// --- Procedural Low-Poly Cat Geometry ---
+function createCatGeometry() {
+  const vertices = [];
+  const indices = [];
+
+  const addV = (x, y, z) => {
+    vertices.push(x, y, z);
+    return (vertices.length / 3) - 1;
+  };
+
+  const addT = (a, b, c) => indices.push(a, b, c);
+
+  // Body: elliptical cross-sections along X axis
+  const bodyLength = 3.2;
+  const bodyWidth = 1.15;
+  const bodyHeight = 1.0;
+  const segments = 10;
+  const rings = [];
+
+  for (let i = 0; i <= segments; i++) {
+    const t = i / segments;
+    const x = (t - 0.5) * bodyLength;
+    const taper = Math.sin(t * Math.PI);
+    const w = bodyWidth * taper * 0.85 + 0.25;
+    const h = bodyHeight * taper * 0.85 + 0.25;
+
+    const ringVerts = [];
+    const ringSegs = 6;
+    for (let j = 0; j < ringSegs; j++) {
+      const angle = (j / ringSegs) * Math.PI * 2;
+      const y = Math.cos(angle) * w;
+      const z = Math.sin(angle) * h;
+      ringVerts.push(addV(x, y, z));
+    }
+    rings.push(ringVerts);
+  }
+
+  // Connect rings
+  for (let i = 0; i < segments; i++) {
+    for (let j = 0; j < 6; j++) {
+      const a = rings[i][j];
+      const b = rings[i][(j + 1) % 6];
+      const c = rings[i + 1][j];
+      const d = rings[i + 1][(j + 1) % 6];
+      addT(a, b, c);
+      addT(b, d, c);
+    }
+  }
+
+  // Head
+  const headCenter = [bodyLength * 0.48, 0.35, 0];
+  const headRadius = 0.95;
+  const headVerts = [];
+  const headSegs = 5;
+
+  for (let i = 0; i <= headSegs; i++) {
+    const phi = (i / headSegs) * Math.PI;
+    for (let j = 0; j < headSegs; j++) {
+      const theta = (j / headSegs) * Math.PI * 2;
+      const x = headCenter[0] + Math.cos(theta) * Math.sin(phi) * headRadius * 0.9;
+      const y = headCenter[1] + Math.cos(phi) * headRadius;
+      const z = headCenter[2] + Math.sin(theta) * Math.sin(phi) * headRadius * 0.85;
+      headVerts.push(addV(x, y, z));
+    }
+  }
+
+  // Connect head to body
+  const frontRing = rings[segments];
+  for (let j = 0; j < 6; j++) {
+    addT(frontRing[j], frontRing[(j + 1) % 6], headVerts[0]);
+  }
+
+  // Ears: triangular pyramids
+  const earBaseY = headCenter[1] + headRadius * 0.75;
+  const earZ = 0.45;
+
+  // Left ear
+  const le0 = addV(headCenter[0] - 0.2, earBaseY + 0.9, -earZ);
+  const le1 = addV(headCenter[0] - 0.55, earBaseY + 0.15, -earZ - 0.15);
+  const le2 = addV(headCenter[0] + 0.05, earBaseY + 0.15, -earZ - 0.1);
+  const le3 = addV(headCenter[0] - 0.25, earBaseY + 0.2, -earZ + 0.15);
+  addT(le0, le1, le2);
+  addT(le0, le2, le3);
+  addT(le0, le3, le1);
+  addT(le1, le3, le2);
+
+  // Right ear
+  const re0 = addV(headCenter[0] - 0.2, earBaseY + 0.9, earZ);
+  const re1 = addV(headCenter[0] - 0.55, earBaseY + 0.15, earZ + 0.15);
+  const re2 = addV(headCenter[0] + 0.05, earBaseY + 0.15, earZ + 0.1);
+  const re3 = addV(headCenter[0] - 0.25, earBaseY + 0.2, earZ - 0.15);
+  addT(re0, re2, re1);
+  addT(re0, re3, re2);
+  addT(re0, re1, re3);
+  addT(re1, re2, re3);
+
+  // Tail: curved Bezier-like tube
+  const tailPoints = [];
+  for (let i = 0; i < 10; i++) {
+    const t = i / 9;
+    const x = -bodyLength * 0.52 - t * 3.0;
+    const y = Math.sin(t * Math.PI * 0.8) * 1.8 - 0.2 + t * 0.5;
+    const z = Math.cos(t * Math.PI * 0.6) * 0.9;
+    tailPoints.push(addV(x, y, z));
+  }
+  // Tail thickness via simple triangles
+  for (let i = 0; i < tailPoints.length - 1; i++) {
+    const t = i / (tailPoints.length - 1);
+    const thickness = 0.15 * (1 - t * 0.5);
+    const tp = tailPoints[i];
+    const tx = vertices[tp * 3];
+    const ty = vertices[tp * 3 + 1];
+    const tz = vertices[tp * 3 + 2];
+    const t1 = addV(tx, ty + thickness, tz);
+    const t2 = addV(tx, ty - thickness * 0.5, tz + thickness);
+    if (i < tailPoints.length - 2) {
+      addT(tp, tailPoints[i + 1], t1);
+      addT(tp, t2, tailPoints[i + 1]);
+    }
+  }
+
+  // Legs
+  const legPositions = [
+    [bodyLength * 0.3, -bodyHeight * 0.55, bodyWidth * 0.35],
+    [bodyLength * 0.3, -bodyHeight * 0.55, -bodyWidth * 0.35],
+    [-bodyLength * 0.3, -bodyHeight * 0.55, bodyWidth * 0.35],
+    [-bodyLength * 0.3, -bodyHeight * 0.55, -bodyWidth * 0.35]
+  ];
+
+  legPositions.forEach((pos, idx) => {
+    const isFront = idx < 2;
+    const legTop = addV(pos[0], pos[1], pos[2]);
+    const legBottom = addV(pos[0], pos[1] - (isFront ? 1.3 : 1.1), pos[2]);
+    const legSide1 = addV(pos[0] + 0.18, pos[1] - 0.65, pos[2] + 0.18);
+    const legSide2 = addV(pos[0] - 0.12, pos[1] - 0.65, pos[2] - 0.12);
+    addT(legTop, legSide1, legBottom);
+    addT(legTop, legBottom, legSide2);
+  });
+
+  // Eyes
+  const eyeLeft = addV(headCenter[0] + 0.35, headCenter[1] + 0.05, headCenter[2] - 0.32);
+  const eyeRight = addV(headCenter[0] + 0.35, headCenter[1] + 0.05, headCenter[2] + 0.32);
+
+  // Nose
+  const nose = addV(headCenter[0] + 0.55, headCenter[1] - 0.15, headCenter[2]);
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+
+  return { geometry, eyeLeft, eyeRight, nose, vertexCount: vertices.length / 3 };
+}
+
+const catData = createCatGeometry();
+const catGeometry = catData.geometry;
+
+// --- Wireframe Skeleton ---
+const wireframeGeo = new THREE.WireframeGeometry(catGeometry);
+const wireframeMat = new THREE.LineBasicMaterial({
+  color: COLORS.wireframe,
+  transparent: true,
+  opacity: 0.6
+});
+const wireframe = new THREE.LineSegments(wireframeGeo, wireframeMat);
+scene.add(wireframe);
+
+// --- Particle System ---
+const particleCount = catData.vertexCount;
+const positions = new Float32Array(particleCount * 3);
+const originalPositions = new Float32Array(particleCount * 3);
+const velocities = new Float32Array(particleCount * 3);
+const colors = new Float32Array(particleCount * 3);
+const sizes = new Float32Array(particleCount);
+const particleTypes = new Int8Array(particleCount);
+
+const posAttr = catGeometry.attributes.position;
+for (let i = 0; i < particleCount; i++) {
+  positions[i * 3] = posAttr.getX(i);
+  positions[i * 3 + 1] = posAttr.getY(i);
+  positions[i * 3 + 2] = posAttr.getZ(i);
+
+  originalPositions[i * 3] = positions[i * 3];
+  originalPositions[i * 3 + 1] = positions[i * 3 + 1];
+  originalPositions[i * 3 + 2] = positions[i * 3 + 2];
+
+  velocities[i * 3] = 0;
+  velocities[i * 3 + 1] = 0;
+  velocities[i * 3 + 2] = 0;
+
+  const y = positions[i * 3 + 1];
+  const z = positions[i * 3 + 2];
+  const distFromCenter = Math.sqrt(y * y + z * z);
+  const x = positions[i * 3];
+
+  if (i === catData.eyeLeft || i === catData.eyeRight) {
+    particleTypes[i] = 4;
+  } else if (i === catData.nose) {
+    particleTypes[i] = 1;
+  } else if (distFromCenter < 0.25 && x > 1.5) {
+    particleTypes[i] = 3;
+  } else if (y > 0.6 || (y > 0 && x > 1.0)) {
+    particleTypes[i] = 0;
+  } else if (y < -0.4 || x < -1.0) {
+    particleTypes[i] = 2;
+  } else {
+    particleTypes[i] = 1;
+  }
+
+  const type = particleTypes[i];
+  let c;
+  switch(type) {
+    case 0: c = COLORS.goldCore; break;
+    case 1: c = COLORS.coatBrown; break;
+    case 2: c = COLORS.shadowDeep; break;
+    case 3: c = COLORS.patternVoid; break;
+    case 4: c = COLORS.eyeEmerald; break;
+    default: c = COLORS.goldCore;
+  }
+  colors[i * 3] = c.r;
+  colors[i * 3 + 1] = c.g;
+  colors[i * 3 + 2] = c.b;
+
+  sizes[i] = 1.5 + Math.random() * 3.5;
+}
+
+const particleGeo = new THREE.BufferGeometry();
+particleGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+particleGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+particleGeo.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+
+const particleVertexShader = `
+  attribute float size;
+  attribute vec3 color;
+  varying vec3 vColor;
+  varying float vSize;
+  uniform float uTime;
+  uniform float uGlow;
+
+  void main() {
+    vColor = color;
+    vSize = size;
+    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+    gl_PointSize = size * (300.0 / -mvPosition.z);
+    gl_Position = projectionMatrix * mvPosition;
+  }
+`;
+
+const particleFragmentShader = `
+  varying vec3 vColor;
+  varying float vSize;
+  uniform float uTime;
+  uniform float uGlow;
+
+  void main() {
+    vec2 coord = gl_PointCoord - vec2(0.5);
+    float dist = abs(coord.x) + abs(coord.y);
+
+    if (dist > 0.5) discard;
+
+    float glow = 1.0 - smoothstep(0.0, 0.5, dist);
+    vec3 finalColor = vColor * (0.8 + glow * 0.5 * uGlow);
+
+    float alpha = 1.0 - smoothstep(0.3, 0.5, dist);
+    gl_FragColor = vec4(finalColor, alpha);
+  }
+`;
+
+const particleUniforms = {
+  uTime: { value: 0 },
+  uGlow: { value: 1.0 }
+};
+
+const particleMat = new THREE.ShaderMaterial({
+  uniforms: particleUniforms,
+  vertexShader: particleVertexShader,
+  fragmentShader: particleFragmentShader,
+  transparent: true,
+  depthWrite: false,
+  blending: THREE.AdditiveBlending
+});
+
+const particles = new THREE.Points(particleGeo, particleMat);
+scene.add(particles);
+
+// --- Ambient Background Particles ---
+const ambientCount = 1000;
+const ambientPositions = new Float32Array(ambientCount * 3);
+const ambientColors = new Float32Array(ambientCount * 3);
+const ambientSizes = new Float32Array(ambientCount);
+
+for (let i = 0; i < ambientCount; i++) {
+  ambientPositions[i * 3] = (Math.random() - 0.5) * 50;
+  ambientPositions[i * 3 + 1] = (Math.random() - 0.5) * 50;
+  ambientPositions[i * 3 + 2] = (Math.random() - 0.5) * 30 - 5;
+
+  const isGold = Math.random() > 0.65;
+  const c = isGold ? COLORS.goldCore : COLORS.particleCore;
+  ambientColors[i * 3] = c.r;
+  ambientColors[i * 3 + 1] = c.g;
+  ambientColors[i * 3 + 2] = c.b;
+
+  ambientSizes[i] = 0.3 + Math.random() * 1.2;
+}
+
+const ambientGeo = new THREE.BufferGeometry();
+ambientGeo.setAttribute('position', new THREE.BufferAttribute(ambientPositions, 3));
+ambientGeo.setAttribute('color', new THREE.BufferAttribute(ambientColors, 3));
+ambientGeo.setAttribute('size', new THREE.BufferAttribute(ambientSizes, 1));
+
+const ambientMat = new THREE.ShaderMaterial({
+  uniforms: {
+    uTime: particleUniforms.uTime,
+    uGlow: { value: 0.25 }
+  },
+  vertexShader: particleVertexShader,
+  fragmentShader: particleFragmentShader,
+  transparent: true,
+  depthWrite: false,
+  blending: THREE.AdditiveBlending
+});
+
+const ambientParticles = new THREE.Points(ambientGeo, ambientMat);
+scene.add(ambientParticles);
+
+// --- Lighting ---
+const ambientLight = new THREE.AmbientLight(0x1a1a2e, 0.6);
+scene.add(ambientLight);
+
+const pointLight = new THREE.PointLight(0x4F71FF, 0.8, 60);
+pointLight.position.set(6, 6, 12);
+scene.add(pointLight);
+
+const pointLight2 = new THREE.PointLight(0xE8C547, 0.4, 40);
+pointLight2.position.set(-6, -4, 10);
+scene.add(pointLight2);
+
+// --- Animation State Variables ---
+let time = 0;
+let targetRotationY = 0;
+let currentRotationY = 0;
+let dissolveFactor = 0;
+let expandFactor = 0;
+let breathePhase = 0;
+
+const clock = new THREE.Clock();
+
+// Mouse tracking
+let mouseX = 0, mouseY = 0;
+document.addEventListener('mousemove', (e) => {
+  mouseX = (e.clientX / window.innerWidth - 0.5) * 2;
+  mouseY = (e.clientY / window.innerHeight - 0.5) * 2;
+});
+
+// --- Card Interactions ---
+aboutCard.addEventListener('mouseenter', () => {
+  mouseOnCard = true;
+  if (currentState === STATES.RESTING) {
+    transitionTo(STATES.AWAKENING);
+  }
+});
+
+aboutCard.addEventListener('mouseleave', () => {
+  mouseOnCard = false;
+  if (currentState === STATES.AMBIENT && !isExpanded) {
+    transitionTo(STATES.RECOLLECTING);
+  }
+});
+
+aboutCard.addEventListener('click', (e) => {
+  if (e.target === closeBtn) return;
+  isExpanded = !isExpanded;
+  aboutCard.classList.toggle('expanded', isExpanded);
+  if (isExpanded) {
+    transitionTo(STATES.EXPANDING);
+  } else {
+    transitionTo(STATES.RECOLLECTING);
+  }
+});
+
+closeBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  isExpanded = false;
+  aboutCard.classList.remove('expanded');
+  transitionTo(STATES.RECOLLECTING);
+});
+
+function transitionTo(newState) {
+  currentState = newState;
+  stateTimer = 0;
+  const stateNames = ['RESTING', 'AWAKENING', 'DISSOLVING', 'EXPANDING', 'AMBIENT', 'RECOLLECTING'];
+  stateIndicator.textContent = stateNames[newState];
+}
+
+// --- Main Animation Loop ---
+function animate() {
+  requestAnimationFrame(animate);
+
+  const delta = clock.getDelta();
+  time += delta;
+  stateTimer += delta;
+
+  particleUniforms.uTime.value = time;
+
+  // State Machine
+  switch(currentState) {
+    case STATES.RESTING:
+      targetRotationY = Math.sin(time * 0.25) * 0.06;
+      breathePhase = Math.sin(time * 1.2) * 0.5 + 0.5;
+      wireframeMat.opacity = 0.6;
+      particleMat.uniforms.uGlow.value = 0.5 + breathePhase * 0.25;
+      dissolveFactor = 0;
+      expandFactor = 0;
+      break;
+
+    case STATES.AWAKENING:
+      const awakenProgress = Math.min(stateTimer / 0.4, 1);
+      wireframeMat.opacity = 0.6 * (1 - awakenProgress * 0.6);
+      particleMat.uniforms.uGlow.value = 0.8 + awakenProgress * 1.5;
+      dissolveFactor = awakenProgress * 0.35;
+      targetRotationY = Math.sin(time * 0.4) * 0.12;
+      if (awakenProgress >= 1) transitionTo(STATES.DISSOLVING);
+      break;
+
+    case STATES.DISSOLVING:
+      const dissolveProgress = Math.min(stateTimer / 0.8, 1);
+      wireframeMat.opacity = 0.24 * (1 - dissolveProgress);
+      dissolveFactor = 0.35 + dissolveProgress * 0.65;
+      particleMat.uniforms.uGlow.value = 2.0 - dissolveProgress * 0.4;
+      expandFactor = dissolveProgress * 0.15;
+      targetRotationY = time * 0.15;
+      if (dissolveProgress >= 1) {
+        transitionTo(isExpanded ? STATES.EXPANDING : STATES.AMBIENT);
+      }
+      break;
+
+    case STATES.EXPANDING:
+      const expandProgress = Math.min(stateTimer / 1.2, 1);
+      wireframeMat.opacity = 0;
+      dissolveFactor = 1;
+      expandFactor = 0.15 + expandProgress * 0.85;
+      particleMat.uniforms.uGlow.value = 1.4 * (1 - expandProgress * 0.25);
+      targetRotationY = time * 0.25;
+      if (expandProgress >= 1) transitionTo(STATES.AMBIENT);
+      break;
+
+    case STATES.AMBIENT:
+      wireframeMat.opacity = 0;
+      dissolveFactor = 1;
+      expandFactor = 1;
+      particleMat.uniforms.uGlow.value = 0.7 + Math.sin(time * 1.8) * 0.15;
+      targetRotationY = time * 0.08;
+      if (!mouseOnCard && !isExpanded && stateTimer > 4) {
+        transitionTo(STATES.RECOLLECTING);
+      }
+      break;
+
+    case STATES.RECOLLECTING:
+      const recollectProgress = Math.min(stateTimer / 0.6, 1);
+      wireframeMat.opacity = recollectProgress * 0.6;
+      dissolveFactor = 1 - recollectProgress;
+      expandFactor = 1 - recollectProgress;
+      particleMat.uniforms.uGlow.value = 0.8 + recollectProgress * 0.4;
+      targetRotationY = Math.sin(time * 0.25) * 0.06 * recollectProgress;
+      if (recollectProgress >= 1) transitionTo(STATES.RESTING);
+      break;
+  }
+
+  // Smooth rotation
+  currentRotationY += (targetRotationY - currentRotationY) * 0.04;
+  wireframe.rotation.y = currentRotationY;
+  particles.rotation.y = currentRotationY;
+
+  // Update particles
+  const posArray = particleGeo.attributes.position.array;
+  const colorArray = particleGeo.attributes.color.array;
+
+  for (let i = 0; i < particleCount; i++) {
+    const ox = originalPositions[i * 3];
+    const oy = originalPositions[i * 3 + 1];
+    const oz = originalPositions[i * 3 + 2];
+
+    // Brownian motion
+    const noiseX = Math.sin(time * 1.8 + i * 0.13) * 0.025 * dissolveFactor;
+    const noiseY = Math.cos(time * 1.4 + i * 0.17) * 0.025 * dissolveFactor;
+    const noiseZ = Math.sin(time * 1.6 + i * 0.11) * 0.025 * dissolveFactor;
+
+    // Expansion with speed layers
+    const type = particleTypes[i];
+    let speedMultiplier = 1.0;
+    if (type === 0) speedMultiplier = 1.0;
+    else if (type === 1) speedMultiplier = 0.7;
+    else if (type === 2) speedMultiplier = 0.4;
+    else if (type === 3) speedMultiplier = 0.3;
+    else speedMultiplier = 0.9;
+
+    const expandX = ox * expandFactor * 10 * speedMultiplier;
+    const expandY = oy * expandFactor * 10 * speedMultiplier;
+    const expandZ = oz * expandFactor * 6 * speedMultiplier;
+
+    // Spiral
+    const spiralAngle = time * 0.4 * speedMultiplier + i * 0.5;
+    const spiralRadius = expandFactor * 2.5 * speedMultiplier;
+    const spiralX = Math.cos(spiralAngle) * spiralRadius;
+    const spiralZ = Math.sin(spiralAngle) * spiralRadius;
+
+    // Mouse gentle repulsion
+    const mx = mouseX * 6;
+    const my = -mouseY * 6;
+    const dx = ox - mx;
+    const dy = oy - my;
+    const dist = Math.sqrt(dx * dx + dy * dy) + 0.1;
+    const mouseForce = (1 / dist) * 0.25 * expandFactor;
+
+    posArray[i * 3] = ox + expandX + spiralX + noiseX + dx * mouseForce * 0.008;
+    posArray[i * 3 + 1] = oy + expandY + noiseY + dy * mouseForce * 0.008;
+    posArray[i * 3 + 2] = oz + expandZ + spiralZ + noiseZ;
+
+    // Color transitions
+    let targetColor;
+    switch(type) {
+      case 0: targetColor = (currentState === STATES.AWAKENING || currentState === STATES.DISSOLVING) ? COLORS.goldGleam : COLORS.goldCore; break;
+      case 1: targetColor = COLORS.coatBrown; break;
+      case 2: targetColor = COLORS.shadowDeep; break;
+      case 3: targetColor = COLORS.patternVoid; break;
+      case 4: targetColor = COLORS.eyeEmerald; break;
+      default: targetColor = COLORS.goldCore;
+    }
+
+    colorArray[i * 3] += (targetColor.r - colorArray[i * 3]) * 0.08;
+    colorArray[i * 3 + 1] += (targetColor.g - colorArray[i * 3 + 1]) * 0.08;
+    colorArray[i * 3 + 2] += (targetColor.b - colorArray[i * 3 + 2]) * 0.08;
+
+    // Size dynamics
+    const baseSize = 1.5 + (i % 5) * 0.7;
+    const pulse = (currentState === STATES.AWAKENING) ? 1 + Math.sin(time * 12 + i) * 0.25 : 1;
+    sizes[i] = baseSize * (1 - expandFactor * 0.25) * pulse;
+  }
+
+  particleGeo.attributes.position.needsUpdate = true;
+  particleGeo.attributes.color.needsUpdate = true;
+  particleGeo.attributes.size.needsUpdate = true;
+
+  // Ambient drift
+  const ambientPos = ambientGeo.attributes.position.array;
+  for (let i = 0; i < ambientCount; i++) {
+    ambientPos[i * 3 + 1] += Math.sin(time * 0.15 + i * 0.3) * 0.004;
+    ambientPos[i * 3] += Math.cos(time * 0.12 + i * 0.7) * 0.003;
+  }
+  ambientGeo.attributes.position.needsUpdate = true;
+
+  // Camera follow
+  camera.position.x += (mouseX * 1.5 - camera.position.x) * 0.015;
+  camera.position.y += (-mouseY * 1.5 - camera.position.y) * 0.015;
+  camera.lookAt(0, 0, 0);
+
+  renderer.render(scene, camera);
+}
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+animate();
+</script>
+</body>
+</html>

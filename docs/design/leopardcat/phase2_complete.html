@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>catstarry.xyz — Phase 2: Wireframe + Particles + Physics</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+  :root {
+    --klein-500: #002fa7; --klein-400: #335cff; --home-void: #0a0a0c;
+    --home-surface-card: #1a2030; --home-text-primary: #e5e7eb;
+    --home-text-secondary: #9ca3af; --home-text-muted: #6b7280;
+    --particle-core: #e0bf45; --ease-monopo: cubic-bezier(0.19, 1, 0.22, 1);
+    --font-display: "IBM Plex Sans", "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+    --font-body: "Geist", "HarmonyOS Sans SC", system-ui, sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: var(--home-void); font-family: var(--font-display); color: var(--home-text-primary); -webkit-font-smoothing: antialiased; }
+  #canvas-container { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; }
+  canvas { display: block; }
+  .about-card { position: fixed; bottom: 40px; right: 40px; width: 420px; min-height: 480px; background: rgba(26, 32, 48, 0.88); backdrop-filter: blur(24px) saturate(1.2); -webkit-backdrop-filter: blur(24px) saturate(1.2); border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; padding: 32px; z-index: 10; cursor: pointer; transition: all 0.8s var(--ease-monopo); overflow: hidden; box-shadow: 0 0 0 1px rgba(224, 191, 69, 0.05), 0 20px 60px rgba(0,0,0,0.4); }
+  .about-card:hover { border-color: rgba(255,255,255,0.16); transform: translateY(-2px); box-shadow: 0 0 0 1px rgba(224, 191, 69, 0.1), 0 24px 72px rgba(0,0,0,0.5); }
+  .about-card.expanded { width: min(90vw, 720px); height: min(90vh, 640px); bottom: calc(50vh - min(45vh, 320px)); right: calc(50vw - min(45vw, 360px)); background: rgba(10,10,12,0.96); cursor: default; border-color: rgba(224, 191, 69, 0.15); }
+  .about-header { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; }
+  .avatar { width: 64px; height: 64px; border-radius: 50%; background: linear-gradient(135deg, #e0bf45, #8B5E3C); display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 300; color: #fff; flex-shrink: 0; border: 2px solid rgba(224, 191, 69, 0.35); box-shadow: 0 0 20px rgba(224, 191, 69, 0.15); }
+  .about-title { font-size: clamp(22px, 2.5vw, 28px); font-weight: 300; letter-spacing: -0.03em; line-height: 1.2; color: var(--home-text-primary); }
+  .about-subtitle { font-size: 14px; color: var(--home-text-secondary); margin-top: 4px; font-weight: 400; font-family: var(--font-body); }
+  .about-body { font-size: 16px; line-height: 1.85; color: var(--home-text-secondary); opacity: 0; max-height: 0; overflow: hidden; transition: all 0.8s var(--ease-monopo); font-family: var(--font-body); }
+  .about-card.expanded .about-body { opacity: 1; max-height: 500px; margin-top: 24px; }
+  .about-body p { margin-bottom: 16px; }
+  .tag-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+  .tag { padding: 5px 14px; border-radius: 100px; font-size: 12px; font-weight: 500; border: 1px solid rgba(255,255,255,0.08); color: var(--home-text-secondary); background: rgba(255,255,255,0.03); font-family: var(--font-body); transition: all 0.2s var(--ease-monopo); }
+  .tag:hover { border-color: rgba(224, 191, 69, 0.3); color: #e0bf45; background: rgba(224, 191, 69, 0.06); }
+  .tag.particle-core { border-color: rgba(224, 191, 69, 0.25); color: #e0bf45; }
+  .state-indicator { position: absolute; top: 20px; right: 24px; font-size: 11px; font-family: var(--font-mono); color: var(--home-text-muted); text-transform: uppercase; letter-spacing: 0.08em; opacity: 0.7; }
+  .particle-hint { position: absolute; bottom: 20px; left: 24px; font-size: 11px; color: var(--home-text-muted); opacity: 0.5; font-family: var(--font-body); transition: opacity 0.3s var(--ease-monopo); }
+  .about-card.expanded .particle-hint { opacity: 0; }
+  .close-btn { position: absolute; top: 20px; right: 60px; width: 32px; height: 32px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.1); background: transparent; color: var(--home-text-secondary); cursor: pointer; display: none; align-items: center; justify-content: center; font-size: 20px; line-height: 1; transition: all 0.2s var(--ease-monopo); font-family: var(--font-display); }
+  .close-btn:hover { background: rgba(255,255,255,0.08); color: var(--home-text-primary); border-color: rgba(255,255,255,0.2); }
+  .about-card.expanded .close-btn { display: flex; }
+  @media (max-width: 640px) {
+    .about-card { width: calc(100vw - 32px); right: 16px; bottom: 16px; min-height: 360px; padding: 24px; }
+    .about-card.expanded { width: calc(100vw - 32px); height: calc(100vh - 32px); right: 16px; bottom: 16px; }
+    .about-title { font-size: 22px; }
+  }
+</style>
+</head>
+<body>
+<div id="canvas-container"></div>
+<div class="about-card" id="aboutCard">
+  <div class="state-indicator" id="stateIndicator">RESTING</div>
+  <button class="close-btn" id="closeBtn">&times;</button>
+  <div class="about-header">
+    <div class="avatar">木</div>
+    <div>
+      <div class="about-title">木下</div>
+      <div class="about-subtitle">数字生活流 / Digital Life Stream</div>
+    </div>
+  </div>
+  <div class="about-body">
+    <p>这里是 catstarry.xyz，我的数字生活流。不是名片，不是产品落地页，也不是传统博客列表——而是一个持续生长的个人数字花园。</p>
+    <p>我关注技术、金融、设计与生活的交叉地带。在这个空间里，文字、数据与视觉经验交织成流，记录思考的痕迹与发现的惊喜。</p>
+    <p>那只几何豹猫是我的视觉签名：由拓扑线框与粒子构成的数字生命体，在苏醒与溶解之间循环，象征着信息时代中身份的不断重构。</p>
+    <div class="tag-row">
+      <span class="tag particle-core">WebGL</span><span class="tag">Three.js</span><span class="tag">粒子系统</span>
+      <span class="tag">豹猫金</span><span class="tag">CJK 排版</span><span class="tag">数字花园</span>
+    </div>
+  </div>
+  <div class="particle-hint">点击卡片 · 唤醒豹猫</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// =========================================
+// Phase 2: Wireframe + Particles + Physics
+// =========================================
+const container = document.getElementById('canvas-container');
+const aboutCard = document.getElementById('aboutCard');
+const stateIndicator = document.getElementById('stateIndicator');
+const closeBtn = document.getElementById('closeBtn');
+
+const STATES = { RESTING: 0, AWAKENING: 1, DISSOLVING: 2, EXPANDING: 3, AMBIENT: 4, RECOLLECTING: 5 };
+let currentState = STATES.RESTING, stateTimer = 0, isExpanded = false, mouseOnCard = false;
+
+const COLORS = {
+  goldCore: new THREE.Color('#e0bf45'), goldGleam: new THREE.Color('#F0D060'),
+  coatBrown: new THREE.Color('#8B5E3C'), shadowDeep: new THREE.Color('#3A2418'),
+  patternVoid: new THREE.Color('#1A0E08'), eyeEmerald: new THREE.Color('#4A7C59'),
+  wireframeHard: new THREE.Color('#F0D060'), wireframeSoft: new THREE.Color('#F5F5F5'),
+  wireframeSkeleton: new THREE.Color('#F0D060'),
+  nebulaGold: new THREE.Color('#E8C547'), nebulaBrown: new THREE.Color('#8B5E3C'),
+  starGold: new THREE.Color('#E8C547'), starBrown: new THREE.Color('#3A2418')
+};
+
+const STATE_PARAMS = {
+  RESTING:      { k: 80.0, c: 15.0, turbulence: 0.0,  expandForce: 0.0, spiralForce: 0.0, damping: 0.90 },
+  AWAKENING:    { k: 40.0, c: 8.0,  turbulence: 0.02, expandForce: 0.0, spiralForce: 0.0, damping: 0.92 },
+  DISSOLVING:   { k: 5.0,  c: 2.0,  turbulence: 0.08, expandForce: 0.2, spiralForce: 0.1, damping: 0.95 },
+  EXPANDING:    { k: 0.5,  c: 1.0,  turbulence: 0.15, expandForce: 2.0, spiralForce: 0.8, damping: 0.96 },
+  AMBIENT:      { k: 0.1,  c: 0.5,  turbulence: 0.05, expandForce: 0.0, spiralForce: 0.2, damping: 0.98 },
+  RECOLLECTING: { k: 80.0, c: 10.0, turbulence: 0.01, expandForce: 0.0, spiralForce: 0.0, damping: 0.88 }
+};
+
+const WIREFRAME_ALPHAS = {
+  RESTING:      { hard: 0.8, soft: 0.15, skeleton: 0.9 },
+  AWAKENING:    { hard: 0.3, soft: 0.05, skeleton: 0.6 },
+  DISSOLVING:   { hard: 0.0, soft: 0.0,  skeleton: 0.2 },
+  EXPANDING:    { hard: 0.0, soft: 0.0,  skeleton: 0.0 },
+  AMBIENT:      { hard: 0.0, soft: 0.0,  skeleton: 0.0 },
+  RECOLLECTING: { hard: 0.8, soft: 0.15, skeleton: 0.9 }
+};
+
+function getResponsiveConfig() {
+  const w = window.innerWidth;
+  if (w >= 1024) return { catParticles: 6000, nebula: 400, stars: 800, showSkeleton: true };
+  if (w >= 640)  return { catParticles: 4000, nebula: 300, stars: 600, showSkeleton: true };
+  return { catParticles: 2000, nebula: 200, stars: 400, showSkeleton: false };
+}
+let responsive = getResponsiveConfig();
+
+// === Simplex Noise ===
+const grad3 = [[1,1,0],[-1,1,0],[1,-1,0],[-1,-1,0],[1,0,1],[-1,0,1],[1,0,-1],[-1,0,-1],[0,1,1],[0,-1,1],[0,1,-1],[0,-1,-1]];
+const perm = new Uint8Array(512);
+(function initPerm() {
+  const p = new Uint8Array(256);
+  for (let i = 0; i < 256; i++) p[i] = i;
+  for (let i = 255; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [p[i], p[j]] = [p[j], p[i]]; }
+  for (let i = 0; i < 512; i++) perm[i] = p[i & 255];
+})();
+function dot(g, x, y, z) { return g[0]*x + g[1]*y + g[2]*z; }
+function simplex3D(xin, yin, zin) {
+  const F3 = 1.0/3.0, G3 = 1.0/6.0;
+  let s = (xin+yin+zin)*F3;
+  let i = Math.floor(xin+s), j = Math.floor(yin+s), k = Math.floor(zin+s);
+  let t = (i+j+k)*G3;
+  let X0 = i-t, Y0 = j-t, Z0 = k-t;
+  let x0 = xin-X0, y0 = yin-Y0, z0 = zin-Z0;
+  let i1, j1, k1, i2, j2, k2;
+  if (x0 >= y0) {
+    if (y0 >= z0) { i1=1;j1=0;k1=0;i2=1;j2=1;k2=0; }
+    else if (x0 >= z0) { i1=1;j1=0;k1=0;i2=1;j2=0;k2=1; }
+    else { i1=0;j1=0;k1=1;i2=1;j2=0;k2=1; }
+  } else {
+    if (y0 < z0) { i1=0;j1=0;k1=1;i2=0;j2=1;k2=1; }
+    else if (x0 < z0) { i1=0;j1=1;k1=0;i2=0;j2=1;k2=1; }
+    else { i1=0;j1=1;k1=0;i2=1;j2=1;k2=0; }
+  }
+  let x1 = x0 - i1 + G3, y1 = y0 - j1 + G3, z1 = z0 - k1 + G3;
+  let x2 = x0 - i2 + 2.0*G3, y2 = y0 - j2 + 2.0*G3, z2 = z0 - k2 + 2.0*G3;
+  let x3 = x0 - 1.0 + 3.0*G3, y3 = y0 - 1.0 + 3.0*G3, z3 = z0 - 1.0 + 3.0*G3;
+  let ii = i & 255, jj = j & 255, kk = k & 255;
+  let gi0 = perm[ii+perm[jj+perm[kk]]] % 12;
+  let gi1 = perm[ii+i1+perm[jj+j1+perm[kk+k1]]] % 12;
+  let gi2 = perm[ii+i2+perm[jj+j2+perm[kk+k2]]] % 12;
+  let gi3 = perm[ii+1+perm[jj+1+perm[kk+1]]] % 12;
+  let n0, n1, n2, n3;
+  let t0 = 0.6 - x0*x0 - y0*y0 - z0*z0;
+  if (t0 < 0) n0 = 0.0; else { t0 *= t0; n0 = t0 * t0 * dot(grad3[gi0], x0, y0, z0); }
+  let t1 = 0.6 - x1*x1 - y1*y1 - z1*z1;
+  if (t1 < 0) n1 = 0.0; else { t1 *= t1; n1 = t1 * t1 * dot(grad3[gi1], x1, y1, z1); }
+  let t2 = 0.6 - x2*x2 - y2*y2 - z2*z2;
+  if (t2 < 0) n2 = 0.0; else { t2 *= t2; n2 = t2 * t2 * dot(grad3[gi2], x2, y2, z2); }
+  let t3 = 0.6 - x3*x3 - y3*y3 - z3*z3;
+  if (t3 < 0) n3 = 0.0; else { t3 *= t3; n3 = t3 * t3 * dot(grad3[gi3], x3, y3, z3); }
+  return 32.0 * (n0 + n1 + n2 + n3);
+}
+
+class SpatialHash {
+  constructor(cellSize) { this.cellSize = cellSize; this.cells = new Map(); }
+  key(x, y, z) { const cs = this.cellSize; return `${Math.floor(x/cs)},${Math.floor(y/cs)},${Math.floor(z/cs)}`; }
+  add(p) { const k = this.key(p.x, p.y, p.z); if (!this.cells.has(k)) this.cells.set(k, []); this.cells.get(k).push(p); }
+  query(p, radius) {
+    const cs = this.cellSize, cx = Math.floor(p.x / cs), cy = Math.floor(p.y / cs), cz = Math.floor(p.z / cs);
+    const r2 = radius * radius;
+    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (let dz = -1; dz <= 1; dz++) {
+      const k = `${cx+dx},${cy+dy},${cz+dz}`;
+      if (this.cells.has(k)) for (const o of this.cells.get(k)) {
+        const dx_ = p.x - o.x, dy_ = p.y - o.y, dz_ = p.z - o.z;
+        if (dx_*dx_ + dy_*dy_ + dz_*dz_ < r2) return true;
+      }
+    }
+    return false;
+  }
+}
+
+// === Scene Setup ===
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x0A0A0C, 0.012);
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+camera.position.set(0, 0, 18);
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setClearColor(0x0A0A0C, 1);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.2;
+container.appendChild(renderer.domElement);
+
+// === Geometry Builder ===
+function interpolateRadius(u, keypoints) {
+  for (let i = 0; i < keypoints.length - 1; i++) {
+    if (u >= keypoints[i].u && u <= keypoints[i+1].u) {
+      const t = (u - keypoints[i].u) / (keypoints[i+1].u - keypoints[i].u);
+      return keypoints[i].r * (1-t) + keypoints[i+1].r * t;
+    }
+  }
+  return keypoints[keypoints.length-1].r;
+}
+function processTubeRadius(geometry, curve, radiusFunc, flattenY) {
+  const pos = geometry.attributes.position;
+  const tubularSegments = geometry.parameters.tubularSegments;
+  const radialSegments = geometry.parameters.radialSegments;
+  for (let i = 0; i <= tubularSegments; i++) {
+    const u = i / tubularSegments, radius = radiusFunc(u), point = curve.getPointAt(u);
+    for (let j = 0; j <= radialSegments; j++) {
+      const idx = i * (radialSegments + 1) + j;
+      const dx = pos.getX(idx) - point.x, dy = pos.getY(idx) - point.y, dz = pos.getZ(idx) - point.z;
+      const dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
+      if (dist > 0.001) { const scale = radius / dist; pos.setXYZ(idx, point.x + dx * scale, point.y + dy * scale * flattenY, point.z + dz * scale); }
+    }
+  }
+  geometry.computeVertexNormals();
+  return geometry;
+}
+function buildBody() {
+  const spineCurve = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(-2.0, 0.3, 0), new THREE.Vector3(-1.0, 0.5, 0),
+    new THREE.Vector3(0.0, 0.6, 0), new THREE.Vector3(1.0, 0.4, 0), new THREE.Vector3(1.5, 0.3, 0)
+  ]);
+  const bodyKeypoints = [{u:0.0,r:0.35},{u:0.15,r:0.5},{u:0.35,r:0.55},{u:0.55,r:0.5},{u:0.75,r:0.6},{u:0.9,r:0.45},{u:1.0,r:0.35}];
+  const geo = new THREE.TubeGeometry(spineCurve, 64, 0.5, 8, false);
+  processTubeRadius(geo, spineCurve, u => interpolateRadius(u, bodyKeypoints), 0.85);
+  return { geometry: geo, curve: spineCurve, partId: 0 };
+}
+function buildHead() {
+  const headCenter = new THREE.Vector3(1.8, 0.1, 0);
+  const headGeo = new THREE.SphereGeometry(0.75, 10, 10);
+  const pos = headGeo.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    let x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+    if (x > 0.3) x *= 1.3; if (Math.abs(z) > 0.4) z *= 1.15; if (y < -0.3) y *= 0.8;
+    if (x < 0.0) { const neckT = Math.max(0, (-x) / 0.6); y *= (1 - neckT * 0.35); z *= (1 - neckT * 0.25); }
+    pos.setXYZ(i, x + headCenter.x, y + headCenter.y, z + headCenter.z);
+  }
+  headGeo.computeVertexNormals();
+  return { geometry: headGeo, partId: 1 };
+}
+function buildEars() {
+  const ears = [], headCenter = new THREE.Vector3(1.8, 0.1, 0);
+  [-1, 1].forEach(side => {
+    const zDir = side;
+    const tip = new THREE.Vector3(1.8, 0.9, 0.5 * zDir);
+    const baseL = new THREE.Vector3(1.6, 0.2, 0.65 * zDir);
+    const baseR = new THREE.Vector3(2.0, 0.2, 0.45 * zDir);
+    const back = new THREE.Vector3(1.8, 0.45, 0.8 * zDir);
+    const vertices = new Float32Array([tip.x, tip.y, tip.z, baseL.x, baseL.y, baseL.z, baseR.x, baseR.y, baseR.z, back.x, back.y, back.z]);
+    const indices = [0, 1, 2, 0, 2, 3];
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+    geo.setIndex(indices);
+    geo.computeVertexNormals();
+    ears.push(geo);
+  });
+  const merged = new THREE.BufferGeometry();
+  const v0 = ears[0].attributes.position.array, v1 = ears[1].attributes.position.array;
+  const i0 = ears[0].index.array, i1 = ears[1].index.array;
+  const allVerts = new Float32Array(v0.length + v1.length);
+  allVerts.set(v0, 0); allVerts.set(v1, v0.length);
+  const allIdx = new Uint16Array(i0.length + i1.length);
+  allIdx.set(i0, 0); for (let i = 0; i < i1.length; i++) allIdx[i0.length + i] = i1[i] + 4;
+  merged.setAttribute('position', new THREE.BufferAttribute(allVerts, 3));
+  merged.setIndex(new THREE.BufferAttribute(allIdx, 1));
+  merged.computeVertexNormals();
+  return { geometry: merged, partId: 2 };
+}
+function buildTail() {
+  const tailCurve = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(-2.0, 0.3, 0), new THREE.Vector3(-2.8, 0.1, 0.25),
+    new THREE.Vector3(-3.5, -0.3, -0.15), new THREE.Vector3(-4.0, 0.2, 0.35), new THREE.Vector3(-4.3, 0.9, 0.1)
+  ]);
+  const geo = new THREE.TubeGeometry(tailCurve, 48, 0.3, 6, false);
+  processTubeRadius(geo, tailCurve, u => 0.35 * Math.pow(1 - u, 1.5), 0.9);
+  return { geometry: geo, curve: tailCurve, partId: 3 };
+}
+function buildLegs() {
+  const legs = [];
+  const legDefs = [
+    { start: new THREE.Vector3(1.0, -0.15, 0.4), elbow: new THREE.Vector3(1.0, -0.9, 0.4), wrist: new THREE.Vector3(1.0, -1.5, 0.4), paw: new THREE.Vector3(1.0, -1.8, 0.4), radius: 0.16 },
+    { start: new THREE.Vector3(1.0, -0.15, -0.4), elbow: new THREE.Vector3(1.0, -0.9, -0.4), wrist: new THREE.Vector3(1.0, -1.5, -0.4), paw: new THREE.Vector3(1.0, -1.8, -0.4), radius: 0.16 },
+    { start: new THREE.Vector3(-1.0, -0.05, 0.4), knee: new THREE.Vector3(-1.2, -0.8, 0.4), ankle: new THREE.Vector3(-1.3, -1.4, 0.4), paw: new THREE.Vector3(-1.3, -1.7, 0.4), radius: 0.17 },
+    { start: new THREE.Vector3(-1.0, -0.05, -0.4), knee: new THREE.Vector3(-1.2, -0.8, -0.4), ankle: new THREE.Vector3(-1.3, -1.4, -0.4), paw: new THREE.Vector3(-1.3, -1.7, -0.4), radius: 0.17 }
+  ];
+  legDefs.forEach((def, idx) => {
+    const isFront = idx < 2;
+    const segs = isFront ? [def.start, def.elbow, def.wrist, def.paw] : [def.start, def.knee, def.ankle, def.paw];
+    for (let s = 0; s < 3; s++) {
+      const curve = new THREE.LineCurve3(segs[s], segs[s+1]);
+      const r = def.radius * (1 - s * 0.15);
+      const geo = new THREE.TubeGeometry(curve, 3, r, 5, false);
+      legs.push({ geometry: geo, partId: 4 + idx });
+    }
+  });
+  return legs;
+}
+function mergeGeometries(parts) {
+  let totalVerts = 0, totalIdx = 0;
+  parts.forEach(p => { totalVerts += p.geometry.attributes.position.count; totalIdx += p.geometry.index ? p.geometry.index.count : 0; });
+  const mPos = new Float32Array(totalVerts * 3), mNorm = new Float32Array(totalVerts * 3);
+  const mRoset = new Float32Array(totalVerts), mPart = new Uint8Array(totalVerts), mIdx = new Uint32Array(totalIdx);
+  let vOff = 0, iOff = 0;
+  parts.forEach(p => {
+    const geo = p.geometry, pos = geo.attributes.position, norm = geo.attributes.normal, idx = geo.index, count = pos.count;
+    for (let i = 0; i < count; i++) {
+      mPos[(vOff+i)*3] = pos.getX(i); mPos[(vOff+i)*3+1] = pos.getY(i); mPos[(vOff+i)*3+2] = pos.getZ(i);
+      if (norm) { mNorm[(vOff+i)*3] = norm.getX(i); mNorm[(vOff+i)*3+1] = norm.getY(i); mNorm[(vOff+i)*3+2] = norm.getZ(i); }
+      mPart[vOff+i] = p.partId;
+      const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+      let rosette = 0;
+      if (p.partId === 0) { if (y > 0.25 && Math.abs(z) < 0.35 && x > -1.5 && x < 1.0) rosette = 1; }
+      else if (p.partId === 3) { const tailU = Math.max(0, Math.min(1, (-x - 2.0) / 2.3)); if (Math.sin(tailU * Math.PI * 10) > 0.3) rosette = 1; }
+      else if (p.partId >= 4) { if (Math.random() > 0.7) rosette = 1; }
+      mRoset[vOff+i] = rosette;
+    }
+    if (idx) { for (let i = 0; i < idx.count; i++) mIdx[iOff+i] = idx.getX(i) + vOff; iOff += idx.count; }
+    vOff += count;
+  });
+  const merged = new THREE.BufferGeometry();
+  merged.setAttribute('position', new THREE.BufferAttribute(mPos, 3));
+  merged.setAttribute('normal', new THREE.BufferAttribute(mNorm, 3));
+  merged.setAttribute('rosette', new THREE.BufferAttribute(mRoset, 1));
+  merged.setAttribute('partId', new THREE.BufferAttribute(mPart, 1));
+  merged.setIndex(new THREE.BufferAttribute(mIdx, 1));
+  merged.computeVertexNormals();
+  return merged;
+}
+
+const bodyPart = buildBody();
+const headPart = buildHead();
+const earPart = buildEars();
+const tailPart = buildTail();
+const legParts = buildLegs();
+const allParts = [bodyPart, headPart, earPart, tailPart, ...legParts];
+const catGeometry = mergeGeometries(allParts);
+
+// === Wireframe Builder ===
+function buildEdgeMap(geometry) {
+  const index = geometry.index, pos = geometry.attributes.position;
+  const edgeMap = new Map(), faceNormals = [];
+  for (let f = 0; f < index.count / 3; f++) {
+    const a = index.getX(f*3), b = index.getX(f*3+1), c = index.getX(f*3+2);
+    const edges = [[a,b], [b,c], [c,a]];
+    for (const [i, j] of edges) {
+      const key = i < j ? `${i},${j}` : `${j},${i}`;
+      if (!edgeMap.has(key)) edgeMap.set(key, { faces: [], verts: [i, j] });
+      edgeMap.get(key).faces.push(f);
+    }
+    const vA = new THREE.Vector3().fromBufferAttribute(pos, a);
+    const vB = new THREE.Vector3().fromBufferAttribute(pos, b);
+    const vC = new THREE.Vector3().fromBufferAttribute(pos, c);
+    faceNormals.push(new THREE.Vector3().crossVectors(vB.clone().sub(vA), vC.clone().sub(vA)).normalize());
+  }
+  const hardEdges = [], softEdges = [];
+  for (const [key, data] of edgeMap) {
+    if (data.faces.length === 2) {
+      const n1 = faceNormals[data.faces[0]], n2 = faceNormals[data.faces[1]];
+      const angle = Math.acos(Math.min(1, Math.max(-1, n1.dot(n2)))) * (180 / Math.PI);
+      const [i, j] = data.verts;
+      if (angle > 25) hardEdges.push(i, j); else softEdges.push(i, j);
+    } else { const [i, j] = data.verts; hardEdges.push(i, j); }
+  }
+  return { hardEdges, softEdges };
+}
+const edgeData = buildEdgeMap(catGeometry);
+
+const hardEdgeGeo = new THREE.BufferGeometry();
+hardEdgeGeo.setAttribute('position', catGeometry.attributes.position.clone());
+hardEdgeGeo.setIndex(new THREE.BufferAttribute(new Uint32Array(edgeData.hardEdges), 1));
+const hardEdgeMat = new THREE.LineBasicMaterial({ color: COLORS.wireframeHard, transparent: true, opacity: 0.8, linewidth: 2 });
+const hardEdgesMesh = new THREE.LineSegments(hardEdgeGeo, hardEdgeMat);
+scene.add(hardEdgesMesh);
+
+const softEdgeGeo = new THREE.BufferGeometry();
+softEdgeGeo.setAttribute('position', catGeometry.attributes.position.clone());
+softEdgeGeo.setIndex(new THREE.BufferAttribute(new Uint32Array(edgeData.softEdges), 1));
+const softEdgeMat = new THREE.LineBasicMaterial({ color: COLORS.wireframeSoft, transparent: true, opacity: 0.15, linewidth: 1 });
+const softEdgesMesh = new THREE.LineSegments(softEdgeGeo, softEdgeMat);
+scene.add(softEdgesMesh);
+
+function buildSkeletonLines() {
+  const lines = [];
+  lines.push(bodyPart.curve.getPoints(50));
+  lines.push([new THREE.Vector3(0.5, 0.8, 0.3), new THREE.Vector3(1.0, -0.15, 0.4)]);
+  lines.push([new THREE.Vector3(0.5, 0.8, -0.3), new THREE.Vector3(1.0, -0.15, -0.4)]);
+  lines.push([new THREE.Vector3(-1.0, 0.6, 0.3), new THREE.Vector3(-1.0, -0.05, 0.4)]);
+  lines.push([new THREE.Vector3(-1.0, 0.6, -0.3), new THREE.Vector3(-1.0, -0.05, -0.4)]);
+  return lines;
+}
+const skeletonLines = buildSkeletonLines();
+const skeletonGroup = new THREE.Group();
+const skeletonMeshes = [];
+skeletonLines.forEach((pts, idx) => {
+  const geo = new THREE.BufferGeometry().setFromPoints(pts);
+  const mat = new THREE.LineBasicMaterial({ color: COLORS.wireframeSkeleton, transparent: true, opacity: 0.9, linewidth: 3 });
+  const line = new THREE.Line(geo, mat);
+  skeletonGroup.add(line);
+  skeletonMeshes.push({ mesh: line, mat: mat, baseOpacity: 0.9 });
+});
+scene.add(skeletonGroup);
+if (!responsive.showSkeleton) skeletonGroup.visible = false;
+
+const wireframeGroup = new THREE.Group();
+wireframeGroup.add(hardEdgesMesh);
+wireframeGroup.add(softEdgesMesh);
+wireframeGroup.add(skeletonGroup);
+scene.add(wireframeGroup);
+
+// === Poisson Sampling ===
+function poissonSample(geometry, targetCount, dMinBase) {
+  const index = geometry.index, pos = geometry.attributes.position;
+  const rosetteAttr = geometry.attributes.rosette, partIdAttr = geometry.attributes.partId;
+  const faces = []; let totalArea = 0;
+  for (let f = 0; f < index.count / 3; f++) {
+    const a = index.getX(f*3), b = index.getX(f*3+1), c = index.getX(f*3+2);
+    const vA = new THREE.Vector3().fromBufferAttribute(pos, a);
+    const vB = new THREE.Vector3().fromBufferAttribute(pos, b);
+    const vC = new THREE.Vector3().fromBufferAttribute(pos, c);
+    const area = new THREE.Vector3().crossVectors(vB.clone().sub(vA), vC.clone().sub(vA)).length() * 0.5;
+    totalArea += area;
+    faces.push({ a, b, c, area, cumulative: totalArea, partId: partIdAttr.getX(a), rosette: rosetteAttr.getX(a) });
+  }
+  function randomFace() {
+    const r = Math.random() * totalArea;
+    let lo = 0, hi = faces.length - 1;
+    while (lo < hi) { const mid = (lo + hi) >> 1; if (faces[mid].cumulative < r) lo = mid + 1; else hi = mid; }
+    return faces[lo];
+  }
+  function randomPointInFace(face) {
+    const vA = new THREE.Vector3().fromBufferAttribute(pos, face.a);
+    const vB = new THREE.Vector3().fromBufferAttribute(pos, face.b);
+    const vC = new THREE.Vector3().fromBufferAttribute(pos, face.c);
+    let r1 = Math.random(), r2 = Math.random();
+    if (r1 + r2 > 1) { r1 = 1 - r1; r2 = 1 - r2; }
+    return new THREE.Vector3().addScaledVector(vA, 1 - r1 - r2).addScaledVector(vB, r1).addScaledVector(vC, r2);
+  }
+  function computeNormal(face) {
+    const vA = new THREE.Vector3().fromBufferAttribute(pos, face.a);
+    const vB = new THREE.Vector3().fromBufferAttribute(pos, face.b);
+    const vC = new THREE.Vector3().fromBufferAttribute(pos, face.c);
+    return new THREE.Vector3().crossVectors(vB.clone().sub(vA), vC.clone().sub(vA)).normalize();
+  }
+  function getTangent(pt, face) {
+    const pid = face.partId, x = pt.x;
+    if (pid === 0) { const u = Math.max(0, Math.min(1, (x + 2.0) / 3.5)); return bodyPart.curve.getTangentAt(u).normalize(); }
+    else if (pid === 3) { const u = Math.max(0, Math.min(1, (-x - 2.0) / 2.3)); return tailPart.curve.getTangentAt(u).normalize(); }
+    else if (pid === 1) return new THREE.Vector3(1, 0, 0);
+    else if (pid === 2) return new THREE.Vector3(0, 1, 0);
+    else return new THREE.Vector3(0, -1, 0);
+  }
+  const hash = new SpatialHash(dMinBase);
+  const samples = [], active = [];
+  const seedFace = randomFace();
+  const seed = randomPointInFace(seedFace);
+  const seedNorm = computeNormal(seedFace), seedTan = getTangent(seed, seedFace);
+  samples.push({ pos: seed, normal: seedNorm, tangent: seedTan, rosette: seedFace.rosette, partId: seedFace.partId });
+  active.push(seed); hash.add(seed);
+  let attempts = 0; const maxAttempts = targetCount * 100;
+  while (active.length > 0 && samples.length < targetCount && attempts < maxAttempts) {
+    const idx = Math.floor(Math.random() * active.length);
+    const point = active[idx]; let found = false;
+    for (let k = 0; k < 30; k++) {
+      const face = randomFace(); const newPoint = randomPointInFace(face);
+      const y = newPoint.y, r = face.rosette;
+      let dMin = dMinBase;
+      if (r > 0.5) dMin *= 0.6; else if (y < -0.2) dMin *= 1.4;
+      if (!hash.query(newPoint, dMin)) {
+        samples.push({ pos: newPoint, normal: computeNormal(face), tangent: getTangent(newPoint, face), rosette: r, partId: face.partId });
+        active.push(newPoint); hash.add(newPoint); found = true; break;
+      }
+      attempts++;
+    }
+    if (!found) active.splice(idx, 1);
+  }
+  return samples;
+}
+const dMinBase = 0.18;
+const samples = poissonSample(catGeometry, responsive.catParticles, dMinBase);
+const particleCount = samples.length;
+
+// === Particle Type & Color ===
+const pPositions = new Float32Array(particleCount * 3);
+const pOriginals = new Float32Array(particleCount * 3);
+const pVelocities = new Float32Array(particleCount * 3);
+const pNormals = new Float32Array(particleCount * 3);
+const pTangents = new Float32Array(particleCount * 3);
+const pColors = new Float32Array(particleCount * 3);
+const pSizes = new Float32Array(particleCount);
+const pTypes = new Int8Array(particleCount);
+const pRosettes = new Float32Array(particleCount);
+const pVertexIDs = new Float32Array(particleCount);
+
+for (let i = 0; i < particleCount; i++) {
+  const s = samples[i];
+  const x = s.pos.x, y = s.pos.y, z = s.pos.z;
+  pPositions[i*3] = x; pPositions[i*3+1] = y; pPositions[i*3+2] = z;
+  pOriginals[i*3] = x; pOriginals[i*3+1] = y; pOriginals[i*3+2] = z;
+  pNormals[i*3] = s.normal.x; pNormals[i*3+1] = s.normal.y; pNormals[i*3+2] = s.normal.z;
+  pTangents[i*3] = s.tangent.x; pTangents[i*3+1] = s.tangent.y; pTangents[i*3+2] = s.tangent.z;
+  pRosettes[i] = s.rosette; pVertexIDs[i] = i;
+  let type;
+  if (s.partId === 1 && x > 2.0 && Math.abs(z) < 0.4) type = 4;
+  else if (s.rosette > 0.5) type = 3;
+  else if (y > 0.35 && s.rosette <= 0.5) type = 0;
+  else if (y < -0.3) type = 2;
+  else type = 1;
+  pTypes[i] = type;
+  let c;
+  switch(type) { case 0: c = COLORS.goldCore; break; case 1: c = COLORS.coatBrown; break; case 2: c = COLORS.shadowDeep; break; case 3: c = COLORS.patternVoid; break; case 4: c = COLORS.eyeEmerald; break; default: c = COLORS.goldCore; }
+  pColors[i*3] = c.r; pColors[i*3+1] = c.g; pColors[i*3+2] = c.b;
+  const baseSize = (type === 3) ? 2.2 : (1.2 + Math.random() * 2.0);
+  pSizes[i] = baseSize;
+}
+
+// === Cat Particle Shader ===
+const catParticleGeo = new THREE.BufferGeometry();
+catParticleGeo.setAttribute('position', new THREE.BufferAttribute(pPositions, 3));
+catParticleGeo.setAttribute('color', new THREE.BufferAttribute(pColors, 3));
+catParticleGeo.setAttribute('size', new THREE.BufferAttribute(pSizes, 1));
+catParticleGeo.setAttribute('aVertexID', new THREE.BufferAttribute(pVertexIDs, 1));
+catParticleGeo.setAttribute('tangent', new THREE.BufferAttribute(pTangents, 3));
+
+const catUniforms = { uTime: { value: 0 }, uGlow: { value: 0.5 } };
+
+const catParticleMat = new THREE.ShaderMaterial({
+  uniforms: catUniforms,
+  vertexShader: `
+    attribute float size; attribute vec3 color; attribute float aVertexID;
+    varying vec3 vColor; varying float vRand; varying float vDepth;
+    uniform float uTime;
+    void main() {
+      vColor = color; vRand = aVertexID;
+      vec4 mv = modelViewMatrix * vec4(position, 1.0);
+      gl_PointSize = size * (300.0 / -mv.z);
+      gl_Position = projectionMatrix * mv;
+      vDepth = -mv.z;
+    }
+  `,
+  fragmentShader: `
+    varying vec3 vColor; varying float vRand; varying float vDepth;
+    uniform float uGlow;
+    float hash(float n) { return fract(sin(n) * 43758.5453123); }
+    void main() {
+      float shape = mod(vRand, 3.0);
+      float angle = hash(vRand) * 6.28318;
+      vec2 rot = vec2(cos(angle), sin(angle));
+      vec2 coord = gl_PointCoord - vec2(0.5);
+      coord = vec2(coord.x * rot.x - coord.y * rot.y, coord.x * rot.y + coord.y * rot.x);
+      if (shape < 1.0) { if (abs(coord.x) + abs(coord.y) > 0.5) discard; }
+      else if (shape < 2.0) { if (coord.y < -0.5 + abs(coord.x)) discard; }
+      else { if (max(abs(coord.x), abs(coord.y)) > 0.5) discard; }
+      float depthGlow = 1.0 / (1.0 + vDepth * 0.08);
+      vec3 finalColor = vColor * (0.7 + depthGlow * 0.6 * uGlow);
+      gl_FragColor = vec4(finalColor, 1.0);
+    }
+  `,
+  transparent: true, depthWrite: false, blending: THREE.NormalBlending
+});
+
+const catParticles = new THREE.Points(catParticleGeo, catParticleMat);
+scene.add(catParticles);
+
+// === Background Particles ===
+const nebulaCount = responsive.nebula;
+const nebulaPos = new Float32Array(nebulaCount * 3);
+const nebulaCol = new Float32Array(nebulaCount * 3);
+const nebulaSize = new Float32Array(nebulaCount);
+const nebulaVel = new Float32Array(nebulaCount * 3);
+for (let i = 0; i < nebulaCount; i++) {
+  nebulaPos[i*3] = (Math.random() - 0.5) * 60; nebulaPos[i*3+1] = (Math.random() - 0.5) * 60; nebulaPos[i*3+2] = (Math.random() - 0.5) * 40 - 10;
+  const isGold = Math.random() > 0.6;
+  const c = isGold ? COLORS.nebulaGold : COLORS.nebulaBrown;
+  nebulaCol[i*3] = c.r; nebulaCol[i*3+1] = c.g; nebulaCol[i*3+2] = c.b;
+  nebulaSize[i] = 1.5 + Math.random() * 2.5;
+  nebulaVel[i*3] = (Math.random() - 0.5) * 0.003; nebulaVel[i*3+1] = (Math.random() - 0.5) * 0.003; nebulaVel[i*3+2] = (Math.random() - 0.5) * 0.002;
+}
+const nebulaGeo = new THREE.BufferGeometry();
+nebulaGeo.setAttribute('position', new THREE.BufferAttribute(nebulaPos, 3));
+nebulaGeo.setAttribute('color', new THREE.BufferAttribute(nebulaCol, 3));
+nebulaGeo.setAttribute('size', new THREE.BufferAttribute(nebulaSize, 1));
+const nebulaMat = new THREE.ShaderMaterial({
+  uniforms: { uTime: catUniforms.uTime },
+  vertexShader: `
+    attribute float size; attribute vec3 color; varying vec3 vColor; varying float vAlpha; uniform float uTime;
+    void main() { vColor = color; vec4 mv = modelViewMatrix * vec4(position, 1.0); gl_PointSize = size * (400.0 / -mv.z); gl_Position = projectionMatrix * mv; vAlpha = 0.06 + (sin(uTime * 0.2 + position.x) * 0.5 + 0.5) * 0.04; }
+  `,
+  fragmentShader: `
+    varying vec3 vColor; varying float vAlpha;
+    void main() { vec2 c = gl_PointCoord - vec2(0.5); float d = length(c); if (d > 0.5) discard; float glow = 1.0 - smoothstep(0.0, 0.5, d); vec3 fc = vColor * (0.4 + glow * 0.8); float a = (1.0 - smoothstep(0.1, 0.5, d)) * vAlpha; gl_FragColor = vec4(fc, a); }
+  `,
+  transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
+});
+const nebulaParticles = new THREE.Points(nebulaGeo, nebulaMat);
+scene.add(nebulaParticles);
+
+const starCount = responsive.stars;
+const starPos = new Float32Array(starCount * 3);
+const starCol = new Float32Array(starCount * 3);
+const starSize = new Float32Array(starCount);
+const starVel = new Float32Array(starCount * 3);
+const starPhase = new Float32Array(starCount);
+for (let i = 0; i < starCount; i++) {
+  starPos[i*3] = (Math.random() - 0.5) * 40; starPos[i*3+1] = (Math.random() - 0.5) * 40; starPos[i*3+2] = (Math.random() - 0.5) * 25 - 5;
+  const t = Math.random(); let c; if (t > 0.5) c = COLORS.starGold; else c = COLORS.starBrown;
+  starCol[i*3] = c.r; starCol[i*3+1] = c.g; starCol[i*3+2] = c.b;
+  starSize[i] = 0.8 + Math.random() * 1.2;
+  starVel[i*3] = (Math.random() - 0.5) * 0.008; starVel[i*3+1] = (Math.random() - 0.5) * 0.008; starVel[i*3+2] = (Math.random() - 0.5) * 0.005;
+  starPhase[i] = Math.random() * 100;
+}
+const starGeo = new THREE.BufferGeometry();
+starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+starGeo.setAttribute('color', new THREE.BufferAttribute(starCol, 3));
+starGeo.setAttribute('size', new THREE.BufferAttribute(starSize, 1));
+const starMat = new THREE.ShaderMaterial({
+  uniforms: { uTime: catUniforms.uTime, uGlow: { value: 0.6 } },
+  vertexShader: `
+    attribute float size; attribute vec3 color; varying vec3 vColor; varying float vRand; uniform float uTime;
+    void main() { vColor = color; vRand = position.x + position.y * 37.0; vec4 mv = modelViewMatrix * vec4(position, 1.0); gl_PointSize = size * (300.0 / -mv.z); gl_Position = projectionMatrix * mv; }
+  `,
+  fragmentShader: `
+    varying vec3 vColor; varying float vRand; uniform float uTime; uniform float uGlow;
+    float hash(float n) { return fract(sin(n) * 43758.5453123); }
+    void main() { float angle = hash(vRand) * 6.28318; vec2 rot = vec2(cos(angle), sin(angle)); vec2 coord = gl_PointCoord - vec2(0.5); coord = vec2(coord.x * rot.x - coord.y * rot.y, coord.x * rot.y + coord.y * rot.x); if (abs(coord.x) + abs(coord.y) > 0.5) discard; vec3 fc = vColor * (0.9 + uGlow * 0.8); gl_FragColor = vec4(fc, 0.9); }
+  `,
+  transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
+});
+const starParticles = new THREE.Points(starGeo, starMat);
+scene.add(starParticles);
+
+// === State Machine & Events ===
+let time = 0, currentRotY = 0, targetRotY = 0;
+const clock = new THREE.Clock();
+let mouseX = 0, mouseY = 0;
+document.addEventListener('mousemove', e => { mouseX = (e.clientX / window.innerWidth - 0.5) * 2; mouseY = (e.clientY / window.innerHeight - 0.5) * 2; });
+aboutCard.addEventListener('mouseenter', () => { mouseOnCard = true; if (currentState === STATES.RESTING) transitionTo(STATES.AWAKENING); });
+aboutCard.addEventListener('mouseleave', () => { mouseOnCard = false; if (currentState === STATES.AMBIENT && !isExpanded) transitionTo(STATES.RECOLLECTING); });
+aboutCard.addEventListener('click', e => { if (e.target === closeBtn) return; isExpanded = !isExpanded; aboutCard.classList.toggle('expanded', isExpanded); transitionTo(isExpanded ? STATES.EXPANDING : STATES.RECOLLECTING); });
+closeBtn.addEventListener('click', e => { e.stopPropagation(); isExpanded = false; aboutCard.classList.remove('expanded'); transitionTo(STATES.RECOLLECTING); });
+
+function transitionTo(s) { currentState = s; stateTimer = 0; stateIndicator.textContent = ['RESTING','AWAKENING','DISSOLVING','EXPANDING','AMBIENT','RECOLLECTING'][s]; }
+
+let phys = { ...STATE_PARAMS.RESTING };
+let targetPhys = { ...STATE_PARAMS.RESTING };
+function lerpParams(dt) { const factor = Math.min(dt * 3.0, 1.0); for (const key in phys) phys[key] += (targetPhys[key] - phys[key]) * factor; }
+function getSpeedMult(type) { if (type === 0) return 1.0; if (type === 1) return 0.7; if (type === 2) return 0.4; if (type === 3) return 0.3; return 0.9; }
+
+// === Animation Loop ===
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  time += dt; stateTimer += dt;
+  catUniforms.uTime.value = time;
+  let stateProgress = 0;
+
+  switch(currentState) {
+    case STATES.RESTING:
+      targetRotY = Math.sin(time * 0.25) * 0.06;
+      catUniforms.uGlow.value = 0.5 + (Math.sin(time * 1.2) * 0.5 + 0.5) * 0.15;
+      targetPhys = { ...STATE_PARAMS.RESTING };
+      break;
+    case STATES.AWAKENING:
+      stateProgress = Math.min(stateTimer / 0.4, 1);
+      targetRotY = Math.sin(time * 0.4) * 0.12;
+      catUniforms.uGlow.value = 0.8 + stateProgress * 1.5;
+      targetPhys = { ...STATE_PARAMS.AWAKENING };
+      if (stateProgress >= 1) transitionTo(STATES.DISSOLVING);
+      break;
+    case STATES.DISSOLVING:
+      stateProgress = Math.min(stateTimer / 0.8, 1);
+      catUniforms.uGlow.value = 2.0 - stateProgress * 0.4;
+      targetPhys = { ...STATE_PARAMS.DISSOLVING };
+      targetRotY = time * 0.15;
+      if (stateProgress >= 1) transitionTo(isExpanded ? STATES.EXPANDING : STATES.AMBIENT);
+      break;
+    case STATES.EXPANDING:
+      stateProgress = Math.min(stateTimer / 1.2, 1);
+      catUniforms.uGlow.value = 1.4 * (1 - stateProgress * 0.25);
+      targetPhys = { ...STATE_PARAMS.EXPANDING };
+      targetRotY = time * 0.25;
+      if (stateProgress >= 1) transitionTo(STATES.AMBIENT);
+      break;
+    case STATES.AMBIENT:
+      catUniforms.uGlow.value = 0.7 + Math.sin(time * 1.8) * 0.15;
+      targetPhys = { ...STATE_PARAMS.AMBIENT };
+      targetRotY = time * 0.08;
+      if (!mouseOnCard && !isExpanded && stateTimer > 4) transitionTo(STATES.RECOLLECTING);
+      break;
+    case STATES.RECOLLECTING:
+      stateProgress = Math.min(stateTimer / 0.6, 1);
+      catUniforms.uGlow.value = 0.8 + stateProgress * 0.4;
+      targetPhys = { ...STATE_PARAMS.RECOLLECTING };
+      targetRotY = Math.sin(time * 0.25) * 0.06 * stateProgress;
+      if (stateProgress >= 1) transitionTo(STATES.RESTING);
+      break;
+  }
+
+  lerpParams(dt);
+
+  let hardAlpha, softAlpha, skelAlpha;
+  if (currentState === STATES.RESTING) { hardAlpha = 0.8; softAlpha = 0.15; skelAlpha = 0.9; }
+  else if (currentState === STATES.AWAKENING) {
+    const p = stateProgress;
+    softAlpha = 0.15 * (1 - p); hardAlpha = 0.8 * (1 - p * 0.625); skelAlpha = 0.9 * (1 - p * 0.333);
+  } else if (currentState === STATES.DISSOLVING) {
+    const p = stateProgress; softAlpha = 0.0; hardAlpha = 0.3 * (1 - p); skelAlpha = 0.6 * (1 - p * 0.667);
+  } else if (currentState === STATES.EXPANDING) {
+    const p = stateProgress; softAlpha = 0.0; hardAlpha = 0.0; skelAlpha = 0.2 * (1 - p);
+  } else if (currentState === STATES.AMBIENT) { hardAlpha = 0; softAlpha = 0; skelAlpha = 0; }
+  else if (currentState === STATES.RECOLLECTING) {
+    const p = stateProgress; skelAlpha = p * 0.9; hardAlpha = p * 0.8; softAlpha = p * 0.15;
+  }
+  if (hardAlpha !== undefined) hardEdgeMat.opacity = hardAlpha;
+  if (softAlpha !== undefined) softEdgeMat.opacity = softAlpha;
+  if (skelAlpha !== undefined) skeletonMeshes.forEach(sm => sm.mat.opacity = skelAlpha);
+
+  currentRotY += (targetRotY - currentRotY) * 0.04;
+  wireframeGroup.rotation.y = currentRotY;
+  catParticles.rotation.y = currentRotY;
+
+  // Physics: Mass-Spring System
+  const k = phys.k, c = phys.c, turbulence = phys.turbulence;
+  const expandForce = phys.expandForce, spiralForce = phys.spiralForce, damping = phys.damping;
+
+  for (let i = 0; i < particleCount; i++) {
+    const ox = pOriginals[i*3], oy = pOriginals[i*3+1], oz = pOriginals[i*3+2];
+    const px = pPositions[i*3], py = pPositions[i*3+1], pz = pPositions[i*3+2];
+    let vx = pVelocities[i*3], vy = pVelocities[i*3+1], vz = pVelocities[i*3+2];
+    const type = pTypes[i], sm = getSpeedMult(type);
+
+    const fx_spring = -k * (px - ox), fy_spring = -k * (py - oy), fz_spring = -k * (pz - oz);
+    const fx_damp = -c * vx, fy_damp = -c * vy, fz_damp = -c * vz;
+    const ns = 1.5;
+    const fx_noise = simplex3D(px * ns, py * ns, time * 0.5) * turbulence;
+    const fy_noise = simplex3D(py * ns, pz * ns, time * 0.5 + 100) * turbulence;
+    const fz_noise = simplex3D(pz * ns, px * ns, time * 0.5 + 200) * turbulence;
+    const len = Math.sqrt(px*px + py*py + pz*pz) + 0.001;
+    const fx_radial = (px / len) * expandForce * sm, fy_radial = (py / len) * expandForce * sm, fz_radial = (pz / len) * expandForce * sm;
+    const tx = pTangents[i*3], ty = pTangents[i*3+1], tz = pTangents[i*3+2];
+    const fx_tangent = tx * expandForce * 0.3 * sm, fy_tangent = ty * expandForce * 0.3 * sm, fz_tangent = tz * expandForce * 0.3 * sm;
+    const sx = (py * 0 - pz * 1) / len * spiralForce * sm, sy = (pz * 0 - px * 0) / len * spiralForce * sm, sz = (px * 1 - py * 0) / len * spiralForce * sm;
+
+    const fx = fx_spring + fx_damp + fx_noise + fx_radial + fx_tangent + sx;
+    const fy = fy_spring + fy_damp + fy_noise + fy_radial + fy_tangent + sy;
+    const fz = fz_spring + fz_damp + fz_noise + fz_radial + fz_tangent + sz;
+
+    vx += fx * dt; vy += fy * dt; vz += fz * dt;
+    vx *= damping; vy *= damping; vz *= damping;
+    pPositions[i*3] = px + vx * dt; pPositions[i*3+1] = py + vy * dt; pPositions[i*3+2] = pz + vz * dt;
+    pVelocities[i*3] = vx; pVelocities[i*3+1] = vy; pVelocities[i*3+2] = vz;
+
+    let tc;
+    switch(type) {
+      case 0: tc = (currentState === STATES.AWAKENING || currentState === STATES.DISSOLVING) ? COLORS.goldGleam : COLORS.goldCore; break;
+      case 1: tc = COLORS.coatBrown; break; case 2: tc = COLORS.shadowDeep; break;
+      case 3: tc = COLORS.patternVoid; break; case 4: tc = COLORS.eyeEmerald; break;
+      default: tc = COLORS.goldCore;
+    }
+    pColors[i*3] += (tc.r - pColors[i*3]) * 0.08; pColors[i*3+1] += (tc.g - pColors[i*3+1]) * 0.08; pColors[i*3+2] += (tc.b - pColors[i*3+2]) * 0.08;
+
+    const baseSize = (type === 3) ? 2.2 : (1.2 + (i % 5) * 0.4);
+    const pulse = (currentState === STATES.AWAKENING) ? 1 + Math.sin(time * 12 + i) * 0.25 : 1;
+    const expandShrink = 1 - Math.min(expandForce * 0.1, 0.3);
+    pSizes[i] = baseSize * expandShrink * pulse;
+  }
+  catParticleGeo.attributes.position.needsUpdate = true;
+  catParticleGeo.attributes.color.needsUpdate = true;
+  catParticleGeo.attributes.size.needsUpdate = true;
+
+  // Nebula update
+  const nPos = nebulaGeo.attributes.position.array;
+  for (let i = 0; i < nebulaCount; i++) {
+    nPos[i*3] += nebulaVel[i*3]; nPos[i*3+1] += nebulaVel[i*3+1]; nPos[i*3+2] += nebulaVel[i*3+2];
+    if (Math.abs(nPos[i*3]) > 30) nPos[i*3] *= -0.9; if (Math.abs(nPos[i*3+1]) > 30) nPos[i*3+1] *= -0.9;
+  }
+  nebulaGeo.attributes.position.needsUpdate = true;
+
+  // Stars update with Simplex drift
+  const sPos = starGeo.attributes.position.array;
+  for (let i = 0; i < starCount; i++) {
+    const phase = starPhase[i];
+    sPos[i*3] += starVel[i*3] + simplex3D(time * 0.1, phase, 0) * 0.002;
+    sPos[i*3+1] += starVel[i*3+1] + simplex3D(time * 0.1, phase + 100, 0) * 0.002;
+    sPos[i*3+2] += starVel[i*3+2];
+    if (Math.abs(sPos[i*3]) > 20) sPos[i*3] *= -0.9; if (Math.abs(sPos[i*3+1]) > 20) sPos[i*3+1] *= -0.9;
+  }
+  starGeo.attributes.position.needsUpdate = true;
+
+  camera.position.x += (mouseX * 1.5 - camera.position.x) * 0.015;
+  camera.position.y += (-mouseY * 1.5 - camera.position.y) * 0.015;
+  camera.lookAt(0, 0, 0);
+  renderer.render(scene, camera);
+}
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  responsive = getResponsiveConfig();
+  skeletonGroup.visible = responsive.showSkeleton;
+});
+
+animate();
+</script>
+</body>
+</html>
