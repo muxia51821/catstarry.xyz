@@ -127,3 +127,83 @@
   border-color: var(--klein-400);
   box-shadow: 0 0 0 2px rgba(51, 92, 255, 0.2);
 }
+
+/* ══════════════════════════════════════
+   Anim Utilities — Phase 4.2 滚动动画
+   依赖 variables.css §7 Motion Tokens
+   所有动效遵从 prefers-reduced-motion
+   ══════════════════════════════════════ */
+
+/* --- 滚动淡入上浮 ---
+   使用方式：<article class="anim-fade-up">...</article>
+   元素进入视口时从下方 24px 淡入滑上，适用于卡片、段落、列表项 */
+.anim-fade-up {
+  opacity: 0;
+  transform: translateY(24px);
+  animation: fade-up var(--duration-base) var(--ease-scroll-in) forwards;
+  animation-timeline: view(y 95% 0%);
+}
+
+@keyframes fade-up {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* --- 列表逐项延迟（Stagger）---
+   父容器加 .anim-stagger，子元素自动逐项错开。
+   基础延迟 --stagger-base(80ms)，第 2 项 160ms，第 3 项 240ms… */
+.anim-stagger > * {
+  opacity: 0;
+  transform: translateY(16px);
+  animation: fade-up var(--duration-base) var(--ease-scroll-in) forwards;
+  animation-timeline: view(y 95% 0%);
+}
+
+.anim-stagger > *:nth-child(1) { animation-delay: 0ms; }
+.anim-stagger > *:nth-child(2) { animation-delay: var(--stagger-base); }
+.anim-stagger > *:nth-child(3) { animation-delay: calc(var(--stagger-base) * 2); }
+.anim-stagger > *:nth-child(4) { animation-delay: calc(var(--stagger-base) * 3); }
+.anim-stagger > *:nth-child(5) { animation-delay: calc(var(--stagger-base) * 4); }
+.anim-stagger > *:nth-child(6) { animation-delay: calc(var(--stagger-base) * 5); }
+.anim-stagger > *:nth-child(7) { animation-delay: calc(var(--stagger-base) * 6); }
+.anim-stagger > *:nth-child(8) { animation-delay: calc(var(--stagger-base) * 7); }
+
+/* --- 视差滚动容器 ---
+   父容器 .parallax-container perspective，子元素 bg/fg 层不同速率。
+   速度由 variables.css --parallax-bg-speed / --parallax-fg-speed 控制。
+   使用方式：
+   <div class="parallax-container">
+     <div class="parallax-bg">背景层（慢）</div>
+     <div class="parallax-fg">前景层（正常）</div>
+   </div> */
+.parallax-container {
+  overflow: hidden;
+  position: relative;
+}
+
+.parallax-bg {
+  will-change: transform;
+  transform: translateY(calc(var(--scroll-offset, 0px) * var(--parallax-bg-speed)));
+}
+
+.parallax-fg {
+  will-change: transform;
+  transform: translateY(calc(var(--scroll-offset, 0px) * var(--parallax-fg-speed)));
+}
+
+/* --- reduced-motion 全局降级 --- */
+@media (prefers-reduced-motion: reduce) {
+  .anim-fade-up,
+  .anim-stagger > * {
+    opacity: 1;
+    transform: none;
+    animation: none;
+  }
+
+  .parallax-bg,
+  .parallax-fg {
+    transform: none;
+  }
+}

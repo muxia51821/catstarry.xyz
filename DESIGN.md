@@ -144,16 +144,22 @@ catstarry.xyz 是木下的数字生活流——不是名片，不是产品 landi
 1. **行高**：正文 `>=1.85`，标题 `>=1.35`，说明文字 `>=1.65`。中文汉字视觉密度大，绝不能使用英文的 1.2-1.5 行高。
 2. **字重**：中文不使用 `bold (700+)`，标题与正文统一使用 `400`。
 3. **字间距（关键修正）**：
-   - **纯英文/数字标题**：必须使用负字距（如 -0.04em），这是 Monopo 基因的精髓。
-   - **CJK 标题与正文**：**绝对禁止负字距**，强制设为 `0` 或 `normal`。中文字框自带留白，负字距会导致笔画重叠。
+
+- **纯英文/数字标题**：必须使用负字距（如 -0.04em），这是 Monopo 基因的精髓。
+- **CJK 标题与正文**：**绝对禁止负字距**，强制设为 `0` 或 `normal`。中文字框自带留白，负字距会导致笔画重叠。
+
 4. **标点挤压**：
-   - 使用 CSS `text-spacing-trim: trim-start` 或等价 JS 方案。
-   - 行首禁止出现的标点：`，。、；：）」』】`
-   - 行尾禁止出现的标点：`（「『【`
-   - 连续标点之间挤压全角为半角。
+
+- 使用 CSS `text-spacing-trim: trim-start` 或等价 JS 方案。
+- 行首禁止出现的标点：`，。、；：）」』】`
+- 行尾禁止出现的标点：`（「『【`
+- 连续标点之间挤压全角为半角。
+
 5. **中英混排**：
-   - 中文与英文/数字之间自动插入 `1/4 em` 间距（不可手动敲空格）。
-   - 英文/数字不使用 CJK 字体，自动 fallback 到 `Geist`。
+
+- 中文与英文/数字之间自动插入 `1/4 em` 间距（不可手动敲空格）。
+- 英文/数字不使用 CJK 字体，自动 fallback 到 `Geist`。
+
 6. **绝对行间距底线**：任何多行 CJK 标题的绝对行间距（Line-gap）不得小于 `16px`。若计算值小于 16px，必须强制放大 `line-height` 倍数。
 7. **中英缩放比例**：Display 级别字号，中文像素值强制为英文的 `0.9` 倍（如 EN 80px / CN 72px）。
 8. **字重限制**：中文最高字重锁定为 `500` (Medium)，严禁使用 `700` (Bold) 导致笔画糊死。
@@ -385,9 +391,9 @@ catstarry.xyz 是木下的数字生活流——不是名片，不是产品 landi
 
 ```css
 /* =========================================
-   catstarry.xyz Design System v1.4
-   LAYER 1: PRIMITIVES & LAYER 2: SEMANTIC DEFAULTS
-   ========================================= */
+  catstarry.xyz Design System v1.4
+  LAYER 1: PRIMITIVES & LAYER 2: SEMANTIC DEFAULTS
+  ========================================= */
 :root {
   /* --- 1. Brand: Klein Blue Scale (WCAG 2.1 AA) --- */
   --klein-600: #001f70;
@@ -468,9 +474,9 @@ catstarry.xyz 是木下的数字生活流——不是名片，不是产品 landi
     0 3px 7px rgba(0, 0, 0, 0.09);
 
   /* =========================================
-     LAYER 2: SEMANTIC TOKENS (DEFAULT: DARK/HOME)
-     合并入 :root，避免重复定义
-     ========================================= */
+    LAYER 2: SEMANTIC TOKENS (DEFAULT: DARK/HOME)
+    合并入 :root，避免重复定义
+    ========================================= */
   color-scheme: dark;
   --bg-base: var(--home-void);
   --bg-surface-soft: var(--home-surface-soft);
@@ -484,9 +490,9 @@ catstarry.xyz 是木下的数字生活流——不是名片，不是产品 landi
 }
 
 /* =========================================
-   THEME OVERRIDES (深浅模式切换)
-   逻辑：系统偏好 + 手动 data-theme 覆盖
-   ========================================= */
+  THEME OVERRIDES (深浅模式切换)
+  逻辑：系统偏好 + 手动 data-theme 覆盖
+  ========================================= */
 
 /* 1. 跟随系统浅色偏好 (Content Cream Gallery) */
 @media (prefers-color-scheme: light) {
@@ -548,3 +554,66 @@ catstarry.xyz 是木下的数字生活流——不是名片，不是产品 landi
   --btn-primary-bg-hover: #73c9b6;
 }
 ```
+
+---
+
+## 10. 动效原则
+
+catstarry.xyz 的动效以「克制与质感」为最高准则。动画不为炫技，为建立空间关系与层级感知。
+
+### 10.1 三条缓动曲线
+
+| 曲线                                             | 用途                                           | 气质                   |
+| ------------------------------------------------ | ---------------------------------------------- | ---------------------- |
+| `ease-monopo` `cubic-bezier(0.19, 1, 0.22, 1)`   | 大范围变换：about 卡片展开、页面转场           | 耐心滑行，后半段舒缓   |
+| `ease-scroll-in` `cubic-bezier(0.16, 1, 0.3, 1)` | 滚动触发动画：`.anim-fade-up`、`.anim-stagger` | 轻声淡入，不抢夺注意力 |
+| `ease-hover` `cubic-bezier(0.32, 0.72, 0, 1)`    | 微交互：hover 态、active 态、按钮反馈          | 灵敏吸附，操作即响应   |
+
+### 10.2 时长阶梯
+
+| Token               | 值     | 用途         |
+| ------------------- | ------ | ------------ |
+| `--duration-fast`   | `0.2s` | 微交互反馈   |
+| `--duration-base`   | `0.6s` | 标准滚动动画 |
+| `--duration-monopo` | `0.8s` | 大范围变换   |
+
+### 10.3 滚动动画工具类
+
+Phase 4.2 提供三个通用工具类（见 `components.css` Anim Utilities）：
+
+- **`.anim-fade-up`** — 元素进入视口时从 24px 下方淡入上浮，`animation-timeline: view()` 驱动
+- **`.anim-stagger`** — 父容器子元素逐项错开，基础延迟 `--stagger-base: 80ms`
+- **`.parallax-container`** — 背景/前景层不同速率视差，`--parallax-bg-speed: 0.5`、`--parallax-fg-speed: 1`
+
+### 10.4 动效约束
+
+- **无自动循环动画**：所有动画由滚动或交互触发，不自动播放
+- **CJK 无倾斜**：中文字符不做 skew/rotate 变换，仅 opacity + translateY
+- **prefers-reduced-motion 降级**：所有动效通过 `@media (prefers-reduced-motion: reduce)` 关闭
+
+---
+
+## 11. 意象与视觉资产
+
+### 11.1 粒子星座
+
+Dala 粒子星座是 Home 画布的签名视觉锚点。粒子随 about 卡片展开而流动，形成「星座 → 散落 → 重聚」的叙事节奏。
+
+| Token             | 值                          | 用途                             |
+| ----------------- | --------------------------- | -------------------------------- |
+| `--particle-core` | `#4F71FF`                   | 粒子核心色（电光蓝）             |
+| `--particle-glow` | `#00E5FF`                   | 粒子辉光色（青蓝）               |
+| `--gradient-iris` | 135deg 蓝→青→琥珀极低透明度 | about 展开时的虹膜渐变氛围层     |
+| `--saffron-spark` | `#FFB829`                   | 琥珀火星，极低占比，点缀冷暖对比 |
+
+桌面端粒子数 160–200，移动端 60–80。粒子间连线仅在鼠标悬停 about 区域时绘制（非活动区域不连线）。
+
+### 11.2 图片 Token
+
+| Token                 | 值                      | 用途                                     |
+| --------------------- | ----------------------- | ---------------------------------------- |
+| `--img-radius`        | `var(--radius-content)` | 博客插图圆角，默认 8px                   |
+| `--img-grain-opacity` | `0.03`                  | 全局噪点叠加透明度（Phase 5 可选）       |
+| `--img-tint`          | `transparent`           | 图片着色叠加层，about 头像使用暖色调着色 |
+| `--avatar-shape`      | `50%`                   | 头像形状                                 |
+| `--avatar-size`       | `80px`                  | 头像尺寸，移动端 64px                    |
