@@ -75,9 +75,14 @@
 | **B 型首页**          | 首页感觉定位："这是我的数字生活"，像流动的河，不是功能列表或个人名片                                                          |
 | **艺术温暖**          | 全站视觉基调：偏艺术、有温度、不极简，设计阶段用 AI 工具定稿                                                                  |
 | **about 卡片**        | 首页导航栏中的隐藏卡片，点击展开，内含 3D 粒子画像 + 自我介绍                                                                 |
-| **DESIGN.md**         | 根目录下的视觉设计系统文件，9 节标准格式（Visual Theme → Agent Prompt Guide）。Phase 4.1 产出，AI agent 读入后按此风格生成 UI |
+| **DESIGN.md**         | 根目录下的视觉设计系统文件，11 节标准格式（Visual Theme → Imagery，含 Motion Principles + 粒子星座 + 图片 Token）。Phase 4.1 产出，AI agent 读入后按此风格生成 UI |
 | **taste-skill**       | anti-slop 前端质量控制 skill，安装后加载。Phase 4 中作为 Policy Engine 和 Quality Gate 使用                                   |
 | **frontend-rules.md** | docs/agents/ 下的前端规则固化文件，Phase 5.0 产出。各模块开发线程必须引用                                                     |
+| **`.anim-fade-up`**  | CSS 动画工具类，元素进入视口时从下方 24px 淡入上浮，animation-timeline: view() 驱动 |
+| **`.anim-stagger`**  | CSS 动画工具类，父容器子元素逐项错开淡入，基础延迟 80ms                     |
+| **`.parallax-container`** | CSS 动画工具类，背景/前景层不同速率视差滚动                           |
+| **`animation-timeline`**  | CSS 原生滚动驱动动画，view() 函数根据元素在视口中的位置控制动画进度              |
+
 | **CJK 排版**          | 中文排版规则（行高、字间距、标点挤压）。与英文排版不同，需单独覆盖                                                            |
 
 ---
