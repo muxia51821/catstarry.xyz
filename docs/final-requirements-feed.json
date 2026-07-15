@@ -1,222 +1,104 @@
 {
   "meta": {
-    "task_id": "00829296-607b-486f-89b3-40ad7f689291",
-    "created_at": "2026-07-04T13:18:00.314791+08:00",
-    "rounds_completed": "B1=7层, B2=6层, B3=6层（共19层）",
-    "termination_reason": "条件1：用户确认 drill 完成",
-    "model_used": "codewise-default",
-    "confidence_overall": "high"
+    "module": "feed",
+    "revision": "2026-07-15-home-feed-reflow",
+    "status": "revised",
+    "phase": "targeted-phase-2"
   },
-  "original_idea": {
-    "raw_input": "在 catstarry.xyz 建造 /feed 板块：统一时间线，展示碎碎念和剪藏两种卡片。木下从手机/电脑发布，访客公开浏览。",
-    "domain": "个人网站内容发布与展示"
-  },
+  "original_idea": "用碎碎念和剪藏组成统一时间线。",
   "clarified_goals": [
     {
-      "goal_id": "G001",
-      "description": "木下（唯一发布者）通过浮动+按钮打开发布面板，写文字并可选附加图片（最多6张/≤20MB）或视频（≤100MB/≤1分钟），发布后立即出现在时间线",
-      "measurable_criteria": "点击发布按钮 → 面板弹出 → 输入文字/选图/选视频 → 点击发布 → 面板关闭 → 时间线顶部出现新帖子",
-      "priority": 1,
-      "confidence": "high"
+      "goal": "让 Feed 成为木下公开足迹／来时路的唯一时间流。",
+      "measurable_criteria": [
+        "Feed 按时间倒序混排碎碎念、剪藏、Blog 发布、Learn 小节完成和 Projects 实质更新。",
+        "系统足迹清楚显示来源与动作，不伪装成手写碎碎念。",
+        "Home 不再重复展示这些内容。"
+      ]
     },
     {
-      "goal_id": "G002",
-      "description": "访客在 /feed 页面看到碎碎念和剪藏混合时间线，按时间倒序，无限滚动",
-      "measurable_criteria": "访问 /feed → 看到帖子列表（含两种卡片视觉）→ 滚动加载更多",
-      "priority": 1,
-      "confidence": "high"
+      "goal": "让系统足迹只记录真正的公开节点。",
+      "measurable_criteria": [
+        "Blog 仅在生产部署成功后产生足迹。",
+        "Learn 仅在明确完成小节后产生足迹。",
+        "Projects 仅在显式标记实质更新后产生足迹。",
+        "普通编辑、保存、部署失败、重复部署和历史内容不产生足迹。"
+      ]
     },
     {
-      "goal_id": "G003",
-      "description": "剪藏发布：输入URL → 自动抓取标题/摘要/封面(Open Graph) → 用户补充评论 → 发布为剪藏卡片",
-      "measurable_criteria": "粘贴URL → 自动显示标题、摘要、封面缩略图 → 输入评论 → 点击发布 → 时间线出现剪藏卡片（标题可点击跳转原文）",
-      "priority": 1,
-      "confidence": "high"
-    },
-    {
-      "goal_id": "G004",
-      "description": "媒体上传：图片最多6张/≤20MB(JPG/PNG/HEIC)，视频≤100MB/≤1分钟。一条帖子图或视频互斥。上传到Cloudflare R2，不转码不压缩，上传过程显示进度，失败自动重试一次后手动重新选择",
-      "measurable_criteria": "选图/视频 → 进度条 → R2存储 → 卡片展示图片网格或视频播放器 → 中断后自动重试一次 → 仍失败则提示手动重选",
-      "priority": 1,
-      "confidence": "high"
-    },
-    {
-      "goal_id": "G005",
-      "description": "认证登录：用户名+密码，Session有效期12小时，登录后发布按钮可见、管理后台入口可见",
-      "measurable_criteria": "未登录→发布按钮隐藏。登录成功后→按钮显示。12小时后需重新登录",
-      "priority": 2,
-      "confidence": "high"
-    },
-    {
-      "goal_id": "G006",
-      "description": "管理后台：/feed/admin页面，帖子列表按状态(公开/仅我可见/全部)+类型(碎碎念/剪藏)+日期范围筛选，支持多选批量隐藏/删除。隐藏可恢复公开，删除需二次确认且不可逆",
-      "measurable_criteria": "登录→进入管理后台→筛选→多选→隐藏/删除→确认",
-      "priority": 2,
-      "confidence": "high"
+      "goal": "让足迹保持可信、可管理且不反向改变来源内容。",
+      "measurable_criteria": [
+        "系统足迹在创建时保存标题、摘要、链接、时间和来源标识快照。",
+        "同一来源版本只有一条足迹。",
+        "系统足迹可隐藏，但隐藏不影响来源内容。",
+        "原生发布面板只创建碎碎念或剪藏。"
+      ]
     }
   ],
   "decision_points": [
     {
-      "point_id": "D001",
-      "question": "媒体上传到哪里？",
-      "options": [
-        "Cloudflare R2（与网站同生态）",
-        "阿里云OSS/腾讯云COS（国内更快）"
-      ],
-      "tradeoffs": "R2与现有CF生态统一、零运维；国内直连速度一般。选R2",
-      "recommendation": "Cloudflare R2 — 技术栈已锁定"
+      "decision": "Public Footprint 是跨模块统一的公开事件语义。",
+      "tradeoffs": "需要在 Phase 3 决定事件表、生产者接口和去重机制；换来 Home 不再承担耦合聚合。",
+      "status": "locked"
     },
     {
-      "point_id": "D002",
-      "question": "图片是否需要上传时转码/压缩？",
-      "options": [
-        "转码heic→jpg + 压缩分辨率",
-        "原图直传"
-      ],
-      "tradeoffs": "转码增加上传时间但改善浏览器兼容性和加载速度；原图直传省服务端处理但Firefox无法显示heic且加载慢",
-      "recommendation": "原图直传 — 用户不介意流量，Chrome/Edge/Safari兼容，Firefox小众无关紧要"
+      "decision": "不回填历史内容。",
+      "tradeoffs": "Feed 不会完整代表旧历史，但上线边界清楚且避免误导时间顺序。",
+      "status": "locked"
     },
     {
-      "point_id": "D003",
-      "question": "上传中断后如何处理？",
-      "options": [
-        "自动重试直到成功",
-        "自动重试一次后手动选择"
-      ],
-      "tradeoffs": "无限制重试可能在网络持续不可用时消耗资源；一次重试平衡了便捷性和用户控制",
-      "recommendation": "自动重试一次，失败后提示用户手动重选"
+      "decision": "Projects 实质更新由木下显式标记。",
+      "tradeoffs": "需要额外操作，但避免系统错误猜测更新的重要性。",
+      "status": "locked"
     },
     {
-      "point_id": "D004",
-      "question": "帖子操作入口在哪里？",
-      "options": [
-        "卡片上快捷入口 + 管理页面",
-        "仅管理页面"
-      ],
-      "tradeoffs": "卡片上快捷操作符合备忘录感；仅管理页面统一但需要额外步骤",
-      "recommendation": "仅管理页面 — 用户坚持不要卡片上快捷入口（B3第2层被追问后确认）"
+      "decision": "系统事件保存创建时快照。",
+      "tradeoffs": "来源普通编辑不回写 Feed，时间流保持历史语义。",
+      "status": "locked"
     }
   ],
   "constraints": {
     "hard": [
-      "Cloudflare 全家桶（Pages + Workers + D1 + KV + R2）",
-      "Astro hybrid + React(shadcn/ui) 框架",
-      "一条帖子只能选图或视频其中一种（互斥）",
-      "删除操作不可逆，必须二次确认弹窗",
-      "隐藏操作可恢复公开",
-      "Session 有效期12小时"
+      "原生内容仍只有碎碎念和剪藏。",
+      "系统足迹不可由发布面板手动伪造。",
+      "隐藏系统足迹不影响 Blog、Learn 或 Projects 的源内容。",
+      "不做历史回填。",
+      "不记录普通小编辑。"
     ],
     "soft": [
-      "图片≤20MB，视频≤100MB/1分钟",
-      "图片最多6张",
-      "上传进度条/百分比"
-    ],
-    "unknown": [
-      "R2 CORS配置是否需要Worker代理上传还是前端直传",
-      "Open Graph抓取的超时和重试策略"
+      "系统足迹的视觉应克制、可辨认，并与全站设计方向协调。",
+      "来源暂不可用时保留足迹快照。"
     ]
   },
   "boundaries": {
-    "确定要聊的": [
-      "发布流程（文字+媒体+剪藏）",
-      "时间线展示（两种卡片混合）",
-      "媒体处理（上传、存储、格式）",
-      "内容管理（隐藏、删除、筛选、批量操作）"
+    "in_scope": [
+      "原生 Feed 内容、系统足迹、时间线混排、快照、隐藏、去重、来源触发规则。"
     ],
-    "待确认的": [
-      "草稿暂存策略（localStorage？12小时过期？）",
-      "认证的KV存储结构",
-      "管理后台的归档浏览（按月折叠）"
+    "out_of_scope": [
+      "评论、点赞、多用户发布、定时发布、历史回填、自动判断 Projects 更新、Home 内容聚合。"
     ]
   },
   "assumptions": [
-    {
-      "assumption": "采用用户名+密码认证，不需要OAuth/第三方登录",
-      "validity": "validated",
-      "basis": "个人网站，木下唯一发布者"
-    },
-    {
-      "assumption": "feed-api Worker可复用现有Worker并扩展路由",
-      "validity": "unverified",
-      "basis": "现有feed-api已有/api/views端点，新增/api/feed路由"
-    },
-    {
-      "assumption": "访客不需要认证，feed页面公开",
-      "validity": "validated",
-      "basis": "handoff已锁定"
-    }
+    "Blog 能在生产部署成功时提供可消费的成功信号。",
+    "Learn 将提供明确的小节完成标记。",
+    "Projects 将提供显式的实质更新标记。",
+    "具体存储和 API 形态在定向 Phase 3 决定。"
   ],
   "risks": [
     {
-      "risk": "HEIC格式在Firefox不兼容，部分访客看到空白",
-      "severity": "minor",
-      "mitigation": "用户接受此风险，主流浏览器兼容即可"
+      "risk": "若事件生产者缺少稳定去重键，重复部署或重复操作会污染时间流。",
+      "severity": "high",
+      "mitigation": "Phase 3 必须定义来源版本与幂等策略。"
     },
     {
-      "risk": "国内访问Cloudflare R2速度可能较慢，影响大图/视频加载体验",
+      "risk": "若系统足迹与原生帖子共用不清晰的数据模型，管理和可见性规则可能混乱。",
       "severity": "medium",
-      "mitigation": "原图直传不压缩，后续可考虑R2挂自定义域名走CDN加速"
-    },
-    {
-      "risk": "上传中断后仅重试一次，用户如果在信号极差场景频繁上传会反复手动操作",
-      "severity": "minor",
-      "mitigation": "用户接受此交互"
+      "mitigation": "在 Phase 3 比较扩展现有存储与独立事件存储，并通过 ADR 记录。"
     }
   ],
   "stakeholders": [
-    {
-      "role": "木下",
-      "power_level": "decision-maker",
-      "needs": [
-        "快速发布碎碎念和剪藏",
-        "媒体上传可靠",
-        "轻度内容管理"
-      ],
-      "concerns": [
-        "上传失败体验",
-        "管理入口不要破坏备忘录感"
-      ]
-    },
-    {
-      "role": "访客",
-      "power_level": "user",
-      "needs": [
-        "浏览时间线",
-        "查看碎碎念图片/视频",
-        "点击剪藏跳转原文"
-      ],
-      "concerns": [
-        "HEIC在Firefox看不到",
-        "大图加载慢"
-      ]
-    },
-    {
-      "role": "cati",
-      "power_level": "user",
-      "needs": [
-        "和访客一致的浏览体验"
-      ],
-      "concerns": []
-    }
+    "木下",
+    "公开访客"
   ],
-  "open_questions": [
-    {
-      "question": "草稿暂存的具体策略：localStorage还是D1？过期时间12小时？打开面板时自动恢复？",
-      "blocker_level": "medium",
-      "suggested_next_step": "Phase 2规格化阶段确认"
-    },
-    {
-      "question": "R2上传是前端直传（presigned URL）还是通过Worker代理？",
-      "blocker_level": "medium",
-      "suggested_next_step": "Phase 3架构设计阶段确认"
-    },
-    {
-      "question": "管理后台的归档浏览（按月折叠）需要吗？B3已有筛选，按月折叠是否冗余？",
-      "blocker_level": "low",
-      "suggested_next_step": "Phase 2规格化阶段确认"
-    }
-  ],
-  "model_notes": {
-    "grill_me_model": "B1和B3部分由先前对话的grill-me完成，B2和B3补缺由本对话完成"
-  }
+  "open_questions": [],
+  "model_notes": "本文件由 Home / Feed 定向回流更新；它将 Feed 定义为公开足迹／来时路。"
 }
