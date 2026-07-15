@@ -3,23 +3,23 @@ import Base from "../../layouts/Base.astro";
 import ArticleFooter from "../../components/ArticleFooter";
 import ViewCounter from "../../components/ViewCounter";
 import { getCategoryLabel } from "../../lib/category";
-import { getCollection } from "astro:content";
+import { getCollection, render } from "astro:content";
 
 export async function getStaticPaths() {
   const posts = await getCollection("blog", ({ data }) => !data.draft);
   return posts.map((post) => ({
     params: {
-      slug: post.data.slug ?? post.id.replace(/\.mdx?$/, ""),
+      slug: post.id,
     },
     props: { post },
   }));
 }
 
 const { post } = Astro.props;
-const viewSlug = post.data.slug ?? post.id.replace(/\.md$/, "");
-const { Content } = await post.render();
+const viewSlug = post.id;
+const { Content } = await render(post);
 
-const resolvedSlug = post.data.slug ?? post.id.replace(/\.mdx?$/, "");
+const resolvedSlug = post.id;
 const pageDesc = post.data.description ?? "";
 const canonicalUrl = new URL(
   `/blog/${resolvedSlug}/`,

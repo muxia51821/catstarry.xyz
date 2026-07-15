@@ -12,7 +12,7 @@
     "@giscus/react": "^3.1.0",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
-    "astro": "^5.5.0",
+    "astro": "7.0.9",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
   }

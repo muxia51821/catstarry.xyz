@@ -22,8 +22,8 @@ function toRFC822(date: Date): string {
   return days[date.getUTCDay()] + ', ' + pad(date.getUTCDate()) + ' ' + months[date.getUTCMonth()] + ' ' + date.getUTCFullYear() + ' ' + pad(date.getUTCHours()) + ':' + pad(date.getUTCMinutes()) + ':' + pad(date.getUTCSeconds()) + ' ' + tz;
 }
 
-function getSlug(post: { data: { slug?: string }; id: string }): string {
-  return post.data.slug ?? post.id.replace(/\.md$/, '');
+function getSlug(post: { id: string }): string {
+  return post.id;
 }
 
 function truncateMd(text: string, maxLen: number): string {
