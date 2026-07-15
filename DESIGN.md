@@ -1,619 +1,668 @@
 ---
-version: 1.4
+version: 2.0
 name: catstarry.xyz-design-system
-description: catstarry.xyz 专属视觉设计系统。以 WCAG 合规的克莱因蓝 5 阶体系为Brand Voltage，Home 以 Meta 科技结构为骨架，融合 Dala 粒子星座与 Monopo 冷调虹彩；Content 采用奶油画廊 (Cream Canvas) 基底，呈现艺术出版物质感；Finance 沿用 Wizard 松石绿 CTA 与 Binance 暗黑交易台。支持 Dark/Light 语义化无缝切换。CJK 优先，锋利几何，WCAG 与 GB/T 44808 双合规。
+description: catstarry.xyz 视觉与交互设计系统。Home 是从远处接近 catstarry 星域的空间导航入口；Content 是奶油画廊；Finance 是赛博数据暗面。以 Klein Blue 作为全站 Brand Voltage，以暖性地质星球、克制粒子与滚动纵深构成 Home 的宇宙语法，同时保持 CJK 优先、WCAG 与 GB/T 44808 可访问性约束。
 ---
 
 # catstarry.xyz 设计系统
 
-> Phase 4.1 (Design 1.4) 产出。
-> 核心修正：落地克莱因蓝 5 阶 WCAG 合规色阶；重构暗底中性色解决发丝线隐形；粒子与氛围色统一冷调消除色相冲突；补充 CJK 排版工程级硬约束；明确三画布风格权重与气质分层。
+> Phase 4.1（Design 2.0）审定稿。
+>
+> 本版以 ADR-005、ADR-006、Home / Feed 定向回流后的需求与验收为边界。它替代 Design 1.4 中“Home 两栏布局、About 首屏卡片、Home 混合时间线”的旧假设。
+
+---
+
+## 0. 状态、边界与使用方式
+
+### 0.1 当前阶段
+
+- 当前仍是 Phase 4.1：锁定视觉系统、语义接口和交互规则。
+- Phase 4.2 尚未开始：只负责用一次性原型校准滚动距离、视差比例、资源规格与动效参数。
+- Phase 5 尚未开始：本文件不授权生产组件、页面或数据实现。
+
+### 0.2 上游边界
+
+- ADR-005：Feed 的原生内容与 Public Footprint 物理存储分离，但 UI 读取统一的 Public Timeline 投影；视觉组件不得感知底层表结构。
+- ADR-006：Home 是静态星图入口，采用 SSG；没有 /api/home、HomeTimelineItem、五源聚合、Recently 或跨模块最新内容读取。
+- Home 只承担空间叙事、导航、About 原地展开和静态 SEO。
+- Blog、Feed、Learn、Projects 保持各自真实功能布局，不被改造成“星球内部页面”。
+
+### 0.3 锁定与待验证
+
+本文件锁定：
+
+- 三画布及品牌色关系；
+- Home 的叙事顺序、星图职责、星球视觉语言与交互语义；
+- About 星球与豹猫卫星的双路径；
+- 鼠标流星尾的画布范围；
+- Feed 原生内容与系统足迹的视觉分工；
+- 新 token 家族的命名职责和资产接口。
+
+Phase 4.2 只校准：
+
+- 星图是否短暂 sticky，以及具体滚动距离；
+- 各景深层的视差比例、模糊量与缩放量；
+- 星球图片分辨率、裁切、加载切换点；
+- 豹猫粒子密度、蓄能与回收时长的最终数值；
+- 移动端粒子数量和动效降级幅度。
 
 ---
 
 ## 1. 视觉主题与氛围
 
-catstarry.xyz 是木下的数字生活流——不是名片，不是产品 landing page，不是博客列表。系统采用三画布架构，以适配完全不同的内容语境的气质表达，全局风格权重统一为：Meta 结构基底 > Monopo/Dala 艺术气质 > Webflow 细节补充。
-**Home（Sci-Fi Editorial）** —— 单一克莱因蓝 (`#002FA7`) 是唯一品牌色与 CTA 色，提供极致的艺术Voltage。基底：Meta 式清晰的色彩层级与两栏产品化布局，冷调深黑画布。灵魂：Dala 粒子星座作为签名视觉锚点。细节：大字号排版张力，克制的交互反馈，整体呈现先锋科技感而非纯艺术虚空排版信任巨大字号差，英文标题轻如耳语，中文标题稳重落地。
-**Content Pages（Cream Gallery）** —— 奶油暖白画廊底 (`#FAF9F5`) + 暖墨色文字。从 Home 的暗黑虚空反转为温暖的艺术画廊，利用克莱因蓝与奶油底色的互补色张力营造先锋艺术感。排版回归中文阅读舒适区（行高 ≥1.85，标点挤压）。卡片采用深奶油底、锋利的 8px 圆角与暖咖发丝线，依靠色阶而非重阴影建立层级。Dala的艺术基因以“微观残响”形式存在（英文 ultra-light 字重与极低透明度青色粒子点缀）。
-**Finance（Cyber Arena）** —— 深黑画布 + 松石绿 CTA (`#5eaf9e`) + 涨绿跌红。数字优先，表格密度，暗黑双态。抛弃传统金融黄，采用 Wizard 的竞技游戏感色彩（Binance/Wizard 基因）。
+catstarry.xyz 是木下持续生长的数字生活空间。宇宙是全站共享的空间语法，不是所有页面都铺满星星；内容本身始终是主角。
 
-### 1.1 关键特征
+### 1.1 三画布系统
 
-- **三画布系统**：Home 暗黑虚空 / Content 艺术画廊 / Finance 赛博暗面，各画布变量严格隔离
-- **克莱因蓝 Voltage**：全站 Home 与 Content 品牌色 `#002FA7`，纯粹的先锋艺术感
-- **松石绿竞技场**：Finance 唯一主 CTA 色 `#5eaf9e`，冷酷而充满能量
-- **电光蓝微观残响**：`#4F71FF` 在 Home 聚合为粒子星座，在 Content 以极低透明度作为环境点缀
-- **锋利几何**：卡片圆角降级为 8px-20px，摒弃 SaaS 感，回归画廊锋利感
-- **CJK 优先排版**：中文正文行高 ≥1.85，严格标点挤压，中英文字距分离设定
+| 画布 | 页面 | 气质 | 核心职责 |
+| --- | --- | --- | --- |
+| Home / Deep Space | / | 克制、深邃、具有真实纵深的暖性地质宇宙 | 进入 catstarry、理解板块、直接导航、原地展开 About |
+| Content / Cream Gallery | /blog、/feed、/learn、/projects | 温暖、安静、艺术出版物质感 | 阅读、时间流、学习节奏与项目展示 |
+| Finance / Cyber Arena | f.catstarry.xyz | 精确、冷静、数据优先 | 私密财务数据与操作 |
+
+统一关系：
+
+- Klein Blue 是全站 Brand Voltage：负责导航、焦点、边缘光、信号与关键动作。
+- Home 使用完整宇宙空间；Content 只借用少量地质材质和光学残响；Finance 不继承星图装饰。
+- 豹猫是木下的个人签名，不是 Home 主角、全站 mascot 或分类图标。
+- 五颗星球平权；大小、远近和出现顺序只表达空间纵深，不表达栏目重要性。
+
+### 1.2 Home：同一片星域的连续空间
+
+Home 不是多个独立 section 拼接出的作品集，也不是游戏地图。它是同一片星域从远到近的连续观察：
+
+1. **宇宙入口**：深空、大留白、远处星点和待定世界观短句；一次性流星与 DISCOVER MORE 提供继续探索的入口。
+2. **接近星域**：自然滚动推进 2–3 个视口的空间距离；远、中、近景产生轻量视差，星点逐渐分化为完整小型星球。
+3. **自由星图总览**：About、Blog、Feed、Learn、Projects 五颗完整星球自由分布；标签低声量常驻，hover / focus 时清晰。
+4. **直接抵达**：点击 Blog、Feed、Learn、Projects 后，从当前视角短暂推进目标星球，再进入对应功能页。
+5. **About 例外**：点击 About 星球或通过豹猫彩蛋触发后，在 Home 原地展开介绍。
+6. **自然收束**：星图释放后进入页脚；没有 Home Recently、内容卡片、类型筛选或无限信息流。
+
+首次看见的总览与后续聚焦属于同一片星图，不重复建立第二张地图。
+
+### 1.3 星球不是抽象节点
+
+远处可以是抽象星点，但靠近后必须逐步成为具有体积、光照、大气或地表细节的星球。
+
+| 观看尺度 | 必须看到 | 禁止退化为 |
+| --- | --- | --- |
+| Entry / 远景 | 星点、微光、极少量星尘 | 五个带文字的圆形按钮 |
+| Approach / 接近 | 星点分化为完整的小型球体，开始出现不同轮廓和材质 | 永久抽象节点、发光圆环 |
+| Overview / 总览 | 五颗完整星球全貌，自由分布，可区分地貌、环、气层或切面 | 五张等大的产品卡片 |
+| Focus / 聚焦 | 高细节弧面、地表、阴影、大气与微观材料；可只露出局部 | 简单放大低清总览图 |
+| Push / 点击推进 | 目标星球快速占据视野并把材质色调带入页面转场 | 长时间不可跳过的影片 |
+
+首选视觉方案是高质量预渲染星球图与 2.5D 演出。真实感来自一致的光照、体积、阴影和材质，不要求实时 WebGL 自转或可拖拽 3D。
+
+当写实渲染过于接近通用科幻素材时，可采用高质量抽象地质绘画作为创作分支。像素化或点阵化只用于远景显影、信号干扰和转场，不能成为全部星球的永久样式。
+
+### 1.4 共享暖性地质宇宙
+
+统一原则：
+
+> 共享温暖地质，差异化地貌；共享 Klein Blue 光学，不共享 Klein Blue 地表。
+
+- 星球主体使用奶油、砂岩、陶土、赭色、浅矿物与冷阴影。
+- Klein Blue 只用于边缘光、航线、焦点、卫星和交互反馈，不大面积涂满星球。
+- 自然天体是主体；纸浆、陶釉、颜料沉积等艺术材料只在聚焦近看时成为微观质感。
+- 每颗星球只保留一个总览可辨认的主地貌，至多一个近看艺术质感，避免堆叠环、植物、晶体、机械、云海与建筑。
+- 五颗星球使用同一主光方向、景深规律、阴影温度与资产校色标准。
+
+### 1.5 五颗星球材质矩阵
+
+| 星球 | 总览主地貌 | 聚焦后的微观质感 | 应避免 |
+| --- | --- | --- | --- |
+| About | 安静、低修辞的浅色岩质星体 | 细微毛发般矿物纹理或柔和尘埃层 | 猫头星、猫形星球、强人格 mascot |
+| Blog | 风化层状岩、沉积地层 | 纸浆纤维、墨迹般矿脉、颜料沉积 | 书本、羽毛笔等直白文学符号 |
+| Feed | 有流向感的低洼地表、沉积河谷 | 脚印、细小闪屑、被时间冲刷的纹理 | 社交 App 图标、信息流屏幕、水球直译 |
+| Learn | 地质断层、逐步显露的矿脉 | 刻线、石墨、微晶结构 | “知识水晶”、大脑等常见 AI 隐喻 |
+| Projects | 自然地表上的人工切割、台地或嵌入式结构 | 陶釉、金属嵌线、几何构造 | 全机械星球、赛博工厂、飞船基地 |
+
+### 1.6 Content：借用材质，不搬运星球
+
+Blog、Feed、Learn、Projects 继续使用 Cream Gallery 的现有功能布局。星球只是入口与材质母题。
+
+- Blog 可借层状沉积的页首纹理、文章封面裁切或分隔线。
+- Feed 可借河谷的时间方向、轻微沉积纹理和足迹语义。
+- Learn 可借断层、刻线或矿脉关系表达章节与进度。
+- Projects 可借台地、切面与嵌线表达项目状态和结构。
+- Content 页面不出现完整行星、星图滚动、3D 飞行或宇宙背景。
+- 借用必须低剂量，不能改变文章列表、时间线、学习节奏和项目卡片的主体信息架构。
 
 ---
 
-## 2. 色彩系统
+## 2. 色彩与 Token 系统
 
-### 2.1全站通用：克莱因蓝色阶（WCAG 2.1 AA 合规）
+### 2.1 三层 Token 架构
 
-锚定 Meta 钴蓝色阶逻辑，以克莱因蓝为核心扩展 5 阶完整体系，亮底 / 暗底均满足对比度要求。
-/_ Klein Blue Scale (WCAG 2.1 AA Compliant) _/
---klein-600: #001F70; /_ 亮底 Hover/Active (深压) _/
---klein-500: #002FA7; /_ 亮底 CTA，重点文字 **品牌色，logo** (绝对艺术蓝) _/
---klein-400: #335CFF; /_ 暗底主 CTA，边框 (对比度 3.5:1 on #0A0A0C) _/
---klein-300: #6685FF; /_ 暗底次级图标，亮底辅助链接 (需配合下划线) _/
---klein-100: #E6ECFF; /_ 亮底选中背景，淡色提示条 _/
+设计 token 分三层：
 
-### 2.2 Home 画布 —— 暗色虚空
+| 层级 | 职责 | 示例 |
+| --- | --- | --- |
+| Layer 1 / Primitives | 原始色值、尺寸、时长、曲线、材质值 | Klein Blue 色阶、地质色、基础透明度 |
+| Layer 2 / Semantic | 画布和语义角色 | bg-base、text-primary、space-star-near、planet-rim |
+| Layer 3 / Component | 组件状态映射 | star-map-label、about-satellite、cursor-meteor、feed-footprint |
 
-| Token                 | 色值                      | 核心用途                                      |
-| --------------------- | ------------------------- | --------------------------------------------- |
-| --home-void           | #0A0A0C                   | 页面底色（极暗冷灰，严禁使用 #000000 防光晕） |
-| --home-surface-soft   | #121722                   | 导航/次级表面                                 |
-| --home-surface-card   | #1A2030                   | 卡片底色                                      |
-| --home-border-hover   | rgba(255, 255, 255, 0.16) | 卡片 Hover 态边框（提升至 16% 满足 WCAG 3:1） |
-| --home-text-primary   | #E5E7EB                   | 主文本/标题 (控制对比度在 16.5:1 左右)        |
-| --home-text-secondary | #9CA3AF                   | 次级文本                                      |
-| --home-text-muted     | #6B7280                   | 辅助/说明文字                                 |
+组件只能消费 Layer 2 或 Layer 3，不直接跨层绑定 Layer 1 原始值。Phase 4.1 锁定 token 的职责和命名家族；Phase 4.2 才校准大部分新数值。
 
-> **注意**：暗底主 CTA 专用色 `--klein-400`（#335CFF）在 2.1 节定义，需用于 `btn-primary-home` 等交互元素以确保 WCAG 非文本对比度 ≥ 3:1。 粒子星座专用色 `--particle-core` (#4F71FF) 在 2.6 节定义。
+纹理文件、星球贴图、豹猫节点数据和图片裁切不是 CSS token，应进入资产清单。
 
-### 2.3 Content 画布 —— 奶油画廊 (Cream Gallery)
+### 2.2 Klein Blue 色阶
 
-| Token                    | 色值    | 核心用途                             |
-| ------------------------ | ------- | ------------------------------------ |
-| --content-gallery        | #FAF9F5 | 页面底色，奶油暖白，消除数码感       |
-| --content-surface-soft   | #F5F0E8 | 极浅区块底色                         |
-| --content-surface-card   | #EFE9DE | 卡片底色，深奶油色，靠色阶托起层级   |
-| --content-hairline       | #E6DFD8 | 卡片发丝线边框，暖咖色               |
-| --content-text-primary   | #141413 | 主文字，暖墨黑，避免冷黑在暖底上突兀 |
-| --content-text-body      | #3D3D3A | 正文色，暖灰黑                       |
-| --content-text-secondary | #6C6A64 | 次级文字，暖灰                       |
+| Token | 值 | 用途 |
+| --- | --- | --- |
+| --klein-600 | #001F70 | 亮底 Hover / Active |
+| --klein-500 | #002FA7 | 品牌基准、亮底 CTA 与重点 |
+| --klein-400 | #335CFF | 暗底可交互元素与可见边缘 |
+| --klein-300 | #6685FF | 暗底辅助图标、次级信号 |
+| --klein-100 | #E6ECFF | 亮底选中背景与淡提示 |
 
-> **注**：Content 页面 CTA 与激活态全站统一复用 Home 的 `--klein-500`\_
+Klein Blue 的艺术纯度由 --klein-500 定义；暗底交互必须根据对比度使用更亮阶，不能为了品牌纯度牺牲可见性。
 
-### 2.4 Finance 画布 —— 赛博暗面 (Cyber Arena)
+### 2.3 画布基础色
 
-| Token                      | 色值    | 核心用途                                  |
-| -------------------------- | ------- | ----------------------------------------- |
-| --finance-dark             | #0b0e11 | 页面底色 (Binance 基因)                   |
-| --finance-surface          | #1e2329 | 卡片底色                                  |
-| --finance-surface-elevated | #2b3139 | 嵌套卡片，hover 态                        |
-| --finance-cta-green        | #5eaf9e | 主 CTA ，松石绿 (Wizard 基因，必须配黑字) |
-| --finance-up               | #f6465d | 上涨/正值                                 |
-| --finance-down             | #0ecb81 | 下跌/负值                                 |
-| --finance-text-primary     | #eaecef | 主文本                                    |
-| --finance-text-secondary   | #848e9c | 次级文本/表头                             |
+| 画布 | 基底 | 表面 | 主文字 | 主 CTA |
+| --- | --- | --- | --- | --- |
+| Home | --home-void: #0A0A0C | --home-surface-soft: #121722 | --home-text-primary: #E5E7EB | --klein-400 |
+| Content | --content-gallery: #FAF9F5 | --content-surface-card: #EFE9DE | --content-text-primary: #141413 | --klein-500 |
+| Finance | --finance-dark: #0B0E11 | --finance-surface: #1E2329 | --finance-text-primary: #EAECEF | --finance-cta-green: #5EAF9E |
 
-### 2.5 类别标记色（Home + Feed 共用）
+继续保留现有暖墨正文、Content 发丝线、Finance 涨跌色与 WCAG 对比度要求。
 
-| Token                  | 色值      | 内容类型 |
-| ---------------------- | --------- | -------- |
-| `--color-cat-blog`     | `#7a3dff` | 博客     |
-| `--color-cat-feed`     | `#3b89ff` | 碎碎念   |
-| `--color-cat-bookmark` | `#00d722` | 剪藏     |
-| `--color-cat-project`  | `#ff6b00` | 项目     |
-| `--color-cat-learn`    | `#ed52cb` | 学习笔记 |
+### 2.4 Home 空间 Token 家族
 
-### 2.6 /_ Dala & Monopo Signature _/
+以下是 v2 必须提供的语义接口，具体值由后续 CSS 对齐与 Phase 4.2 校准：
 
---color-particle-core: #4F71FF； /_ 粒子核心色 (电光蓝，保持冷色调) _/
---color-particle-glow: #00E5FF; /_ 粒子边缘光晕 (青色，Sci-Fi 经典对比) _/
---gradient-iris-cold: linear-gradient(135deg, rgba(79, 113, 255, 0.4), rgba(0, 229, 255, 0.1), rgba(255, 184, 41, 0.05)); /_ 冷调虹彩，去除暖色脏感 _/
+| 家族 | 建议 Token | 职责 |
+| --- | --- | --- |
+| Deep Space | --space-bg、--space-haze、--space-dust | 深空、远雾、微尘 |
+| Depth Stars | --space-star-far、--space-star-mid、--space-star-near | 三档景深星点的颜色、透明度和尺度 |
+| Depth State | --space-depth-muted、--space-depth-active | 非焦点与当前焦点的光学差异 |
+| Route | --space-route、--space-route-active | 低音量航线与交互增强 |
+
+### 2.5 星球光学、材质与状态 Token
+
+星球可能需要较多 token，但必须按职责分组，不能为每张贴图建立一套无规律变量。
+
+| 家族 | 建议 Token | 职责 |
+| --- | --- | --- |
+| Optical | --planet-light-main、--planet-shadow-cold、--planet-rim、--planet-atmosphere | 统一主光、冷阴影、边缘光与大气 |
+| Surface | --planet-surface-cream、--planet-surface-sand、--planet-surface-clay、--planet-surface-mineral | 暖性地质基础 |
+| Detail | --planet-detail-graphite、--planet-detail-pigment、--planet-detail-metal、--planet-grain | 近看微观材料 |
+| Contrast | --planet-surface-contrast、--planet-surface-saturation、--planet-detail-opacity | 总览与聚焦的材质强度 |
+| Scale | --planet-scale-entry、--planet-scale-overview、--planet-scale-focus | 三档观看尺度 |
+| Focus | --planet-focus-rim、--planet-focus-glow、--planet-focus-label | hover / focus 状态 |
+| Transition | --planet-push-scale、--planet-push-fade、--planet-push-duration | 点击短推进的语义接口 |
+
+五颗星球通过 Layer 3 别名映射这些共用值，例如 planet-blog-surface、planet-feed-detail。禁止建立五套互相无关的品牌色。
+
+### 2.6 信号卫星
+
+Klein Blue 小卫星是轻量的星图视觉标记：
+
+- 每颗星球最多一颗；
+- 默认静止，尺寸远小于主星；
+- 位于主星轮廓外，不遮挡地表和标签；
+- 只允许一段不完整、低透明度的轨道；
+- 首次进入视野或获得 focus 时可短脉冲一次，不持续闪烁。
+
+建议 token：--signal-satellite-size、--signal-satellite-color、--signal-satellite-orbit、--signal-satellite-pulse、--signal-satellite-opacity。
+
+重要边界：ADR-006 已锁定 Home 不读取最新内容，因此 v2 中的信号卫星不能自动表达“最近更新”或 Feed 新鲜度，只能承担静态视觉、焦点或导航状态。若未来要让它反映 Public Footprint 的时间状态，必须重新走需求与架构回流，不能在 Phase 4.2 或实现阶段静默添加数据依赖。
+
+About 的豹猫卫星与普通信号卫星是两种不同角色，不共享行为语义。
+
+### 2.7 豹猫 Token 家族
+
+豹猫使用 Klein Blue 光学体系，不单独建立“暖铜豹猫”品牌色。
+
+建议 token：
+
+- --leopardcat-particle、--leopardcat-line、--leopardcat-glow；
+- --leopardcat-rest-opacity、--leopardcat-focus-opacity；
+- --leopardcat-charge-scale、--leopardcat-charge-orbit；
+- --leopardcat-dust-radius、--leopardcat-recover-duration。
+
+现有 --cat-warm、--cat-dark、--cat-eye-glow 等过早预设不得继续扩展；后续 CSS 对齐时应废弃或迁移到上述通用光学语义。
+
+### 2.8 鼠标流星尾 Token 家族
+
+建议 token：
+
+- --cursor-meteor-head；
+- --cursor-meteor-trail；
+- --cursor-meteor-glow；
+- --cursor-meteor-length；
+- --cursor-meteor-width；
+- --cursor-meteor-decay；
+- --cursor-meteor-debris-opacity。
+
+画布范围已锁定：
+
+- Home：完整但克制的鼠标流星尾；
+- Content：更短、更淡、碎屑更少，只作为个人签名残响；
+- Finance：关闭，避免干扰数据读取和精确操作。
+
+鼠标流星尾与首屏 DISCOVER MORE 流星不是同一个组件，也不承担同一种语义。
+
+### 2.9 Feed Public Footprint Token
+
+Feed 仍可保留现有内容类别色，但颜色只作冗余标记，不能成为唯一编码。
+
+新增语义接口：
+
+- --footprint-surface、--footprint-border、--footprint-source；
+- --footprint-action、--footprint-meta、--footprint-link；
+- --footprint-blog、--footprint-learn、--footprint-project。
+
+这些 token 只决定统一时间线中的视觉层级，不暴露 Public Footprint 与原生 Feed 内容的物理存储差异。
 
 ---
 
 ## 3. 排版系统
 
-### 3.1 字体栈 (Font Stack)
+### 3.1 字体角色
 
-本系统采用“四轨制”字体架构，严格区分品牌展示、UI 交互、数据呈现与 CJK 兜底场景。所有字体均通过 CSS 变量进行全局管控。
+| 角色 | 字体 | 用途 |
+| --- | --- | --- |
+| Display | IBM Plex Sans + HarmonyOS Sans | Home 入口、画廊标题、品牌骨架 |
+| UI / Body | Geist + HarmonyOS Sans | 导航、正文、卡片与操作 |
+| Data / Mono | JetBrains Mono | Finance 数值、时间戳、低音量坐标 |
+| CJK Fallback | HarmonyOS Sans SC、PingFang SC、Microsoft YaHei | 中文兜底 |
 
-| 角色             | 字体家族 (Font Family)                  | 气质定位                     | CSS 变量定义     | 说明                                                                                              |
-| :--------------- | :-------------------------------------- | :--------------------------- | :--------------- | ------------------------------------------------------------------------------------------------- |
-| **Display**      | `IBM Plex Sans` ， `HarmonyOS Sans`     | 工业画廊、理性金融、品牌骨架 | `--font-display` | Monopo 基因，信任字号不信任字重。IBM Plex Sans 为 94px 标题首选，HarmonyOS Sans 作为 300 字重后备 |
-| **UI / Body**    | `Geist` ， `HarmonyOS Sans`             | 极致可读、现代界面、信息传递 | `--font-body`    | Dark Mode 下的推荐值，创造 Dala 漂浮感，Geist 为 UI 和正文首选，HarmonyOS Sans 为字符后备         |
-| **Data / Mono**  | `JetBrains Mono`                        | 极客赛博、精准数据、代码终端 | `--font-mono`    | 等宽字体，用于 Finance 价格、成交量等表格数字                                                     |
-| **CJK Fallback** | `HarmonyOS Sans SC` , `Microsoft YaHei` | 优雅现代、中文兜底           | `--font-cjk`     | CJK 优先，屏幕阅读优化 ，全站中文专用，与英文栈严格隔离                                           |
+Home 的原“Hero Display”角色更名为 **Entry Display**。它服务宇宙入口的世界观短句，不承担产品 landing page 的大促销标题。
 
-> **CSS 变量映射 (定义在 `variables.css` 的 `:root` 中)：**
+### 3.2 字号层级
 
-### 3.2 Home 字号层级 (Sci-Fi Editorial)
+| 角色 | EN | CN | 字重 | 行高原则 |
+| --- | --- | --- | --- | --- |
+| Entry Display | 最大 94px | 最大 84px | EN 300 / CN 400 | EN 0.9；CJK ≥ 1.25 |
+| Heading LG | 最大 78px | 最大 70px | EN 300 / CN 400 | CJK ≥ 1.30 |
+| Heading | 最大 54px | 最大 48px | 400 | CJK ≥ 1.35 |
+| Subheading | 最大 39px | 最大 35px | 400 | CJK ≥ 1.40 |
+| Body LG | 18px | 16px | EN 300 / CN 400 | CJK ≥ 1.85 |
+| Body | 16px | 16px | 400 | CJK ≥ 1.85 |
+| Nav | 14px | 14px | EN 600 / CN 500 | 1.20 |
+| Caption | 12px | 12px | 400 | 1.50 |
 
-> _注：中文视觉密度高于英文，Display 级别字号强制按 0.9x 缩放。行高列为英文基准，若包含 CJK 字符必须使用「CJK 强制行高」列。_
+Display 至 Heading 必须流式缩放。中文显示字号约为英文的 0.9 倍，不使用负字距。
 
-| 角色           | EN 字号 | CN 字号 | EN 字重/字距   | CN 字重/字距 | EN 行高 | CJK 强制行高 | 说明        |
-| :------------- | :------ | :------ | :------------- | :----------- | :------ | :----------- | :---------- |
-| **Display**    | 94px    | 84px    | 300 / -0.04em  | 400 / 0      | 0.90    | **1.25**     | Hero 大标题 |
-| **Heading LG** | 78px    | 70px    | 300 / -0.04em  | 400 / 0      | 1.00    | **1.30**     | 区块标题    |
-| **Heading**    | 54px    | 48px    | 400 / -0.03em  | 400 / 0      | 1.10    | **1.35**     | 次级标题    |
-| **Subheading** | 39px    | 35px    | 400 / -0.02em  | 400 / 0      | 1.20    | **1.40**     | 卡片标题    |
-| **Body LG**    | 18px    | 16px    | 200 / 0        | 400 / 0      | 1.60    | **1.85**     | 导读文本    |
-| **Body**       | 16px    | 16px    | 400 / 0        | 400 / 0      | 1.60    | **1.85**     | 正文起步    |
-| **Nav**        | 14px    | 14px    | 600 / +0.025em | 500 / 0      | 1.20    | 1.20         | 导航        |
-| **Caption**    | 12px    | 12px    | 400 / 0        | 400 / 0      | 1.50    | 1.50         | 注释        |
+### 3.3 CJK 强制规则
 
-- **3.2.1 响应式缩放与深浅模式微调 (Fluid & Theme Adaptation)**
-- **流式缩放 (Fluid Typography)**：所有 Display 至 Heading 层级必须使用 `clamp()` 函数，断点对齐全局响应式断点 (640px / 1024px)。例如：`font-size: clamp(48px, 8vw, 94px);`。
-- **深浅模式字重差异**：
-- **Dark Mode (默认)**：Display 英文使用 `font-weight: 300`，字距 `-0.04em`（Monopo 低语感）。
-- **Light Mode (Cream Canvas)**：由于亮底“光渗效应 (Optical Bleed)”，Display 英文必须加粗至 `font-weight: 400`，字距放松至 `-0.02em`，防止细笔画在暖白底上断裂。
-- **CJK 隔离**：无论深浅模式，中文 Display 始终锁定 `font-weight: 400`，字距 `0`。
+- 中文正文行高不低于 1.85，标题不低于 1.35，说明文字不低于 1.65。
+- 中文最高常用字重 500，不使用 700 以上制造“粗黑科技感”。
+- 中文字距为 0 或 normal；负字距只用于纯英文或数字标题。
+- 中英文、中文与数字之间保留约 1/4 em 的自动间距。
+- 支持标点挤压和行首行尾禁则；多行中文标题的绝对 line-gap 不低于 16px。
+- 星球标签默认低声量，但仍需满足可发现性；hover / focus 后必须达到正文可读对比度。
 
-### 3.3 CJK 排版规则（核心规范）
+### 3.4 Finance 排版
 
-由于文档以中文语境居多，所有涉及中文的排版必须严格遵守以下规则：
-
-1. **行高**：正文 `>=1.85`，标题 `>=1.35`，说明文字 `>=1.65`。中文汉字视觉密度大，绝不能使用英文的 1.2-1.5 行高。
-2. **字重**：中文不使用 `bold (700+)`，标题与正文统一使用 `400`。
-3. **字间距（关键修正）**：
-
-- **纯英文/数字标题**：必须使用负字距（如 -0.04em），这是 Monopo 基因的精髓。
-- **CJK 标题与正文**：**绝对禁止负字距**，强制设为 `0` 或 `normal`。中文字框自带留白，负字距会导致笔画重叠。
-
-4. **标点挤压**：
-
-- 使用 CSS `text-spacing-trim: trim-start` 或等价 JS 方案。
-- 行首禁止出现的标点：`，。、；：）」』】`
-- 行尾禁止出现的标点：`（「『【`
-- 连续标点之间挤压全角为半角。
-
-5. **中英混排**：
-
-- 中文与英文/数字之间自动插入 `1/4 em` 间距（不可手动敲空格）。
-- 英文/数字不使用 CJK 字体，自动 fallback 到 `Geist`。
-
-6. **绝对行间距底线**：任何多行 CJK 标题的绝对行间距（Line-gap）不得小于 `16px`。若计算值小于 16px，必须强制放大 `line-height` 倍数。
-7. **中英缩放比例**：Display 级别字号，中文像素值强制为英文的 `0.9` 倍（如 EN 80px / CN 72px）。
-8. **字重限制**：中文最高字重锁定为 `500` (Medium)，严禁使用 `700` (Bold) 导致笔画糊死。
-
-### 3.4 Finance 字号层级
-
-| 角色         | 字号 | 字重 | 行高 | 强制字体                       |
-| :----------- | :--- | :--- | :--- | :----------------------------- |
-| **数字展示** | 40px | 700  | 1.10 | `--font-mono` (JetBrains Mono) |
-| **标题**     | 24px | 600  | 1.30 | `--font-body` (HarmonyOS Sans) |
-| **正文**     | 14px | 400  | 1.50 | `--font-body` (HarmonyOS Sans) |
-| **说明**     | 12px | 500  | 1.40 | `--font-body` (HarmonyOS Sans) |
+Finance 保持数字优先：主要数值使用 JetBrains Mono，表格密度高于 Content 页面；不继承 Home 的 Entry Display、星球标签或流星尾。
 
 ---
 
-## 4. 组件样式
+## 4. 组件与交互
 
-### 4.1 按钮
+### 4.1 Home Entry
 
-| 变体                  | 背景                              | 文字                                        | 圆角                               | 内边距                         | 场景                                                                                               |
-| --------------------- | --------------------------------- | ------------------------------------------- | ---------------------------------- | ------------------------------ | -------------------------------------------------------------------------------------------------- |
-| btn-primary-home      | --klein-400 (#335CFF)             | #ffffff                                     | 100px (pill)                       | 14px 30px                      | Home 暗底主 CTA。**修复**：禁用 --klein-500，使用 --klein-400 确保暗底对比度 ≥ 3:1 (WCAG 1.4.11)。 |
-| _交互状态规范_        | _Hover_: `--klein-300` + 微光投影 | _Active_: `--klein-500` + `translateY(1px)` | _Focus-visible_: 2px 白/蓝 Outline | _Disabled_: `opacity: 0.4`     | 所有状态切换必须使用 `transition: all 0.2s var(--ease-monopo)`，禁用 `all` 以外的长时间过渡。      |
-| `btn-secondary-home`  | `transparent`                     | `#ffffff`                                   | 100px (pill)                       | 12px 28px, `2px solid #E5E7EB` | Home 次 CTA (Meta 基因)                                                                            |
-| `btn-primary-content` | `--klein-500`                     | `#ffffff`                                   | 8px                                | 12px 24px                      | Content 页面 CTA，复用克莱因蓝，方角                                                               |
-| `btn-primary-finance` | `--color-cta-cyber-green`         | `#0b0e11`                                   | 8px                                | 12px 24px                      | Finance 主 CTA，松石绿底黑字 (Wizard 基因)                                                         |
+首屏只保留：
 
-### 4.2 卡片（降级圆角，恢复锋利感）
+- 待定的中英文世界观短句位置；
+- DISCOVER MORE；
+- 一次性流星引导；
+- 远处星域与足够留白。
 
-| 变体                    | 圆角   | 投影                        | 内边距  | 场景与基因                                                          |
-| ----------------------- | ------ | --------------------------- | ------- | ------------------------------------------------------------------- |
-| `card-home`             | 20px   | `none`                      | 32px    | Home 时间线卡片，无边框，全出血照片，保留现代感                     |
-| `card-about`            | 20px   | `none`                      | 32px    | Home About 卡片，电光蓝粒子背景                                     |
-| `card-content-normal`   | 8px    | `none`                      | 24px    | Blog/feed 普通卡片，`1px solid --color-hairline-cold`，致敬画廊画框 |
-| `card-content-featured` | 8px    | `--shadow-webflow-featured` | 24px    | 置顶文章/推荐内容，无边框，Webflow 层次阴影                         |
-| `card-finance`          | 8-12px | `none`                      | 16-24px | 数据卡片，紧凑，表面靠色块对比分层 (Wizard/Binance)                 |
+世界观短句尚未锁定，不应在设计或实现中擅自补写 constellation 等英文 slogan。
 
-### 4.3 粒子星座组件（Home About 专属）
+DISCOVER MORE 同时支持：
 
-基于 Dala 设计基因的严格视觉规范：
+- 点击后平滑进入接近星域阶段；
+- 用户自然滚动进入同一阶段；
+- 键盘 focus 和 Enter / Space 触发；
+- reduced motion 下直接移动到可读的星图状态。
 
-- **形状**：粒子有 triangle 和 circle 两种形状（描边，`1-2px stroke`），绝不使用方形。
-- **颜色**：全色谱 vivid colors（以 `#4F71FF` 电光为主，辅以琥珀、青绿、品红、蓝）。
-- **组织**：粒子汇聚形成一个有机的"大脑/神经网络"形状，作为品牌签名手势。
-- **环境粒子**：主形态周围散布低密度环境粒子，营造漂浮感。
-- **Content 残响**：在 Content 页面的文章 Header 或 About 卡片中，允许出现极低透明度 (opacity: 0.1) 的电光粒子作为暗黑 Home 的视觉回响。
-- **交互**：默认态展示头像与简介；点击展开为全出血卡片，粒子随展开动画流动。
+首屏流星只播放一次，结束后保留极低音量的静态轨迹或端点；首次滚动后淡出，不循环。
 
-### 4.4 时间线卡片（Home 混合时间线）
+### 4.2 Star Map Stage
 
-- 左边缘类别色条（五色，仅做边缘标记，不填充满卡）
-- 内容类型标签上置
-- 照片/视频全出血到卡片边缘
-- 零 elevation，大间距分割（46px+）
+- 五颗星球自由分布，不使用规整轨道或中心太阳。
+- 总览必须看见完整球体；聚焦可只见弧面和高细节局部。
+- 星球在任何可点击阶段都能直接导航，不要求按固定顺序“通关”。
+- 星体位置、尺度和清晰度只表达深度，不表达内容优先级。
+- 星图不得自动旋转、自动巡航或持续改变焦点。
 
----
+### 4.3 Planet Label
 
-## 5. 布局与间距
+| 状态 | 表现 |
+| --- | --- |
+| 默认总览 | 名称低对比、小字号、常驻且可发现；可贴近星体或使用极细引线 |
+| Hover / Focus | 名称和可点击性清晰；可增加一行极短板块说明 |
+| Touch | 不依赖 hover；点按必须能获得同等名称与进入提示 |
+| Push | 标签与星球共同向前，进入页面前淡出 |
 
-### 5.1 Home 网格
+名称不能完全隐藏，否则星图会退化为猜谜式艺术海报。所有星球还必须在全站导航中有普通文字入口。
 
-| 属性               | 值         | 说明                  |
-| ------------------ | ---------- | --------------------- |
-| 最大宽度           | 1078px     | Monopo 基因           |
-| 内容列宽           | 680px 居中 | 阅读舒适区            |
-| 段落间距           | 60-120px   | Dala 基因，大呼吸空间 |
-| 卡片间距           | 46px       | Monopo 基因           |
-| 元素间距           | 14px       |                       |
-| 导航高度           | 64px       |                       |
-| About 卡片最小高度 | 480px      |                       |
+### 4.4 Planet Push
 
-### 5.2 Content 页面网格
+- 点击 Blog、Feed、Learn、Projects 后，从当前观察位置快速锁定目标。
+- 星球放大并显露更多材质，随后进入对应页面。
+- 过渡必须短、可中断、不锁滚动、不要求二次确认。
+- 页面落地后回归对应功能画布；不建立 Home 内的“星球详情页”。
+- reduced motion 下直接进行普通页面导航。
 
-| 属性       | 值                  |
-| ---------- | ------------------- |
-| 阅读宽度   | 680px               |
-| 侧栏宽度   | 260px               |
-| 页面内边距 | 32px（移动端 16px） |
-| 段落间距   | 48px                |
+### 4.5 About 的双路径
 
-### 5.3 间距标尺
+About 必须有两条通往同一展开态的路径：
 
-基础单位：4px（Monopo 基因）
-`4, 8, 12, 16, 20, 24, 28, 32, 40, 48, 64, 80, 96, 120`
+**主路径：直接、可访问**
 
-### 5.4 动效曲线（Monopo 基因）
+- 点击 About 星球或文字标签；
+- 镜头轻推近；
+- About 信息在星球附近原地展开；
+- 不要求用户发现豹猫或完成彩蛋。
 
-全站过渡动效使用 Monopo 的"耐心滑行"曲线，严禁弹跳效果。
-**宏观转场 (页面切换、卡片展开、粒子流动)**：
-`transition-duration: 0.8s - 1.25s;`
-**微观交互 (按钮 Hover、边框显现、输入框 Focus)**：
-`transition-duration: 0.2s - 0.3s;` (过长的微观交互会导致页面“不跟手”)
-**统一曲线**：`transition-timing-function: cubic-bezier(0.19, 1, 0.22, 1);`
+**彩蛋路径：豹猫卫星**
 
----
+- 星图总览中，About 附近只出现低音量 Klein Blue 卫星，并隐约保留猫耳与长尾线索；
+- 指针进入 About 的引力范围或键盘 focus 时，侧面行走的豹猫轮廓清晰显现；
+- 第一次点击豹猫：进入 2–3 秒蓄能态，粒子略向核心收拢、亮度提高，并出现极克制的不完整轨道与“再次点击”的轻提示；
+- 第二次点击豹猫：只有豹猫粒子爆开，About 星球绝不爆炸；
+- 粒子在 About 附近短暂形成局部轨道尘埃，随后落向星球表面；
+- 镜头轻推近，进入与主路径相同的 About 展开态；
+- 展开态不保留豹猫，避免个人签名持续抢占内容；
+- 关闭 About 时反向回收星尘，重新组成豹猫卫星；
+- 若蓄能后未再次点击，应缓慢退回静止态。
 
-## 6. 层级与导航
+豹猫形态要求：
 
-### 6.1 导航栏策略
+- 侧面、行走姿态，不采用坐姿 mascot；
+- 近看必须能读出双耳、侧脸、背线、四足和长尾；
+- 外轮廓优先，内部骨架线克制；
+- 只做轻微 2.5D 深度响应，不允许自由拖拽、滚轮缩放或持续自转。
 
-| 页面                            | 风格                              | 背景                | 激活色                |
-| ------------------------------- | --------------------------------- | ------------------- | --------------------- |
-| Home                            | Sci-Fi，玻璃质感细条，白字        | 透明 → 滚动后模糊   | `--klein-500`         |
-| /blog, /feed, /learn, /projects | Cream Gallery，奶油暖白，暖墨黑字 | `--content-gallery` | `--klein-500`         |
-| /finance                        | Cyber Arena，深色实底，松石绿强调 | `--finance-dark`    | `--finance-cta-green` |
+触控设备必须始终保留 About 星球直接展开的主路径。豹猫彩蛋的触控手势由 Phase 4.2 验证，可简化，但不得增加理解 About 所必需的第三次操作。
 
-### 6.2 导航项
+### 4.6 About Expanded
 
-- Home / Blog / Feed / Projects / Learn
-- About —— 打开 about 卡片（Home 原地展开粒子星座，其他页面导航栏入口）
-- 登录/登出 —— 右对齐
+- 信息在星球表面或附近出现，不恢复旧版左侧玻璃卡片主舞台。
+- 展开区可包含姓名、简介、外部链接和必要的个人信息。
+- 文字必须在稳定、足够对比度的阅读层中呈现，不能直接压在复杂地表上。
+- 关闭入口明确，可通过键盘操作；关闭后焦点回到 About 星球或触发元素。
+- About 是五颗星球之一，不因展开成为全站中心天体。
 
----
+### 4.7 Cursor Meteor
 
-## 7. 该做与不该做
+鼠标流星尾是木下的个人交互签名：
 
-### 7.1 该做
+- 由指针光点、短渐变尾迹和少量碎屑组成；
+- 只跟随真实鼠标移动，不捕获点击，不改变系统指针语义；
+- Home 完整但低音量；Content 更短、更淡；Finance 关闭；
+- 仅在 fine pointer 且支持 hover 的设备启用；
+- 指针停止后快速衰减，不持续漂浮；
+- 不能覆盖正文、表单、数据或星球标签；
+- reduced motion 下关闭。
 
-- 全站 Home 与 Content 品牌色统一使用克莱因蓝色系 `--klein-500` (`#002FA7`) 承载 CTA，暗底 CTA 使用 --klein-400。
-- Finance 主 CTA 必须使用 `--color-cta-cyber-green` (`#5eaf9e`)，严禁出现黄色。Finance 页面数据下跌必须用 #0ecb81（绿色），上涨用 #f6465d（红色）。
-- Content 页面必须保持奶油画廊底 (`#FAF9F5`)，利用克莱因蓝与暖底的互补张力营造艺术感。
-- 卡片圆角降级：Home 使用 20px，Content 使用 8px，恢复锋利编辑感。
-- Home 英文标题用 weight 300 与负字距创造低语感，中文标题用 400 与 0 字距稳重落地。
-- 严格实施 CJK 标点挤压与中英混排 `1/4 em` 间距。
-- Content Featured 卡片使用 Webflow 5-stop layered shadow 提升层次。
-- Finance 数字必须使用--font-mono（JetBrains Mono）等宽字体。
-- 全站动效使用 `cubic-bezier(0.19, 1, 0.22, 1)` 曲线。
+### 4.8 Feed：原生内容与系统足迹
 
-### 7.2 不该做
+Feed 是木下的公开足迹／来时路，保持单列连续时间流：
 
-- 不在 Finance 页面使用币安黄 `#fcd535`——已被松石绿取代。
-- 不在 Home UI 控件（按钮、边框）上使用电光蓝-电光蓝仅属于粒子星座。
-- 不对 CJK 中文使用 bold（700+）或负字距。
-- 不给 Home 卡片加任何投影——间距 + 20px 圆角 = 层级。
-- 不在 Content 页面按钮上用 rounded-full (pill)——那是 Home 专属。
-- 不套用 AI 默认模板：居中 Hero + 3 卡片行、紫色渐变、满屏玻璃效果。
-- 不在 Finance 页面将松石绿 `#5eaf9e` 用于文本高亮、图标或折线图——它仅属于 CTA 按钮背景。
-- 不在松石绿 `#5eaf9e` 按钮上使用白色文字——必须使用深黑 `#0b0e11`。
-- 不在 Home 暗色背景上直接使用无阴影的 `--klein-500 (#002FA7)` 细边框——会隐形，需改用 `--klein-400 (#335CFF)` 或增加发光投影。
-- 不使用 `#000000` 作为大面积背景，不在使用 `#FFFFFF` 作为暗色模式下的主文本（违反色彩工效学，引发 Halation 光晕效应）。
-- 不在暗色背景上使用未经明度提升的 `#002FA7` 作为 UI 组件（如按钮、边框），其对比度 1.8:1 不满足 WCAG 1.4.11 (Non-text Contrast ≥ 3:1) 的最低要求。
+| 类型 | 视觉形式 | 核心内容 |
+| --- | --- | --- |
+| Note / 碎碎念 | 原生内容卡片 | 文字、图片或视频 |
+| Clip / 剪藏 | 原生剪藏卡片 | 标题、摘要、封面与木下点评 |
+| Blog Published | 克制的系统足迹行或轻卡片 | 来源、发布动作、快照标题、摘要、时间、链接 |
+| Learn Section Completed | 克制的系统足迹行或轻卡片 | 来源、完成动作、小节快照、时间、链接 |
+| Project Materially Updated | 克制的系统足迹行或轻卡片 | 来源、实质更新动作、项目快照、时间、链接 |
 
-### 7.3 Finance 画布无障碍与工效学强制规范 (WCAG & GB/T 44808)
+系统足迹：
 
-1. **涨跌双重编码 (Dual-Coding)**：严禁仅使用红/绿颜色传达涨跌信息。所有数值必须强制带有 `+`/`-` 符号或 `↑`/`↓` 图标 (WCAG 1.4.1 Use of Color)。
-2. **CTA 形状冗余**：松石绿 CTA 按钮 (`#5eaf9e`) 必须具有明确的几何边界（如 6px 圆角 + 内部 16px padding），确保在强光环境或晶状体老化导致色彩辨识度下降时，用户仍能通过形状识别其为可点击控件。
-3. **灰度测试**：Finance 页面的所有数据图表和涨跌列表，必须在 CSS `@media (prefers-contrast: more)` 或灰度滤镜下保持信息可读（依赖明度差 L 差异）。
+- 不使用作者头像、手写语气或大面积媒体，不能伪装成碎碎念；
+- 来源与动作是第一识别层，标题与摘要是第二层，时间和链接是第三层；
+- 使用图标、文字与色彩冗余编码，不能只靠类别色；
+- 隐藏状态不改变源内容；
+- UI 读取统一投影，不出现“来自哪张表”的视觉差异。
+
+Feed 在所有断点保持单列，不采用旧版 Tablet 两列 feed 网格。
 
 ---
 
-## 8. 响应式行为
+## 5. 布局与空间
 
-### 8.1 断点
+### 5.1 Home 空间规则
 
-| 名称    | 宽度       | 变化                                                                                        |
-| ------- | ---------- | ------------------------------------------------------------------------------------------- |
-| Mobile  | < 640px    | 单列。Home display 降至 42px。卡片全宽。About 卡片 min-height 360px，粒子数减少。导航折叠。 |
-| Tablet  | 640-1023px | 两列 feed 网格。导航恢复。About 卡片 min-height 420px。                                     |
-| Desktop | >= 1024px  | 完整布局。About 卡片 min-height 480px。                                                     |
+- 入口、接近、总览是同一连续空间。
+- 2–3 个视口只负责接近感和纵深，不逐屏讲解一个板块。
+- 星球自由分布、允许不对称，但必须保持可点区域和标签不冲突。
+- 可以使用短暂 sticky 舞台，但是否 pin、pin 多久由 Phase 4.2 验证；不得把它写成滚动劫持。
+- 用户可快速滚过，也可在任何可点击阶段直接进入星球。
+- 星图结束后自然进入页脚，不插入内容聚合区。
 
-### 8.2 移动端特别处理
+### 5.2 Content 布局
 
-- 时间线卡片单列排列，圆角保留 20px/8px。
-- Feed 发布面板：底部弹出，占屏幕 2/3。
-- 触控区 >= 44px。
-- 汉堡菜单：右侧滑入，暗色遮罩。
+- Blog 以文章列表和阅读版心为主体。
+- Feed 以单列连续时间流为主体。
+- Learn 以学习轨道、章节与进度为主体。
+- Projects 以项目展示与状态为主体。
+- 所有 Content 页面以奶油画廊留白、8px 级锋利圆角和暖色发丝线建立层级。
+- 地质纹理只出现于页首、封面、分隔或细节，不侵入正文可读区。
+
+### 5.3 Finance 布局
+
+Finance 保留高密度数据布局、精确网格和暗色操作面，不使用 Home 的星球、豹猫、鼠标尾迹或暖性地质材料。
+
+---
+
+## 6. 导航系统
+
+### 6.1 全站导航
+
+- 提供 Blog、Feed、Learn、Projects 的普通文字入口。
+- 沉浸式星图不是唯一导航方式。
+- About 可通过 Home 星球进入；若全站导航提供 About 锚点，应直接进入同一展开态。
+- Finance 保持独立私密子站，不进入公开主星图。
+
+### 6.2 Home 航行索引
+
+首次滚动或点击 DISCOVER MORE 后，低音量侧边航行索引出现：
+
+- 只锚定 Home 阶段，例如 Entry、Approach、Star Map；
+- 不把 Blog、Feed、Learn、Projects 复制成第二套全站导航；
+- 默认显示细刻度、编号或小点，hover / focus 后出现文字；
+- 当前阶段用 Klein Blue 轻量高亮；
+- 桌面端侧置，移动端可降级为顶部或底部的简短进度提示；
+- 若最终 Home 没有额外 Signals 阶段，不得预留空锚点。
+
+---
+
+## 7. Do / Do Not
+
+### 7.1 Do
+
+- 把 Home 当作真实、有纵深的星图空间，而不是深色背景上的圆形按钮。
+- 总览展示完整星球，聚焦展示高细节局部。
+- 统一星球光学规律，用地貌和微观材质区分板块。
+- 让内容页面保持安静、可读，只低剂量借用地质母题。
+- 让每个星球、标签、DISCOVER MORE 和 About 都可键盘操作。
+- 用一次触发的短脉冲、光照变化和回弹表达生命感。
+- 让鼠标流星尾成为低音量个人签名，而不是持续特效。
+
+### 7.2 Do Not
+
+- 不恢复 Home 混合时间线、Recently、筛选器、分页或 /api/home。
+- 不把星球永久做成抽象节点、彩色分类圆球或五张产品卡片。
+- 不让五颗星球围绕中心太阳建立等级秩序。
+- 不按滚动顺序规定 About、Blog、Feed、Learn、Projects 的重要性。
+- 不做滚动劫持、强制影片、多场景世界跳转或不可跳过长转场。
+- 不自动循环旋转星图、星球、豹猫或信号卫星。
+- 不让豹猫成为全站 mascot，不把 About 星球做成猫头。
+- 不在 Content 页面铺完整宇宙、完整行星或 3D 飞行。
+- 不让系统足迹伪装成手写 Feed 帖子。
+- 不让颜色成为类别、涨跌或状态的唯一表达。
+- 不为写实度直接采用低辨识度的通用 NASA 素材拼贴。
+
+---
+
+## 8. 响应式与无障碍
+
+### 8.1 断点行为
+
+| 断点 | Home | Content / Feed |
+| --- | --- | --- |
+| Mobile < 640px | 保留星图而非改成卡片列表；减少粒子和景深层；只为焦点星球加载高细节；标签默认更清楚 | 单列、触控区不小于 44px |
+| Tablet 640–1023px | 调整星球位置和标签引线，降低视差，不采用两列 Feed | Feed 仍单列；阅读版心扩展 |
+| Desktop ≥ 1024px | 完整三层景深、自由星图、侧边航行索引、鼠标流星尾 | 完整 Cream Gallery 布局 |
+
+### 8.2 可访问性
+
+- 所有主要文本达到 WCAG 2.1 AA；暗底非文本交互边界达到至少 3:1。
+- 星球是有名称的可聚焦链接或按钮，不是无语义 Canvas 热区。
+- hover 信息必须有 focus 与 touch 等价路径。
+- 当前焦点、活跃状态和类别不能只靠色彩表达。
+- About 展开后管理焦点；关闭后恢复到触发元素。
+- reduced motion 下：
+  - 关闭视差、鼠标流星尾、豹猫爆开和持续位移；
+  - DISCOVER MORE 直接进入静态星图；
+  - Planet Push 退化为普通导航；
+  - About 以淡入 / 淡出或直接切换完成。
+- 星图资源加载失败时，必须保留可读的文字导航与静态替代视觉。
 
 ---
 
 ## 9. Agent 使用指南
 
-### 9.1 页面 -> 画布映射
+### 9.1 页面到画布映射
 
-| 页面                      | 画布                    | 品牌色/CTA         | 字号层级      | 艺术元素                                |
-| ------------------------- | ----------------------- | ------------------ | ------------- | --------------------------------------- |
-| Home (/)                  | Dark void `#0A0A0C`     | `#002FA7` 克莱因蓝 | Home scale    | 电光蓝粒子星座 + Monopo 虹彩微光        |
-| Blog (/blog/\*)           | Cream Gallery `#FAF9F5` | `#002FA7` 克莱因蓝 | CJK scale     | Webflow featured shadow + Dala 残响粒子 |
-| Feed (/feed/\*)           | Cream Gallery           | `#002FA7`          | CJK scale     | Dala 环境粒子                           |
-| Projects (/projects)      | Cream Gallery           | `#002FA7`          | CJK scale     | Webflow featured shadow                 |
-| Learn (/learn)            | Cream Gallery           | `#002FA7`          | CJK scale     | —                                       |
-| Finance (f.catstarry.xyz) | Cyber dark `#0b0e11`    | `#5eaf9e` 松石绿   | Finance scale | —                                       |
+| 页面 | 画布 | 主色 | 艺术元素 |
+| --- | --- | --- | --- |
+| Home / | Deep Space | Klein Blue | 暖性地质星球、三层星域、豹猫卫星、鼠标流星尾 |
+| Blog | Cream Gallery | Klein Blue | 层状沉积与纸浆残响 |
+| Feed | Cream Gallery | Klein Blue | 单列时间流、河谷时间方向、系统足迹 |
+| Learn | Cream Gallery | Klein Blue | 断层、刻线、矿脉残响 |
+| Projects | Cream Gallery | Klein Blue | 台地、切面、金属嵌线残响 |
+| Finance | Cyber Arena | Turquoise | 数据网格、涨跌双重编码；无星图与鼠标尾迹 |
 
-### 9.2 Pre-Flight 质检清单
+### 9.2 Phase 4.1 Pre-Flight
 
-生成任何 UI 前，确认：
+- [ ] Home 是静态宇宙入口和星图，不是内容聚合页。
+- [ ] Entry、Approach、Overview、Push 属于同一片星域。
+- [ ] 远景可抽象，接近后必须显现完整、具实星球。
+- [ ] 总览用完整球体，聚焦用同材质高细节图。
+- [ ] 五颗星球平权，尺度只表达深度。
+- [ ] About 有直接展开主路径，豹猫只是可选彩蛋路径。
+- [ ] 豹猫爆炸不影响 About 星球，关闭后反向重组。
+- [ ] 鼠标流星尾：Home 完整、Content 弱化、Finance 关闭。
+- [ ] Home 不读取 Public Footprint 或最近更新时间。
+- [ ] Feed 系统足迹与原生内容清楚区分，但属于同一时间流。
+- [ ] Content 页面只借用材质，不重做功能布局。
+- [ ] 所有交互具备 keyboard、touch 和 reduced-motion 路径。
 
-- [ ] Home / Content 品牌色为 `#002FA7`（克莱因蓝）
-- [ ] Finance 主 CTA 为 `#5eaf9e`（松石绿），无币安黄
-- [ ] 电光蓝 `#4F71FF` 仅用于粒子星座和 about 卡片视觉
-- [ ] 无 `#8b5cf6` 渐变（AI 默认紫）
-- [ ] Home 卡片圆角为 20px，Content 卡片为 8px
-- [ ] Content 画布为奶油暖白 `#FAF9F5`，卡片底色为 `#EFE9DE`
-- [ ] 组件必须且只能引用 Layer 2 语义 Token (如 --bg-base, --bg-surface, --text-primary, --border-default)，严禁跨层直接引用 Layer 1 原始 Token (如 --home-void, --content-gallery)。
-- [ ] 确保 CJK 正文正确 Fallback 至 HarmonyOS Sans SC (通过 --font-body 变量)
-- [ ] CJK 正文：行高 >= 1.85，字号 >= 16px，字重 400
-- [ ] CJK 标题字距为 0，纯英文标题才用负字距
-- [ ] CJK 标点挤压与中英混排间距已实施
-- [ ] Home 卡片无投影；Content featured 卡片使用 Webflow layered shadow
-- [ ] Home 不是居中 Hero + 3 等大卡片
-- [ ] 类别色仅用于边缘标记
-- [ ] Content 页面无 rounded-full 按钮
-- [ ] Finance 数字使用 --font-mono（JetBrains Mono） 字体栈
-- [ ] 代码和标题中无 emoji
+### 9.3 后续 CSS 对齐清单
 
-### 9.3 Quick Start CSS
+本节是 Phase 4.1 的迁移接口，不授权本轮改 CSS：
 
-> **工程化提示**：以下代码仅包含设计令牌（Design Tokens），用于快速预览或 AI Agent 读取。
-> 完整的生产级 CSS（包含 `:lang()` 中英分离、`clamp()` 响应式缩放、组件类）已拆分至工程目录：
->
-> - `src/styles/variables.css` (Tokens)
-> - `src/styles/typography.css` (排版类)
-> - `src/styles/components.css` (组件类)
-
-#### Layer 2 语义 Token 映射表
-
-> **规则**：组件必须且只能引用语义 Token（`--bg-base`、`--text-primary`、`--border-default` 等），**严禁**跨层直接引用 Layer 1 原始 Token（`--home-void`、`--content-gallery` 等）。系统会根据 `data-theme` 和 `data-canvas` 自动切换赋值。
-
-| 语义 Token               | Dark (Home)             | Light (Content)            | Finance                      |
-| ------------------------ | ----------------------- | -------------------------- | ---------------------------- |
-| `--bg-base`              | `--home-void`           | `--content-gallery`        | `--finance-dark`             |
-| `--bg-surface-soft`      | `--home-surface-soft`   | `--content-surface-soft`   | `--finance-surface`          |
-| `--bg-surface-card`      | `--home-surface-card`   | `--content-surface-card`   | `--finance-surface-elevated` |
-| `--text-primary`         | `--home-text-primary`   | `--content-text-primary`   | `--finance-text-primary`     |
-| `--text-secondary`       | `--home-text-secondary` | `--content-text-secondary` | `--finance-text-secondary`   |
-| `--text-muted`           | `--home-text-muted`     | `--content-text-secondary` | `--finance-text-secondary`   |
-| `--border-default`       | `--home-border-hover`   | `--content-hairline`       | `rgba(255,255,255,0.08)`     |
-| `--btn-primary-bg`       | `--klein-400`           | `--klein-500`              | `--finance-cta-green`        |
-| `--btn-primary-bg-hover` | `--klein-300`           | `--klein-600`              | `#73c9b6`                    |
-
-```css
-/* =========================================
-  catstarry.xyz Design System v1.4
-  LAYER 1: PRIMITIVES & LAYER 2: SEMANTIC DEFAULTS
-  ========================================= */
-:root {
-  /* --- 1. Brand: Klein Blue Scale (WCAG 2.1 AA) --- */
-  --klein-600: #001f70;
-  --klein-500: #002fa7; /* Primary on Light */
-  --klein-400: #335cff; /* Primary on Dark (Contrast 3.5:1 on void) */
-  --klein-300: #6685ff;
-  --klein-100: #e6ecff;
-
-  /* --- 2. Canvas: Home (Sci-Fi Dark) --- */
-  --home-void: #0a0a0c;
-  --home-surface-soft: #121722;
-  --home-surface-card: #1a2030;
-  --home-border-hover: rgba(255, 255, 255, 0.16);
-  --home-text-primary: #e5e7eb;
-  --home-text-secondary: #9ca3af;
-  --home-text-muted: #6b7280;
-
-  /* --- 3. Canvas: Content (Cream Gallery) --- */
-  --content-gallery: #faf9f5;
-  --content-surface-soft: #f5f0e8;
-  --content-surface-card: #efe9de;
-  --content-hairline: #e6dfd8;
-  --content-text-primary: #141413;
-  --content-text-body: #3d3d3a;
-  --content-text-secondary: #6c6a64;
-
-  /* --- 4. Canvas: Finance (Cyber Arena) --- */
-  --finance-dark: #0b0e11;
-  --finance-surface: #1e2329;
-  --finance-surface-elevated: #2b3139;
-  --finance-cta-green: #5eaf9e;
-  --finance-down: #0ecb81;
-  --finance-up: #f6465d;
-  --finance-text-primary: #eaecef;
-  --finance-text-secondary: #848e9c;
-
-  /* --- 5. Signature: Dala & Monopo --- */
-  --particle-core: #4f71ff;
-  --particle-glow: #00e5ff;
-  --gradient-iris: linear-gradient(
-    135deg,
-    rgba(79, 113, 255, 0.4),
-    rgba(0, 229, 255, 0.1),
-    rgba(255, 184, 41, 0.05)
-  );
-  --saffron-spark: #ffb829;
-
-  /* --- 6. Category Accents --- */
-  --cat-blog: #7a3dff;
-  --cat-feed: #3b89ff;
-  --cat-bookmark: #00d722;
-  --cat-project: #ff6b00;
-  --cat-learn: #ed52cb;
-
-  /* --- 7. Typography --- */
-  --font-display: "IBM Plex Sans", var(--font-cjk), sans-serif;
-  --font-body: "Geist", var(--font-cjk), system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, monospace;
-  --font-cjk: "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
-
-  /* --- 8. Geometry & Motion --- */
-  --radius-home: 20px;
-  --radius-content: 8px;
-  --radius-btn-home: 100px;
-  --radius-btn-content: 8px;
-  --radius-btn-finance: 8px;
-  --ease-monopo: cubic-bezier(0.19, 1, 0.22, 1);
-
-  /* --- 9. Spacing --- */
-  --space-unit: 4px;
-  --card-gap: 46px;
-  --section-gap: 80px;
-
-  /* --- 10. Webflow Featured Shadow --- */
-  --shadow-webflow-featured:
-    0 84px 24px rgba(0, 0, 0, 0), 0 54px 22px rgba(0, 0, 0, 0.01),
-    0 30px 18px rgba(0, 0, 0, 0.04), 0 13px 13px rgba(0, 0, 0, 0.08),
-    0 3px 7px rgba(0, 0, 0, 0.09);
-
-  /* =========================================
-    LAYER 2: SEMANTIC TOKENS (DEFAULT: DARK/HOME)
-    合并入 :root，避免重复定义
-    ========================================= */
-  color-scheme: dark;
-  --bg-base: var(--home-void);
-  --bg-surface-soft: var(--home-surface-soft);
-  --bg-surface-card: var(--home-surface-card);
-  --text-primary: var(--home-text-primary);
-  --text-secondary: var(--home-text-secondary);
-  --text-muted: var(--home-text-muted);
-  --border-default: var(--home-border-hover);
-  --btn-primary-bg: var(--klein-400);
-  --btn-primary-bg-hover: var(--klein-300);
-}
-
-/* =========================================
-  THEME OVERRIDES (深浅模式切换)
-  逻辑：系统偏好 + 手动 data-theme 覆盖
-  ========================================= */
-
-/* 1. 跟随系统浅色偏好 (Content Cream Gallery) */
-@media (prefers-color-scheme: light) {
-  :root:not([data-theme="dark"]) {
-    color-scheme: light;
-    --bg-base: var(--content-gallery);
-    --bg-surface-soft: var(--content-surface-soft);
-    --bg-surface-card: var(--content-surface-card);
-    --text-primary: var(--content-text-primary);
-    --text-secondary: var(--content-text-secondary);
-    --text-muted: var(--content-text-secondary);
-    --border-default: var(--content-hairline);
-    --btn-primary-bg: var(--klein-500);
-    --btn-primary-bg-hover: var(--klein-600);
-  }
-}
-
-/* 2. 手动强制深色 (JS 注入 data-theme="dark") */
-[data-theme="dark"] {
-  color-scheme: dark;
-  --bg-base: var(--home-void);
-  --bg-surface-soft: var(--home-surface-soft);
-  --bg-surface-card: var(--home-surface-card);
-  --text-primary: var(--home-text-primary);
-  --text-secondary: var(--home-text-secondary);
-  --text-muted: var(--home-text-muted);
-  --border-default: var(--home-border-hover);
-  --btn-primary-bg: var(--klein-400);
-  --btn-primary-bg-hover: var(--klein-300);
-}
-
-/* 3. 手动强制浅色 (JS 注入 data-theme="light") */
-[data-theme="light"] {
-  color-scheme: light;
-  --bg-base: var(--content-gallery);
-  --bg-surface-soft: var(--content-surface-soft);
-  --bg-surface-card: var(--content-surface-card);
-  --text-primary: var(--content-text-primary);
-  --text-secondary: var(--content-text-secondary);
-  --text-muted: var(--content-text-secondary);
-  --border-default: var(--content-hairline);
-  --btn-primary-bg: var(--klein-500);
-  --btn-primary-bg-hover: var(--klein-600);
-  --font-weight-display: 400;
-  --letter-spacing-display: -0.02em;
-}
-
-/* 4. Finance 画布专属语义覆盖 (强制深色赛博风格) */
-[data-canvas="finance"] {
-  color-scheme: dark;
-  --bg-base: var(--finance-dark);
-  --bg-surface-soft: var(--finance-surface);
-  --bg-surface-card: var(--finance-surface-elevated);
-  --text-primary: var(--finance-text-primary);
-  --text-secondary: var(--finance-text-secondary);
-  --text-muted: var(--finance-text-secondary);
-  --border-default: rgba(255, 255, 255, 0.08);
-  --btn-primary-bg: var(--finance-cta-green);
-  --btn-primary-bg-hover: #73c9b6;
-}
-```
+| Design 1.4 / 现有 CSS 概念 | v2 处理 |
+| --- | --- |
+| Home two-column / Home Card | 废弃，由 Home Entry + Star Map Stage 取代 |
+| About Card | 废弃，由 About Planet + About Expanded 取代 |
+| Home Timeline / Timeline Card / Type Filter | 废弃，不提供替代 Home 组件 |
+| Tablet two-column Feed | 废弃，Feed 全断点单列 |
+| 粒子只属于 About Card | 改为 Space / Leopard Cat / Cursor Meteor 三种明确语义 |
+| --cat-warm、--cat-dark、--cat-eye-glow | 不再扩展，后续迁移为 Klein Blue 豹猫光学 token |
+| Content category colors | 保留为冗余标记，不再服务 Home 卡片 |
+| 既有 CJK、Finance、三画布基础 token | 保留 |
 
 ---
 
 ## 10. 动效原则
 
-catstarry.xyz 的动效以「克制与质感」为最高准则。动画不为炫技，为建立空间关系与层级感知。
+动效最高准则是：建立空间关系、提供方向与反馈，不持续消耗注意力。
 
-### 10.1 三条缓动曲线
+### 10.1 动效职责
 
-| 曲线                                             | 用途                                           | 气质                   |
-| ------------------------------------------------ | ---------------------------------------------- | ---------------------- |
-| `ease-monopo` `cubic-bezier(0.19, 1, 0.22, 1)`   | 大范围变换：about 卡片展开、页面转场           | 耐心滑行，后半段舒缓   |
-| `ease-scroll-in` `cubic-bezier(0.16, 1, 0.3, 1)` | 滚动触发动画：`.anim-fade-up`、`.anim-stagger` | 轻声淡入，不抢夺注意力 |
-| `ease-hover` `cubic-bezier(0.32, 0.72, 0, 1)`    | 微交互：hover 态、active 态、按钮反馈          | 灵敏吸附，操作即响应   |
+| 类型 | 职责 | 允许 |
+| --- | --- | --- |
+| Scroll-driven | 推进同一星域的远近关系 | 星点显影、星球尺度变化、阶段切换 |
+| Parallax | 辅助纵深 | 远景慢、中景适中、前景稍快 |
+| Hover / Focus | 表达可进入性 | 标签清晰、边缘光、一次短脉冲 |
+| Planet Push | 完成导航转场 | 短暂锁定目标、放大、进入页面 |
+| About Cat | 可发现彩蛋 | 蓄能、局部爆开、尘埃落下、反向重组 |
+| Cursor Meteor | 个人鼠标签名 | 短尾跟随、快速衰减 |
 
-### 10.2 时长阶梯
+### 10.2 缓动语义
 
-| Token               | 值     | 用途         |
-| ------------------- | ------ | ------------ |
-| `--duration-fast`   | `0.2s` | 微交互反馈   |
-| `--duration-base`   | `0.6s` | 标准滚动动画 |
-| `--duration-monopo` | `0.8s` | 大范围变换   |
+- ease-monopo：Planet Push、About 展开与关闭、豹猫回收等大范围变化。
+- ease-scroll-in：星域显影、低音量阶段进入。
+- ease-hover：标签、边缘光、按钮和可点击反馈。
 
-### 10.3 滚动动画工具类
+现有曲线可继续作为基准；具体时长和组合由 Phase 4.2 校准，不在 v2 预设新的动画库。
 
-Phase 4.2 提供三个通用工具类（见 `components.css` Anim Utilities）：
+### 10.3 强制约束
 
-- **`.anim-fade-up`** — 元素进入视口时从 24px 下方淡入上浮，`animation-timeline: view()` 驱动
-- **`.anim-stagger`** — 父容器子元素逐项错开，基础延迟 `--stagger-base: 80ms`
-- **`.parallax-container`** — 背景/前景层不同速率视差，`--parallax-bg-speed: 0.5`、`--parallax-fg-speed: 1`
-
-### 10.4 动效约束
-
-- **无自动循环动画**：所有动画由滚动或交互触发，不自动播放
-- **CJK 无倾斜**：中文字符不做 skew/rotate 变换，仅 opacity + translateY
-- **prefers-reduced-motion 降级**：所有动效通过 `@media (prefers-reduced-motion: reduce)` 关闭
+- 自然滚动优先，不修改用户滚轮方向、速度或惯性。
+- 不做强制 snap 通关；用户能快速滚过星图。
+- 环境可随滚动产生微弱漂移，但不允许无输入的循环屏保。
+- 活跃提示以静态差异 + 首次进入或 focus 的单次脉冲表达。
+- CJK 文字不做 skew、持续旋转或难读的空间变形。
+- 页面转场不能长到让用户误以为卡住。
+- prefers-reduced-motion 是完整替代路径，不只是把 duration 设得更短。
 
 ---
 
-## 11. 意象与视觉资产
+## 11. 意象、资产与资源规范
 
-### 11.1 粒子星座
+### 11.1 星球资产接口
 
-Dala 粒子星座是 Home 画布的签名视觉锚点。粒子随 about 卡片展开而流动，形成「星座 → 散落 → 重聚」的叙事节奏。
+每颗星球至少准备同一材质与同一光照下的三种资产用途：
 
-| Token             | 值                          | 用途                             |
-| ----------------- | --------------------------- | -------------------------------- |
-| `--particle-core` | `#4F71FF`                   | 粒子核心色（电光蓝）             |
-| `--particle-glow` | `#00E5FF`                   | 粒子辉光色（青蓝）               |
-| `--gradient-iris` | 135deg 蓝→青→琥珀极低透明度 | about 展开时的虹膜渐变氛围层     |
-| `--saffron-spark` | `#FFB829`                   | 琥珀火星，极低占比，点缀冷暖对比 |
+| 资产槽 | 用途 | 要求 |
+| --- | --- | --- |
+| Overview Full Sphere | 星图总览 | 完整球体、透明或深空友好边缘、总览尺寸可辨地貌 |
+| Focus High Detail | 聚焦与点击推进 | 高分辨率地表、大气、阴影和局部弧面；与总览无换图感 |
+| Mobile Optimized | 移动端 | 保留轮廓和主地貌，降低尺寸、粒度和透明叠层成本 |
 
-桌面端粒子数 160–200，移动端 60–80。粒子间连线仅在鼠标悬停 about 区域时绘制（非活动区域不连线）。
+资产验收：
 
-### 11.2 图片 Token
+- 光源方向一致；
+- 暖性地质校色一致；
+- 总览和聚焦来自同一材质体系；
+- 边缘无低清锯齿、压缩 halo 或明显 AI 纹理重复；
+- 近看细节达到清晰、可信的天体材质水平；
+- 不要求实时 3D、自转或用户拖拽。
 
-| Token                 | 值                      | 用途                                     |
-| --------------------- | ----------------------- | ---------------------------------------- |
-| `--img-radius`        | `var(--radius-content)` | 博客插图圆角，默认 8px                   |
-| `--img-grain-opacity` | `0.03`                  | 全局噪点叠加透明度（Phase 5 可选）       |
-| `--img-tint`          | `transparent`           | 图片着色叠加层，about 头像使用暖色调着色 |
-| `--avatar-shape`      | `50%`                   | 头像形状                                 |
-| `--avatar-size`       | `80px`                  | 头像尺寸，移动端 64px                    |
+### 11.2 星点、尘埃与航线
+
+- 星点分远、中、近三层，密度克制，避免屏保感。
+- 尘埃只帮助显影、转场和 About 彩蛋，不作为全屏噪点层持续覆盖。
+- 航线为极细、不完整、低透明度线条；不形成 HUD 控制台。
+- 像素化只用于远景显影或信号时刻，不能永久覆盖写实星球。
+
+### 11.3 豹猫资产
+
+旧版粒子豹猫可作为节点、骨架、星座连线与爆开回收逻辑的研究输入，但不得原样嵌入：
+
+- 不复用全屏深空 About 舞台；
+- 不复用左侧玻璃卡片；
+- 不复用拖拽环绕、滚轮缩放和持续自动旋转；
+- 不把旧版复杂内部骨架直接缩小，避免猫形辨识度下降；
+- 新资产优先保证行走侧影、双耳、侧脸、四足和长尾的轮廓。
+
+### 11.4 Content 图片与纹理
+
+- Content 图片保持 8px 级圆角与轻颗粒，正文图像不施加强烈宇宙着色。
+- 地质纹理作为页首、封面或分隔资产，不作为整页背景。
+- Blog / Feed / Learn / Projects 可共享一套暖性地质素材库，通过裁切和微观纹理建立关联。
+- Finance 图片和图表不复用暖性地质纹理。
+
+### 11.5 资源与性能原则
+
+- 首屏优先加载远景与必要入口，不同时加载五颗星球的全部高细节资产。
+- 总览加载完整球体的优化版本；只有焦点星球准备或加载高细节资产。
+- 移动端减少粒子层、模糊叠层和大图尺寸，但保留星图本身。
+- 资源失败不能破坏导航；文字标签和普通链接始终是可用兜底。
+
+---
+
+## 结论
+
+Design 2.0 将 Home 从内容聚合布局重锁为一片连续、可导航的 catstarry 星域：远处是星点，靠近后成为具实体积和各自地貌的暖性地质星球；滚动只负责空间纵深，点击负责抵达内容。About 通过直接展开和豹猫彩蛋两条路径进入同一信息态。Feed 独立承担公开足迹，Content 页面保持功能与阅读优先。Klein Blue、鼠标流星尾和豹猫共同构成木下的个人签名，但都不取代内容成为主角。
