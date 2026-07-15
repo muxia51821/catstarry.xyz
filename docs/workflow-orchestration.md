@@ -161,7 +161,7 @@ Phase 7: 部署上线 ──→ Phase 8: 运营维护 ──→ (循环回 Phase
 
 **输入**：SITEMAP + `docs/architecture.md` + `docs/design/reference-design/`（木下人工选取的设计参照）。
 
-**产出物**：根目录 `DESIGN.md`（以文档内目录与当前版本为准）+ `docs/design/reference-design/`（木下人工选取的参照）+ 可交互 HTML 原型。
+**产出物**：根目录 `DESIGN.md`（以文档内目录与当前版本为准）+ canonical CSS 设计系统契约（`src/styles/variables.css`、`typography.css`、`components.css`）+ `docs/design/reference-design/`（木下人工选取的参照）+ 可交互 HTML 原型。
 
 **taste-skill 角色**：Phase 4.2 作为 Policy Engine 控制布局策略；Phase 4.3 作为 Quality Gate 执行 pre-flight 质检。
 
@@ -172,9 +172,11 @@ Phase 7: 部署上线 ──→ Phase 8: 运营维护 ──→ (循环回 Phase
 | #   | 动作                                                                                              | skill                                                                          | 产出                            |
 | --- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ | ------------------------------- |
 | 4.0 | 木下人工选参照：浏览 getdesign.md 挑选 2-3 个视觉锚点，笔记提取至 `docs/design/reference-design/` | —（人工）                                                                      | `docs/design/reference-design/` |
-| 4.1 | Design Read + DESIGN.md：AI 读 `reference-design/` → 声明 Design Read → 维护根目录 DESIGN.md 的设计目录、决策与视觉接口 | — | `DESIGN.md` |
+| 4.1 | Design Read + Design System Re-lock：AI 读 `reference-design/` → 声明 Design Read → 维护根目录 DESIGN.md 的设计目录、决策与视觉接口 → 对齐 canonical CSS token、CJK 基线与通用工具类，退役已失效的旧页面语义 | — | `DESIGN.md` + canonical CSS 设计系统契约 |
 | 4.2 | 原型生成：加载 taste-skill(minimalist+soft) 作为 Policy Engine 控制布局，风格由 DESIGN.md 驱动    | `prototype` + taste-skill (minimalist-skill + soft-skill)                      | 关键页面 HTML 原型              |
 | 4.3 | 原型落地 + 质检：落地 HTML/CSS → taste-skill pre-flight check（模板布局、平庸间距、CJK 标点挤压） | `web-design-engineer` + taste-skill (pre-flight check + output-skill 完整输出) | 质检通过的 HTML/CSS 原型        |
+
+> Phase 4.1 的 CSS 工作只维护 token 契约、排版基线、通用工具类和过时语义清理，不实现新页面组件。Phase 4.2 的一次性实验 CSS 不直接写入 canonical styles；选定原型的组件样式在 Phase 4.3 才落回 `components.css`，经验证的数值再固化至 `variables.css`。
 
 > Phase 3 对话结束后，木下回到流程治理报告完成状态，流程治理确认后 fork Phase 4。避免原型先行导致设计绑架架构。
 

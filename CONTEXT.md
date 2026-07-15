@@ -134,12 +134,13 @@ catstarry.xyz/
 
 ---
 
-## 开发状态 [快照 | Phase 4.1 已完成，Phase 4.2 待启动]
+## 开发状态 [快照 | Phase 4.1 CSS 对齐中，Phase 4.2 未启动]
 
-> 全局 Phase 3、Home / Feed 定向 Phase 2 与定向 Phase 3 均已完成。返回 Phase 4.1 已通过 `DESIGN.md` v2.0 完成重锁；Phase 4.2 尚未启动，等待流程治理确认。
+> 全局 Phase 3、Home / Feed 定向 Phase 2 与定向 Phase 3 均已完成。返回 Phase 4.1 的设计决策层已通过 `DESIGN.md` v2.0 重锁，但 `src/styles/` 的 canonical token 与旧 Home 语义尚未完成对齐；Phase 4.2 尚未启动。
 
 - /blog：🟡 原型已上线，Phase 5 重做
 - /：✅ 星图入口需求、SSG 无聚合架构与 Design 2.0 视觉边界已锁定；🔴 未开发
 - /feed：✅ 公开足迹需求、分存事件架构与 Design 2.0 视觉边界已锁定；🔴 未开发
 - /learn、/projects、f.catstarry.xyz：✅ 需求已锁定 + 架构已锁定，🔴 未开发
 - poker.catstarry.xyz：✅ 已上线（独立部署）
+- 设计系统 CSS：🟡 `variables.css` / `components.css` / `typography.css` 仍含 Design 1.x 与旧 Home 假设，须在 Phase 4.1 完成语义迁移；不得在此步骤实现星图页面。
