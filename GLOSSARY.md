@@ -86,8 +86,10 @@
 | **About 展开态**      | Home 内 About 信息在星球附近出现的原地展开状态；可由直接点击 About 星球或豹猫彩蛋进入，关闭后恢复星图 |
 | **Entry Display**     | Home 宇宙入口的世界观短句排版角色；替代旧 Hero Display 命名，不承担产品 landing page 式促销标题 |
 | **DESIGN.md**         | 根目录下的全站视觉与交互事实来源；当前锁定版本为 Design 2.0，Phase 4.2 只能验证其参数，不得改变上游产品与架构边界 |
-| **taste-skill**       | anti-slop 前端质量控制 skill，安装后加载。Phase 4 中作为 Policy Engine 和 Quality Gate 使用                                   |
-| **frontend-rules.md** | docs/agents/ 下的前端规则固化文件，Phase 5.0 产出。各模块开发线程必须引用                                                     |
+| **gpt-taste**         | 当前安装的高动效营销页 skill，强制 AIDA、随机设计与 GSAP ScrollTrigger；与 Design 2.0 冲突，不作为 Phase 4 Policy Engine 或 Quality Gate |
+| **prototype**         | Phase 4.2 默认使用的隔离原型 skill；只回答已锁定设计中的参数问题，不得把实验 CSS 直接写入 canonical styles |
+| **依赖基线迁移**      | 核心框架与官方 integration 跨主版本错配时执行的独立基础设施任务；不重开需求、架构或设计阶段，完成升级、最小兼容修改和验证后返回流程治理 |
+| **frontend-rules.md** | docs/agents/ 下的前端规则固化文件，Phase 5.0B 产出。各模块开发线程必须引用                                                     |
 | **`.anim-fade-up`**  | CSS 动画工具类，元素进入视口时从下方 24px 淡入上浮，animation-timeline: view() 驱动 |
 | **`.anim-stagger`**  | CSS 动画工具类，父容器子元素逐项错开淡入，基础延迟 80ms                     |
 | **`.parallax-container`** | CSS 动画工具类，背景/前景层不同速率视差滚动                           |

@@ -92,8 +92,11 @@ Astro hybrid + React (shadcn/ui) + CF Workers + D1 + KV + R2。详见 `docs/arch
 - **流程约束**：所有开发工作必须遵循 `docs/workflow-orchestration.md` 定义的 Phase 顺序。对话开始时必须明确声明当前负责的 Phase，不得越权处理其他 Phase 的事项。Phase 顺序不可跳。
 - **CONTEXT.md 约定性质**：`[原型约定]` 标记的内容是 blog 原型阶段的临时产物，对应的 Phase 到达时必须重新审查，有权推翻；`[已锁定]` 标记的内容不可改。
 - **进度上报**：当前 Phase 完成后，提醒木下回到「流程治理」对话更新 DASHBOARD.md。
-- **Git 推送**：沙箱环境推 GitHub 时使用 `git -c http.sslBackend=schannel push`。木下本地终端走 SSH（`git@github.com:muxia51821/catstarry.xyz.git`）。
-- **Git 快照**：改动文档/代码前先 `git add` + `git commit`，确保可回退。
+- **Git 权限**：所有 `git commit` 与 `git push` 均由木下本人执行。Agent 只提供命令，不得自行提交或推送。
+- **Git 修改前检查**：Agent 修改前必须只读检查 `git status --short` 与 `git log -1 --oneline`。如需快照，给出精确命令并等待木下执行确认后再修改。
+- **Git 交接**：Agent 完成工作后必须列出实际改动文件，并提供按路径限定的 `git add <path...>` 与 `git commit -m "..."` 命令。除非木下明确授权，不得使用 `git add -A` 或 `git add .`。
+- **未追踪素材**：Agent 不得擅自暂存未追踪目录或素材；`.codex/` 与 `docs/design/reference-design/深水/` 默认忽略，除非木下另行明确授权。
+- **依赖基线**：正式开发以当前最新稳定主版本为目标。主版本升级必须作为独立的依赖基线审计／迁移任务执行并验证，不得在功能、设计或原型任务中静默升级。
 
 ## Rule Precedence
 

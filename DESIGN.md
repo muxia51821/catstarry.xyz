@@ -556,7 +556,9 @@ Finance 保留高密度数据布局、精确网格和暗色操作面，不使用
 | Projects | Cream Gallery | Klein Blue | 台地、切面、金属嵌线残响 |
 | Finance | Cyber Arena | Turquoise | 数据网格、涨跌双重编码；无星图与鼠标尾迹 |
 
-### 9.2 Phase 4.1 Pre-Flight
+### 9.2 Phase 4.2 / 4.3 原型验收基线
+
+> 以下项目不是 Phase 4.1 的 CSS 闭合清单。Phase 4.2 用隔离原型验证交互和参数，Phase 4.3 在选定样式落回 canonical CSS 后完成最终勾选。
 
 - [ ] Home 是静态宇宙入口和星图，不是内容聚合页。
 - [ ] Entry、Approach、Overview、Push 属于同一片星域。

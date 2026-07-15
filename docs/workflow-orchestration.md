@@ -1,7 +1,7 @@
 # catstarry.xyz 开发流程编排方案
 
 > 执行手册。进度追踪见 `docs/DASHBOARD.md`。
-> 最后更新：2026-07-15
+> 最后更新：2026-07-16
 
 ---
 
@@ -49,10 +49,36 @@ Phase 4.2：原型生成
 **状态表达规则**：
 
 - 定向回流进行时，主线 Phase 4 标记为“4.1 定向回流中”；Phase 4.2 不得提前启动。
-- 返回 Phase 4.1 完成并同步共享文档后，标记为“4.1 已完成；4.2 等待流程治理启动”，不能由设计对话自行越级进入原型。
+- 返回 Phase 4.1 完成并同步共享文档后，标记为“4.1 已完成”。如流程治理已登记依赖迁移等前置门，须先闭合这些前置门；随后才标记为“4.2 等待流程治理启动”，不能由设计对话自行越级进入原型。
 - 定向 Phase 2、3 以独立状态块记录“范围、产物、回归点”，不把全局 Phase 2、3 改回未完成。
 - 定向 Phase 3 未完成前，`CONTEXT.md` 中受影响的架构与设计结论必须标为“定向回流中”或“待复核”，不得伪装成已锁定。
 - 每次定向回流闭合后，木下回到流程治理对话；流程治理更新 `DASHBOARD.md`、`CONTEXT.md`、`SITEMAP.md` 与对应 Phase brief，再允许进入下游阶段。
+
+---
+
+## 依赖基线迁移协议
+
+当核心框架与官方 integration 出现跨主版本错配，或木下明确要求正式开发采用最新稳定主版本时，使用**定向依赖基线迁移**。它是独立的基础设施任务，不重开需求、架构或已经闭合的设计阶段。
+
+```
+当前 Phase 完成并保持闭合
+      ↓
+流程治理声明迁移范围、目标版本与禁止越界事项
+      ↓
+独立依赖迁移任务：升级 → 最小兼容修改 → build / content / rendering 验证
+      ↓
+木下执行 Git 提交
+      ↓
+返回流程治理确认基线与下游入口
+```
+
+**执行规则**：
+
+- 依赖迁移不得夹带视觉重做、功能开发、架构扩张或未使用的 adapter。
+- 目标是最新稳定主版本，但升级必须使用 lockfile 固化实际版本，并记录官方 migration guide 中与项目相关的破坏性变化。
+- 迁移任务必须验证 build、Content Collections、Markdown、React islands 与现有可运行页面；Cloudflare adapter 仅在项目真正启用对应渲染模式时安装和验证。
+- 当前一次性迁移：在 Phase 4.1 闭合后、Phase 4.2 启动前，将 Astro 5.18.2 对齐至 Astro 7.0.9，并修复与 Content Layer API、Markdown、HTML 编译相关的最小兼容问题。Phase 4.1 保持完成，Phase 4.2 在迁移闭合前暂停。
+- Phase 5.0 开始前仍需再次核对最新稳定版本，但不得无审计自动升级。
 
 ---
 
@@ -71,10 +97,11 @@ Phase 7: 部署上线 ──→ Phase 8: 运营维护 ──→ (循环回 Phase
 **核心原则**：
 
 - 每个 Phase 独立一个 Codex 对话线程，fork 自上一个 Phase，继承上下文
-- 产出物全部落在 `docs/` 或 `.scratch/` 中，Git 提交
+- 产出物全部落在 `docs/`、`.scratch/` 或对应 Phase 明确授权的目录中；Git 提交由木下执行
 - 木下（非程序员）审核文档层面的产出物；AI agent 负责编码
 - **Phase 顺序不可跳**。跳过规格化和架构直接写代码 = 返工。
 - **Phase 完成后必须回到「流程治理」对话报告进度**，见上方「流程治理协议」
+- Agent 修改前检查 Git 状态与 HEAD；修改后给出按路径限定的提交命令，不自行 commit / push，也不擅自加入未追踪素材。
 
 ---
 
@@ -163,20 +190,26 @@ Phase 7: 部署上线 ──→ Phase 8: 运营维护 ──→ (循环回 Phase
 
 **产出物**：根目录 `DESIGN.md`（以文档内目录与当前版本为准）+ canonical CSS 设计系统契约（`src/styles/variables.css`、`typography.css`、`components.css`）+ `docs/design/reference-design/`（木下人工选取的参照）+ 可交互 HTML 原型。
 
-**taste-skill 角色**：Phase 4.2 作为 Policy Engine 控制布局策略；Phase 4.3 作为 Quality Gate 执行 pre-flight 质检。
+**skill 边界**：Phase 4.2 默认只使用 `prototype`。当前安装的 `gpt-taste` 强制 AIDA、随机设计与 GSAP ScrollTrigger，与 Design 2.0 冲突，不得作为 Policy Engine 或 Quality Gate。其他视觉 skill 只有在先通过 DESIGN.md 兼容性审查后才能使用。
 
 **设计基调**：由 4.0 木下挑选的 reference-design 决定。不做预设（不预设色系、不预设风格）。
 
-**CJK 约束**：taste-skill 原生基于拉丁排版。中文排版需叠加 CJK 适配规则（行高 ≥1.85、字间距不调整、标点挤压规则）。
+**CJK 约束**：以 `DESIGN.md` 与 `src/styles/typography.css` 的 canonical 规则为准，不依赖外部 taste skill。
 
 | #   | 动作                                                                                              | skill                                                                          | 产出                            |
 | --- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ | ------------------------------- |
 | 4.0 | 木下人工选参照：浏览 getdesign.md 挑选 2-3 个视觉锚点，笔记提取至 `docs/design/reference-design/` | —（人工）                                                                      | `docs/design/reference-design/` |
 | 4.1 | Design Read + Design System Re-lock：AI 读 `reference-design/` → 声明 Design Read → 维护根目录 DESIGN.md 的设计目录、决策与视觉接口 → 对齐 canonical CSS token、CJK 基线与通用工具类，退役已失效的旧页面语义 | — | `DESIGN.md` + canonical CSS 设计系统契约 |
-| 4.2 | 原型生成：加载 taste-skill(minimalist+soft) 作为 Policy Engine 控制布局，风格由 DESIGN.md 驱动    | `prototype` + taste-skill (minimalist-skill + soft-skill)                      | 关键页面 HTML 原型              |
-| 4.3 | 原型落地 + 质检：落地 HTML/CSS → taste-skill pre-flight check（模板布局、平庸间距、CJK 标点挤压） | `web-design-engineer` + taste-skill (pre-flight check + output-skill 完整输出) | 质检通过的 HTML/CSS 原型        |
+| 4.2 | 隔离原型与参数校准：以 DESIGN.md 驱动一次性 HTML/CSS/JS 原型，只验证明确标记为 calibration 的参数 | `prototype` | `docs/design/prototypes/phase4-2/` 下的独立原型 + verdict |
+| 4.3 | 选定原型落地 + UI 质检：把获选组件样式落回 canonical CSS，执行 CJK、keyboard、touch、reduced-motion、性能与视觉一致性检查 | `web-design-engineer` | 更新后的 canonical CSS + UI 质检报告 |
 
 > Phase 4.1 的 CSS 工作只维护 token 契约、排版基线、通用工具类和过时语义清理，不实现新页面组件。Phase 4.2 的一次性实验 CSS 不直接写入 canonical styles；选定原型的组件样式在 Phase 4.3 才落回 `components.css`，经验证的数值再固化至 `variables.css`。
+
+**结束条件**：
+
+- **4.1**：`DESIGN.md` 与 canonical token、CJK、通用工具类完成重锁；CSS 解析、token 引用和 Astro build 通过；未实现新页面组件；流程治理确认闭合。
+- **4.2**：隔离原型与 `prototype-verdict.md` 完成，木下确认关键参数；未修改 canonical CSS、生产路由或架构；返回流程治理报告。
+- **4.3**：获选组件样式与参数落回 canonical CSS，并通过 CJK、keyboard、touch、reduced-motion、性能和视觉一致性质检；返回流程治理确认 Phase 4 完成。
 
 > Phase 3 对话结束后，木下回到流程治理报告完成状态，流程治理确认后 fork Phase 4。避免原型先行导致设计绑架架构。
 
@@ -188,9 +221,10 @@ Phase 7: 部署上线 ──→ Phase 8: 运营维护 ──→ (循环回 Phase
 
 **输入**：PRD + ADR + UI 原型 + DESIGN.md + triage 后的 issue + `docs/agents/frontend-rules.md`。
 
-| #   | 动作                                                                                                                                       | skill                                                            | 产出 |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------- | ---- | ------------------------------- |
-| 5.0 | 前端规则固化：将 DESIGN.md 核心规则 + taste-skill CJK 质检清单 + 暖色系强制覆盖规则固化至 `docs/agents/frontend-rules.md`。标记 `[原型验证 | Phase 5 可微调]`，核心不可改细项可调。**各模块开发线程必须引用** | —    | `docs/agents/frontend-rules.md` |
+| #   | 动作 | skill | 产出 |
+| --- | --- | --- | --- |
+| 5.0A | 依赖基线复核：核对 Astro、官方 integrations、React、Cloudflare adapter 与 Node 的最新稳定版本；仅在审计通过后升级 | — | 依赖兼容矩阵 + 升级／保持决定（必要时 ADR） |
+| 5.0B | 前端规则固化：将 DESIGN.md 核心规则、canonical CJK 质检清单与三画布规则固化至 `docs/agents/frontend-rules.md`。标记为“原型已验证、Phase 5 仅可微调非核心参数”，各模块开发线程必须引用 | — | `docs/agents/frontend-rules.md` |
 
 **策略**：分两波执行。
 
