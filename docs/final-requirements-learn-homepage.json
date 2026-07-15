@@ -5,7 +5,8 @@
     "rounds_completed": 6,
     "termination_reason": "NATURAL — 6轮drill完成，覆盖度检查无遗漏，用户确认结束",
     "model_used": "gpt-5.1-codex-max",
-    "confidence_overall": "high"
+    "confidence_overall": "high",
+    "reflow_revision": "2026-07-15-home-feed-reflow"
   },
   "original_idea": {
     "raw_input": "角度C：与首页的关系 — /learn板块（编程学习笔记/知识蒸馏）在聚合首页中的展示、排序、草稿可见性、订阅分发等关系设计",
@@ -325,6 +326,16 @@
       "suggested_next_step": "实现阶段确定技术方案"
     }
   ],
+  "directed_reflow": {
+    "supersedes": "本文件中所有 Home 混合时间线、按 lastModified 重新排序、发布后进入 Home 的条目。",
+    "replacement": [
+      "Home 不聚合 Learn 内容。",
+      "发布让笔记进入 /learn 与 RSS；不自动产生 Feed 足迹。",
+      "明确完成已发布小节才产生一个 Feed Public Footprint；completionId 去重。",
+      "草稿不进入 Feed、RSS、搜索或 sitemap。"
+    ],
+    "authority": "docs/final-requirements-feed.json 与 docs/adr/005-public-footprint-separate-storage.md"
+  },
   "model_notes": {
     "grill_me_model": "gpt-5.1-codex-max"
   }

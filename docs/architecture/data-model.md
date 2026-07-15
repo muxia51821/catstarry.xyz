@@ -12,7 +12,7 @@
 | `catstarry-db` | `env.DB`（主站 Worker）    | /feed 帖子、/blog 阅读量、认证 session |
 | `finance-db`   | `env.DB`（finance Worker） | 交易记录、持仓快照、行情数据、熔断日志 |
 
-**理由**：财务数据隔离更安全（ADN-001）。主站模块共库可简化 Home 聚合查询。
+**理由**：财务数据隔离更安全（ADR-001）。主站 D1 同时承载原生 Feed、公开足迹、阅读量和认证；Home 不再查询它做内容聚合。
 
 ---
 
@@ -72,7 +72,49 @@ ORDER BY created_at DESC, id DESC
 LIMIT ?3;
 ```
 
-### 1.2 blog_views 表
+### 1.2 public_footprints 表
+
+系统足迹的不可变写模型。它只记录已经发生、可公开展示的 Blog 发布、Learn 小节完成和 Projects 实质更新；不存原生碎碎念或剪藏。
+
+```sql
+CREATE TABLE IF NOT EXISTS public_footprints (
+  id              TEXT PRIMARY KEY,
+  source_module   TEXT NOT NULL CHECK(source_module IN ('blog','learn','projects')),
+  source_ref      TEXT NOT NULL,
+  source_version  TEXT NOT NULL,
+  event_type      TEXT NOT NULL CHECK(event_type IN ('blog_published','learn_section_completed','project_updated')),
+  snapshot_json   TEXT NOT NULL,
+  occurred_at     TEXT NOT NULL,
+  visibility      TEXT NOT NULL DEFAULT 'public' CHECK(visibility IN ('public','private')),
+  idempotency_key TEXT NOT NULL UNIQUE,
+  created_at      TEXT NOT NULL
+);
+
+CREATE INDEX idx_public_footprints_public ON public_footprints(visibility, occurred_at DESC, id DESC);
+CREATE INDEX idx_public_footprints_source ON public_footprints(source_module, source_ref, source_version);
+```
+
+| 字段 | 说明 |
+| --- | --- |
+| `source_ref` | 来源稳定标识，例如 Blog slug、Learn track/section、Projects project id |
+| `source_version` | 本次足迹对应的明确发布／完成／更新标识；不是普通 `lastModified` |
+| `snapshot_json` | 创建时标题、摘要、链接、来源名称和事件展示文案；之后不随来源普通编辑改写 |
+| `idempotency_key` | 同一来源版本只产生一次足迹的唯一键 |
+| `visibility` | 足迹独立公开或隐藏；不向来源内容传播 |
+
+| 来源 | `source_ref` | `source_version` | `idempotency_key` |
+| --- | --- | --- | --- |
+| Blog | `slug` | 稳定 `publication_id` | `blog:{slug}:{publication_id}` |
+| Learn | `track/section` 或等价稳定小节引用 | 明确 `completionId` | `learn:{source_ref}:{completionId}` |
+| Projects | 稳定 `project_id` | 木下显式给出的 `update_id` | `projects:{project_id}:{update_id}` |
+
+**来源生命周期**：写入成功后，足迹只依赖自身快照。来源普通编辑不改写快照；来源隐藏、删除或链接失效不级联删除足迹。时间线可将链接显示为暂不可用；木下仍可独立把足迹设为 private。
+
+### 1.3 Public Timeline 读取投影
+
+`feed_posts` 与 `public_footprints` 不合并为写表。`GET /api/feed` 由 Public Timeline 模块按 `(occurred_at, id)` 统一排序和游标分页，返回访客可读的 `TimelineEntry`。该投影不是 D1 表，也不应被 Home 使用。
+
+### 1.4 blog_views 表
 
 /blog 文章阅读量统计。已存在（Phase 1 原型）。
 
@@ -86,7 +128,7 @@ CREATE TABLE IF NOT EXISTS blog_views (
 );
 ```
 
-### 1.3 auth_sessions 表
+### 1.5 auth_sessions 表
 
 认证 session 存储（/feed 登录后 12h 有效期）。
 
@@ -181,7 +223,6 @@ CREATE TABLE IF NOT EXISTS circuit_breaker_log (
 | Namespace   | Key Pattern          | 用途                               | TTL        |
 | ----------- | -------------------- | ---------------------------------- | ---------- |
 | **VIEW_KV** | `view:{slug}:{date}` | 阅读量去重（IP→count）             | 24h        |
-| **VIEW_KV** | `blog-metadata`      | blog 元数据 JSON（用于 Home 聚合） | 构建时写入 |
 | **AUTH_KV** | `user:{username}`    | 用户密码 bcrypt hash               | 永久       |
 | **AUTH_KV** | `session:{token}`    | 登录 session                       | 12h        |
 | **AUTH_KV** | `ratelimit:{ip}`     | 登录限流计数器                     | 5min       |
@@ -223,47 +264,34 @@ const learnCollection = defineCollection({
     publishDate: z.date(),
     lastModified: z.date().default(() => new Date()),
     excerpt: z.string().optional(),
+    completionId: z.string().optional(), // 仅明确完成小节时写入；不是普通编辑时间
   }),
 });
 ```
 
+`completionId` 是 Learn 足迹的来源版本。它只在木下明确完成一个已发布小节时创建；`lastModified` 继续用于 /learn 的自身排序，绝不用于生成或重排公开足迹。
+
 ---
 
-## 6. 博客元数据流 — KV Bridge
+## 6. Blog 生产部署成功信号
 
-blog 用 Markdown frontmatter（不存入 D1），但 Home 聚合需要 blog 元数据。通过 KV bridge 解决：
+Blog 继续以 Markdown frontmatter 为内容源。Public Footprint 不在构建开始时写入：只有生产部署成功后的受保护信号才可创建一次足迹。
 
 ```
-Markdown frontmatter
-    ↓ astro build
-  getCollection("blog")
-    ↓ 生成 JSON
-  blog-metadata.json  [写入 KV]
-    ↓
-  Worker GET /api/home
-    ↓ 读取 KV
-  blog 卡片混合到 Home 时间线
+Markdown（stable publication_id）
+    ↓ Git push / build / production deploy
+部署成功信号（仅 production）
+    ↓ 由 Publication Signal Adapter 验证
+Public Footprint Writer
+    ↓ 唯一 idempotency_key
+D1 public_footprints
 ```
 
-**blog-metadata KV value 结构**：
+**约束**：
 
-```json
-{
-  "posts": [
-    {
-      "slug": "from-zero",
-      "title": "从零搭建个人网站",
-      "date": "2026-07-03",
-      "category": "tech",
-      "tags": ["astro", "cloudflare", "个人网站"],
-      "excerpt": "..."
-    }
-  ],
-  "updated_at": "2026-07-05T12:00:00Z"
-}
-```
-
-Phase 5 开发时，在 `astro.config.mjs` 的构建钩子中实现 KV 写入（deploy hook 或 build 集成）。
+- 幂等键使用 `blog:{slug}:{publication_id}`，不使用 deployment id 或普通 Git SHA。
+- 普通编辑、构建开始、部署失败与对同一发布标识的重复部署均不得产生新足迹。
+- 具体 Cloudflare 部署成功回调适配方式在 Phase 5 实现前验证；架构接口不依赖某个特定供应商回调格式。
 
 ---
 
@@ -277,6 +305,11 @@ Phase 5 开发时，在 `astro.config.mjs` 的构建钩子中实现 KV 写入（
 // --- /feed ---
 export type PostType = "note" | "clip";
 export type Visibility = "public" | "private";
+export type FootprintSource = "blog" | "learn" | "projects";
+export type FootprintEventType =
+  | "blog_published"
+  | "learn_section_completed"
+  | "project_updated";
 
 export interface FeedPost {
   id: string;
@@ -290,6 +323,25 @@ export interface FeedPost {
   visibility: Visibility;
   created_at: string; // ISO 8601
   updated_at: string; // ISO 8601
+}
+
+export interface PublicFootprint {
+  id: string;
+  source_module: FootprintSource;
+  source_ref: string;
+  source_version: string;
+  event_type: FootprintEventType;
+  snapshot_json: string;
+  occurred_at: string;
+  visibility: Visibility;
+}
+
+export interface TimelineEntry {
+  id: string;
+  kind: "native_post" | "system_footprint";
+  occurred_at: string;
+  visibility: Visibility;
+  payload: FeedPost | PublicFootprint;
 }
 
 export interface PaginatedResponse<T> {
@@ -320,18 +372,6 @@ export interface SessionStatus {
   username: string | null;
 }
 
-// --- Home 聚合 ---
-export interface HomeTimelineItem {
-  type: "blog" | "feed" | "learn" | "project";
-  slug: string;
-  title: string;
-  excerpt: string | null;
-  date: string;
-  url: string;
-  media_url: string | null;
-  badge_label: string;
-  badge_color: string;
-}
 ```
 
 ---
@@ -349,6 +389,16 @@ catstarry-db                    finance-db
 │  visibility │                │  position_category│
 │  created_at │                └────────┬─────────┘
 └─────────────┘                         │
+┌──────────────────┐                    │
+│ public_footprints│                    │
+│ id (PK)          │                    │
+│ source_module    │                    │
+│ source_ref       │                    │
+│ source_version   │                    │
+│ snapshot_json    │                    │
+│ visibility       │                    │
+│ idempotency_key  │                    │
+└──────────────────┘                    │
 ┌─────────────┐                ┌────────▼─────────┐
 │ blog_views  │                │ holdings_snapshots│
 │  slug       │                │  ticker, quantity │
@@ -369,8 +419,7 @@ catstarry-db                    finance-db
 
 KV:                               R2:
   view:{slug}:{date} → count        catstarry-media/
-  blog-metadata → JSON                feed/2026-07/uuid.jpg
-  user:{username} → bcrypt hash
+  user:{username} → bcrypt hash       feed/2026-07/uuid.jpg
   session:{token} → session data
   ratelimit:{ip} → counter
 ```

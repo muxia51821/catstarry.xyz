@@ -5,7 +5,8 @@
     "rounds_completed": "发散+6层 drill",
     "termination_reason": "条件1：用户确认 drill 完成",
     "model_used": "codewise-default",
-    "confidence_overall": "high"
+    "confidence_overall": "high",
+    "reflow_revision": "2026-07-15-home-feed-reflow"
   },
   "original_idea": {
     "raw_input": "/projects 页面展示木下完成的成品项目，每个项目独立存储和部署，catstarry.xyz 只做索引卡片",
@@ -142,6 +143,23 @@
       "suggested_next_step": "Phase 5实现时木下提供素材"
     }
   ],
+  "directed_reflow": {
+    "supersedes": [
+      "G002 及所有 Projects 在 Home 混合时间线展示的目标、约束和验收"
+    ],
+    "locked_rules": [
+      "Home 不再展示 Projects 内容卡片。",
+      "木下明确标记一次实质更新时，Projects 才创建一条 Feed Public Footprint。",
+      "普通索引编辑、保存、部署失败和重复部署不产生足迹。",
+      "不回填旧 Poker 或其他历史项目。",
+      "系统足迹保存创建时快照，可从 Feed 隐藏但不影响项目源内容。"
+    ],
+    "authority": [
+      "docs/final-requirements-feed.json",
+      "docs/adr/005-public-footprint-separate-storage.md",
+      "docs/architecture/data-model.md"
+    ]
+  },
   "model_notes": {
     "grill_me_model": "codewise-default完成6层drill"
   }

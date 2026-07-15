@@ -36,6 +36,7 @@
 13. 作为木下，我想文章 SEO 友好（Open Graph 标签、结构化元数据），让搜到的访客看到漂亮的分享预览。
 14. 作为木下，我想文章 URL 简洁可读（如 /blog/why-i-started-blogging），便于分享和记忆。
 15. 作为木下，我想未来能轻松加上英文 UI 切换（i18n），一期不需要改动架构。
+16. 作为木下，我想一篇新文章只在首次生产部署成功后产生一条 Feed 公开足迹；普通编辑、失败或重复部署不增加足迹。
 
 ## Implementation Decisions
 
@@ -45,6 +46,7 @@
 - **内容源**：`content/blog/` 目录下的 Markdown 文件，每篇一个 `.md` 文件。使用 Astro Content Collections 管理。
 - **路由**：`/blog/` 为文章列表首页，`/blog/[slug]/` 为文章详情页。slug 从文件名或 frontmatter 的 `slug` 字段派生。
 - **构建触发**：Git push → main 分支 → Cloudflare Pages 自动构建部署（`astro build`，输出目录 `dist/`）。
+- **公开足迹触发**：只有新文章的首次生产部署成功后，受控生产者才调用 Public Footprint Writer。稳定 `publication_id` 是去重依据；Git SHA、部署 ID、构建开始、构建失败和重复部署均不构成足迹版本。
 
 ### /blog 页面结构
 
@@ -112,6 +114,7 @@ draft?: boolean        # 草稿标记，true 时不生成页面
 
 - **最高接缝**：`astro build` 的构建产物（`dist/` 目录下的静态 HTML）。验证所有页面是否正确生成、路由是否可访问、meta 标签是否存在。
 - **接口接缝**：阅读量 API（`POST/GET /api/views`）的 HTTP 请求/响应。验证计数逻辑和去重。
+- **发布接缝**：新文章首次生产部署成功 → Feed 可看到一条来源为 Blog 的公开足迹；普通编辑、失败和重复部署不产生第二条。
 - **组件接缝**：React island 组件（Giscus、分享按钮、分类/标签筛选）的客户端行为。
 
 ### 视觉基调
@@ -141,7 +144,7 @@ draft?: boolean        # 草稿标记，true 时不生成页面
 
 ## Further Notes
 
-- /blog 是 Phase 1 的旗舰板块，它的上线为后续 /feed、/learn、/projects 建立模式——Markdown 内容 + Git push 部署 + 聚合首页混排的模板。
+- /blog 是 Phase 1 的旗舰板块，它的上线为后续模块建立 Markdown 内容与 Git push 部署模式；Home 不再聚合内容，重要发布由 Feed 记录为公开足迹。
 - 阅读量 API 设计为通用计数器，后续 /projects、/learn 板块可直接复用同一端点，只需传不同的资源标识。
 - 分类和标签的中文显示名（如 "技术" / "tech"）在实现时做映射。一期 frontmatter 用英文 slug（tech/life/opinion），前端映射为中文。
 - RSS feed 的生成时机在 `astro build` 阶段，利用 Astro 的静态文件生成能力或自定义集成。

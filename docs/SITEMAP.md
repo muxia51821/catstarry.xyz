@@ -11,9 +11,9 @@
 
 | 属性 | 值 |
 | --- | --- |
-| 渲染 | 待定向 Phase 3 架构复核；Home 不再承担内容聚合 |
+| 渲染 | SSG；客户端 island 只处理滚动阶段、短推进与 About 原地展开 |
 | 内容 | 宇宙入口 → 接近星域 → 自由星图总览 → 页脚；About 在 Home 原地展开 |
-| 数据来源 | 星图导航所需数据待定向 Phase 3 裁决；不读取 Blog / Feed / Learn / Projects 的最新内容作聚合流 |
+| 数据来源 | 静态星图目的地配置；不读取 Blog / Feed / Learn / Projects 的最新内容作聚合流 |
 | 链接到 | /blog、/feed、/projects、/learn；点击对应星球后进入各功能页面 |
 
 ### `/blog/` — 博客列表页
@@ -113,9 +113,8 @@
 | 端点            | Worker      | 方法     | 说明                                      |
 | --------------- | ----------- | -------- | ----------------------------------------- |
 | `/api/views`    | feed-api    | GET/POST | 阅读量计数，D1 + KV 去重                  |
-| `/api/feed`     | feed-api    | GET/POST | 时间线数据 + 发布帖子                     |
+| `/api/feed`     | feed-api    | GET/POST | 公开足迹时间线（原生内容 + 系统足迹）+ 原生发布 |
 | `/api/auth`     | feed-api    | POST     | 登录/登出，bcrypt + KV session            |
-| `/api/home`     | feed-api    | GET      | 待定向 Phase 3 退役或替代；旧职责为 Home 聚合数据（blog/feed/learn/projects） |
 | `/api/trades`   | finance-api | GET/POST | 交易记录 CRUD                             |
 | `/api/holdings` | finance-api | GET      | 实时持仓 + 偏离预警                       |
 | `/api/market`   | finance-api | GET      | 行情数据（15 分钟延迟）                   |

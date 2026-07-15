@@ -1,7 +1,7 @@
 # 代码库架构 (Modules)
 
 > catstarry.xyz 模块设计 — Seam 分析 + 深度评估 + 数据流
-> Phase 3 / 3.2 & 3.3 产出 | 2026-07-05
+> Phase 3 / 3.2 & 3.3 产出 | 定向回流复核：2026-07-15
 > 遵循 codebase-design skill 的 deep module 框架
 
 ---
@@ -49,7 +49,7 @@
 catstarry.xyz/
 |= src/                           # Layer 1: Astro 页面
 |  |= pages/                      # 路由（文件系统路由 = interface）
-|  |  |- index.astro              # Home (SSR) — 聚合时间线
+|  |  |- index.astro              # Home (SSG) — 宇宙入口与星图导航
 |  |  |= blog/                    # 博客板块
 |  |  |  |- index.astro           #   列表页 (SSG)
 |  |  |  |- [slug].astro          #   详情页 (SSG)
@@ -74,9 +74,8 @@ catstarry.xyz/
 |  |  |  |- MediaUploader.tsx     #     媒体上传 + R2 直传
 |  |  |  `- LoginPanel.tsx        #     登录面板
 |  |  |= home/                    #   Home 专用组件
-|  |  |  |- AboutCard.tsx         #     about 卡片 (3D 粒子, client:load)
-|  |  |  |- TimelineFeed.tsx      #     混合时间线 (client:load)
-|  |  |  `- FilterBar.tsx         #     类型筛选栏 (client:load)
+|  |  |  |- StarMap.tsx           #     星图导航与短推进 (client:load)
+|  |  |  `- AboutExpansion.tsx   #     About 原地展开 (client:load)
 |  |  |= learn/                   #   /learn 专用组件
 |  |  |  |- KnowledgeGraph.tsx    #     知识图谱 (client:load)
 |  |  |  |- WikiLink.tsx          #     wikilink 悬停预览
@@ -109,15 +108,15 @@ catstarry.xyz/
 |= workers/                       # Layer 2: CF Workers
 |  |= feed-api/                   #   主站 API Worker
 |  |  |- wrangler.toml            #     D1: catstarry-db, KV: VIEW_KV + AUTH_KV, R2: media
-|  |  |- schema.sql               #     DDL: feed_posts, blog_views, auth_sessions
+|  |  |- schema.sql               #     DDL: feed_posts, public_footprints, blog_views, auth_sessions
 |  |  `- src/
 |  |     |- index.ts              #     入口: fetch → route dispatch
 |  |     |= routes/               #     路由 handler（每个文件 = 一个 endpoint group）
 |  |     |  |- feed.ts            #       /api/feed (GET/POST), /api/feed/:id (PATCH/DELETE)
 |  |     |  |- views.ts           #       /api/views (GET/POST)
 |  |     |  |- auth.ts            #       /api/auth/login, /api/auth/logout, /api/auth/session
-|  |     |  |- home.ts            #       /api/home (GET) — 5 源聚合
-|  |     |  `- learn.ts           #       /api/learn — 笔记草稿发布状态切换
+|  |     |  |- footprints.ts      #       内部写入：来源模块的系统足迹
+|  |     |  `- learn.ts           #       /api/learn — 笔记草稿与完成标记
 |  |     `- middleware/
 |  |        |- cors.ts            #       CORS 头注入
 |  |        `- auth.ts            #       Session 验证 → 注入 username
@@ -177,7 +176,8 @@ catstarry.xyz/
 | Module                           | Interface                                                | Implementation Depth                                             | 为什么深                                                                                                                |
 | -------------------------------- | -------------------------------------------------------- | ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
 | **shared/auth.ts**               | `verifySession(request, env) → { authenticated, user? }` | bcrypt compare, KV session lookup, D1 fallback, rate-limit check | 4 个 endpoint (login/logout/session/password) 和 2 个 Worker 共用同样的 1 个函数。删除它 = 在每个路由手动重复认证逻辑。 |
-| **routes/feed.ts**               | `handleFeed(request, env) → Response`                    | 游标分页 SQL, 帖子的 CRUD, visibility 过滤, media_json 解析      | `GET /api/feed` 的游标分页逻辑（复合游标 + LIMIT）封装在一处，5 个调用点（公开时间线、管理后台、Home 聚合）复用。       |
+| **Public Timeline 模块**         | `listPublicTimeline(cursor, filters) → PaginatedResponse<TimelineEntry>` | 两表读取、统一排序、游标分页、可见性过滤、来源类型筛选 | 页面与管理后台只学习一个读取接口；原生帖子和系统足迹的差异都留在模块内部。 |
+| **Public Footprint Writer**      | `recordFootprint(candidate) → { created, footprint }` | 幂等键、快照固化、来源／版本校验、独立可见性 | 三个来源模块复用同一写入语义；删除它会让 Blog、Learn、Projects 各自实现去重和快照。 |
 | **components/MediaUploader.tsx** | `<MediaUploader onComplete={fn} />`                      | 文件选择→类型检测→R2 直传→进度回调→失败重试→HEIC 转换            | 一个组件包裹了上传的全部复杂行为。调用者只需 `onComplete` 拿结果。                                                      |
 | **shared/cors.ts**               | `CORS_HEADERS` + `wrapCors(response)`                    | 所有 Worker 路由共享同一份 CORS 配置                             | 10+ 个 endpoint 只需一个常量。新增 endpoint 不重写 CORS。                                                               |
 
@@ -208,15 +208,14 @@ catstarry.xyz/
 
 ## 5. 数据流
 
-### 5.1 Blog 发布流
+### 5.1 Blog 发布与公开足迹流
 
 ```
-木下 → Markdown → Git push → GitHub Actions
-    → astro build
-        ├→ SSG: HTML pages → dist/
-        └→ blog-metadata.json
-    → deploy hook: KV.put("blog-metadata", json)
-    → CF Pages deploy (dist/)
+木下 → Markdown（publication_id）→ Git push → astro build → CF Pages production deploy
+                                                         ↓ 仅成功后
+                                              Publication Signal Adapter
+                                                         ↓
+                              Public Footprint Writer → D1 public_footprints
 ```
 
 ### 5.2 Feed 发布流
@@ -239,27 +238,23 @@ catstarry.xyz/
 访客 → /feed
     → Astro SSR: index.astro
         → fetch GET /api/feed?limit=20
-        → Worker: feed.ts
-            → D1: SELECT ... WHERE visibility='public' ... LIMIT 20
+        → Worker: Public Timeline 模块
+            → D1: feed_posts + public_footprints
+            → 统一排序、复合游标与 visibility='public' 过滤
             → Response JSON
-        → Astro 渲染 Timeline + NoteCard/ClipCard
+        → Astro 渲染 Timeline + 原生卡片／系统足迹卡片
     → HTML → 浏览器
 ```
 
-### 5.4 Home 聚合流
+### 5.4 Home 星图导航流
 
 ```
 访客 → /
-    → Astro SSR: index.astro
-        → fetch GET /api/home
-        → Worker: home.ts
-            ├→ KV.get("blog-metadata") → blog posts metadata
-            ├→ D1: SELECT ... FROM feed_posts WHERE visibility='public' LIMIT 15
-            ├→ D1/SQL 中不包括 learn 和 projects（它们走 Astro getCollection）
-            └→ 合并 + 按日期排序 → Response JSON
-        → 同时: Astro getCollection("learn") + getCollection("projects")
-        → 三源合并 → 渲染 AboutCard + TimelineFeed
-    → HTML → 浏览器
+    → Astro SSG: index.astro 输出宇宙入口、星图目的地与 SEO
+    → 浏览器：StarMap island 处理滚动阶段、短推进、About 原地展开
+    → 点击 Blog / Feed / Learn / Projects → 对应功能页面
+
+不调用 Worker，不读取或聚合内容数据。
 ```
 
 ### 5.5 Finance 行情流
@@ -379,7 +374,7 @@ src/content/            ← 仅被 Astro build 读取
 | **nodejs_compat flag**      | `compatibility_flags` 未设置                                       | Phase 5 在 `wrangler.toml` 添加 `compatibility_flags = ["nodejs_compat"]`，bcryptjs 和 bcrypt compare 依赖 Node.js built-ins |
 | **wrangler types**          | 当前无 `Env` 类型生成                                              | Phase 5 运行 `wrangler types` 生成 `Env` 接口，替换手写类型                                                                  |
 | **wrangler.jsonc**          | 使用 `wrangler.toml`                                               | Phase 5 评估是否迁移到 `.jsonc`。当前 `.toml` 可保留（非新项目），但绑定格式需验证                                           |
-| **streaming**               | 当前 API 返回的分页响应（JSON 数组）数据量可控（≤20 条）           | Phase 5 确认不需要 stream。如果 Home 聚合返回大量数据，考虑 streaming                                                        |
+| **streaming**               | 当前 API 返回的分页响应（JSON 数组）数据量可控（≤20 条）           | Phase 5 确认不需要 stream。Home 不再有聚合 API；Feed 时间线保持分页即可。                                                     |
 | **ctx.waitUntil()**         | 未在设计中使用                                                     | Phase 5 Cron handler 中日志写入应使用 `ctx.waitUntil()`                                                                      |
 | **floating promises**       | 设计文档未涉及运行时 Promise 管理                                  | Phase 5 开发时 lint 规则检查                                                                                                 |
 | **observability**           | 未配置                                                             | Phase 5 在 `wrangler.toml` 中添加 `observability` 配置段                                                                     |
@@ -418,8 +413,8 @@ async function handleUpload(request: Request, env: Env): Promise<Response> {
 
 | 注意事项       | 现有设计                                                                                                         |
 | -------------- | ---------------------------------------------------------------------------------------------------------------- |
-| **游标分页**   | ✅ `GET /api/feed` 使用 `(created_at, id)` 复合游标，不依赖 OFFSET                                               |
-| **索引覆盖**   | ✅ `idx_feed_posts_created` 支持游标排序，`idx_feed_posts_visibility` 支持过滤                                   |
+| **游标分页**   | ✅ `GET /api/feed` 以统一时间线的 `(occurred_at, id)` 复合游标分页，不依赖 OFFSET                                  |
+| **索引覆盖**   | ✅ `feed_posts` 使用 `visibility + created_at + id`；`public_footprints` 使用 `visibility + occurred_at + id`。Public Timeline 在读取投影中统一为 `occurred_at`。 |
 | **LIMIT 限制** | ⚠️ 当前设 LIMIT 20 合理，但 `GET /api/me/feed`（管理后台）可能查询全部帖子。Phase 5 添加默认 LIMIT，防止全表扫描 |
 | **批量查询**   | ✅ `GET /api/views?slugs=slug1,slug2,...` 支持批量，减少 N+1 问题                                                |
 
@@ -428,5 +423,5 @@ async function handleUpload(request: Request, env: Env): Promise<Response> {
 | 注意事项               | 现有设计                                                                                                                            |
 | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
 | **TTL 设置**           | ✅ session TTL 12h，rate-limit TTL 5min，view dedup TTL 24h                                                                         |
-| **blog-metadata 大小** | ⚠️ KV value 上限 25MB。个人博客元数据远小于此，但 Phase 5 确认 JSON 大小                                                            |
-| **最终一致性**         | ⚠️ KV 写入 blog-metadata 后在 deploy hook 中执行，读取时 KV 可能还未全局同步（通常 <60s）。可接受——博客更新频率低，延迟一分钟不影响 |
+| **blog-metadata**      | 已退役。ADR-006 删除其 KV bridge，不再评估大小或最终一致性。                                                                        |
+| **部署成功信号**       | ⚠️ 必须由受保护的 production-success adapter 触发；Phase 5 在实际 Cloudflare 部署链路中验证其签名、重试与幂等行为。                 |

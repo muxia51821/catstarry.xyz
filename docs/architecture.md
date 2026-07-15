@@ -1,7 +1,7 @@
 # 架构总览 (Architecture)
 
 > catstarry.xyz 全站架构总览 — 模块关系图 + 数据流向 + 技术栈映射
-> Phase 3 架构设计产出 | 2026-07-05
+> Phase 3 架构设计产出 | 定向回流复核：2026-07-15
 
 ---
 
@@ -10,10 +10,10 @@
 | 层            | 选型                                | 部署              | 用途                                      |
 | ------------- | ----------------------------------- | ----------------- | ----------------------------------------- |
 | **前端框架**  | Astro (hybrid: SSG + SSR)           | CF Pages          | 全站页面渲染                              |
-| **交互组件**  | React 18 + shadcn/ui                | 嵌入 Astro island | 发布面板、时间线、管理后台、about 卡片    |
+| **交互组件**  | React 18 + shadcn/ui                | 嵌入 Astro island | 发布面板、公开足迹时间线、管理后台、Home 交互 |
 | **API**       | CF Workers (feed-api + finance-api) | wrangler deploy   | 数据读写、认证、Cron 任务                 |
-| **数据库**    | D1 (catstarry-db + finance-db)      | CF                | 结构化数据（帖子、交易、阅读量、session） |
-| **缓存/配置** | KV (3 namespace)                    | CF                | 阅读量去重、blog 元数据、认证、限流       |
+| **数据库**    | D1 (catstarry-db + finance-db)      | CF                | 原生 Feed、公开足迹、交易、阅读量、session |
+| **缓存/配置** | KV                                  | CF                | 阅读量去重、认证、限流                    |
 | **文件存储**  | R2 (catstarry-media)                | CF                | /feed 媒体文件（图片/视频）               |
 | **CI/CD**     | GitHub Actions + wrangler           | GitHub            | Git push → build → deploy                 |
 | **域名**      | catstarry.xyz + f.catstarry.xyz     | CF DNS            | 主站 + 财务子域名                         |
@@ -27,7 +27,7 @@
                     ┌──────────────────────────────────┐
                     │            Astro                  │
                     │                                   │
-  / (SSR)           │  ┌──────┐ ┌──────┐ ┌──────────┐ │
+  / (SSG)           │  ┌──────┐ ┌──────┐ ┌──────────┐ │
   /blog/* (SSG)     │  │ Home │ │ Blog │ │ Projects │ │
   /feed/* (SSR)     │  └──┬───┘ └──┬───┘ └────┬─────┘ │
   /learn/* (SSG)    │     │        │           │       │
@@ -44,14 +44,13 @@
           │     feed-api.workers.dev                   │
           │     ┌──────────────────────────┐           │
           │     │ /api/feed  /api/views    │           │
-          │     │ /api/auth  /api/home     │           │
-          │     │ /api/learn               │           │
+          │     │ /api/auth  /api/learn    │           │
           │     └──────┬───────┬───────────┘           │
           │            │       │                       │
           │     ┌──────▼──┐ ┌──▼──────┐ ┌───────────┐ │
           │     │ D1      │ │ KV      │ │ R2        │ │
-          │     │catstarry│ │VIEW_KV  │ │catstarry- │ │
-          │     │-db      │ │AUTH_KV  │ │media      │ │
+          │     │feed_posts│ │VIEW_KV │ │catstarry- │ │
+          │     │footprints│ │AUTH_KV │ │media      │ │
           │     └─────────┘ └─────────┘ └───────────┘ │
           │                                            │
           └────────────── Cloudflare Workers ──────────┘
@@ -81,12 +80,14 @@
 
 ## 数据流向
 
-### Blog 发布流
+### Blog 发布与公开足迹流
 
 ```
-木下写 Markdown → Git push → GitHub Actions → astro build → CF Pages deploy
-                                    ↓
-                              blog-metadata.json → KV (deploy hook)
+木下写 Markdown（含首次发布标识）→ Git push → astro build → CF Pages production deploy
+                                                                  ↓ 仅生产部署成功
+                                                       Publication Signal Adapter
+                                                                  ↓ 幂等写入
+                                                   D1 public_footprints（Blog 快照）
 ```
 
 ### Feed 发布流
@@ -102,21 +103,21 @@
 ### Feed 浏览流（访客）
 
 ```
-访客 → /feed → Astro SSR → fetch GET /api/feed → D1 → 渲染时间线
+访客 → /feed → Astro SSR → fetch GET /api/feed
+        → Public Timeline 模块 → D1 feed_posts + public_footprints
+        → 统一排序、游标分页、可见性过滤 → 渲染时间线
 ```
 
-### Home 聚合流
+### Home 星图导航流
 
 ```
-访客 → / → Astro SSR → fetch GET /api/home
-                              ↓
-                    Worker 聚合:
-                      KV: blog-metadata (blog)
-                      D1: feed_posts (feed, public only)
-                      Astro: getCollection("learn") (learn)
-                      Astro: getCollection("projects") (projects)
-                              ↓
-                    返回混合时间线 JSON → 渲染 Home
+访客 → / → Astro SSG 输出宇宙入口与星图导航壳
+                 ↓
+          客户端 island：滚动阶段、短推进、About 原地展开
+                 ↓
+          静态目的地配置：/blog、/feed、/learn、/projects
+
+不请求 /api/home，不读取跨模块最新内容。
 ```
 
 ### Finance 行情流
@@ -148,12 +149,13 @@ Cron (每日收盘) → fetch-pe task → PE-TTM 数据 → D1 market_data
 | `docs/architecture/modules.md`              | 目录结构 + 模块边界 + Workers 路由                                              | 3.2 + 3.3 |
 | `docs/architecture/auth.md`                 | /feed + finance 鉴权方案                                                        | 3.4       |
 | `docs/adr/001-d1-split.md`                  | 1 个 D1 vs 2 个                                                                 | 3.5       |
-| `docs/adr/002-blog-metadata-kv-bridge.md`   | KV bridge vs D1 迁移                                                            | 3.5       |
+| `docs/adr/002-blog-metadata-kv-bridge.md`   | 已被 ADR-006 对其 Home 聚合用途 supersede                                      | 历史      |
 | `docs/adr/003-worker-count.md`              | 2 个 Worker vs 多 Worker                                                        | 3.5       |
 | `docs/adr/004-feed-visibility-two-state.md` | visibility 两状态 vs 三状态                                                     | 3.5       |
-| `docs/adr/005-about-card-inline.md`         | about 卡片原地展开 vs 模态弹窗                                                  | 3.5       |
+| `docs/adr/005-public-footprint-separate-storage.md` | 原生帖子与系统足迹分存、统一读取                                         | 定向 3   |
+| `docs/adr/006-retire-home-aggregation-and-kv-bridge.md` | 退役 Home 聚合与 KV bridge                                           | 定向 3   |
 | `docs/architecture.md`                      | 本文件（架构总览）                                                              | 汇总      |
-| `DESIGN.md`                                 | 根目录下的视觉设计系统文件，9 节标准格式（Visual Theme → Agent Prompt Guide）。 | 4.1       |
+| `DESIGN.md`                                 | 根目录视觉设计系统；目录以文件当前版本为准                                      | 4.1       |
 
 ---
 
@@ -162,7 +164,7 @@ Cron (每日收盘) → fetch-pe task → PE-TTM 数据 → D1 market_data
 tech-decisions-20260703.md 中的 7 项决策全部保留，但以下三点在 Phase 3 中细化：
 
 1. **D1 拆分**（决策 #1）：从"1 个 D1"细化为"2 个 D1（主站 + 财务独立）"→ ADR-001
-2. **博客元数据不入 D1**（决策 #1 补充）：blog 走 KV bridge → ADR-002
+2. **博客元数据不入 D1**：Blog 内容继续以 Markdown 为源；原 KV bridge 已由 ADR-006 退役
 3. **Workers 拆分**（决策 #2）：保持 2 个，但 feed-api 升级为主站 API Worker → ADR-003
 
 其余 4 项决策（Astro hybrid、React+shadcn/ui、Monorepo、行情 API、CI/CD）不变。
@@ -171,15 +173,16 @@ tech-decisions-20260703.md 中的 7 项决策全部保留，但以下三点在 P
 
 ## 接下来
 
-Phase 3 完成。木下回到「流程治理」对话报告：
+定向 Phase 3 完成后，木下回到「流程治理」对话报告：
 
 > Phase 3 架构设计已完成。产出物：
 >
 > - `docs/architecture/data-model.md`
 > - `docs/architecture/modules.md`
-> - `docs/architecture/auth.md`
+> - `docs/adr/005-public-footprint-separate-storage.md`
+> - `docs/adr/006-retire-home-aggregation-and-kv-bridge.md`
 > - `docs/architecture.md`
-> - `docs/adr/001-005` 共 5 份决策记录
+> - `docs/adr/001-006` 共 6 份决策记录
 >
 > 需要流程治理更新的文件：
 >

@@ -5,6 +5,7 @@
     "termination_reason": "3-angle parallel drill complete; 13 OQs deferred to later phases",
     "model_used": "gpt-5.5 (main) + 3x worker subagents",
     "confidence_overall": "high",
+    "reflow_revision": "2026-07-15-home-feed-reflow",
     "source_files": [
       "docs/final-requirements-learn-structure.json",
       "docs/final-requirements-learn-article.json",
@@ -607,6 +608,25 @@
       "resolve_phase": "Phase 5 开发实现"
     }
   ],
+  "directed_reflow": {
+    "supersedes": [
+      "所有将 Learn 发布、lastModified 或草稿状态映射到 Home 混合时间线的目标、约束、决策与风险",
+      "所有以普通最后修改时间重新排序或生成公开事件的规则"
+    ],
+    "locked_rules": [
+      "Home 不再聚合 Learn 内容。",
+      "草稿不进入 Feed、RSS、搜索或 sitemap。",
+      "发布只让笔记在 /learn 与 RSS 公开，不自动产生 Feed 足迹。",
+      "只有木下明确完成一个已发布小节时，才生成一条 Feed Public Footprint。",
+      "完成事件使用稳定 completionId 去重；保存、普通编辑与重复完成不产生第二条。",
+      "系统足迹保存创建时快照，可从 Feed 隐藏但不影响源笔记。"
+    ],
+    "authority": [
+      "docs/final-requirements-feed.json",
+      "docs/adr/005-public-footprint-separate-storage.md",
+      "docs/architecture/data-model.md"
+    ]
+  },
   "model_notes": {
     "grill_me_model": "gpt-5.5 + 3x subagents"
   },
