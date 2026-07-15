@@ -171,22 +171,8 @@ tech-decisions-20260703.md 中的 7 项决策全部保留，但以下三点在 P
 
 ---
 
-## 接下来
+## 定向 Phase 3 交接状态
 
-定向 Phase 3 完成后，木下回到「流程治理」对话报告：
+定向 Phase 3 已完成，ADR-005、ADR-006 及本架构文档已经锁定。返回 Phase 4.1 已依据这些边界产出 `DESIGN.md` v2.0；设计系统没有重新引入 Home 聚合、动态最近内容或新的架构依赖。
 
-> Phase 3 架构设计已完成。产出物：
->
-> - `docs/architecture/data-model.md`
-> - `docs/architecture/modules.md`
-> - `docs/adr/005-public-footprint-separate-storage.md`
-> - `docs/adr/006-retire-home-aggregation-and-kv-bridge.md`
-> - `docs/architecture.md`
-> - `docs/adr/001-006` 共 6 份决策记录
->
-> 需要流程治理更新的文件：
->
-> - DASHBOARD.md: Phase 3 = ✅
-> - CONTEXT.md: [原型约定 | Phase 3 重新裁决] → [已锁定]，开发状态更新
-> - GLOSSARY.md: about 卡片定义修正（原地展开，非模态弹窗）
-> - SITEMAP.md: API 端点路径更新
+下一步由流程治理确认 Phase 4.2 启动。Phase 4.2 只验证星图、Planet Push、About 原地展开与相关动效参数，不重新裁决本文件中的数据、API、模块或渲染边界。

@@ -48,7 +48,8 @@ Phase 4.2：原型生成
 
 **状态表达规则**：
 
-- 主线 Phase 4 标记为“4.1 定向回流中”；Phase 4.2 不得提前启动。
+- 定向回流进行时，主线 Phase 4 标记为“4.1 定向回流中”；Phase 4.2 不得提前启动。
+- 返回 Phase 4.1 完成并同步共享文档后，标记为“4.1 已完成；4.2 等待流程治理启动”，不能由设计对话自行越级进入原型。
 - 定向 Phase 2、3 以独立状态块记录“范围、产物、回归点”，不把全局 Phase 2、3 改回未完成。
 - 定向 Phase 3 未完成前，`CONTEXT.md` 中受影响的架构与设计结论必须标为“定向回流中”或“待复核”，不得伪装成已锁定。
 - 每次定向回流闭合后，木下回到流程治理对话；流程治理更新 `DASHBOARD.md`、`CONTEXT.md`、`SITEMAP.md` 与对应 Phase brief，再允许进入下游阶段。
@@ -129,9 +130,9 @@ Phase 7: 部署上线 ──→ Phase 8: 运营维护 ──→ (循环回 Phase
 
 | #   | 动作                           | skill       | 产出                                                  |
 | --- | ------------------------------ | ----------- | ----------------------------------------------------- |
-| 2.1 | 全量需求 → issue               | `to-issues` | `.scratch/*/issue.md`（技术细节）                     |
-| 2.2 | issue 分类评估 + 打标签        | `triage`    | 给每个 issue 打 `needs-triage` / `ready-for-agent` 等 |
-| 2.3 | 复杂 issue → PRD（含验收标准） | `to-prd`    | 每个模块一份 PRD（给 AI）                             |
+| 2.1 | 已确认讨论 → PRD / spec        | `to-spec`    | 每个模块一份可执行规格                               |
+| 2.2 | PRD / spec → tracer tickets    | `to-tickets` | `.scratch/*/issue.md`（含阻塞边）                    |
+| 2.3 | ticket 分类评估 + 打标签        | `triage`     | 给每个 issue 打 `needs-triage` / `ready-for-agent` 等 |
 | 2.4 | 生成验收清单                   | —           | `docs/acceptance-*.md`（给木下，纯业务语言）          |
 
 **结束条件**：全部模块有开发 issue + triage 标签 + PRD + 验收清单，木下确认验收清单可操作。
@@ -171,7 +172,7 @@ Phase 7: 部署上线 ──→ Phase 8: 运营维护 ──→ (循环回 Phase
 | #   | 动作                                                                                              | skill                                                                          | 产出                            |
 | --- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ | ------------------------------- |
 | 4.0 | 木下人工选参照：浏览 getdesign.md 挑选 2-3 个视觉锚点，笔记提取至 `docs/design/reference-design/` | —（人工）                                                                      | `docs/design/reference-design/` |
-| 4.1 | Design Read + DESIGN.md：AI 读 `reference-design/` → 声明 Design Read → 维护根目录 DESIGN.md 的设计目录、决策与视觉接口 | `design-an-interface` | `DESIGN.md` |
+| 4.1 | Design Read + DESIGN.md：AI 读 `reference-design/` → 声明 Design Read → 维护根目录 DESIGN.md 的设计目录、决策与视觉接口 | — | `DESIGN.md` |
 | 4.2 | 原型生成：加载 taste-skill(minimalist+soft) 作为 Policy Engine 控制布局，风格由 DESIGN.md 驱动    | `prototype` + taste-skill (minimalist-skill + soft-skill)                      | 关键页面 HTML 原型              |
 | 4.3 | 原型落地 + 质检：落地 HTML/CSS → taste-skill pre-flight check（模板布局、平庸间距、CJK 标点挤压） | `web-design-engineer` + taste-skill (pre-flight check + output-skill 完整输出) | 质检通过的 HTML/CSS 原型        |
 
@@ -264,7 +265,7 @@ tdd → implement → code-review → 木下按 acceptance 验收 → 通过/回
 | -------- | ----------------------- | --------------------------------------------- |
 | 线上 bug | 诊断 → 修 → 部署        | `diagnosing-bugs` → `tdd` → `implement`       |
 | 性能退化 | 定位 → 优化             | `web-perf` → `improve-codebase-architecture`  |
-| 技术债   | 分析 → 重构方案 → issue | `improve-codebase-architecture` → `to-issues` |
+| 技术债   | 分析 → 重构方案 → issue | `improve-codebase-architecture` → `to-tickets` |
 | 新功能   | 回到 Phase 1            | `grill-me` → …                                |
 
 **周期维护**：每季度 D1 备份（`wrangler d1 backup`）。
@@ -302,7 +303,8 @@ catstarry.xyz/
 │   ├── tech-decisions-20260703.md
 │   ├── phase2-briefing.md
 │   ├── phase3-briefing.md
-│   ├── phase4-briefing.md           (Phase 4 启动前)
+│   ├── phase-briefing/
+│   │   └── phase4-briefing.md       (Phase 4 启动前与回流后同步)
 │   ├── handoff-20260702.md
 │   ├── architecture.md              (Phase 3)
 │   ├── architecture/                (Phase 3)
