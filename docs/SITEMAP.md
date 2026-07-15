@@ -1,7 +1,7 @@
 # 站点地图 (SITEMAP)
 
 > catstarry.xyz 全站 URL 结构与各页面间链接关系。
-> 最后更新：2026-07-04
+> 最后更新：2026-07-15
 
 ---
 
@@ -9,12 +9,12 @@
 
 ### `/` — Home
 
-| 属性     | 值                                          |
-| -------- | ------------------------------------------- |
-| 渲染     | SSR                                         |
-| 数据来源 | /blog、/feed、/projects、/learn 的最新内容  |
-| 包含     | about 导航栏入口 → 点击展开                 |
-| 链接到   | /blog、/feed、/projects、/learn、about 卡片 |
+| 属性 | 值 |
+| --- | --- |
+| 渲染 | 待定向 Phase 3 架构复核；Home 不再承担内容聚合 |
+| 内容 | 宇宙入口 → 接近星域 → 自由星图总览 → 页脚；About 在 Home 原地展开 |
+| 数据来源 | 星图导航所需数据待定向 Phase 3 裁决；不读取 Blog / Feed / Learn / Projects 的最新内容作聚合流 |
+| 链接到 | /blog、/feed、/projects、/learn；点击对应星球后进入各功能页面 |
 
 ### `/blog/` — 博客列表页
 
@@ -66,7 +66,7 @@
 | 属性 | 值                                                               |
 | ---- | ---------------------------------------------------------------- |
 | 渲染 | SSR                                                              |
-| 内容 | 碎碎念 + 剪藏混合时间线，单列垂直滚动，SSR 依赖 D1 feed_posts 表 |
+| 内容 | 公开足迹／来时路：碎碎念、剪藏，以及 Blog 发布、Learn 小节完成、Projects 实质更新产生的系统事件；具体事件模型待定向 Phase 3 裁决 |
 | 认证 | 发布需登录（右下角浮动 + 按钮）                                  |
 | 状态 | ✅ 需求已锁定，🔴 未开发                                         |
 
@@ -115,7 +115,7 @@
 | `/api/views`    | feed-api    | GET/POST | 阅读量计数，D1 + KV 去重                  |
 | `/api/feed`     | feed-api    | GET/POST | 时间线数据 + 发布帖子                     |
 | `/api/auth`     | feed-api    | POST     | 登录/登出，bcrypt + KV session            |
-| `/api/home`     | feed-api    | GET      | Home 聚合数据（blog/feed/learn/projects） |
+| `/api/home`     | feed-api    | GET      | 待定向 Phase 3 退役或替代；旧职责为 Home 聚合数据（blog/feed/learn/projects） |
 | `/api/trades`   | finance-api | GET/POST | 交易记录 CRUD                             |
 | `/api/holdings` | finance-api | GET      | 实时持仓 + 偏离预警                       |
 | `/api/market`   | finance-api | GET      | 行情数据（15 分钟延迟）                   |

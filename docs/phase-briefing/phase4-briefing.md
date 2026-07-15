@@ -1,95 +1,61 @@
-# Phase 4 任务说明 — 给 UI/原型对话
+# Phase 4 任务说明 — UI / 原型对话
 
-> 流程治理产出，2026-07-07
+> 流程治理更新：2026-07-15
+> 当前状态：Phase 4.1 因 Home / Feed 定向上游回流而重新收敛；Phase 4.2 尚未启动。
 
 ---
 
-## 你的职责
+## 当前职责与边界
 
-Phase 4：UI/原型。基于 Phase 3 锁定的架构，产出 catstarry.xyz 专属视觉设计系统（DESIGN.md）+ 关键页面原型。
+Phase 4 的职责是形成并验证 catstarry.xyz 的视觉系统与关键页面原型。
 
-## 输入（必读）
+本次不是重启整个 Phase 4：Home / Feed 的产品关系已在定向 Phase 2 重新规格化，当前必须先完成**定向 Phase 3**的领域、数据、模块与 API 复核；其后回到 Phase 4.1，重锁相关设计，再进入 4.2 原型。
 
-- docs/workflow-orchestration.md — 执行手册，Phase 4 详细步骤
-- AGENTS.md — 全局约束 + Karpathy 行为原则
-- docs/SITEMAP.md — 站点结构
-- CONTEXT.md 设计基调节 — Phase 0 原型约定（暖色系、artistic warm、B 型首页），Phase 4 有权推翻或保留
-- docs/architecture.md — 架构总览（模块关系 + 数据流向）
-- docs/architecture/modules.md — 目录结构 + 组件清单（了解各模块功能和交互需求）
-- docs/acceptance-\*.md — 6 份验收清单（含 UI 行为描述：导航栏风格、about 卡片交互、时间线布局等）
-- .scratch/\*/issue.md — 开发 issue（含 UI 相关条目）
+不得在本对话中裁决架构、实现代码或绕过定向 Phase 3。
 
-## 设计参照（必读）
+## 定向回流状态
 
-- docs/design/reference-design/ — 木下人工选取的视觉锚点
-- awesome-design-md 格式：9 节标准结构（Visual Theme → Agent Prompt Guide）
+| 环节 | 状态 | 说明 |
+| --- | --- | --- |
+| Phase 4.1 设计触发 | ✅ | Home 改为宇宙入口与星图；Feed 改为公开足迹 |
+| 定向 Phase 2 | ✅ | PRD、HF-01～HF-05、triage、验收清单已完成 |
+| 定向 Phase 3 | 🔶 | 待启动：Public Footprint、事件边界、`/api/home` 退役或替代 |
+| 返回 Phase 4.1 | ⏳ | 待定向 Phase 3 锁定后更新 DESIGN.md、SITEMAP 与本 brief |
+| Phase 4.2 | ⏸ | 不得提前开始 |
 
-## 关键约束
+## 返回 Phase 4.1 时的必读输入
 
-- Phase 3 架构已锁定，目录结构、数据模型、API 路由不可改
-- CONTEXT.md 设计基调 [原型约定 | Phase 4 重新裁决] — 你有权推翻暖色系/B 型首页等原型约定，重新定调
-- 中文排版：行高 ≥1.85，不调整字间距，标点挤压单独处理。
-- 设计哲学：不极简，偏艺术、有温度（artistic warm），由你读了参考设计后自己定义颜色/字体/间距——文档里不预写死。
-- 需区分 Home（科幻风格）与其他页面（统一风格）
-- about 卡片为首屏核心元素：3D 粒子风格 + 点击展开
-- 首页为混合时间线（博客/碎碎念/剪藏/项目/学习笔记），不是功能列表
-- 代码标识符/文件名用英文 ASCII，文档和对话用中文
-- 文件写入：python pathlib.write_text(content, encoding='utf-8')。禁止 Set-Content。禁止 python -c 三重引号。
+- `AGENTS.md` — 全局约束与执行优先级
+- `docs/workflow-orchestration.md` — 包含定向上游回流协议
+- `docs/DASHBOARD.md`、`CONTEXT.md`、`docs/SITEMAP.md`
+- `DESIGN.md` — 当前设计系统；应保留已确认设计原子，复核受 Home / Feed 影响部分
+- `docs/design/reference-design/` — 木下人工选取的视觉参照
+- `docs/final-requirements-homepage.json`、`docs/final-requirements-feed.json`
+- `docs/acceptance-home.md`、`docs/acceptance-feed.md`
+- `.scratch/home-feed-reflow/issue.md` 与 HF-01～HF-05
+- 定向 Phase 3 的架构产物与 ADR
 
-## 执行顺序
+## 已确认的产品边界
 
-4.0 reference-design 已由木下提前完成，直接使用
-4.1 Design Read + DESIGN.md：读 reference-design + 暖色基调 → 声明 Design Read → 生成根目录 DESIGN.md（awesome-design-md 9 节格式）
-4.2 原型生成：taste-skill(minimalist+soft) 作为 Policy Engine → 生成关键页面 HTML 原型
-4.3 原型落地 + 质检：web-design-engineer 落地 HTML/CSS → taste-skill pre-flight check → 产出质检通过的代码
+- Home：宇宙入口 → 接近星域 → 自由星图总览 → 页脚；不再有混合时间线或跨模块内容聚合。
+- Blog / Feed / Learn / Projects：从星图点击后，经短推进进入各自功能页面。
+- About：例外，在 Home 原地展开。
+- Feed：公开足迹／来时路；包含碎碎念、剪藏及符合规则的系统事件。
+- 系统事件：Blog 仅部署成功后、Learn 仅明确完成小节、Projects 仅显式实质更新；不做历史回填，不记录普通小编辑。
 
-- moodboard（图片或 HTML）— 视觉方向定调
-- 可交互 HTML 原型 — 至少覆盖 Home、/blog 列表、/feed 时间线、finance 面板
-- docs/SITEMAP.md — 更新各路径设计状态
+## 返回 Phase 4.1 的预期产物
 
-## taste-skill 使用方式
+- 更新 `DESIGN.md` 中 Home、About、Feed 边界、星图视觉与动效接口；章节数量以 `DESIGN.md` 自身目录为准，不使用固定“9 节”要求。
+- 更新 `docs/SITEMAP.md` 的视觉/路由表达，使其与定向 Phase 3 架构一致。
+- 更新本 brief 与 `CONTEXT.md` 的性质标签，确认 4.1 重锁完成。
+- 之后才可启动 Phase 4.2：以 `prototype` 验证关键视觉与交互问题；不把原型直接当生产实现。
 
-taste-skill 已安装在 C:/Users/a3593/.cc-switch/skills/
+## 设计约束（仍有效）
 
-**Phase 4.2（原型生成）**：
+- 三画布、Klein Blue 品牌电压、CJK 优先与 `prefers-reduced-motion` 继续作为已有设计系统的基础。
+- Home 的新视觉应服务于星图导航，不以传统 Hero、混合时间线或 About 中心卡片替代。
+- Content、Feed、Blog、Learn、Projects 的功能页面不因 Home 星图而被重做成“星球页面”；只在后续阶段轻量借用统一的材质和信号语言。
 
-- 作为 Policy Engine，读取 taste-skill/SKILL.md（主入口）+ minimalist-skill/SKILL.md + soft-skill/SKILL.md
-- 执行 Brief Inference → 声明 Design Read → 设置旋钮
-- brutalist-skill（与 artistic warm 冲突）
-- 强制约束：非 landing 页、Home 拒绝 Hero+3 Card 模板、CJK 排版规则
+## 做完后的报告
 
-**Phase 4.3（质检）**：
-
-- 作为 Quality Gate，执行 pre-flight check
-- 排查：模板布局、平庸间距、CJK 标点挤压
-- output-skill 确保代码完整输出
-
-## 关键约束
-
-- Phase 3 架构已锁定，目录结构、数据模型、API 路由不可改
-- CONTEXT.md 设计基调 [原型约定 | Phase 4 重新裁决] — 你有权推翻暖色系/B 型首页等原型约定，重新定调
-- 中文排版：行高 ≥1.85，不调整字间距，标点挤压单独处理。
-- 设计哲学：不极简，偏艺术、有温度（artistic warm），由你读了参考设计后自己定义颜色/字体/间距——文档里不预写死。
-- 需区分 Home（科幻风格）与其他页面（统一风格）
-- about 卡片为首屏核心元素：3D 粒子风格 + 点击展开
-- 首页为混合时间线（博客/碎碎念/剪藏/项目/学习笔记），不是功能列表
-- 代码标识符/文件名用英文 ASCII，文档和对话用中文
-- 文件写入：python pathlib.write_text(content, encoding='utf-8')。禁止 Set-Content。禁止 python -c 三重引号。
-
-## 可参考（只读）
-
-- GLOSSARY.md — 术语定义
-- AGENTS.md — 全局约束 + Rule Precedence
-- docs/architecture/data-model.md — 数据结构（影响卡片信息展示）
-- docs/architecture/auth.md — 鉴权方案（影响 finance 登录流程）
-
-## 产出物
-
-DESIGN.md — 根目录，catstarry 专属设计系统（9 节）
-docs/design/ — 更新（如有新笔记）
-docs/SITEMAP.md — 如有 UI 层面的路径调整
-CONTEXT.md — 设计基调段 [原型约定] → [已锁定]
-
-## 做完后
-
-提醒木下回到「流程治理」对话报告：Phase 4 已完成，产出物路径。
+定向 Phase 3 与返回 Phase 4.1 各自完成后，木下需回到「流程治理」对话报告产物路径；流程治理确认状态后再允许进入下一环节。

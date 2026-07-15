@@ -1,7 +1,7 @@
 # catstarry.xyz 开发流程编排方案
 
 > 执行手册。进度追踪见 `docs/DASHBOARD.md`。
-> 最后更新：2026-07-04 23:55
+> 最后更新：2026-07-15
 
 ---
 
@@ -27,6 +27,31 @@
 ```
 
 **为什么是手动的**：Codex 目前不支持跨对话自动感知。木下是唯一的信使。
+
+---
+
+## 设计驱动的定向上游回流协议
+
+当 Phase 4.1 的设计确认推翻或改变已完成模块的需求、架构前提时，使用**定向上游回流**；它不是重启项目，也不改变全局 Phase 2、Phase 3 的历史完成状态。
+
+```
+Phase 4.1 设计决策确认
+      ↓（声明受影响模块、旧契约与回流范围）
+定向 Phase 2：PRD → issue/ticket → triage
+      ↓
+定向 Phase 3：仅复核受影响的领域、数据、模块、API 与 ADR
+      ↓
+返回 Phase 4.1：重锁 DESIGN.md、SITEMAP、Phase 4 brief 与视觉接口
+      ↓
+Phase 4.2：原型生成
+```
+
+**状态表达规则**：
+
+- 主线 Phase 4 标记为“4.1 定向回流中”；Phase 4.2 不得提前启动。
+- 定向 Phase 2、3 以独立状态块记录“范围、产物、回归点”，不把全局 Phase 2、3 改回未完成。
+- 定向 Phase 3 未完成前，`CONTEXT.md` 中受影响的架构与设计结论必须标为“定向回流中”或“待复核”，不得伪装成已锁定。
+- 每次定向回流闭合后，木下回到流程治理对话；流程治理更新 `DASHBOARD.md`、`CONTEXT.md`、`SITEMAP.md` 与对应 Phase brief，再允许进入下游阶段。
 
 ---
 
@@ -135,7 +160,7 @@ Phase 7: 部署上线 ──→ Phase 8: 运营维护 ──→ (循环回 Phase
 
 **输入**：SITEMAP + `docs/architecture.md` + `docs/design/reference-design/`（木下人工选取的设计参照）。
 
-**产出物**：根目录 `DESIGN.md`（9 节标准格式）+ `docs/design/notes.md`（木下笔记）+ 可交互 HTML 原型。
+**产出物**：根目录 `DESIGN.md`（以文档内目录与当前版本为准）+ `docs/design/reference-design/`（木下人工选取的参照）+ 可交互 HTML 原型。
 
 **taste-skill 角色**：Phase 4.2 作为 Policy Engine 控制布局策略；Phase 4.3 作为 Quality Gate 执行 pre-flight 质检。
 
@@ -146,7 +171,7 @@ Phase 7: 部署上线 ──→ Phase 8: 运营维护 ──→ (循环回 Phase
 | #   | 动作                                                                                              | skill                                                                          | 产出                            |
 | --- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ | ------------------------------- |
 | 4.0 | 木下人工选参照：浏览 getdesign.md 挑选 2-3 个视觉锚点，笔记提取至 `docs/design/reference-design/` | —（人工）                                                                      | `docs/design/reference-design/` |
-| 4.1 | Design Read + DESIGN.md：AI 读 reference-design → 声明 Design Read → 生成根目录 DESIGN.md（9 节） | `design-an-interface`                                                          | `DESIGN.md`                     |
+| 4.1 | Design Read + DESIGN.md：AI 读 `reference-design/` → 声明 Design Read → 维护根目录 DESIGN.md 的设计目录、决策与视觉接口 | `design-an-interface` | `DESIGN.md` |
 | 4.2 | 原型生成：加载 taste-skill(minimalist+soft) 作为 Policy Engine 控制布局，风格由 DESIGN.md 驱动    | `prototype` + taste-skill (minimalist-skill + soft-skill)                      | 关键页面 HTML 原型              |
 | 4.3 | 原型落地 + 质检：落地 HTML/CSS → taste-skill pre-flight check（模板布局、平庸间距、CJK 标点挤压） | `web-design-engineer` + taste-skill (pre-flight check + output-skill 完整输出) | 质检通过的 HTML/CSS 原型        |
 
