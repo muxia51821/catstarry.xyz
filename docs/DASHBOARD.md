@@ -28,7 +28,7 @@
 | 1 | 需求澄清 | ✅ |
 | 2 | 规格化 | ✅ |
 | 3 | 架构设计 | ✅ |
-| 4 | UI/原型 | 🟡 4.1 定向回流中；4.2 未启动 |
+| 4 | UI/原型 | 🟡 4.1 回归重锁中；4.2 未启动 |
 | 5 | 开发实现 | 🔴 |
 | 6 | 测试/QA | 🔴 |
 | 7 | 部署上线 | 🔴 |
@@ -43,8 +43,8 @@
 | 环节 | 状态 | 范围 |
 | --- | --- | --- |
 | 定向 Phase 2 | ✅ | Home / Feed PRD、HF-01～HF-05、triage、验收清单已完成 |
-| 定向 Phase 3 | 🔶 | Public Footprint 边界、事件数据与模块关系、`/api/home` 退役方案 |
-| 返回 Phase 4.1 | ⏳ | 定向 Phase 3 锁定后，重锁 Home 星图、Feed 关系、DESIGN.md 与原型边界 |
+| 定向 Phase 3 | ✅ | ADR-005 锁定 Public Footprint 分存；ADR-006 退役 `/api/home` 与 blog-metadata KV bridge |
+| 返回 Phase 4.1 | 🔶 | 当前：以已锁定架构重锁 Home 星图、Feed 关系、`DESIGN.md` 与原型边界 |
 | Phase 4.2 | ⏸ | 等待返回 Phase 4.1 完成后启动 |
 
 ---
@@ -57,7 +57,6 @@ Astro hybrid + React + shadcn/ui + CF Workers + D1 + KV + R2
 
 ## 当前待办
 
-1. 启动定向 Phase 3：Home / Feed Public Footprint 架构复核。
-2. 定向 Phase 3 完成后回到本对话，恢复 Phase 4.1 并更新 DESIGN.md、SITEMAP 与 Phase 4 brief。
-3. Phase 4.1 重锁后，再开始 Phase 4.2 原型生成。
-4. blog 原型在 Phase 5 按已锁定需求重做。
+1. 恢复 Phase 4.1：以 ADR-005、ADR-006 为输入，重锁 `DESIGN.md` 中受 Home / Feed 回流影响的边界。
+2. Phase 4.1 重锁完成后，回到「流程治理」同步状态，再开始 Phase 4.2 原型生成。
+3. blog 原型在 Phase 5 按已锁定需求重做。

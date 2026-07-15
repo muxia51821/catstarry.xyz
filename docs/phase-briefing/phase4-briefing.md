@@ -1,7 +1,7 @@
 # Phase 4 任务说明 — UI / 原型对话
 
 > 流程治理更新：2026-07-15
-> 当前状态：Phase 4.1 因 Home / Feed 定向上游回流而重新收敛；Phase 4.2 尚未启动。
+> 当前状态：定向 Phase 3 已完成；Phase 4.1 正在以锁定架构回归重锁，Phase 4.2 尚未启动。
 
 ---
 
@@ -9,9 +9,9 @@
 
 Phase 4 的职责是形成并验证 catstarry.xyz 的视觉系统与关键页面原型。
 
-本次不是重启整个 Phase 4：Home / Feed 的产品关系已在定向 Phase 2 重新规格化，当前必须先完成**定向 Phase 3**的领域、数据、模块与 API 复核；其后回到 Phase 4.1，重锁相关设计，再进入 4.2 原型。
+本次不是重启整个 Phase 4：Home / Feed 的产品关系已在定向 Phase 2 重新规格化，定向 Phase 3 已完成领域、数据、模块与 API 复核；现在回到 Phase 4.1，重锁相关设计，再进入 4.2 原型。
 
-不得在本对话中裁决架构、实现代码或绕过定向 Phase 3。
+不得在本对话中重新裁决已锁定架构、实现代码或提前进入 Phase 4.2。
 
 ## 定向回流状态
 
@@ -19,8 +19,8 @@ Phase 4 的职责是形成并验证 catstarry.xyz 的视觉系统与关键页面
 | --- | --- | --- |
 | Phase 4.1 设计触发 | ✅ | Home 改为宇宙入口与星图；Feed 改为公开足迹 |
 | 定向 Phase 2 | ✅ | PRD、HF-01～HF-05、triage、验收清单已完成 |
-| 定向 Phase 3 | 🔶 | 待启动：Public Footprint、事件边界、`/api/home` 退役或替代 |
-| 返回 Phase 4.1 | ⏳ | 待定向 Phase 3 锁定后更新 DESIGN.md、SITEMAP 与本 brief |
+| 定向 Phase 3 | ✅ | ADR-005 锁定 Public Footprint 分存；ADR-006 退役 `/api/home` 与 blog-metadata KV bridge |
+| 返回 Phase 4.1 | 🔶 | 当前：以 ADR-005、ADR-006 重锁 DESIGN.md、SITEMAP 与本 brief |
 | Phase 4.2 | ⏸ | 不得提前开始 |
 
 ## 返回 Phase 4.1 时的必读输入
@@ -33,7 +33,8 @@ Phase 4 的职责是形成并验证 catstarry.xyz 的视觉系统与关键页面
 - `docs/final-requirements-homepage.json`、`docs/final-requirements-feed.json`
 - `docs/acceptance-home.md`、`docs/acceptance-feed.md`
 - `.scratch/home-feed-reflow/issue.md` 与 HF-01～HF-05
-- 定向 Phase 3 的架构产物与 ADR
+- `docs/adr/005-public-footprint-separate-storage.md`
+- `docs/adr/006-retire-home-aggregation-and-kv-bridge.md`
 
 ## 已确认的产品边界
 
