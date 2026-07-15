@@ -1,6 +1,6 @@
 /* =========================================
-   catstarry.xyz Design System v1.4 - Components
-   基于 Layer 2 语义 Token 构建
+   catstarry.xyz Design System v2.0 - Components
+   仅包含通用组件与动效工具；星图组件由 Phase 4.3 落地
    ========================================= */
 
 /* --- Buttons --- */
@@ -8,11 +8,16 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 12px 24px;
-  font-family: var(--font-cjk); /* 按钮使用通用无衬线 */
+  padding: var(--button-padding-block) var(--button-padding-inline);
+  font-family: var(--font-body);
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s var(--ease-monopo); /* 微观交互 0.2s */
+  transition:
+    color var(--button-transition),
+    background-color var(--button-transition),
+    border-color var(--button-transition),
+    box-shadow var(--button-transition),
+    transform var(--button-transition);
   text-decoration: none;
   border: 1px solid transparent;
 }
@@ -20,24 +25,19 @@
 /* Primary CTA (自适应深浅模式) */
 .btn-primary {
   background-color: var(--btn-primary-bg);
-  color: #ffffff;
-  border-radius: var(--radius-btn-content);
+  color: var(--button-primary-text);
+  border-radius: var(--button-radius);
 }
 .btn-primary:hover {
   background-color: var(--btn-primary-bg-hover);
-  box-shadow: 0 0 12px rgba(51, 92, 255, 0.4);
+  box-shadow: 0 0 12px var(--button-primary-glow);
 }
 .btn-primary:active {
   transform: translateY(1px);
 }
 .btn-primary:focus-visible {
-  outline: 2px solid var(--text-primary);
-  outline-offset: 2px;
-}
-
-/* Home 专属 Pill 按钮覆盖 */
-.btn-primary-home {
-  border-radius: var(--radius-btn-home);
+  outline: 2px solid var(--button-focus-ring);
+  outline-offset: var(--button-focus-offset);
 }
 
 /* Secondary Button */
@@ -45,11 +45,11 @@
   background-color: transparent;
   color: var(--text-primary);
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-btn-home);
+  border-radius: var(--button-radius);
 }
 .btn-secondary:hover {
   border-color: var(--text-secondary);
-  background-color: rgba(255, 255, 255, 0.05);
+  background-color: var(--button-secondary-hover);
 }
 
 /* Finance CTA */
@@ -63,18 +63,8 @@
 
 /* --- Cards --- */
 .card {
-  padding: var(--space-xl);
-  transition: box-shadow 0.3s var(--ease-monopo);
-}
-
-/* Home Card (暗底) */
-.card-home {
-  background-color: var(--bg-surface-card);
-  border-radius: var(--radius-home);
-  border: 1px solid transparent;
-}
-.card-home:hover {
-  box-shadow: 0 0 0 2px var(--border-default);
+  padding: var(--card-padding-default);
+  transition: box-shadow var(--duration-fast) var(--ease-emphasis);
 }
 
 /* Content Card (奶油画廊) */
@@ -91,46 +81,25 @@
   box-shadow: var(--shadow-webflow-featured);
 }
 
-/* --- Timeline Card (Home 混合时间线 + 五色标记) --- */
-.card-timeline {
-  position: relative;
-  padding-left: calc(var(--space-xl) + 4px); /* 为左边缘色条留出空间 */
-}
-.card-timeline::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 16px;
-  bottom: 16px;
-  width: 3px;
-  border-radius: 2px;
-  background-color: var(--cat-blog); /* 默认博客色 */
-}
-/* 五色边缘变体 */
-.card-timeline[data-cat="feed"]::before { background-color: var(--cat-feed); }
-.card-timeline[data-cat="bookmark"]::before { background-color: var(--cat-bookmark); }
-.card-timeline[data-cat="project"]::before { background-color: var(--cat-project); }
-.card-timeline[data-cat="learn"]::before { background-color: var(--cat-learn); }
-
 /* --- Input --- */
 .input-text {
   background-color: var(--bg-surface-soft);
   border: 1px solid var(--border-default);
   color: var(--text-primary);
-  padding: var(--space-sm) var(--space-md);
-  border-radius: var(--radius-content);
-  font-family: var(--font-cjk);
+  padding: var(--field-padding-block) var(--field-padding-inline);
+  border-radius: var(--field-radius);
+  font-family: var(--font-body);
   width: 100%;
 }
 .input-text:focus {
   outline: none;
   border-color: var(--klein-400);
-  box-shadow: 0 0 0 2px rgba(51, 92, 255, 0.2);
+  box-shadow: 0 0 0 2px var(--field-focus-ring);
 }
 
 /* ══════════════════════════════════════
-   Anim Utilities — Phase 4.2 滚动动画
-   依赖 variables.css §7 Motion Tokens
+   Generic Motion Utilities
+   Phase 4.2 可校准 token，但实验组件不得直接写入本文件
    所有动效遵从 prefers-reduced-motion
    ══════════════════════════════════════ */
 
@@ -139,7 +108,7 @@
    元素进入视口时从下方 24px 淡入滑上，适用于卡片、段落、列表项 */
 .anim-fade-up {
   opacity: 0;
-  transform: translateY(24px);
+  transform: translateY(var(--reveal-offset));
   animation: fade-up var(--duration-base) var(--ease-scroll-in) forwards;
   animation-timeline: view(y 95% 0%);
 }
@@ -156,7 +125,7 @@
    基础延迟 --stagger-base(80ms)，第 2 项 160ms，第 3 项 240ms… */
 .anim-stagger > * {
   opacity: 0;
-  transform: translateY(16px);
+  transform: translateY(var(--stagger-offset));
   animation: fade-up var(--duration-base) var(--ease-scroll-in) forwards;
   animation-timeline: view(y 95% 0%);
 }

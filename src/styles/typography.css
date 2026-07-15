@@ -1,5 +1,5 @@
 /* =========================================
-   catstarry.xyz Design System v1.5 — Typography
+   catstarry.xyz Design System v2.0 — Typography
    使用语义 Token 与 :lang() 实现中英自适应
    追加：CJK 标点挤压规则
    中英混排 1/4em 间距 -> 推迟到 Phase 5 用 JS 处理
@@ -7,7 +7,7 @@
 
 body {
   margin: 0;
-  font-family: var(--font-cjk);
+  font-family: var(--font-body);
   background-color: var(--bg-base);
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
@@ -18,10 +18,10 @@ body {
 /* =========================================
    CJK 标点挤压 (Punctuation Trimming)
    行首禁止标点，依赖浏览器 text-spacing-trim
-   Chrome 123+ / Safari 17+ 支持
+   浏览器不支持时由 hanging-punctuation 提供渐进降级
    ========================================= */
 :root {
-  text-spacing-trim: trim-start trim-end trim-adjacent;
+  text-spacing-trim: trim-both;
 }
 
 /* 降级：手动标点悬挂 */
@@ -31,7 +31,9 @@ body {
 }
 
 :lang(zh) h1, :lang(zh) h2, :lang(zh) h3,
-:lang(zh) p, :lang(zh) li, :lang(zh) blockquote {
+:lang(zh) p, :lang(zh) li, :lang(zh) blockquote,
+:lang(zh-Hans) h1, :lang(zh-Hans) h2, :lang(zh-Hans) h3,
+:lang(zh-Hans) p, :lang(zh-Hans) li, :lang(zh-Hans) blockquote {
   hanging-punctuation: first allow-end;
 }
 
@@ -44,17 +46,10 @@ body {
   font-weight: 300;
   letter-spacing: -0.04em;
   line-height: var(--line-height-display);
-  margin-bottom: var(--space-xl);
+  margin-bottom: var(--type-display-space-after);
 }
 
-@media (prefers-color-scheme: light) {
-  :root:not([data-theme="dark"]) .text-display {
-    font-weight: 400;
-    letter-spacing: -0.02em;
-  }
-}
-
-[data-theme="light"] .text-display {
+[data-canvas="content"] .text-display {
   font-weight: 400;
   letter-spacing: -0.02em;
 }
@@ -77,10 +72,11 @@ body {
   font-weight: 300;
   letter-spacing: -0.04em;
   line-height: 1;
-  margin-bottom: var(--space-lg);
+  margin-bottom: var(--type-heading-space-after);
 }
 
-:lang(zh) .text-heading-lg {
+:lang(zh) .text-heading-lg,
+:lang(zh-Hans) .text-heading-lg {
   font-family: var(--font-cjk);
   font-size: clamp(36px, 5.5vw, var(--text-size-heading-lg-cn));
   font-weight: 400;
@@ -94,10 +90,11 @@ body {
 .text-body {
   font-size: var(--text-size-body);
   line-height: var(--line-height-body);
-  margin-bottom: var(--space-md);
+  margin-bottom: var(--type-body-space-after);
 }
 
-:lang(zh) .text-body {
+:lang(zh) .text-body,
+:lang(zh-Hans) .text-body {
   line-height: var(--line-height-body-cjk);
 }
 
