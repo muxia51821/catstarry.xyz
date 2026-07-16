@@ -338,12 +338,32 @@
   --planet-projects-surface: var(--planet-surface-clay);
   --planet-projects-detail: var(--planet-detail-metal);
 
-  /* --- 3.5 Signal satellite --- */
-  --signal-satellite-size: 5%; /* Phase 4.2 calibration */
-  --signal-satellite-color: var(--klein-300);
-  --signal-satellite-orbit: rgba(102, 133, 255, 0.25); /* Phase 4.2 calibration */
-  --signal-satellite-pulse: rgba(51, 92, 255, 0.42); /* Phase 4.2 calibration */
-  --signal-satellite-opacity: 0.72; /* Phase 4.2 calibration */
+  /* --- 3.5 Home Activity Signal satellite --- */
+  /* Base material stays near Klein 500; state values are Phase 4.2 calibration seeds. */
+  --signal-satellite-core: var(--klein-500);
+  --signal-satellite-rim: var(--klein-400);
+  --signal-satellite-shadow: rgba(1, 8, 31, 0.86);
+  --signal-satellite-orbit: rgba(0, 47, 167, 0.24);
+  --signal-satellite-focus-glow: rgba(51, 92, 255, 0.28);
+  --signal-satellite-pulse-duration: var(--motion-duration-base);
+
+  --signal-satellite-active-size: 5%; /* Phase 4.2 calibration */
+  --signal-satellite-active-opacity: 0.78; /* Phase 4.2 calibration */
+  --signal-satellite-active-orbit-opacity: 0.38; /* Phase 4.2 calibration */
+  --signal-satellite-active-drift-range: 8deg; /* Phase 4.2 calibration */
+  --signal-satellite-active-drift-duration: 12s; /* Phase 4.2 calibration */
+  --signal-satellite-active-pulse-strength: 0.42; /* Phase 4.2 calibration */
+
+  --signal-satellite-stable-size: 4.25%; /* Phase 4.2 calibration */
+  --signal-satellite-stable-opacity: 0.62; /* Phase 4.2 calibration */
+  --signal-satellite-stable-orbit-opacity: 0.24; /* Phase 4.2 calibration */
+  --signal-satellite-stable-drift-range: 4deg; /* Phase 4.2 calibration */
+  --signal-satellite-stable-drift-duration: 20s; /* Phase 4.2 calibration */
+  --signal-satellite-stable-pulse-strength: 0.24; /* Phase 4.2 calibration */
+
+  --signal-satellite-dormant-size: 3.5%; /* Phase 4.2 calibration */
+  --signal-satellite-dormant-opacity: 0.46; /* Phase 4.2 calibration */
+  --signal-satellite-dormant-orbit-opacity: 0.12; /* Phase 4.2 calibration */
 
   /* --- 3.6 About leopard-cat satellite --- */
   --leopardcat-particle: var(--klein-300);
