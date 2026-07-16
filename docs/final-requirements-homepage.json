@@ -1,7 +1,7 @@
 {
   "meta": {
     "module": "home",
-    "revision": "2026-07-15-home-feed-reflow",
+    "revision": "2026-07-16-home-activity-signal",
     "status": "revised",
     "phase": "targeted-phase-2"
   },
@@ -24,6 +24,15 @@
         "关键悬停信息在触控设备上可通过点按获得。",
         "启用减少动态效果后仍可完成全部导航。"
       ]
+    },
+    {
+      "goal": "让四颗功能星球以最小状态反映是否存在近期公开活动，同时保持 Home 非内容聚合边界。",
+      "measurable_criteria": [
+        "Blog、Feed、Learn、Projects 只呈现 active、stable 或 dormant 三态之一。",
+        "active 表示最近 7 天内有合资格公开活动；stable 表示超过 7 天且不超过 60 天；dormant 表示超过 60 天或无可公开活动。",
+        "Home 不呈现活动标题、正文、摘要、链接、列表、时间线、事件数量或精确活动时间。",
+        "About 不参与活动状态；豹猫卫星不是活动信号。"
+      ]
     }
   ],
   "decision_points": [
@@ -41,12 +50,19 @@
       "decision": "非 About 星球短推进后进入各自功能页面。",
       "tradeoffs": "Home 保持轻量，不将各功能页重做成星球内页。",
       "status": "locked"
+    },
+    {
+      "decision": "Home 只消费四颗功能星球的最小活动状态投影。",
+      "tradeoffs": "访客可感知板块是否有公开活动，但具体公开足迹仍只在 Feed 浏览；不恢复 Home 内容聚合。",
+      "status": "locked"
     }
   ],
   "constraints": {
     "hard": [
       "f.catstarry.xyz 不在 Home 展示。",
       "Home 不聚合站内或外部内容。",
+      "Home 不直接读取 Public Timeline、来源模块内容或 /api/home；活动状态只能来自受控最小投影。",
+      "Home 不使用 unread/read 或任何访客个人化活动语义。",
       "普通内容编辑、草稿和隐藏内容不以卡片形式进入 Home。",
       "星图具体视觉由 DESIGN.md 和 Phase 4 原型决定。"
     ],
@@ -57,10 +73,10 @@
   },
   "boundaries": {
     "in_scope": [
-      "Home 的叙事阶段、星图导航、About 原地展开、SEO 语义、可访问性边界。"
+      "Home 的叙事阶段、星图导航、About 原地展开、最小活动状态、SEO 语义、可访问性边界。"
     ],
     "out_of_scope": [
-      "Home 时间线、Home 内容 API、Home 数据缓存、星球最终材质、豹猫卫星具体实现、各功能页重做。"
+      "Home 时间线、Home 内容 API、Home 数据缓存、活动正文或时间线、星球最终材质、豹猫卫星具体实现、各功能页重做。"
     ]
   },
   "assumptions": [
@@ -79,5 +95,5 @@
     "公开访客"
   ],
   "open_questions": [],
-  "model_notes": "本文件由 Home / Feed 定向回流更新；它替代旧的混合时间线首页需求。"
+  "model_notes": "本文件先由 Home / Feed 定向回流更新，又由 Home Activity Signal 定向 Phase 2 追加最小状态投影边界；它不恢复旧的混合时间线首页需求。"
 }
