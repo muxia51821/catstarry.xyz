@@ -1,7 +1,7 @@
 # 代码库架构 (Modules)
 
 > catstarry.xyz 模块设计 — Seam 分析 + 深度评估 + 数据流
-> Phase 3 / 3.2 & 3.3 产出 | 定向回流复核：2026-07-15
+> Phase 3 / 3.2 & 3.3 产出 | 定向回流复核：2026-07-16
 > 遵循 codebase-design skill 的 deep module 框架
 
 ---
@@ -14,7 +14,7 @@
 ┌────────────────────────────────────────────┐
 │  Layer 1: Astro Pages (src/pages/)          │  HTTP request → HTML
 │  - 每个页面是一个 module，接口 = route path │
-│  - SSG pages: 构建时闭包，无运行时依赖      │
+│  - SSG pages: 构建时闭包；Home 仅可读取固定静态投影资源 │
 │  - SSR pages: fetch Worker → 渲染           │
 ├────────────────────────────────────────────┤ ← Seam A: HTTP (fetch)
 │  Layer 2: CF Workers (workers/*/)           │  Request → JSON
@@ -25,12 +25,13 @@
 │  Layer 3: Adapters (shared/)                │  函数调用 → 副作用
 │  - shared/auth.ts: 认证 adapter             │
 │  - shared/cors.ts: CORS adapter             │
+│  - feed-api local adapter: 活动投影存储     │
 │  - shared/types.ts: 类型（无实现）          │
 ├────────────────────────────────────────────┤ ← Seam C: Data (SQL/HTTP)
 │  Layer 4: Infrastructure                    │  SQL → rows / bytes
 │  - D1 (catstarry-db + finance-db)           │
 │  - KV (VIEW_KV / AUTH_KV / FINANCE_AUTH_KV) │
-│  - R2 (catstarry-media)                     │
+│  - R2（catstarry-media + home-projections） │
 │  - a-stock-data (external HTTP API)         │
 └────────────────────────────────────────────┘
 ```
@@ -107,7 +108,7 @@ catstarry.xyz/
 |
 |= workers/                       # Layer 2: CF Workers
 |  |= feed-api/                   #   主站 API Worker
-|  |  |- wrangler.toml            #     D1: catstarry-db, KV: VIEW_KV + AUTH_KV, R2: media
+|  |  |- wrangler.toml            #     D1: catstarry-db, KV: VIEW_KV + AUTH_KV, R2: media + projections
 |  |  |- schema.sql               #     DDL: feed_posts, public_footprints, blog_views, auth_sessions
 |  |  `- src/
 |  |     |- index.ts              #     入口: fetch → route dispatch
@@ -117,7 +118,13 @@ catstarry.xyz/
 |  |     |  |- auth.ts            #       /api/auth/login, /api/auth/logout, /api/auth/session
 |  |     |  |- footprints.ts      #       内部写入：来源模块的系统足迹
 |  |     |  `- learn.ts           #       /api/learn — 笔记草稿与完成标记
-|  |     `- middleware/
+|  |     |= modules/
+|  |     |  `- activity-signals.ts #      内部：最小活动状态计算与投影刷新
+|  |     |= adapters/
+|  |     |  `- activity-signal-store.ts # D1 最新事件读取 + R2 固定对象发布
+|  |     |= tasks/
+|  |     |  `- refresh-activity-signals.ts # 每小时校正状态阈值与失败投影
+|  |     `= middleware/
 |  |        |- cors.ts            #       CORS 头注入
 |  |        `- auth.ts            #       Session 验证 → 注入 username
 |  |
@@ -178,6 +185,7 @@ catstarry.xyz/
 | **shared/auth.ts**               | `verifySession(request, env) → { authenticated, user? }` | bcrypt compare, KV session lookup, D1 fallback, rate-limit check | 4 个 endpoint (login/logout/session/password) 和 2 个 Worker 共用同样的 1 个函数。删除它 = 在每个路由手动重复认证逻辑。 |
 | **Public Timeline 模块**         | `listPublicTimeline(cursor, filters) → PaginatedResponse<TimelineEntry>` | 两表读取、统一排序、游标分页、可见性过滤、来源类型筛选 | 页面与管理后台只学习一个读取接口；原生帖子和系统足迹的差异都留在模块内部。 |
 | **Public Footprint Writer**      | `recordFootprint(candidate) → { created, footprint }` | 幂等键、快照固化、来源／版本校验、独立可见性 | 三个来源模块复用同一写入语义；删除它会让 Blog、Learn、Projects 各自实现去重和快照。 |
+| **Activity Signal Projection**  | `refreshActivitySignals() → void` | 四源公开资格筛选、7/60 天状态计算、原子发布、上一份有效投影保留与失败修复 | Home 只学习一个固定 Manifest；四源查询、阈值与恢复都留在模块内部。 |
 | **components/MediaUploader.tsx** | `<MediaUploader onComplete={fn} />`                      | 文件选择→类型检测→R2 直传→进度回调→失败重试→HEIC 转换            | 一个组件包裹了上传的全部复杂行为。调用者只需 `onComplete` 拿结果。                                                      |
 | **shared/cors.ts**               | `CORS_HEADERS` + `wrapCors(response)`                    | 所有 Worker 路由共享同一份 CORS 配置                             | 10+ 个 endpoint 只需一个常量。新增 endpoint 不重写 CORS。                                                               |
 
@@ -251,13 +259,31 @@ catstarry.xyz/
 ```
 访客 → /
     → Astro SSG: index.astro 输出宇宙入口、星图目的地与 SEO
-    → 浏览器：StarMap island 处理滚动阶段、短推进、About 原地展开
+    → 浏览器：StarMap island 读取固定静态活动投影
+        → 只取得 blog / feed / learn / projects 的三态
+    → StarMap island 处理滚动阶段、短推进、About 原地展开
     → 点击 Blog / Feed / Learn / Projects → 对应功能页面
 
-不调用 Worker，不读取或聚合内容数据。
+不调用 `/api/home` 或 Public Timeline，不读取或聚合内容数据。
 ```
 
-### 5.5 Finance 行情流
+### 5.5 Home Activity Signal 投影流
+
+```
+合资格公开事件写入、删除或可见性变化
+    → Activity Signal Projection
+        → D1 adapter：只读取最新合资格公开事件
+        → 状态计算：active / stable / dormant
+        → Static Projection Publisher：原子替换 home-projections/activity-signals.json
+
+每小时 Cron
+    → refresh-activity-signals task
+    → 重算全部四颗功能星球
+```
+
+**模块接口与边界**：调用方只知道“刷新投影”或“读取固定静态资源”；不得让 Home、Astro 页面或 StarMap 了解 `feed_posts`、`public_footprints`、Public Timeline、事件时间或查询逻辑。资源缺失或无效时，StarMap 隐藏活动卫星而非推断 `dormant`。
+
+### 5.6 Finance 行情流
 
 ```
 Cron (每15分钟) → finance-api Worker
@@ -279,7 +305,7 @@ Cron (每交易日 15:30 CST) → finance-api Worker
         → 渲染持仓面板 + PE 温度计
 ```
 
-### 5.6 R2 上传链路
+### 5.7 R2 上传链路
 
 ```
 前端 (MediaUploader)
@@ -292,7 +318,7 @@ Cron (每交易日 15:30 CST) → finance-api Worker
 
 **决策**：推荐 A（Worker 代理上传），因为 feed-api Worker 已处理认证，R2 上传也应走同一 session 验证。presigned URL 需要额外的 auth endpoint。
 
-### 5.7 Cron: R2 临时文件清理
+### 5.8 Cron: R2 临时文件清理
 
 ```
 Cron (每小时) → feed-api Worker
@@ -375,6 +401,7 @@ src/content/            ← 仅被 Astro build 读取
 | **wrangler types**          | 当前无 `Env` 类型生成                                              | Phase 5 运行 `wrangler types` 生成 `Env` 接口，替换手写类型                                                                  |
 | **wrangler.jsonc**          | 使用 `wrangler.toml`                                               | Phase 5 评估是否迁移到 `.jsonc`。当前 `.toml` 可保留（非新项目），但绑定格式需验证                                           |
 | **streaming**               | 当前 API 返回的分页响应（JSON 数组）数据量可控（≤20 条）           | Phase 5 确认不需要 stream。Home 不再有聚合 API；Feed 时间线保持分页即可。                                                     |
+| **活动状态投影**             | ADR-007 已锁定最小静态投影；尚未实现                               | Phase 5 实现内部投影 module、固定静态资源交付、每小时校正、短缓存重新验证与失败日志；不得新增 Home 内容 API。               |
 | **ctx.waitUntil()**         | 未在设计中使用                                                     | Phase 5 Cron handler 中日志写入应使用 `ctx.waitUntil()`                                                                      |
 | **floating promises**       | 设计文档未涉及运行时 Promise 管理                                  | Phase 5 开发时 lint 规则检查                                                                                                 |
 | **observability**           | 未配置                                                             | Phase 5 在 `wrangler.toml` 中添加 `observability` 配置段                                                                     |

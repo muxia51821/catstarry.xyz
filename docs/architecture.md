@@ -1,7 +1,7 @@
 # 架构总览 (Architecture)
 
 > catstarry.xyz 全站架构总览 — 模块关系图 + 数据流向 + 技术栈映射
-> Phase 3 架构设计产出 | 定向回流复核：2026-07-15
+> Phase 3 架构设计产出 | 定向回流复核：2026-07-16
 
 ---
 
@@ -14,7 +14,7 @@
 | **API**       | CF Workers (feed-api + finance-api) | wrangler deploy   | 数据读写、认证、Cron 任务                 |
 | **数据库**    | D1 (catstarry-db + finance-db)      | CF                | 原生 Feed、公开足迹、交易、阅读量、session |
 | **缓存/配置** | KV                                  | CF                | 阅读量去重、认证、限流                    |
-| **文件存储**  | R2 (catstarry-media)                | CF                | /feed 媒体文件（图片/视频）               |
+| **文件存储**  | R2（catstarry-media + home-projections） | CF             | /feed 媒体文件 + Home 最小活动状态静态投影 |
 | **CI/CD**     | GitHub Actions + wrangler           | GitHub            | Git push → build → deploy                 |
 | **域名**      | catstarry.xyz + f.catstarry.xyz     | CF DNS            | 主站 + 财务子域名                         |
 
@@ -116,9 +116,29 @@
           客户端 island：滚动阶段、短推进、About 原地展开
                  ↓
           静态目的地配置：/blog、/feed、/learn、/projects
+                 ↓
+          仅读取固定静态资源 activity-signals.json
+          → Blog / Feed / Learn / Projects 的最小状态
 
-不请求 /api/home，不读取跨模块最新内容。
+不请求 /api/home，不读取跨模块最新内容；静态资源不含标题、正文、摘要、链接、
+时间线、数量、精确时间或访客未读状态。
 ```
+
+### Home Activity Signal 投影流
+
+```
+合资格公开事件写入或可见性变化
+    → Activity Signal Projection（feed-api 内部 module）
+    → D1 仅查询最新合资格公开事件
+    → 计算 blog / feed / learn / projects 的 active / stable / dormant
+    → 原子替换 home-projections/activity-signals.json
+    → Home StarMap island 读取固定静态资源
+
+每小时校正任务 → 重新计算投影
+    （使无新事件的状态也能在 7 天、60 天阈值后自然变化）
+```
+
+来源事件仍是事实来源；投影发布失败不得回滚来源事件。保留上一份完整投影并由后续校正任务修复；资源缺失、无效或超过内部新鲜度阈值时，Home 隐藏活动卫星，不得误报为 `dormant`。
 
 ### Finance 行情流
 
@@ -154,6 +174,7 @@ Cron (每日收盘) → fetch-pe task → PE-TTM 数据 → D1 market_data
 | `docs/adr/004-feed-visibility-two-state.md` | visibility 两状态 vs 三状态                                                     | 3.5       |
 | `docs/adr/005-public-footprint-separate-storage.md` | 原生帖子与系统足迹分存、统一读取                                         | 定向 3   |
 | `docs/adr/006-retire-home-aggregation-and-kv-bridge.md` | 退役 Home 聚合与 KV bridge                                           | 定向 3   |
+| `docs/adr/007-home-activity-signal-static-projection.md` | Home 最小活动状态的静态投影、刷新与降级                           | 定向 3   |
 | `docs/architecture.md`                      | 本文件（架构总览）                                                              | 汇总      |
 | `DESIGN.md`                                 | 根目录视觉设计系统；目录以文件当前版本为准                                      | 4.1       |
 
@@ -173,6 +194,6 @@ tech-decisions-20260703.md 中的 7 项决策全部保留，但以下三点在 P
 
 ## 定向 Phase 3 交接状态
 
-定向 Phase 3 已完成，ADR-005、ADR-006 及本架构文档已经锁定。返回 Phase 4.1 已依据这些边界产出 `DESIGN.md` v2.0；设计系统没有重新引入 Home 聚合、动态最近内容或新的架构依赖。
+Home / Feed 的原定向 Phase 3 已完成，ADR-005、ADR-006 及本架构文档已经锁定。Home Activity Signal 是后续极小定向回流：它以 ADR-007 增加无内容的静态状态投影，不恢复 Home 聚合、`/api/home`、KV bridge 或 Public Timeline 给 Home 的读取关系。
 
-Phase 4.1 已由流程治理确认闭合。Astro 7 定向依赖基线迁移已完成，当前基线为 Astro 7.0.9 + `@astrojs/react` 6.0.1 + React 19.2.7 + Vite 8.1.4；该任务只处理框架与最小兼容问题，不改变本文件的架构决定。Phase 4.2 只验证星图、Planet Push、About 原地展开与相关动效参数，不重新裁决本文件中的数据、API、模块或渲染边界。
+ADR-007 闭合后，应由流程治理将 Phase 4 标记为“返回 4.1 重锁中”。随后 Design 2.0 只需重锁三态信号卫星的视觉接口；Phase 4.2 只能以模拟投影校准视觉，不读取真实数据。Astro 7 基线不受本次定向回流影响。

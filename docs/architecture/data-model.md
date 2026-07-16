@@ -1,7 +1,7 @@
 # 数据模型 (Data Model)
 
 > catstarry.xyz 全站数据结构定义 — D1 schema + KV namespace + Content Collection schema + API 类型定义
-> Phase 3 / 3.1 领域建模产出 | 2026-07-05
+> Phase 3 / 3.1 领域建模产出 | 定向回流复核：2026-07-16
 
 ---
 
@@ -12,7 +12,7 @@
 | `catstarry-db` | `env.DB`（主站 Worker）    | /feed 帖子、/blog 阅读量、认证 session |
 | `finance-db`   | `env.DB`（finance Worker） | 交易记录、持仓快照、行情数据、熔断日志 |
 
-**理由**：财务数据隔离更安全（ADR-001）。主站 D1 同时承载原生 Feed、公开足迹、阅读量和认证；Home 不再查询它做内容聚合。
+**理由**：财务数据隔离更安全（ADR-001）。主站 D1 同时承载原生 Feed、公开足迹、阅读量和认证；Home 不查询它做内容聚合。ADR-007 的内部投影 module 可读取最小事件事实，但 Home 页面本身不获得 D1 访问权。
 
 ---
 
@@ -114,7 +114,36 @@ CREATE INDEX idx_public_footprints_source ON public_footprints(source_module, so
 
 `feed_posts` 与 `public_footprints` 不合并为写表。`GET /api/feed` 由 Public Timeline 模块按 `(occurred_at, id)` 统一排序和游标分页，返回访客可读的 `TimelineEntry`。该投影不是 D1 表，也不应被 Home 使用。
 
-### 1.4 blog_views 表
+### 1.4 Home Activity Signal 静态投影
+
+Home Activity Signal 不是 D1 表、不是 Public Timeline 的简化响应，也不是 `/api/home` 的替代。它是 `Activity Signal Projection` 内部计算后发布的固定静态对象。
+
+**公开契约**：
+
+```json
+{
+  "schema_version": 1,
+  "signals": {
+    "blog": { "state": "active" },
+    "feed": { "state": "stable" },
+    "learn": { "state": "dormant" },
+    "projects": { "state": "active" }
+  }
+}
+```
+
+| 规则 | 约束 |
+| --- | --- |
+| 允许字段 | `schema_version` 与四颗功能星球各自的 `state` |
+| 状态值 | `active`（≤7 天）、`stable`（>7 且≤60 天）、`dormant`（>60 天或无公开活动） |
+| 来源 | Blog / Learn / Projects 取最新公开 Public Footprint；Feed 取公开原生帖子与公开系统足迹中较新者 |
+| About | 不得出现在投影中；豹猫卫星不参与活动状态 |
+| 禁止字段 | 标题、正文、摘要、链接、列表、时间线、事件数、精确时间、事件／来源标识、`generated_at`、unread/read |
+| 失败降级 | Home 隐藏活动卫星，不能把不可用状态视为 `dormant` |
+
+投影在合资格公开事件写入、原生帖子删除或可见性变化、Public Footprint 可见性变化后刷新；每小时完整校正一次，以覆盖 7 天和 60 天的自然状态迁移。来源内容删除不级联删除 Public Footprint，保持 ADR-005 的来源生命周期。
+
+### 1.5 blog_views 表
 
 /blog 文章阅读量统计。已存在（Phase 1 原型）。
 
@@ -128,7 +157,7 @@ CREATE TABLE IF NOT EXISTS blog_views (
 );
 ```
 
-### 1.5 auth_sessions 表
+### 1.6 auth_sessions 表
 
 认证 session 存储（/feed 登录后 12h 有效期）。
 
@@ -234,6 +263,7 @@ CREATE TABLE IF NOT EXISTS circuit_breaker_log (
 | Bucket            | 路径模式                      | 用途           | CORS                 |
 | ----------------- | ----------------------------- | -------------- | -------------------- |
 | `catstarry-media` | `feed/{YYYY-MM}/{uuid}.{ext}` | /feed 媒体文件 | Allow: catstarry.xyz |
+| `home-projections` | `activity-signals.json`       | Home 最小活动状态固定资源 | 静态资源交付所需的最小允许来源 |
 
 ---
 
@@ -310,6 +340,18 @@ export type FootprintEventType =
   | "blog_published"
   | "learn_section_completed"
   | "project_updated";
+
+export type ActivityState = "active" | "stable" | "dormant";
+
+export interface ActivitySignalsManifest {
+  schema_version: 1;
+  signals: {
+    blog: { state: ActivityState };
+    feed: { state: ActivityState };
+    learn: { state: ActivityState };
+    projects: { state: ActivityState };
+  };
+}
 
 export interface FeedPost {
   id: string;
@@ -422,4 +464,6 @@ KV:                               R2:
   user:{username} → bcrypt hash       feed/2026-07/uuid.jpg
   session:{token} → session data
   ratelimit:{ip} → counter
+                                      home-projections/
+                                        activity-signals.json
 ```
