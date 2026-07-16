@@ -1,7 +1,7 @@
 # catstarry.xyz 开发流程编排方案
 
 > 执行手册。进度追踪见 `docs/DASHBOARD.md`。
-> 最后更新：2026-07-16 01:48
+> 最后更新：2026-07-16 08:29
 
 ---
 
@@ -77,7 +77,7 @@ Phase 4.2：原型生成
 - 依赖迁移不得夹带视觉重做、功能开发、架构扩张或未使用的 adapter。
 - 目标是最新稳定主版本，但升级必须使用 lockfile 固化实际版本，并记录官方 migration guide 中与项目相关的破坏性变化。
 - 迁移任务必须验证 build、Content Collections、Markdown、React islands 与现有可运行页面；Cloudflare adapter 仅在项目真正启用对应渲染模式时安装和验证。
-- 当前一次性迁移：在 Phase 4.1 闭合后、Phase 4.2 启动前，将 Astro 5.18.2 对齐至 Astro 7.0.9，并修复与 Content Layer API、Markdown、HTML 编译相关的最小兼容问题。Phase 4.1 保持完成，Phase 4.2 在迁移闭合前暂停。
+- 当前一次性迁移：已在 Phase 4.1 闭合后、Phase 4.2 启动前完成。基线为 Astro 7.0.9 + `@astrojs/react` 6.0.1 + React 19.2.7 + Vite 8.1.4；Content Layer、Markdown、React islands、现有 build 与 `.astro/` untrack 均已验证。Phase 4.1 保持完成，Phase 4.2 可由流程治理启动。
 - Phase 5.0 开始前仍需再次核对最新稳定版本，但不得无审计自动升级。
 
 ---

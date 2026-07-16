@@ -134,9 +134,9 @@ catstarry.xyz/
 
 ---
 
-## 开发状态 [快照 | Phase 4.1 已完成，Astro 7 定向迁移待执行]
+## 开发状态 [快照 | Phase 4.1 已完成，Phase 4.2 可启动]
 
-> 全局 Phase 3、Home / Feed 定向 Phase 2 与定向 Phase 3 均已完成。返回 Phase 4.1 已通过 `DESIGN.md` v2.0 与 canonical CSS 完成重锁。当前先执行独立的 Astro 5.18.2 → 7.0.9 依赖基线迁移；它不重开 Phase 4.1，也不改变产品、架构或视觉决策。Phase 4.2 在迁移闭合前暂停。
+> 全局 Phase 3、Home / Feed 定向 Phase 2 与定向 Phase 3 均已完成。返回 Phase 4.1 已通过 `DESIGN.md` v2.0 与 canonical CSS 完成重锁。Astro 7 定向依赖基线迁移已完成并经流程治理确认；它未改变产品、架构或视觉决策。当前唯一正确入口是 Phase 4.2 隔离原型与参数校准。
 
 - /blog：🟡 原型已上线，Phase 5 重做
 - /：✅ 星图入口需求、SSG 无聚合架构与 Design 2.0 视觉边界已锁定；🔴 未开发
@@ -144,4 +144,4 @@ catstarry.xyz/
 - /learn、/projects、f.catstarry.xyz：✅ 需求已锁定 + 架构已锁定，🔴 未开发
 - poker.catstarry.xyz：✅ 已上线（独立部署）
 - 设计系统 CSS：✅ `variables.css` / `components.css` / `typography.css` 已对齐 Design 2.0；新星图页面组件仍须等待 Phase 4.2 原型与 Phase 4.3 落地。
-- 依赖基线：⏳ 当前 Astro 5.18.2 与面向 Astro 7 的 `@astrojs/react` 6.0.1 存在跨代组合；待独立迁移至 Astro 7.0.9，并验证 Content Layer、Markdown、React islands 与现有 build。
+- 依赖基线：✅ Astro 7.0.9 + `@astrojs/react` 6.0.1 + React 19.2.7 + Vite 8.1.4 已确认；Content Layer、Markdown、React islands 与现有 build 已验证；`.astro/` 已停止追踪。

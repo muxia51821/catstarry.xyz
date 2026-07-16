@@ -10,7 +10,7 @@
 | 层            | 选型                                | 部署              | 用途                                      |
 | ------------- | ----------------------------------- | ----------------- | ----------------------------------------- |
 | **前端框架**  | Astro (hybrid: SSG + SSR)           | CF Pages          | 全站页面渲染                              |
-| **交互组件**  | React 18 + shadcn/ui                | 嵌入 Astro island | 发布面板、公开足迹时间线、管理后台、Home 交互 |
+| **交互组件**  | React 19 + shadcn/ui                | 嵌入 Astro island | 发布面板、公开足迹时间线、管理后台、Home 交互 |
 | **API**       | CF Workers (feed-api + finance-api) | wrangler deploy   | 数据读写、认证、Cron 任务                 |
 | **数据库**    | D1 (catstarry-db + finance-db)      | CF                | 原生 Feed、公开足迹、交易、阅读量、session |
 | **缓存/配置** | KV                                  | CF                | 阅读量去重、认证、限流                    |
@@ -175,4 +175,4 @@ tech-decisions-20260703.md 中的 7 项决策全部保留，但以下三点在 P
 
 定向 Phase 3 已完成，ADR-005、ADR-006 及本架构文档已经锁定。返回 Phase 4.1 已依据这些边界产出 `DESIGN.md` v2.0；设计系统没有重新引入 Home 聚合、动态最近内容或新的架构依赖。
 
-Phase 4.1 已由流程治理确认闭合。当前先执行独立的 Astro 5.18.2 → 7.0.9 依赖基线迁移；该任务只处理框架与最小兼容问题，不改变本文件的架构决定。迁移闭合后，Phase 4.2 只验证星图、Planet Push、About 原地展开与相关动效参数，不重新裁决本文件中的数据、API、模块或渲染边界。
+Phase 4.1 已由流程治理确认闭合。Astro 7 定向依赖基线迁移已完成，当前基线为 Astro 7.0.9 + `@astrojs/react` 6.0.1 + React 19.2.7 + Vite 8.1.4；该任务只处理框架与最小兼容问题，不改变本文件的架构决定。Phase 4.2 只验证星图、Planet Push、About 原地展开与相关动效参数，不重新裁决本文件中的数据、API、模块或渲染边界。
