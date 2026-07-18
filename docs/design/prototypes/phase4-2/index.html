@@ -2022,6 +2022,18 @@
             focusStepsEndPx,
           };
         }
+        function overviewInteractiveProgress() {
+          const { interactiveStart, depthOffset } = P.planet.emergence,
+            latestPlanetThreshold = Math.max(
+              ...Object.values(depthOffset).map(
+                ({ progress }) => interactiveStart + progress * 0.12,
+              ),
+            );
+          return Math.min(
+            1,
+            Math.max(P.camera.approachEnd, latestPlanetThreshold),
+          );
+        }
         function setVariant(next) {
           variant = next;
           body.dataset.variant = next;
@@ -2344,7 +2356,8 @@
             overview = clamp(
               (p - P.camera.overviewStart) / P.camera.overviewSpan,
             ),
-            emergence = P.planet.emergence;
+            emergence = P.planet.emergence,
+            overviewInteractiveStart = overviewInteractiveProgress();
           root.style.setProperty("--journey", `${metrics.totalJourneyVh}vh`);
           root.style.setProperty("--progress", p.toFixed(3));
           root.style.setProperty("--approach", approach.toFixed(3));
@@ -2458,7 +2471,7 @@
                   "ENTRY",
                   "FAR",
                 ]
-              : p < P.camera.approachEnd
+              : p < overviewInteractiveStart
                 ? [
                     "01 / APPROACH",
                     "target stars become small worlds in place",
@@ -2479,7 +2492,7 @@
             const anchor =
               p < P.camera.entryEnd
                 ? "entry"
-                : p < P.camera.approachEnd
+                : p < overviewInteractiveStart
                   ? "approach"
                   : "overview";
             document
@@ -2508,7 +2521,10 @@
           cancelManualAnimation();
           closeFocusInstant(false);
           const metrics = cameraMetrics(),
-            p = { entry: 0.01, approach: 0.36, overview: 0.72 }[mark];
+            p =
+              mark === "overview"
+                ? Math.min(1, overviewInteractiveProgress() + 0.002)
+                : { entry: 0.01, approach: 0.36 }[mark];
           scrollTo({
             top: journey.offsetTop + metrics.baseTravelPx * p,
             behavior: reduce.matches ? "auto" : "smooth",
@@ -2797,7 +2813,10 @@
           focusMode = "returning";
           body.dataset.focusMode = "returning";
           const metrics = cameraMetrics(),
-            target = journey.offsetTop + metrics.baseTravelPx * 0.72;
+            target =
+              journey.offsetTop +
+              metrics.baseTravelPx *
+                Math.min(1, overviewInteractiveProgress() + 0.002);
           let finished = false;
           const finish = () => {
             if (finished || focusMode !== "returning") return;
