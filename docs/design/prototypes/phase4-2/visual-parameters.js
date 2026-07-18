@@ -5,7 +5,24 @@ window.PROTOTYPE_VISUAL_PARAMETERS = {
     backgroundBloomOpacity: 0.16,
     warmDustOpacity: 0.11,
     starLayerOpacity: { far: 0.34, mid: 0.46, near: 0.18 },
-    starLayerScale: { far: 0.72, mid: 1, near: 1.42 }
+    starLayerScale: { far: 0.72, mid: 1, near: 1.42 },
+    starfield: {
+      seed: 4217,
+      mobileDensityScale: 0.54,
+      layers: {
+        far: { densityPerMegapixel: 230, opacity: [0.12, 0.54], radiusPx: [0.28, 0.82], warmRatio: 0.2 },
+        mid: { densityPerMegapixel: 82, opacity: [0.2, 0.72], radiusPx: [0.46, 1.18], warmRatio: 0.24 },
+        near: { densityPerMegapixel: 18, opacity: [0.24, 0.66], radiusPx: [0.72, 1.55], warmRatio: 0.18 }
+      },
+      clusters: [
+        { x: 0.18, y: 0.24, radius: 0.15, strength: 0.72 },
+        { x: 0.74, y: 0.67, radius: 0.18, strength: 0.58 }
+      ],
+      darkZones: [
+        { x: 0.52, y: 0.48, radius: 0.2, strength: 0.84 },
+        { x: 0.84, y: 0.25, radius: 0.12, strength: 0.52 }
+      ]
+    }
   },
 
   camera: {
@@ -18,6 +35,14 @@ window.PROTOTYPE_VISUAL_PARAMETERS = {
     overviewSpan: 0.28,
     focusMapScale: 1.72,
     focusMapOpacity: 0.12,
+    focusSequence: {
+      order: ["about", "feed", "blog", "projects", "learn"],
+      overviewHoldVh: 45,
+      overviewHandoffVh: { desktop: 54, mobile: 42 },
+      stepVh: { desktop: 88, mobile: 76 },
+      footerReleaseVh: 35,
+      holdRatio: 0.72
+    },
     parallax: { far: 0.012, mid: 0.032, near: 0.06 }
   },
 
@@ -60,9 +85,33 @@ window.PROTOTYPE_VISUAL_PARAMETERS = {
     overviewSizePx: { min: 112, preferredVw: 16, max: 244 },
     overviewScale: {
       orbit: { about: 1.08, blog: 0.83, feed: 0.71, learn: 0.8, projects: 0.92 },
-      drift: { about: 1.02, blog: 0.91, feed: 0.7, learn: 0.77, projects: 0.95 }
+      drift: { about: 0.88, blog: 0.94, feed: 1, learn: 0.91, projects: 0.94 }
     },
     depthScale: { about: 0.72, blog: 0.9, feed: 1, projects: 0.86, learn: 0.84 },
+    emergence: {
+      targetStart: 0.015,
+      targetOpacity: 0.58,
+      haloStart: 0.07,
+      sphereStart: 0.2,
+      sphereEnd: 0.86,
+      labelStart: 0.76,
+      interactiveStart: 0.84,
+      haloStrength: 0.42,
+      targetTone: {
+        about: "226 224 219",
+        blog: "231 218 197",
+        feed: "205 216 232",
+        projects: "222 205 184",
+        learn: "202 211 225"
+      },
+      depthOffset: {
+        about: { progress: 0.13, xVw: 1.2, yVh: -0.8 },
+        blog: { progress: 0.03, xVw: -0.7, yVh: -0.4 },
+        feed: { progress: -0.08, xVw: 0.35, yVh: 0.2 },
+        projects: { progress: 0.06, xVw: -0.65, yVh: 0.7 },
+        learn: { progress: 0.09, xVw: 0.8, yVh: 0.65 }
+      }
+    },
     materials: {
       about: { asset: "./assets/planets/about.webp", overviewScale: 1, focusScale: 1.055, contrast: 1.02, saturation: 0.82 },
       blog: { asset: "./assets/planets/blog.webp", overviewScale: 1, focusScale: 1.05, contrast: 1.04, saturation: 0.8 },
@@ -78,13 +127,45 @@ window.PROTOTYPE_VISUAL_PARAMETERS = {
       castShadowBlurPx: 34,
       focusMaterialBoost: 1.06
     },
+    focusShots: {
+      about: {
+        x: 77, y: 56, diameterVmin: 78, maxPx: 980, scale: 1.08, crop: "42% 48%",
+        entryOffset: [7, -7], exitOffset: [-8, 4],
+        copy: { x: 7, y: 52, widthCh: 34, align: "left" },
+        mobile: { x: 66, y: 28, diameterVmin: 72, maxPx: 520, scale: 1.02, crop: "42% 48%", copy: { x: 6, y: 70, widthCh: 31, align: "left" } }
+      },
+      feed: {
+        x: 24, y: 64, diameterVmin: 84, maxPx: 1040, scale: 1.13, crop: "52% 46%",
+        entryOffset: [9, 5], exitOffset: [-10, -5],
+        copy: { x: 62, y: 42, widthCh: 33, align: "left" },
+        mobile: { x: 35, y: 29, diameterVmin: 78, maxPx: 540, scale: 1.05, crop: "52% 46%", copy: { x: 6, y: 70, widthCh: 31, align: "left" } }
+      },
+      blog: {
+        x: 76, y: 49, diameterVmin: 88, maxPx: 1100, scale: 1.16, crop: "38% 52%",
+        entryOffset: [8, -4], exitOffset: [-9, 6],
+        copy: { x: 7, y: 49, widthCh: 35, align: "left" },
+        mobile: { x: 67, y: 27, diameterVmin: 82, maxPx: 560, scale: 1.07, crop: "38% 52%", copy: { x: 6, y: 70, widthCh: 31, align: "left" } }
+      },
+      projects: {
+        x: 50, y: 82, diameterVmin: 104, maxPx: 1280, scale: 1.2, crop: "48% 34%",
+        entryOffset: [-7, 8], exitOffset: [8, -8],
+        copy: { x: 8, y: 26, widthCh: 36, align: "left" },
+        mobile: { x: 50, y: 36, diameterVmin: 92, maxPx: 620, scale: 1.1, crop: "48% 34%", copy: { x: 6, y: 70, widthCh: 31, align: "left" } }
+      },
+      learn: {
+        x: 20, y: 43, diameterVmin: 82, maxPx: 1020, scale: 1.12, crop: "58% 45%",
+        entryOffset: [-8, -5], exitOffset: [10, 5],
+        copy: { x: 61, y: 58, widthCh: 34, align: "left" },
+        mobile: { x: 33, y: 28, diameterVmin: 76, maxPx: 530, scale: 1.04, crop: "58% 45%", copy: { x: 6, y: 70, widthCh: 31, align: "left" } }
+      }
+    },
     focusDiameterVmin: 66,
     focusDiameterMaxPx: 820,
     focusSurfaceScale: 1.16
   },
 
   aboutCompanion: {
-    offsetPlanetRadii: { x: 1.12, y: 0.72 },
+    offsetPlanetRadii: { x: -1.08, y: 0.72 },
     overviewScale: 0.62,
     revealStart: 0.28,
     catLineOpacity: 0.12,
@@ -96,12 +177,12 @@ window.PROTOTYPE_VISUAL_PARAMETERS = {
   transition: {
     microMs: 180,
     hoverMs: 220,
-    parallaxEaseMs: 320,
-    navigationMs: 160,
-    routeFadeMs: 170,
-    focusInMs: 980,
-    focusOutMs: 720,
-    actionPreviewMs: 760,
+    parallaxEaseMs: 480,
+    navigationMs: 170,
+    routeFadeMs: 270,
+    focusInMs: 1100,
+    focusOutMs: 800,
+    actionPreviewMs: 600,
     aboutOpenMs: 420,
     catChargeMs: 3800,
     catBurstMs: 1140,
@@ -117,7 +198,7 @@ window.PROTOTYPE_VISUAL_PARAMETERS = {
     },
     drift: {
       origin: [48, 47],
-      planets: { about: [72, 21, 5], blog: [28, 25, 2], feed: [62, 42, 1], projects: [20, 70, 4], learn: [76, 68, 3] }
+      planets: { about: [77, 18, 5], blog: [25, 27, 2], feed: [61, 43, 1], projects: [21, 73, 4], learn: [75, 71, 3] }
     }
   }
 };

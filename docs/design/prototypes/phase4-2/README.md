@@ -11,7 +11,7 @@ python -m http.server 4172 --directory docs/design/prototypes/phase4-2
 打开：
 
 ```text
-http://localhost:4172/?variant=orbit&mock=mixed
+http://localhost:4172/?variant=drift&mock=mixed
 ```
 
 ## URL 校准面
@@ -33,11 +33,13 @@ docs/design/prototypes/phase4-2/visual-parameters.js
 
 | 参数组 | 负责内容 |
 | --- | --- |
-| `camera` | 旅行距离、阶段阈值、视差、Focus 相机推进。 |
-| `environment` | 深空背景光、暖性星尘、三层星域透明度与尺度。 |
+| `camera` | 入口到星图的旅行距离、阶段阈值、视差，以及默认 Focus 顺序、Hold / Handoff、单星滚动步长和页脚释放距离。 |
+| `environment` | 深空背景光、暖性星尘，以及可复现的三层星域密度、亮度、星团和暗区。 |
 | `meteor` | 三层首屏流星，以及移植自旧 About 原型的 Canvas 光标流星轨迹。 |
 | `satellite` | 三态卫星尺度、亮度、局部运动、粒子、指针视差和一次响应。 |
 | `planet.depthScale` | 五颗星球的语义纵深倍率，不改变板块优先级。 |
+| `planet.emergence` | 五颗远端目标星在各自最终语义区域内转为完整星球的时序、光晕、色温和纵深差。 |
+| `planet.focusShots` | 五个 Focus 的独立镜头位置、尺度、裁切、进退方向和文字构图；包含移动端覆盖值。 |
 | `planet.materials` | 五颗预渲染资产路径、对比度、饱和度和 Overview / Focus 材质倍率。 |
 | `planet.lighting` | 终止线、单侧大气边缘和软投影。 |
 | `aboutCompanion` | About 豹猫 companion 的相对位置、远景 LOD、显影和视差。 |
@@ -48,16 +50,18 @@ docs/design/prototypes/phase4-2/visual-parameters.js
 
 ## 验收顺序
 
-1. 从 Entry 正常滚动：在约 2–3 个视口的自然旅行内抵达同一片星域；不应有滚动劫持。
+1. 从 Entry 正常滚动：五个远端目标星应从一开始就在最终语义区域内，以 `目标星 → 光晕 → 微小天体 → 完整球体` 的顺序原地显现；不应从共同中心散开，也不应有滚动劫持。
 2. 用 `Orbit` 与 `Drift` 比较受控构图。五颗完整球体保持稳定语义区域；About 位于右上远端，且不是最大主星。
 3. hover 或 Tab 聚焦 Blog / Feed / Learn / Projects：标签增强，且对应 `active` / `stable` 伴星只回应一次。其低频运动应是长时间静止后的短弧移动；`dormant` 完全静止。
 4. 依次切换四个 mock：`unavailable` 必须同时隐藏四颗活动卫星，不能把它们猜成 dormant。
-5. 点击任一星球：先进入该星球 Focus，只看近景材质、标题和 action；不加载 Feed、Blog、Projects 或 Learn 内容。当前点击路径已存在，自然滚动的 `About → Feed → Blog → Projects → Learn` Focus 序列仍待本轮补充验证。
-6. 在非 About Focus 点击 `ENTER`：只模拟约 760ms 的路由推进，绝不跳转生产路由；点击“返回星图”或按 Esc 回到原位置。
-7. 点击 About：进入唯一的 Home 原地展开态；About 不显示通用 `ENTER` 路由按钮。
-8. 在 About 邻近区域操作 companion：总览先读成低音量 Klein Blue 小天体；进入引力范围后再显出豹猫。第一次点击蓄能，第二次点击局部爆开后进入相同 About Focus；关闭后回收重组。
-9. 检查三层首屏流星的方向、长度与远近，以及 Canvas 鼠标流星尾的头部辉光、渐变拖尾和碎屑。
-10. 在浏览器启用 `prefers-reduced-motion`，或用触控设备访问：导航和 About 必须仍可用；视差、尾迹、流星、连续卫星漂移与爆开均应静止/瞬时降级。
+5. 从 Star Map 继续自然滚动：依次进入 `About → Feed → Blog → Projects → Learn` 的单星 Focus。检查每个镜头是否不同、文字是否是主体、星球是否只作为空间窗口；每个 Focus 仅有标题、1–3 条原型事实和 action，不加载板块内容。
+6. 慢速、快速和反向滚过两个相邻 Focus：前一镜头应先稳定停留，在共享 Handoff 区间中退场，下一镜头同时进入；不应出现突然换球、空白帧、残留副本或持续追赶滚动位置的动画。
+7. 从 Star Map 点击任一星球，或用侧边航行索引选择任一名称：直接进入目标 Focus，不必经过前序星球。
+8. 在非 About Focus 点击 `ENTER`：只模拟约 760ms 的路由推进，绝不跳转生产路由；点击“返回星图”或按 Esc 回到总览。
+9. 从总览直接点击 About：轻推近后连续进入唯一的 Home 原地展开态；自然滚动到 About Focus 时则通过 `OPEN ABOUT` 进入同一展开态。
+10. 在 About 邻近区域操作 companion：总览先读成低音量 Klein Blue 小天体；进入引力范围后再显出豹猫。第一次点击蓄能，第二次点击局部爆开后进入相同 About 展开态；关闭后回收重组。
+11. 检查三层首屏流星的方向、长度与远近，以及 Canvas 鼠标流星尾的头部辉光、渐变拖尾和碎屑。
+12. 在浏览器启用 `prefers-reduced-motion`，或用触控设备访问：应直接得到完整、可读、可点击的静态星图；视差、尾迹、流星、连续卫星漂移与爆开均静止/瞬时降级，About 和全部导航路径仍可用。
 
 ## 预渲染行星资产
 
@@ -81,7 +85,8 @@ Phase 4.2 必须确认五颗 Overview 的视觉身份，并验证 Overview / Foc
 
 ## 当前关键数值
 
-- 自然滚动旅行：Orbit `400vh` / Drift `430vh` / Mobile `350vh`。
+- 入口到星图的相机基线：Orbit `400vh` / Drift `430vh` / Mobile `350vh`；该值保留木下手调结果，不含后续 Focus 段。
+- Focus 序列：总览停留 `45vh`；Overview → About 交接为桌面 `54vh` / 移动端 `42vh`；每颗桌面 `88vh` / 移动端 `76vh`；每步前 `72%` 为稳定 Hold，后 `28%` 为共享 Handoff；最后释放到页脚 `35vh`。因此 Drift 桌面原型总高度约 `1004vh`。
 - Focus 进入 / 退出：`980ms / 720ms`；action preview：`760ms`。
 - HAS 伴星周期：active `24s`、stable `32s`；只有末尾 `18% / 12%` 时间执行短弧移动；dormant 静止。
 - 豹猫：蓄能 `3800ms`、爆开 `1140ms`、回收 `2750ms`。
@@ -90,7 +95,9 @@ Phase 4.2 必须确认五颗 Overview 的视觉身份，并验证 Overview / Foc
 ## 已知且有意的范围
 
 - 当前行星是 Phase 4.2 可替换占位；它们只能验证接入、尺度和空间关系，视觉身份尚未通过。
-- `Star Map → Planet Focus → action` 已由 Design 2.1 极小重锁转为正式交互；自然滚动 Focus 序列与直接跳转路径仍需在隔离原型中校准。
+- `Star Map → Planet Focus → action` 已由 Design 2.1 极小重锁转为正式交互；自然滚动 Focus 序列、侧边索引直接跳转与星图点击路径已接入，仍待木下目测校准。
+- Focus 自然滚动使用原生、位置驱动的直接 scrub 计算，不依赖 GSAP，也不创建 ScrollTrigger；两个永久镜头槽位承担全部 Handoff，不在滚动中创建临时节点、监听器或追帧动画。
+- 三层星域由固定 seed 生成，同一视口与参数下可复现；星团、暗区和移动端密度均由 `environment.starfield` 集中控制。
 - Drift 是主构图方向；About 保持右上远端，Feed 保持最容易接近，Blog / Projects / Learn 分别稳定在左上 / 左下 / 右下语义区域。允许区域内人工微调，不做运行时随机换位。
 - 未接入 `activity-signals.json`、Worker、R2、D1、KV 或任何生产数据链路。
-- `prototype-verdict.md` 在木下完成目测验收后更新；当前旧 verdict 不再代表 HAS 重锁后的结论。
+- `prototype-verdict.md` 已记录本轮结构状态；所有标记为“待目测”的项目仍需木下在浏览器中判断。
