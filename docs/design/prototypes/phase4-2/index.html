@@ -1,9 +1,9 @@
 <!doctype html>
 <html lang="zh-CN">
   <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="color-scheme" content="dark">
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
     <title>Phase 4.2 · Star Map Calibration</title>
     <script src="./mock-activity-states.js"></script>
     <script src="./visual-parameters.js"></script>
@@ -18,7 +18,7 @@
         --warm-1: #d9b884;
         --warm-2: #8b6243;
         --ink: #e8edff;
-        --muted: rgb(224 232 255 / .62);
+        --muted: rgb(224 232 255 / 0.62);
         --progress: 0;
         --approach: 0;
         --overview: 0;
@@ -43,353 +43,3199 @@
         --cat-burst: 1140ms;
         --cat-recover: 2750ms;
         --cat-dust-stagger: 25ms;
-        --background-bloom: .16;
-        --warm-dust: .11;
-        --stars-far-opacity: .34;
-        --stars-mid-opacity: .46;
-        --stars-near-opacity: .18;
-        --atmosphere-opacity: .23;
+        --background-bloom: 0.16;
+        --warm-dust: 0.11;
+        --stars-far-opacity: 0.34;
+        --stars-mid-opacity: 0.46;
+        --stars-near-opacity: 0.18;
+        --atmosphere-opacity: 0.23;
         --atmosphere-width: 1px;
-        --terminator-opacity: .18;
-        --planet-shadow-opacity: .44;
+        --terminator-opacity: 0.18;
+        --planet-shadow-opacity: 0.44;
         --planet-shadow-blur: 34px;
-        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-family:
+          Inter,
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
       }
-      * { box-sizing: border-box; }
-      html { background: var(--void); }
-      body { min-width: 320px; margin: 0; color: var(--ink); background: var(--void); }
-      button { font: inherit; }
-      button:focus-visible, a:focus-visible { outline: 2px solid var(--klein-pale); outline-offset: 5px; }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        background: var(--void);
+      }
+      body {
+        min-width: 320px;
+        margin: 0;
+        color: var(--ink);
+        background: var(--void);
+      }
+      button {
+        font: inherit;
+      }
+      button:focus-visible,
+      a:focus-visible {
+        outline: 2px solid var(--klein-pale);
+        outline-offset: 5px;
+      }
       .toolbar {
-        position: fixed; z-index: 50; bottom: 14px; left: 50%; display: flex; gap: 6px; align-items: center;
-        max-width: calc(100vw - 28px); padding: 7px; border: 1px solid rgb(184 200 255 / .2);
-        border-radius: 999px; background: rgb(4 6 17 / .72); backdrop-filter: blur(12px); transform: translateX(-50%);
+        position: fixed;
+        z-index: 50;
+        bottom: 14px;
+        left: 50%;
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        max-width: calc(100vw - 28px);
+        padding: 7px;
+        border: 1px solid rgb(184 200 255 / 0.2);
+        border-radius: 999px;
+        background: rgb(4 6 17 / 0.72);
+        backdrop-filter: blur(12px);
+        transform: translateX(-50%);
       }
-      .toolbar span { padding: 0 7px; color: var(--muted); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; }
-      .toolbar button { border: 0; border-radius: 999px; padding: 7px 10px; color: var(--muted); background: transparent; cursor: pointer; font-size: 11px; }
-      .toolbar button[aria-pressed="true"] { color: #fff; background: rgb(51 92 255 / .28); }
-      .journey { height: var(--journey); }
-      .stage { position: sticky; top: 0; overflow: clip; height: 100dvh; isolation: isolate; background: radial-gradient(ellipse at 52% 54%, rgb(16 21 42 / .72) 0%, var(--void-soft) 34%, var(--void) 78%); }
-      .stage::before { content: ""; position: absolute; inset: -15%; z-index: -1; opacity: calc(var(--background-bloom) + var(--approach) * .22); background: radial-gradient(circle at 22% 76%, rgb(0 47 167 / .12), transparent 23%), radial-gradient(circle at 78% 23%, rgb(217 184 132 / var(--warm-dust)), transparent 19%), radial-gradient(ellipse at 55% 62%, rgb(126 98 71 / .055), transparent 31%); filter: blur(28px); }
-      .star-layer { position: absolute; inset: -10%; z-index: -2; width: 120%; height: 120%; pointer-events: none; transform: translate3d(0, calc(var(--progress) * var(--speed) * -110vh), 0); }
-      .stars-far { --speed: var(--parallax-far, .012); opacity: var(--stars-far-opacity); scale: var(--stars-far-scale, .72); }
-      .stars-mid { --speed: var(--parallax-mid, .032); opacity: var(--stars-mid-opacity); transform: translate3d(0, calc(var(--progress) * var(--speed) * -110vh), 0) scale(var(--stars-mid-scale, 1)); }
-      .stars-near { --speed: var(--parallax-near, .06); opacity: calc(var(--approach) * var(--stars-near-opacity)); transform: translate3d(0, calc(var(--progress) * var(--speed) * -110vh), 0) scale(var(--stars-near-scale, 1.42)); filter: blur(.35px); }
-      .entry-copy { position: absolute; z-index: 10; left: clamp(24px, 8vw, 132px); bottom: clamp(58px, 14vh, 142px); width: min(430px, calc(100vw - 48px)); opacity: calc(1 - var(--approach) * 1.4); transform: translateY(calc(var(--approach) * -36px)); }
-      .entry-copy p { margin: 0; }
-      .eyebrow { color: var(--klein-pale); font-size: 11px; letter-spacing: .16em; text-transform: uppercase; }
-      h1 { max-width: 7em; margin: 13px 0 12px; font-size: clamp(38px, 5vw, 76px); font-weight: 550; line-height: 1.06; letter-spacing: -.055em; }
-      .entry-copy .note { max-width: 30ch; color: var(--muted); font-size: 14px; line-height: 1.75; }
-      .discover { display: inline-flex; gap: 11px; align-items: center; margin-top: 24px; border: 0; padding: 0; color: var(--ink); background: transparent; cursor: pointer; font-size: 11px; letter-spacing: .13em; }
-      .discover i { position: relative; display: block; width: 54px; height: 1px; transform: rotate(-24deg); background: linear-gradient(90deg, transparent, var(--klein-400), var(--klein-pale)); }
-      .discover i::after { content: ""; position: absolute; right: -1px; top: -2px; width: 5px; height: 5px; border-radius: 50%; background: var(--klein-pale); box-shadow: 0 0 13px 3px rgb(51 92 255 / .62); }
-      .entry-meteors { position: absolute; inset: 0; z-index: 1; pointer-events: none; opacity: calc(1 - var(--approach) * 1.6); }
-      .entry-meteor { position: absolute; top: var(--meteor-top); left: var(--meteor-left); width: min(var(--meteor-length), 76vw); height: var(--meteor-thickness); opacity: 0; transform: rotate(var(--meteor-angle)) scale(var(--meteor-scale)); transform-origin: right center; background: linear-gradient(90deg, transparent, rgb(0 47 167 / .08) 12%, rgb(0 47 167 / .34) 54%, var(--klein-400) 84%, var(--klein-pale)); filter: drop-shadow(0 0 10px rgb(51 92 255 / .85)); animation: sky-cut var(--meteor-duration) cubic-bezier(.18,.68,.22,1) forwards; animation-delay: var(--meteor-delay); }
-      .entry-meteor::after { content: ""; position: absolute; right: -2px; top: -3px; width: 8px; height: 8px; border-radius: 50%; background: var(--klein-pale); box-shadow: 0 0 20px 4px rgb(51 92 255 / .72); }
-      @keyframes sky-cut { 0% { opacity: 0; translate: 0 0; } 10% { opacity: calc(var(--meteor-opacity) * .85); } 72% { opacity: var(--meteor-opacity); } 100% { opacity: 0; translate: var(--meteor-travel-x) var(--meteor-travel-y); } }
-      .stage-readout { position: absolute; z-index: 13; top: max(78px, 11vh); left: clamp(24px, 5vw, 78px); opacity: clamp(0, calc((var(--approach) - .12) * 6), 1); color: rgb(232 237 255 / .62); font-size: 10px; letter-spacing: .13em; }
-      .stage-readout b { display: block; margin-bottom: 6px; color: var(--klein-pale); font-weight: 500; }
-      .map { position: absolute; inset: 0; z-index: 5; opacity: 1; transform-origin: var(--focus-origin-x, 50%) var(--focus-origin-y, 50%); transition: opacity var(--focus-out) ease, transform var(--focus-out) cubic-bezier(.2,.72,.18,1); }
-      .focus-open .map { opacity: var(--focus-map-opacity-current, var(--focus-map-opacity, .12)); transform: scale(var(--focus-map-scale-current, var(--focus-map-scale, 1.72))); transition-duration: var(--focus-in); }
-      body[data-focus-mode="scroll"] .map { transition: none; }
-      .focus-open.focus-returning .map { opacity: 1; transform: scale(1); }
-      .focus-open .planet { pointer-events: none; }
-      .planet { position: absolute; z-index: var(--z); left: var(--x); top: var(--y); width: clamp(var(--planet-min), var(--planet-preferred), var(--planet-max)); aspect-ratio: 1; border: 0; padding: 0; pointer-events: none; opacity: var(--visible); background: transparent; cursor: pointer; transform: translate(calc(-50% + var(--emerge-x, 0vw)), calc(-50% + var(--emerge-y, 0vh))) scale(var(--scale)); transition: filter var(--hover) ease; }
-      .planet::before { content: ""; position: absolute; z-index: 4; top: 50%; left: 50%; width: 4px; height: 4px; border-radius: 50%; opacity: var(--target-visible, 0); background: rgb(var(--target-tone, 239 234 222)); box-shadow: 0 0 calc(7px + 15px * var(--target-halo, 0)) rgb(var(--target-tone, 225 217 201) / calc(.18 + var(--target-halo, 0) * .42)); transform: translate(-50%, -50%) scale(calc(.72 + var(--target-halo, 0) * .46)); }
-      .planet.ready { pointer-events: auto; }
-      .planet:hover, .planet:focus-visible { z-index: 20; }
-      .planet-core { position: absolute; inset: 0; overflow: visible; opacity: var(--sphere-visible, 0); border-radius: 50%; background-color: #b89c78; background-image: var(--planet-asset, var(--planet-fallback)); background-position: center; background-repeat: no-repeat; background-size: contain; box-shadow: 0 0 calc(8px + 22px * var(--target-halo, 0)) rgb(236 226 208 / calc(.12 + var(--target-halo, 0) * .35)), 0 21px var(--planet-shadow-blur) rgb(0 0 0 / calc(var(--planet-shadow-opacity) * var(--sphere-visible, 0))); filter: contrast(var(--planet-contrast, 1)) saturate(var(--planet-saturation, .82)); transform: scale(calc(var(--planet-material-scale, 1) * var(--sphere-scale, 1))); transition: filter var(--hover) ease, transform var(--hover) ease; }
-      .planet-core::before { content: ""; position: absolute; inset: 3.2%; border-radius: 50%; pointer-events: none; opacity: calc(var(--terminator-opacity) * var(--sphere-visible, 0)); background: radial-gradient(circle at 25% 24%, transparent 0 44%, rgb(0 0 0 / .12) 61%, rgb(0 0 0 / .66) 100%); mix-blend-mode: multiply; }
-      .planet-core::after { content: ""; position: absolute; inset: 3.15%; border-radius: 50%; pointer-events: none; opacity: var(--sphere-visible, 0); border: var(--atmosphere-width) solid rgb(241 225 199 / var(--atmosphere-opacity)); border-right-color: rgb(104 127 177 / var(--atmosphere-shadow-opacity)); border-bottom-color: transparent; box-shadow: -4px -3px 9px rgb(255 238 208 / var(--atmosphere-glow-opacity)); }
-      .planet:hover .planet-core, .planet:focus-visible .planet-core { filter: contrast(var(--planet-hover-contrast, 1.025)) saturate(var(--planet-saturation, .82)); transform: scale(var(--planet-hover-scale, 1.012)); }
-      .planet.about { --planet-fallback: radial-gradient(circle at 36% 32%, #f3e8d5, #896a54 65%, #19140f); }
-      .planet.blog { --planet-fallback: linear-gradient(135deg, #f3dec0, #9a654e 58%, #211713); }
-      .planet.feed { --planet-fallback: radial-gradient(ellipse at 35% 36%, #d8ba91, #6a5149 66%, #171111); }
-      .planet.learn { --planet-fallback: linear-gradient(145deg, #e7d9bf, #6e675f 53%, #18191b); }
-      .planet.projects { --planet-fallback: linear-gradient(120deg, #e0c7a3, #7a5b4a 55%, #171719); }
-      .planet-label { position: absolute; top: 50%; left: calc(100% + 13px); width: max-content; max-width: 18ch; opacity: var(--label-visible, 0); color: rgb(232 237 255 / .43); font-size: 11px; letter-spacing: .13em; text-align: left; transform: translateY(-50%); transition: color var(--navigation), translate var(--navigation); }
-      .planet.reverse .planet-label { right: calc(100% + 13px); left: auto; text-align: right; }
-      .planet-label small { display: block; margin-top: 5px; color: rgb(232 237 255 / .31); font-size: 9px; letter-spacing: .08em; text-transform: none; }
-      .planet:hover .planet-label, .planet:focus-visible .planet-label { color: #fff; translate: 5px 0; }
-      .planet.reverse:hover .planet-label, .planet.reverse:focus-visible .planet-label { translate: -5px 0; }
-      .signal-wrap { position: absolute; z-index: 2; top: -10%; left: 70%; width: 44%; aspect-ratio: 1; pointer-events: none; opacity: 0; transform: translate(var(--satellite-px, 0), var(--satellite-py, 0)); transition: opacity var(--micro) ease, transform var(--parallax-ease) ease-out; }
-      .signal-wrap[data-state] { opacity: var(--signal-reveal, 0); }
-      .signal-orbit { position: absolute; inset: 9%; border: 1px solid rgb(51 92 255 / .2); border-left-color: transparent; border-bottom-color: transparent; border-radius: 50%; transform: rotate(-32deg) scaleY(.52); }
-      .signal-core { position: absolute; top: 5%; right: 20%; width: var(--signal-core-size, 16%); aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle at 31% 25%, rgb(168 186 244 / .76), var(--klein-500) 31%, #071b5a 49%, #020718 69%, #01030e 80%); box-shadow: -4px 5px 8px rgb(0 0 0 / .78) inset, -1px -1px 0 rgb(184 200 255 / .28), 0 0 9px rgb(0 47 167 / .13); }
-      .signal-particle { position: absolute; width: 2px; height: 2px; border-radius: 50%; opacity: 0; background: var(--klein-pale); box-shadow: 0 0 7px var(--klein-400); }
-      .signal-particle:nth-of-type(3) { top: 21%; right: 5%; }
-      .signal-particle:nth-of-type(4) { top: 4%; right: 44%; }
-      .signal-particle:nth-of-type(5) { top: 53%; right: 2%; }
+      .toolbar span {
+        padding: 0 7px;
+        color: var(--muted);
+        font-size: 10px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+      .toolbar button {
+        border: 0;
+        border-radius: 999px;
+        padding: 7px 10px;
+        color: var(--muted);
+        background: transparent;
+        cursor: pointer;
+        font-size: 11px;
+      }
+      .toolbar button[aria-pressed="true"] {
+        color: #fff;
+        background: rgb(51 92 255 / 0.28);
+      }
+      .journey {
+        height: var(--journey);
+      }
+      .stage {
+        position: sticky;
+        top: 0;
+        overflow: clip;
+        height: 100dvh;
+        isolation: isolate;
+        background: radial-gradient(
+          ellipse at 52% 54%,
+          rgb(16 21 42 / 0.72) 0%,
+          var(--void-soft) 34%,
+          var(--void) 78%
+        );
+      }
+      .stage::before {
+        content: "";
+        position: absolute;
+        inset: -15%;
+        z-index: -1;
+        opacity: calc(var(--background-bloom) + var(--approach) * 0.22);
+        background:
+          radial-gradient(
+            circle at 22% 76%,
+            rgb(0 47 167 / 0.12),
+            transparent 23%
+          ),
+          radial-gradient(
+            circle at 78% 23%,
+            rgb(217 184 132 / var(--warm-dust)),
+            transparent 19%
+          ),
+          radial-gradient(
+            ellipse at 55% 62%,
+            rgb(126 98 71 / 0.055),
+            transparent 31%
+          );
+        filter: blur(28px);
+      }
+      .star-layer {
+        position: absolute;
+        inset: -10%;
+        z-index: -2;
+        width: 120%;
+        height: 120%;
+        pointer-events: none;
+        transform: translate3d(
+          0,
+          calc(var(--progress) * var(--speed) * -110vh),
+          0
+        );
+      }
+      .stars-far {
+        --speed: var(--parallax-far, 0.012);
+        opacity: var(--stars-far-opacity);
+        scale: var(--stars-far-scale, 0.72);
+      }
+      .stars-mid {
+        --speed: var(--parallax-mid, 0.032);
+        opacity: var(--stars-mid-opacity);
+        transform: translate3d(
+            0,
+            calc(var(--progress) * var(--speed) * -110vh),
+            0
+          )
+          scale(var(--stars-mid-scale, 1));
+      }
+      .stars-near {
+        --speed: var(--parallax-near, 0.06);
+        opacity: calc(var(--approach) * var(--stars-near-opacity));
+        transform: translate3d(
+            0,
+            calc(var(--progress) * var(--speed) * -110vh),
+            0
+          )
+          scale(var(--stars-near-scale, 1.42));
+        filter: blur(0.35px);
+      }
+      .entry-copy {
+        position: absolute;
+        z-index: 10;
+        left: clamp(24px, 8vw, 132px);
+        bottom: clamp(58px, 14vh, 142px);
+        width: min(430px, calc(100vw - 48px));
+        opacity: calc(1 - var(--approach) * 1.4);
+        transform: translateY(calc(var(--approach) * -36px));
+      }
+      .entry-copy p {
+        margin: 0;
+      }
+      .eyebrow {
+        color: var(--klein-pale);
+        font-size: 11px;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+      }
+      h1 {
+        max-width: 7em;
+        margin: 13px 0 12px;
+        font-size: clamp(38px, 5vw, 76px);
+        font-weight: 550;
+        line-height: 1.06;
+        letter-spacing: -0.055em;
+      }
+      .entry-copy .note {
+        max-width: 30ch;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.75;
+      }
+      .discover {
+        display: inline-flex;
+        gap: 11px;
+        align-items: center;
+        margin-top: 24px;
+        border: 0;
+        padding: 0;
+        color: var(--ink);
+        background: transparent;
+        cursor: pointer;
+        font-size: 11px;
+        letter-spacing: 0.13em;
+      }
+      .discover i {
+        position: relative;
+        display: block;
+        width: 54px;
+        height: 1px;
+        transform: rotate(var(--entry-meteor-angle, 25deg));
+        background: linear-gradient(
+          90deg,
+          transparent,
+          var(--klein-400),
+          var(--klein-pale)
+        );
+      }
+      .discover i::after {
+        content: "";
+        position: absolute;
+        right: -1px;
+        top: -2px;
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: var(--klein-pale);
+        box-shadow: 0 0 13px 3px rgb(51 92 255 / 0.62);
+      }
+      .entry-meteors {
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        pointer-events: none;
+        opacity: calc(1 - var(--approach) * 1.6);
+      }
+      .entry-meteor {
+        position: absolute;
+        top: var(--meteor-top);
+        left: var(--meteor-left);
+        width: min(var(--meteor-length), 76vw);
+        height: var(--meteor-thickness);
+        opacity: 0;
+        transform: rotate(var(--meteor-angle)) scale(var(--meteor-scale));
+        transform-origin: right center;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          rgb(0 47 167 / 0.08) 12%,
+          rgb(0 47 167 / 0.34) 54%,
+          var(--klein-400) 84%,
+          var(--klein-pale)
+        );
+        filter: drop-shadow(0 0 10px rgb(51 92 255 / 0.85));
+        animation: sky-cut var(--meteor-duration)
+          cubic-bezier(0.18, 0.68, 0.22, 1) forwards;
+        animation-delay: var(--meteor-delay);
+      }
+      .entry-meteor::after {
+        content: "";
+        position: absolute;
+        right: -2px;
+        top: -3px;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--klein-pale);
+        box-shadow: 0 0 20px 4px rgb(51 92 255 / 0.72);
+      }
+      @keyframes sky-cut {
+        0% {
+          opacity: 0;
+          translate: 0 0;
+        }
+        10% {
+          opacity: calc(var(--meteor-opacity) * 0.85);
+        }
+        72% {
+          opacity: var(--meteor-opacity);
+        }
+        100% {
+          opacity: 0;
+          translate: var(--meteor-travel-x) var(--meteor-travel-y);
+        }
+      }
+      .stage-readout {
+        position: absolute;
+        z-index: 13;
+        top: max(78px, 11vh);
+        left: clamp(24px, 5vw, 78px);
+        opacity: clamp(0, calc((var(--approach) - 0.12) * 6), 1);
+        color: rgb(232 237 255 / 0.62);
+        font-size: 10px;
+        letter-spacing: 0.13em;
+      }
+      .stage-readout b {
+        display: block;
+        margin-bottom: 6px;
+        color: var(--klein-pale);
+        font-weight: 500;
+      }
+      .map {
+        position: absolute;
+        inset: 0;
+        z-index: 5;
+        opacity: 1;
+        transform-origin: var(--focus-origin-x, 50%) var(--focus-origin-y, 50%);
+        transition:
+          opacity var(--focus-out) ease,
+          transform var(--focus-out) cubic-bezier(0.2, 0.72, 0.18, 1);
+      }
+      .focus-open .map {
+        opacity: var(
+          --focus-map-opacity-current,
+          var(--focus-map-opacity, 0.12)
+        );
+        transform: scale(
+          var(--focus-map-scale-current, var(--focus-map-scale, 1.72))
+        );
+        transition-duration: var(--focus-in);
+      }
+      body[data-focus-mode="scroll"] .map {
+        transition: none;
+      }
+      .focus-open.focus-returning .map {
+        opacity: 1;
+        transform: scale(1);
+      }
+      .focus-open .planet {
+        pointer-events: none;
+      }
+      .planet {
+        position: absolute;
+        z-index: var(--z);
+        left: var(--x);
+        top: var(--y);
+        width: clamp(
+          var(--planet-min),
+          var(--planet-preferred),
+          var(--planet-max)
+        );
+        aspect-ratio: 1;
+        border: 0;
+        padding: 0;
+        pointer-events: none;
+        opacity: var(--visible);
+        background: transparent;
+        cursor: pointer;
+        transform: translate(
+            calc(-50% + var(--emerge-x, 0vw)),
+            calc(-50% + var(--emerge-y, 0vh))
+          )
+          scale(var(--scale));
+        transition: filter var(--hover) ease;
+      }
+      .planet::before {
+        content: "";
+        position: absolute;
+        z-index: 4;
+        top: 50%;
+        left: 50%;
+        width: 4px;
+        height: 4px;
+        border-radius: 50%;
+        opacity: var(--target-visible, 0);
+        background: rgb(var(--target-tone, 239 234 222));
+        box-shadow: 0 0 calc(7px + 15px * var(--target-halo, 0))
+          rgb(
+            var(--target-tone, 225 217 201) /
+              calc(0.18 + var(--target-halo, 0) * 0.42)
+          );
+        transform: translate(-50%, -50%)
+          scale(calc(0.72 + var(--target-halo, 0) * 0.46));
+      }
+      .planet.ready {
+        pointer-events: auto;
+      }
+      .planet:hover,
+      .planet:focus-visible {
+        z-index: 20;
+      }
+      .planet-core {
+        position: absolute;
+        inset: 0;
+        overflow: visible;
+        opacity: var(--sphere-visible, 0);
+        border-radius: 50%;
+        background-color: #b89c78;
+        background-image: var(--planet-asset, var(--planet-fallback));
+        background-position: center;
+        background-repeat: no-repeat;
+        background-size: contain;
+        box-shadow:
+          0 0 calc(8px + 22px * var(--target-halo, 0))
+            rgb(236 226 208 / calc(0.12 + var(--target-halo, 0) * 0.35)),
+          0 21px var(--planet-shadow-blur)
+            rgb(
+              0 0 0 /
+                calc(var(--planet-shadow-opacity) * var(--sphere-visible, 0))
+            );
+        filter: contrast(var(--planet-contrast, 1))
+          saturate(var(--planet-saturation, 0.82));
+        transform: scale(
+          calc(var(--planet-material-scale, 1) * var(--sphere-scale, 1))
+        );
+        transition:
+          filter var(--hover) ease,
+          transform var(--hover) ease;
+      }
+      .planet-core::before {
+        content: "";
+        position: absolute;
+        inset: 3.2%;
+        border-radius: 50%;
+        pointer-events: none;
+        opacity: calc(var(--terminator-opacity) * var(--sphere-visible, 0));
+        background: radial-gradient(
+          circle at 25% 24%,
+          transparent 0 44%,
+          rgb(0 0 0 / 0.12) 61%,
+          rgb(0 0 0 / 0.66) 100%
+        );
+        mix-blend-mode: multiply;
+      }
+      .planet-core::after {
+        content: "";
+        position: absolute;
+        inset: 3.15%;
+        border-radius: 50%;
+        pointer-events: none;
+        opacity: var(--sphere-visible, 0);
+        border: var(--atmosphere-width) solid
+          rgb(241 225 199 / var(--atmosphere-opacity));
+        border-right-color: rgb(104 127 177 / var(--atmosphere-shadow-opacity));
+        border-bottom-color: transparent;
+        box-shadow: -4px -3px 9px
+          rgb(255 238 208 / var(--atmosphere-glow-opacity));
+      }
+      .planet:hover .planet-core,
+      .planet:focus-visible .planet-core {
+        filter: contrast(var(--planet-hover-contrast, 1.025))
+          saturate(var(--planet-saturation, 0.82));
+        transform: scale(var(--planet-hover-scale, 1.012));
+      }
+      .planet.about {
+        --planet-fallback: radial-gradient(
+          circle at 36% 32%,
+          #f3e8d5,
+          #896a54 65%,
+          #19140f
+        );
+      }
+      .planet.blog {
+        --planet-fallback: linear-gradient(
+          135deg,
+          #f3dec0,
+          #9a654e 58%,
+          #211713
+        );
+      }
+      .planet.feed {
+        --planet-fallback: radial-gradient(
+          ellipse at 35% 36%,
+          #d8ba91,
+          #6a5149 66%,
+          #171111
+        );
+      }
+      .planet.learn {
+        --planet-fallback: linear-gradient(
+          145deg,
+          #e7d9bf,
+          #6e675f 53%,
+          #18191b
+        );
+      }
+      .planet.projects {
+        --planet-fallback: linear-gradient(
+          120deg,
+          #e0c7a3,
+          #7a5b4a 55%,
+          #171719
+        );
+      }
+      .planet-label {
+        position: absolute;
+        top: 50%;
+        left: calc(100% + 13px);
+        width: max-content;
+        max-width: 18ch;
+        opacity: var(--label-visible, 0);
+        color: rgb(232 237 255 / 0.43);
+        font-size: 11px;
+        letter-spacing: 0.13em;
+        text-align: left;
+        transform: translateY(-50%);
+        transition:
+          color var(--navigation),
+          translate var(--navigation);
+      }
+      .planet.reverse .planet-label {
+        right: calc(100% + 13px);
+        left: auto;
+        text-align: right;
+      }
+      .planet-label small {
+        display: block;
+        margin-top: 5px;
+        color: rgb(232 237 255 / 0.31);
+        font-size: 9px;
+        letter-spacing: 0.08em;
+        text-transform: none;
+      }
+      .planet:hover .planet-label,
+      .planet:focus-visible .planet-label {
+        color: #fff;
+        translate: 5px 0;
+      }
+      .planet.reverse:hover .planet-label,
+      .planet.reverse:focus-visible .planet-label {
+        translate: -5px 0;
+      }
+      .signal-wrap {
+        position: absolute;
+        z-index: 2;
+        top: -10%;
+        left: 70%;
+        width: 44%;
+        aspect-ratio: 1;
+        pointer-events: none;
+        opacity: 0;
+        transform: translate(var(--satellite-px, 0), var(--satellite-py, 0));
+        transition:
+          opacity var(--micro) ease,
+          transform var(--parallax-ease) ease-out;
+      }
+      .signal-wrap[data-state] {
+        opacity: var(--signal-reveal, 0);
+      }
+      .signal-orbit {
+        position: absolute;
+        inset: 9%;
+        border: 1px solid rgb(51 92 255 / 0.2);
+        border-left-color: transparent;
+        border-bottom-color: transparent;
+        border-radius: 50%;
+        transform: rotate(-32deg) scaleY(0.52);
+      }
+      .signal-core {
+        position: absolute;
+        top: 5%;
+        right: 20%;
+        width: var(--signal-core-size, 16%);
+        aspect-ratio: 1;
+        border-radius: 50%;
+        background: radial-gradient(
+          circle at 31% 25%,
+          rgb(168 186 244 / 0.76),
+          var(--klein-500) 31%,
+          #071b5a 49%,
+          #020718 69%,
+          #01030e 80%
+        );
+        box-shadow:
+          -4px 5px 8px rgb(0 0 0 / 0.78) inset,
+          -1px -1px 0 rgb(184 200 255 / 0.28),
+          0 0 9px rgb(0 47 167 / 0.13);
+      }
+      .signal-particle {
+        position: absolute;
+        width: 2px;
+        height: 2px;
+        border-radius: 50%;
+        opacity: 0;
+        background: var(--klein-pale);
+        box-shadow: 0 0 7px var(--klein-400);
+      }
+      .signal-particle:nth-of-type(3) {
+        top: 21%;
+        right: 5%;
+      }
+      .signal-particle:nth-of-type(4) {
+        top: 4%;
+        right: 44%;
+      }
+      .signal-particle:nth-of-type(5) {
+        top: 53%;
+        right: 2%;
+      }
       .signal-wrap[data-particles="1"] .signal-particle:nth-of-type(3),
-      .signal-wrap[data-particles="3"] .signal-particle { animation: satellite-dust var(--particle-duration) linear infinite; }
-      .signal-wrap[data-state="active"] { --signal-opacity: .88; --orbit: .46; --signal-scale: 1; }
-      .signal-wrap[data-state="stable"] { --signal-opacity: .67; --orbit: .28; --signal-scale: .84; }
-      .signal-wrap[data-state="dormant"] { --signal-opacity: .48; --orbit: .14; --signal-scale: .7; }
-      .signal-wrap[data-state] .signal-core { opacity: var(--signal-opacity); scale: var(--signal-scale); }
-      .signal-wrap[data-state] .signal-orbit { border-color: rgb(51 92 255 / var(--orbit)); border-left-color: transparent; border-bottom-color: transparent; }
-      .signal-wrap.respond .signal-core { animation: signal-response var(--satellite-response) ease-out; }
-      @keyframes satellite-dust { 0%, 76% { translate: 0 0; opacity: .04; } 83% { translate: -2px 1px; opacity: var(--particle-opacity, .3); } 91% { translate: 4px -3px; opacity: calc(var(--particle-opacity, .3) * .72); } 100% { translate: 0 0; opacity: .04; } }
-      @keyframes signal-response { 0% { scale: 1; box-shadow: -4px 5px 8px rgb(0 0 0 / .78) inset, 0 0 0 rgb(51 92 255 / 0); } 34% { scale: 1.1; box-shadow: -4px 5px 8px rgb(0 0 0 / .78) inset, 0 0 13px 4px rgb(0 47 167 / .34); } 100% { scale: 1; box-shadow: -4px 5px 8px rgb(0 0 0 / .78) inset, 0 0 0 rgb(51 92 255 / 0); } }
-      .about-zone { position: absolute; z-index: 25; left: var(--cat-x); top: var(--cat-y); width: 190px; height: 132px; pointer-events: none; opacity: clamp(0, calc((var(--overview) - var(--companion-reveal-start, .28)) * 4), 1); transform: translate(calc(-50% + var(--companion-px, 0px)), calc(-50% + var(--companion-py, 0px))) scale(var(--companion-overview-scale, .62)); transition: opacity var(--focus-out) ease, transform var(--parallax-ease) ease-out; }
-      .about-zone.ready { pointer-events: auto; }
-      .focus-open .about-zone { pointer-events: none; opacity: 0; }
-      .cat { position: absolute; inset: 0; width: 100%; border: 0; padding: 0; color: var(--klein-500); background: transparent; cursor: pointer; filter: drop-shadow(0 0 5px rgb(0 47 167 / .2)); }
-      .cat svg { position: relative; z-index: 2; width: 100%; height: 100%; overflow: visible; opacity: var(--cat-line-opacity, .12); transition: opacity var(--hover) ease, color var(--hover) ease, filter var(--hover) ease; }
-      .cat .line { fill: none; stroke: currentColor; stroke-width: 1.45; stroke-linecap: round; stroke-linejoin: round; opacity: .84; }
-      .cat .node { fill: #092da3; stroke: var(--klein-pale); stroke-width: .45; }
-      .cat .inner { opacity: .34; }
-      .companion-body { position: absolute; z-index: 1; left: 48%; top: 55%; width: 27px; aspect-ratio: 1; border-radius: 50%; opacity: .78; background: radial-gradient(circle at 30% 27%, #849ce8 0 5%, var(--klein-500) 27%, #07194f 48%, #020718 69%, #01030e 78%); box-shadow: -5px 6px 10px rgb(0 0 0 / .78) inset, -1px -1px 0 rgb(184 200 255 / .25), 0 0 10px rgb(0 47 167 / .18); transform: translate(-50%, -50%); transition: opacity var(--hover) ease, scale var(--hover) ease; }
-      .companion-particle { position: absolute; z-index: 1; left: 48%; top: 55%; width: 2px; height: 2px; border-radius: 50%; opacity: .18; background: var(--klein-400); box-shadow: 0 0 6px rgb(0 47 167 / .42); animation: companion-dust 22000ms linear infinite; }
-      .companion-particle:nth-of-type(1) { margin: -18px 0 0 22px; animation-delay: -7s; }
-      .companion-particle:nth-of-type(2) { margin: 19px 0 0 -17px; animation-delay: -13s; }
-      .companion-particle:nth-of-type(3) { margin: -4px 0 0 -27px; animation-delay: -18s; }
-      @keyframes companion-dust { 0%, 75% { translate: 0 0; opacity: .08; } 84% { translate: -3px 2px; opacity: .34; } 93% { translate: 5px -4px; opacity: .19; } 100% { translate: 0 0; opacity: .08; } }
-      .about-zone.revealed .cat svg, .about-zone:hover .cat svg, .about-zone:focus-within .cat svg { opacity: var(--cat-line-focus-opacity, .84); }
-      .about-zone.revealed .companion-body, .about-zone:hover .companion-body, .about-zone:focus-within .companion-body { opacity: .34; scale: .88; }
-      .about-zone:hover .cat, .about-zone:focus-within .cat, .about-zone.revealed .cat { color: var(--klein-500); filter: drop-shadow(0 0 10px rgb(0 47 167 / .36)); }
-      .about-zone.charged .cat { animation: cat-charge var(--cat-charge) ease-in-out; }
-      .about-zone.charged::before { content: ""; position: absolute; inset: 22px 25px; border: 1px solid rgb(51 92 255 / .32); border-left-color: transparent; border-radius: 50%; animation: orbit-charge var(--cat-charge) ease-in-out; }
-      .cat-hint { position: absolute; left: 50%; bottom: -12px; width: max-content; color: var(--klein-pale); font-size: 10px; opacity: 0; transform: translateX(-50%); transition: opacity var(--micro); }
-      .about-zone.charged .cat-hint, .about-zone:hover .cat-hint, .about-zone:focus-within .cat-hint { opacity: .82; }
-      @keyframes cat-charge { 0% { scale: 1; } 48% { scale: .9; filter: drop-shadow(0 0 9px rgb(0 47 167 / .5)); } 76% { scale: 1.07; filter: drop-shadow(0 0 24px rgb(51 92 255 / .85)); } 100% { scale: 1; } }
-      @keyframes orbit-charge { 0%, 100% { opacity: .15; rotate: -20deg; } 65% { opacity: .95; rotate: 44deg; } }
-      .cat-dust { position: absolute; inset: 0; pointer-events: none; opacity: 0; }
-      .cat-dust i { position: absolute; left: 50%; top: 50%; width: 4px; height: 4px; border-radius: 50%; background: var(--klein-pale); box-shadow: 0 0 8px var(--klein-400); transform: translate(-50%, -50%); }
-      .about-zone.burst .cat { opacity: 0; transition: opacity var(--micro); }
-      .about-zone.recovering .cat { animation: cat-recover var(--cat-recover) cubic-bezier(.18,.72,.22,1); }
-      .about-zone.burst .cat-dust { opacity: 1; }
-      .about-zone.burst .cat-dust i { animation: dust-burst var(--cat-burst) cubic-bezier(.15,.75,.24,1) forwards; }
-      @keyframes dust-burst { 0% { opacity: 1; translate: 0 0; scale: .6; } 48% { opacity: 1; translate: var(--dx) var(--dy); scale: 1.35; } 100% { opacity: 0; translate: calc(var(--dx) * .4) calc(var(--dy) * .4); scale: .5; } }
-      @keyframes cat-recover { 0% { opacity: 0; scale: .82; filter: blur(4px) drop-shadow(0 0 24px rgb(51 92 255 / .8)); } 48% { opacity: .62; scale: .94; } 100% { opacity: 1; scale: 1; filter: blur(0) drop-shadow(0 0 8px rgb(0 47 167 / .38)); } }
-      .planet-focus { position: absolute; z-index: 29; inset: 0; visibility: hidden; pointer-events: none; }
-      .focus-open .planet-focus { visibility: visible; pointer-events: auto; }
-      .focus-shot { position: absolute; inset: 0; opacity: var(--shot-opacity, 0); pointer-events: none; }
-      .focus-shot[data-interactive="true"] { pointer-events: auto; }
-      .focus-planet-wrap { position: absolute; top: var(--shot-y, 50%); left: var(--shot-x, 50%); width: min(var(--shot-size, 66vmin), var(--shot-max, 820px)); aspect-ratio: 1; opacity: var(--planet-opacity, 1); transform: translate(-50%, -50%) translate(var(--shot-offset-x, 0vw), var(--shot-offset-y, 0vh)) scale(var(--shot-scale, 1)); transform-origin: center; }
-      .focus-planet-core { position: absolute; inset: 0; overflow: visible; border-radius: 50%; background-color: #a98e6e; background-image: var(--focus-planet-asset, none); background-position: var(--focus-crop, center); background-repeat: no-repeat; background-size: contain; box-shadow: 0 7vmin 12vmin rgb(0 0 0 / .52); filter: contrast(var(--focus-planet-contrast, 1.06)) saturate(var(--focus-planet-saturation, .82)); transform: scale(var(--focus-material-scale, 1.05)); }
-      .focus-planet-core::before { content: ""; position: absolute; inset: 3.2%; border-radius: 50%; opacity: var(--focus-terminator-opacity); background: radial-gradient(circle at 25% 24%, transparent 0 48%, rgb(0 0 0 / .14) 69%, rgb(0 0 0 / .55) 100%); mix-blend-mode: multiply; }
-      .focus-planet-core::after { content: ""; position: absolute; inset: 3.15%; border-radius: 50%; border: var(--atmosphere-width) solid rgb(241 225 199 / var(--atmosphere-opacity)); border-right-color: rgb(104 127 177 / var(--atmosphere-shadow-opacity)); border-bottom-color: transparent; box-shadow: -6px -5px 17px rgb(255 238 208 / var(--atmosphere-glow-opacity)); }
-      .focus-copy { position: absolute; z-index: 2; top: var(--copy-y, 50%); left: var(--copy-x, 62%); width: min(calc(var(--copy-width-ch, 34) * 1ch), calc(100vw - 48px)); opacity: var(--copy-opacity, 0); text-align: var(--copy-align, left); transform: translateY(-50%); }
-      .focus-copy .focus-kicker { margin: 0 0 9px; color: var(--klein-pale); font-size: 10px; letter-spacing: .15em; }
-      .focus-copy h2 { margin: 0; font-size: clamp(38px, 5vw, 72px); font-weight: 540; letter-spacing: -.055em; }
-      .focus-copy p { margin: 13px 0 14px; color: var(--muted); line-height: 1.85; }
-      .focus-notes { display: grid; gap: 7px; margin: 0 0 24px; padding: 0; list-style: none; color: rgb(232 237 255 / .78); font-size: 13px; line-height: 1.65; }
-      .focus-notes li::before { content: ""; display: inline-block; width: 15px; height: 1px; margin: 0 9px 4px 0; background: rgb(184 200 255 / .42); }
-      .focus-actions { display: flex; flex-wrap: wrap; gap: 10px; }
-      .focus-actions button { border: 1px solid rgb(184 200 255 / .34); border-radius: 999px; padding: 10px 15px; color: var(--ink); background: rgb(4 6 17 / .48); cursor: pointer; }
-      .focus-actions .focus-enter { border-color: var(--klein-400); background: var(--klein-500); }
-      .planet-focus[data-focus="about"].about-expanded .focus-enter { display: none; }
-      .focus-proxy { position: absolute; z-index: 31; display: none; pointer-events: none; border-radius: 50%; background: var(--proxy-asset) center / contain no-repeat; box-shadow: 0 5vmin 10vmin rgb(0 0 0 / .48); filter: contrast(var(--proxy-contrast, 1)) saturate(var(--proxy-saturation, .82)); }
-      .focus-proxy.active { display: block; }
-      .push { position: absolute; z-index: 30; inset: 0; display: grid; place-items: center; pointer-events: none; opacity: 0; background: radial-gradient(circle at var(--push-x, 50%) var(--push-y, 50%), rgb(51 92 255 / .55), rgb(5 6 17 / .98) 53%); transition: opacity var(--route-fade) linear; }
-      .pushing .push { opacity: 1; }
-      .push span { padding: 9px 12px; border: 1px solid rgb(184 200 255 / .32); color: var(--klein-pale); font-size: 11px; letter-spacing: .12em; }
-      .flight-index { position: fixed; z-index: 35; right: 22px; top: 50%; display: grid; gap: 9px; opacity: clamp(0, calc((var(--approach) - .04) * 4), 1); transform: translateY(-50%); }
-      .flight-index button { display: flex; gap: 7px; align-items: center; border: 0; color: rgb(232 237 255 / .42); background: transparent; cursor: pointer; font-size: 9px; letter-spacing: .1em; }
-      .flight-index i { width: 16px; height: 1px; background: currentColor; transition: width var(--navigation); }
-      .flight-index button.active { color: var(--klein-pale); }
-      .flight-index button.active i { width: 29px; }
-      .meteor-canvas { position: fixed; z-index: 60; inset: 0; width: 100vw; height: 100vh; pointer-events: none; }
-      .debug { position: fixed; z-index: 40; bottom: 14px; left: 14px; max-width: min(370px, calc(100vw - 28px)); padding: 10px 12px; border: 1px solid rgb(184 200 255 / .15); border-radius: 10px; color: rgb(232 237 255 / .56); background: rgb(4 6 17 / .72); font-size: 10px; line-height: 1.55; }
-      .debug b { color: var(--klein-pale); font-weight: 500; }
-      .footer { min-height: 42vh; display: grid; place-items: center; padding: 72px 24px; border-top: 1px solid rgb(184 200 255 / .12); color: var(--muted); background: #080a12; text-align: center; }
-      .footer p { max-width: 46ch; line-height: 1.8; }
-      body[data-variant="drift"] .entry-copy { left: auto; right: clamp(24px, 8vw, 132px); text-align: right; }
-      body[data-variant="drift"] h1, body[data-variant="drift"] .entry-copy .note { margin-left: auto; }
+      .signal-wrap[data-particles="3"] .signal-particle {
+        animation: satellite-dust var(--particle-duration) linear infinite;
+      }
+      .signal-wrap[data-state="active"] {
+        --signal-opacity: 0.88;
+        --orbit: 0.46;
+        --signal-scale: 1;
+      }
+      .signal-wrap[data-state="stable"] {
+        --signal-opacity: 0.67;
+        --orbit: 0.28;
+        --signal-scale: 0.84;
+      }
+      .signal-wrap[data-state="dormant"] {
+        --signal-opacity: 0.48;
+        --orbit: 0.14;
+        --signal-scale: 0.7;
+      }
+      .signal-wrap[data-state] .signal-core {
+        opacity: var(--signal-opacity);
+        scale: var(--signal-scale);
+      }
+      .signal-wrap[data-state] .signal-orbit {
+        border-color: rgb(51 92 255 / var(--orbit));
+        border-left-color: transparent;
+        border-bottom-color: transparent;
+      }
+      .signal-wrap.respond .signal-core {
+        animation: signal-response var(--satellite-response) ease-out;
+      }
+      @keyframes satellite-dust {
+        0%,
+        76% {
+          translate: 0 0;
+          opacity: 0.04;
+        }
+        83% {
+          translate: -2px 1px;
+          opacity: var(--particle-opacity, 0.3);
+        }
+        91% {
+          translate: 4px -3px;
+          opacity: calc(var(--particle-opacity, 0.3) * 0.72);
+        }
+        100% {
+          translate: 0 0;
+          opacity: 0.04;
+        }
+      }
+      @keyframes signal-response {
+        0% {
+          scale: 1;
+          box-shadow:
+            -4px 5px 8px rgb(0 0 0 / 0.78) inset,
+            0 0 0 rgb(51 92 255 / 0);
+        }
+        34% {
+          scale: 1.1;
+          box-shadow:
+            -4px 5px 8px rgb(0 0 0 / 0.78) inset,
+            0 0 13px 4px rgb(0 47 167 / 0.34);
+        }
+        100% {
+          scale: 1;
+          box-shadow:
+            -4px 5px 8px rgb(0 0 0 / 0.78) inset,
+            0 0 0 rgb(51 92 255 / 0);
+        }
+      }
+      .about-zone {
+        position: absolute;
+        z-index: 25;
+        left: var(--cat-x);
+        top: var(--cat-y);
+        width: 190px;
+        height: 132px;
+        pointer-events: none;
+        opacity: clamp(
+          0,
+          calc((var(--overview) - var(--companion-reveal-start, 0.28)) * 4),
+          1
+        );
+        transform: translate(
+            calc(-50% + var(--companion-px, 0px)),
+            calc(-50% + var(--companion-py, 0px))
+          )
+          scale(var(--companion-overview-scale, 0.62));
+        transition:
+          opacity var(--focus-out) ease,
+          transform var(--parallax-ease) ease-out;
+      }
+      .about-zone.ready {
+        pointer-events: auto;
+      }
+      .focus-open .about-zone {
+        pointer-events: none;
+        opacity: 0;
+      }
+      .cat {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        border: 0;
+        padding: 0;
+        color: var(--klein-500);
+        background: transparent;
+        cursor: pointer;
+        filter: drop-shadow(0 0 5px rgb(0 47 167 / 0.2));
+      }
+      .cat svg {
+        position: relative;
+        z-index: 2;
+        width: 100%;
+        height: 100%;
+        overflow: visible;
+        opacity: var(--cat-line-opacity, 0.12);
+        transition:
+          opacity var(--hover) ease,
+          color var(--hover) ease,
+          filter var(--hover) ease;
+      }
+      .cat .line {
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.45;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        opacity: 0.84;
+      }
+      .cat .node {
+        fill: #092da3;
+        stroke: var(--klein-pale);
+        stroke-width: 0.45;
+      }
+      .cat .inner {
+        opacity: 0.34;
+      }
+      .companion-body {
+        position: absolute;
+        z-index: 1;
+        left: 48%;
+        top: 55%;
+        width: 27px;
+        aspect-ratio: 1;
+        border-radius: 50%;
+        opacity: 0.78;
+        background: radial-gradient(
+          circle at 30% 27%,
+          #849ce8 0 5%,
+          var(--klein-500) 27%,
+          #07194f 48%,
+          #020718 69%,
+          #01030e 78%
+        );
+        box-shadow:
+          -5px 6px 10px rgb(0 0 0 / 0.78) inset,
+          -1px -1px 0 rgb(184 200 255 / 0.25),
+          0 0 10px rgb(0 47 167 / 0.18);
+        transform: translate(-50%, -50%);
+        transition:
+          opacity var(--hover) ease,
+          scale var(--hover) ease;
+      }
+      .companion-particle {
+        position: absolute;
+        z-index: 1;
+        left: 48%;
+        top: 55%;
+        width: 2px;
+        height: 2px;
+        border-radius: 50%;
+        opacity: 0.18;
+        background: var(--klein-400);
+        box-shadow: 0 0 6px rgb(0 47 167 / 0.42);
+        animation: companion-dust 22000ms linear infinite;
+      }
+      .companion-particle:nth-of-type(1) {
+        margin: -18px 0 0 22px;
+        animation-delay: -7s;
+      }
+      .companion-particle:nth-of-type(2) {
+        margin: 19px 0 0 -17px;
+        animation-delay: -13s;
+      }
+      .companion-particle:nth-of-type(3) {
+        margin: -4px 0 0 -27px;
+        animation-delay: -18s;
+      }
+      @keyframes companion-dust {
+        0%,
+        75% {
+          translate: 0 0;
+          opacity: 0.08;
+        }
+        84% {
+          translate: -3px 2px;
+          opacity: 0.34;
+        }
+        93% {
+          translate: 5px -4px;
+          opacity: 0.19;
+        }
+        100% {
+          translate: 0 0;
+          opacity: 0.08;
+        }
+      }
+      .about-zone.revealed .cat svg,
+      .about-zone:hover .cat svg,
+      .about-zone:focus-within .cat svg {
+        opacity: var(--cat-line-focus-opacity, 0.84);
+      }
+      .about-zone.revealed .companion-body,
+      .about-zone:hover .companion-body,
+      .about-zone:focus-within .companion-body {
+        opacity: 0.34;
+        scale: 0.88;
+      }
+      .about-zone:hover .cat,
+      .about-zone:focus-within .cat,
+      .about-zone.revealed .cat {
+        color: var(--klein-500);
+        filter: drop-shadow(0 0 10px rgb(0 47 167 / 0.36));
+      }
+      .about-zone.charged .cat {
+        animation: cat-charge var(--cat-charge) ease-in-out;
+      }
+      .about-zone.charged::before {
+        content: "";
+        position: absolute;
+        inset: 22px 25px;
+        border: 1px solid rgb(51 92 255 / 0.32);
+        border-left-color: transparent;
+        border-radius: 50%;
+        animation: orbit-charge var(--cat-charge) ease-in-out;
+      }
+      .cat-hint {
+        position: absolute;
+        left: 50%;
+        bottom: -12px;
+        width: max-content;
+        color: var(--klein-pale);
+        font-size: 10px;
+        opacity: 0;
+        transform: translateX(-50%);
+        transition: opacity var(--micro);
+      }
+      .about-zone.charged .cat-hint,
+      .about-zone:hover .cat-hint,
+      .about-zone:focus-within .cat-hint {
+        opacity: 0.82;
+      }
+      @keyframes cat-charge {
+        0% {
+          scale: 1;
+        }
+        48% {
+          scale: 0.9;
+          filter: drop-shadow(0 0 9px rgb(0 47 167 / 0.5));
+        }
+        76% {
+          scale: 1.07;
+          filter: drop-shadow(0 0 24px rgb(51 92 255 / 0.85));
+        }
+        100% {
+          scale: 1;
+        }
+      }
+      @keyframes orbit-charge {
+        0%,
+        100% {
+          opacity: 0.15;
+          rotate: -20deg;
+        }
+        65% {
+          opacity: 0.95;
+          rotate: 44deg;
+        }
+      }
+      .cat-dust {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        opacity: 0;
+      }
+      .cat-dust i {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 4px;
+        height: 4px;
+        border-radius: 50%;
+        background: var(--klein-pale);
+        box-shadow: 0 0 8px var(--klein-400);
+        transform: translate(-50%, -50%);
+      }
+      .about-zone.burst .cat {
+        opacity: 0;
+        transition: opacity var(--micro);
+      }
+      .about-zone.recovering .cat {
+        animation: cat-recover var(--cat-recover)
+          cubic-bezier(0.18, 0.72, 0.22, 1);
+      }
+      .about-zone.burst .cat-dust {
+        opacity: 1;
+      }
+      .about-zone.burst .cat-dust i {
+        animation: dust-burst var(--cat-burst) cubic-bezier(0.15, 0.75, 0.24, 1)
+          forwards;
+      }
+      @keyframes dust-burst {
+        0% {
+          opacity: 1;
+          translate: 0 0;
+          scale: 0.6;
+        }
+        48% {
+          opacity: 1;
+          translate: var(--dx) var(--dy);
+          scale: 1.35;
+        }
+        100% {
+          opacity: 0;
+          translate: calc(var(--dx) * 0.4) calc(var(--dy) * 0.4);
+          scale: 0.5;
+        }
+      }
+      @keyframes cat-recover {
+        0% {
+          opacity: 0;
+          scale: 0.82;
+          filter: blur(4px) drop-shadow(0 0 24px rgb(51 92 255 / 0.8));
+        }
+        48% {
+          opacity: 0.62;
+          scale: 0.94;
+        }
+        100% {
+          opacity: 1;
+          scale: 1;
+          filter: blur(0) drop-shadow(0 0 8px rgb(0 47 167 / 0.38));
+        }
+      }
+      .planet-focus {
+        position: absolute;
+        z-index: 29;
+        inset: 0;
+        visibility: hidden;
+        pointer-events: none;
+      }
+      .focus-open .planet-focus {
+        visibility: visible;
+        pointer-events: auto;
+      }
+      .focus-shot {
+        position: absolute;
+        inset: 0;
+        opacity: var(--shot-opacity, 0);
+        pointer-events: none;
+      }
+      .focus-shot[data-interactive="true"] {
+        pointer-events: auto;
+      }
+      .focus-planet-wrap {
+        position: absolute;
+        top: var(--shot-y, 50%);
+        left: var(--shot-x, 50%);
+        width: min(var(--shot-size, 66vmin), var(--shot-max, 820px));
+        aspect-ratio: 1;
+        opacity: var(--planet-opacity, 1);
+        transform: translate(-50%, -50%)
+          translate(var(--shot-offset-x, 0vw), var(--shot-offset-y, 0vh))
+          scale(var(--shot-scale, 1));
+        transform-origin: center;
+      }
+      .focus-planet-core {
+        position: absolute;
+        inset: 0;
+        overflow: visible;
+        border-radius: 50%;
+        background-color: #a98e6e;
+        background-image: var(--focus-planet-asset, none);
+        background-position: var(--focus-crop, center);
+        background-repeat: no-repeat;
+        background-size: contain;
+        box-shadow: 0 7vmin 12vmin rgb(0 0 0 / 0.52);
+        filter: contrast(var(--focus-planet-contrast, 1.06))
+          saturate(var(--focus-planet-saturation, 0.82));
+        transform: scale(var(--focus-material-scale, 1.05));
+      }
+      .focus-planet-core::before {
+        content: "";
+        position: absolute;
+        inset: 3.2%;
+        border-radius: 50%;
+        opacity: var(--focus-terminator-opacity);
+        background: radial-gradient(
+          circle at 25% 24%,
+          transparent 0 48%,
+          rgb(0 0 0 / 0.14) 69%,
+          rgb(0 0 0 / 0.55) 100%
+        );
+        mix-blend-mode: multiply;
+      }
+      .focus-planet-core::after {
+        content: "";
+        position: absolute;
+        inset: 3.15%;
+        border-radius: 50%;
+        border: var(--atmosphere-width) solid
+          rgb(241 225 199 / var(--atmosphere-opacity));
+        border-right-color: rgb(104 127 177 / var(--atmosphere-shadow-opacity));
+        border-bottom-color: transparent;
+        box-shadow: -6px -5px 17px
+          rgb(255 238 208 / var(--atmosphere-glow-opacity));
+      }
+      .focus-copy {
+        position: absolute;
+        z-index: 2;
+        top: var(--copy-y, 50%);
+        left: var(--copy-x, 62%);
+        width: min(calc(var(--copy-width-ch, 34) * 1ch), calc(100vw - 48px));
+        opacity: var(--copy-opacity, 0);
+        text-align: var(--copy-align, left);
+        transform: translateY(-50%);
+      }
+      .focus-copy .focus-kicker {
+        margin: 0 0 9px;
+        color: var(--klein-pale);
+        font-size: 10px;
+        letter-spacing: 0.15em;
+      }
+      .focus-copy h2 {
+        margin: 0;
+        font-size: clamp(38px, 5vw, 72px);
+        font-weight: 540;
+        letter-spacing: -0.055em;
+      }
+      .focus-copy p {
+        margin: 13px 0 14px;
+        color: var(--muted);
+        line-height: 1.85;
+      }
+      .focus-notes {
+        display: grid;
+        gap: 7px;
+        margin: 0 0 24px;
+        padding: 0;
+        list-style: none;
+        color: rgb(232 237 255 / 0.78);
+        font-size: 13px;
+        line-height: 1.65;
+      }
+      .focus-notes li::before {
+        content: "";
+        display: inline-block;
+        width: 15px;
+        height: 1px;
+        margin: 0 9px 4px 0;
+        background: rgb(184 200 255 / 0.42);
+      }
+      .focus-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+      .focus-actions button {
+        border: 1px solid rgb(184 200 255 / 0.34);
+        border-radius: 999px;
+        padding: 10px 15px;
+        color: var(--ink);
+        background: rgb(4 6 17 / 0.48);
+        cursor: pointer;
+      }
+      .focus-actions .focus-enter {
+        border-color: var(--klein-400);
+        background: var(--klein-500);
+      }
+      .focus-shot[data-key="about"] .focus-enter {
+        display: none;
+      }
+      .focus-proxy {
+        position: absolute;
+        z-index: 31;
+        display: none;
+        pointer-events: none;
+        border-radius: 50%;
+        background: var(--proxy-asset) center / contain no-repeat;
+        box-shadow: 0 5vmin 10vmin rgb(0 0 0 / 0.48);
+        filter: contrast(var(--proxy-contrast, 1))
+          saturate(var(--proxy-saturation, 0.82));
+      }
+      .focus-proxy.active {
+        display: block;
+      }
+      .push {
+        position: absolute;
+        z-index: 30;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        pointer-events: none;
+        opacity: 0;
+        background: radial-gradient(
+          circle at var(--push-x, 50%) var(--push-y, 50%),
+          rgb(51 92 255 / 0.55),
+          rgb(5 6 17 / 0.98) 53%
+        );
+        transition: opacity var(--route-fade) linear;
+      }
+      .pushing .push {
+        opacity: 1;
+      }
+      .push span {
+        padding: 9px 12px;
+        border: 1px solid rgb(184 200 255 / 0.32);
+        color: var(--klein-pale);
+        font-size: 11px;
+        letter-spacing: 0.12em;
+      }
+      .flight-index {
+        position: fixed;
+        z-index: 35;
+        right: 22px;
+        top: 50%;
+        display: grid;
+        gap: 9px;
+        opacity: clamp(0, calc((var(--approach) - 0.04) * 4), 1);
+        transform: translateY(-50%);
+      }
+      .flight-index button {
+        display: flex;
+        gap: 7px;
+        align-items: center;
+        border: 0;
+        color: rgb(232 237 255 / 0.42);
+        background: transparent;
+        cursor: pointer;
+        font-size: 9px;
+        letter-spacing: 0.1em;
+      }
+      .flight-index i {
+        width: 16px;
+        height: 1px;
+        background: currentColor;
+        transition: width var(--navigation);
+      }
+      .flight-index button.active {
+        color: var(--klein-pale);
+      }
+      .flight-index button.active i {
+        width: 29px;
+      }
+      .meteor-canvas {
+        position: fixed;
+        z-index: 60;
+        inset: 0;
+        width: 100vw;
+        height: 100vh;
+        pointer-events: none;
+      }
+      .debug {
+        position: fixed;
+        z-index: 40;
+        bottom: 14px;
+        left: 14px;
+        max-width: min(370px, calc(100vw - 28px));
+        padding: 10px 12px;
+        border: 1px solid rgb(184 200 255 / 0.15);
+        border-radius: 10px;
+        color: rgb(232 237 255 / 0.56);
+        background: rgb(4 6 17 / 0.72);
+        font-size: 10px;
+        line-height: 1.55;
+      }
+      .debug b {
+        color: var(--klein-pale);
+        font-weight: 500;
+      }
+      .footer {
+        min-height: 42vh;
+        display: grid;
+        place-items: center;
+        padding: 72px 24px;
+        border-top: 1px solid rgb(184 200 255 / 0.12);
+        color: var(--muted);
+        background: #080a12;
+        text-align: center;
+      }
+      .footer p {
+        max-width: 46ch;
+        line-height: 1.8;
+      }
+      body[data-variant="drift"] .entry-copy {
+        left: auto;
+        right: clamp(24px, 8vw, 132px);
+        text-align: right;
+      }
+      body[data-variant="drift"] h1,
+      body[data-variant="drift"] .entry-copy .note {
+        margin-left: auto;
+      }
       @media (max-width: 760px) {
-        .toolbar span, .toolbar .state-label { display: none; }
-        .entry-copy { bottom: 96px; }
-        h1 { font-size: clamp(37px, 13vw, 58px); }
-        .planet { width: clamp(94px, 28vw, 152px); }
-        .planet-label { font-size: 9px; }
-        .planet-label small { display: none; }
-        .about-zone { scale: .78; }
-        .focus-planet-wrap { top: min(var(--shot-y, 42%), 46%); width: min(var(--shot-size, 86vw), 560px); }
-        .focus-copy { top: auto; right: 22px; bottom: 70px; left: 22px; width: auto; transform: none; text-align: left; }
-        .focus-copy p { margin-bottom: 15px; }
-        .flight-index { right: 9px; }
-        .flight-index button { justify-content: flex-end; min-width: 44px; min-height: 44px; padding: 0; }
-        .flight-index span { display: none; }
-        .debug { bottom: 9px; font-size: 9px; }
-        .meteor-canvas { display: none; }
-        .stars-near { opacity: calc(var(--approach) * .17); }
+        .toolbar span,
+        .toolbar .state-label {
+          display: none;
+        }
+        .entry-copy {
+          bottom: 96px;
+        }
+        h1 {
+          font-size: clamp(37px, 13vw, 58px);
+        }
+        .planet {
+          width: clamp(94px, 28vw, 152px);
+        }
+        .planet-label {
+          font-size: 9px;
+        }
+        .planet-label small {
+          display: none;
+        }
+        .about-zone {
+          scale: 0.78;
+        }
+        .focus-planet-wrap {
+          top: min(var(--shot-y, 42%), 46%);
+          width: min(var(--shot-size, 86vw), 560px);
+        }
+        .focus-copy {
+          top: auto;
+          right: 22px;
+          bottom: 70px;
+          left: 22px;
+          width: auto;
+          transform: none;
+          text-align: left;
+        }
+        .focus-copy p {
+          margin-bottom: 15px;
+        }
+        .flight-index {
+          right: 9px;
+        }
+        .flight-index button {
+          justify-content: flex-end;
+          min-width: 44px;
+          min-height: 44px;
+          padding: 0;
+        }
+        .flight-index span {
+          display: none;
+        }
+        .debug {
+          bottom: 9px;
+          font-size: 9px;
+        }
+        .meteor-canvas {
+          display: none;
+        }
+        .stars-near {
+          opacity: calc(var(--approach) * 0.17);
+        }
       }
       @media (prefers-reduced-motion: reduce) {
-        *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 1ms !important; animation-iteration-count: 1 !important; transition-duration: 1ms !important; }
-        .entry-meteors, .meteor-canvas { display: none; }
-        .star-layer { transform: none !important; }
-        .signal-wrap { animation: none !important; }
-        .map, .planet, .planet-focus, .focus-shot, .focus-planet-wrap, .focus-copy { transition-duration: 1ms !important; }
+        *,
+        *::before,
+        *::after {
+          scroll-behavior: auto !important;
+          animation-duration: 1ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 1ms !important;
+        }
+        .entry-meteors,
+        .meteor-canvas {
+          display: none;
+        }
+        .star-layer {
+          transform: none !important;
+        }
+        .signal-wrap {
+          animation: none !important;
+        }
+        .map,
+        .planet,
+        .planet-focus,
+        .focus-shot,
+        .focus-planet-wrap,
+        .focus-copy {
+          transition-duration: 1ms !important;
+        }
       }
     </style>
   </head>
   <body data-variant="drift">
     <nav class="toolbar" aria-label="原型校准面板">
       <span>Phase 4.2</span>
-      <button type="button" data-variant="orbit" aria-pressed="false">Orbit</button>
-      <button type="button" data-variant="drift" aria-pressed="true">Drift</button>
+      <button type="button" data-variant="orbit" aria-pressed="false">
+        Orbit
+      </button>
+      <button type="button" data-variant="drift" aria-pressed="true">
+        Drift
+      </button>
       <span class="state-label">mock</span>
       <button type="button" data-mock="mixed" aria-pressed="true">Mixed</button>
-      <button type="button" data-mock="quiet" aria-pressed="false">Quiet</button>
-      <button type="button" data-mock="rotation" aria-pressed="false">Rotate</button>
-      <button type="button" data-mock="unavailable" aria-pressed="false">Absent</button>
+      <button type="button" data-mock="quiet" aria-pressed="false">
+        Quiet
+      </button>
+      <button type="button" data-mock="rotation" aria-pressed="false">
+        Rotate
+      </button>
+      <button type="button" data-mock="unavailable" aria-pressed="false">
+        Absent
+      </button>
     </nav>
     <main>
       <section class="journey" id="entry" aria-label="Home 星图校准原型">
         <div class="stage" id="stage">
-          <canvas class="star-layer stars-far" data-star-layer="far" aria-hidden="true"></canvas>
-          <canvas class="star-layer stars-mid" data-star-layer="mid" aria-hidden="true"></canvas>
-          <canvas class="star-layer stars-near" data-star-layer="near" aria-hidden="true"></canvas>
-          <div class="entry-meteors" aria-hidden="true"><i class="entry-meteor"></i><i class="entry-meteor"></i><i class="entry-meteor"></i></div>
+          <canvas
+            class="star-layer stars-far"
+            data-star-layer="far"
+            aria-hidden="true"
+          ></canvas>
+          <canvas
+            class="star-layer stars-mid"
+            data-star-layer="mid"
+            aria-hidden="true"
+          ></canvas>
+          <canvas
+            class="star-layer stars-near"
+            data-star-layer="near"
+            aria-hidden="true"
+          ></canvas>
+          <div class="entry-meteors" aria-hidden="true">
+            <i class="entry-meteor"></i><i class="entry-meteor"></i
+            ><i class="entry-meteor"></i>
+          </div>
           <section class="entry-copy">
             <p class="eyebrow">catstarry.xyz</p>
             <h1>木下的星群漫游</h1>
-            <p class="note">只校准进入距离、空间深度和可进入的星图；不展示内容聚合。</p>
-            <button class="discover" id="discover" type="button"><span>DISCOVER MORE</span><i aria-hidden="true"></i></button>
+            <p class="note">
+              只校准进入距离、空间深度和可进入的星图；不展示内容聚合。
+            </p>
+            <button class="discover" id="discover" type="button">
+              <span>DISCOVER MORE</span><i aria-hidden="true"></i>
+            </button>
           </section>
-          <p class="stage-readout"><b id="stage-name">00 / ENTRY</b><span id="stage-copy">far field · distance before destination</span></p>
+          <p class="stage-readout">
+            <b id="stage-name">00 / ENTRY</b
+            ><span id="stage-copy"
+              >far field · distance before destination</span
+            >
+          </p>
           <div class="map" id="map" aria-label="自由分布星图">
-            <button class="planet about" type="button" data-planet="about" aria-describedby="about-label"><span class="planet-core"></span><span class="planet-label" id="about-label">ABOUT<small>personal orbit</small></span></button>
-            <button class="planet blog" type="button" data-planet="blog" aria-describedby="blog-label"><span class="planet-core"></span><span class="signal-wrap" aria-hidden="true"><i class="signal-orbit"></i><i class="signal-core"></i><i class="signal-particle"></i><i class="signal-particle"></i><i class="signal-particle"></i></span><span class="planet-label" id="blog-label">BLOG<small>writing &amp; notes</small></span></button>
-            <button class="planet feed" type="button" data-planet="feed" aria-describedby="feed-label"><span class="planet-core"></span><span class="signal-wrap" aria-hidden="true"><i class="signal-orbit"></i><i class="signal-core"></i><i class="signal-particle"></i><i class="signal-particle"></i><i class="signal-particle"></i></span><span class="planet-label" id="feed-label">FEED<small>public footprints</small></span></button>
-            <button class="planet learn" type="button" data-planet="learn" aria-describedby="learn-label"><span class="planet-core"></span><span class="signal-wrap" aria-hidden="true"><i class="signal-orbit"></i><i class="signal-core"></i><i class="signal-particle"></i><i class="signal-particle"></i><i class="signal-particle"></i></span><span class="planet-label" id="learn-label">LEARN<small>learning tracks</small></span></button>
-            <button class="planet projects reverse" type="button" data-planet="projects" aria-describedby="projects-label"><span class="planet-core"></span><span class="signal-wrap" aria-hidden="true"><i class="signal-orbit"></i><i class="signal-core"></i><i class="signal-particle"></i><i class="signal-particle"></i><i class="signal-particle"></i></span><span class="planet-label" id="projects-label">PROJECTS<small>selected builds</small></span></button>
+            <button
+              class="planet about"
+              type="button"
+              data-planet="about"
+              aria-describedby="about-label"
+            >
+              <span class="planet-core"></span
+              ><span class="planet-label" id="about-label"
+                >ABOUT<small>personal orbit</small></span
+              >
+            </button>
+            <button
+              class="planet blog"
+              type="button"
+              data-planet="blog"
+              aria-describedby="blog-label"
+            >
+              <span class="planet-core"></span
+              ><span class="signal-wrap" aria-hidden="true"
+                ><i class="signal-orbit"></i><i class="signal-core"></i
+                ><i class="signal-particle"></i><i class="signal-particle"></i
+                ><i class="signal-particle"></i></span
+              ><span class="planet-label" id="blog-label"
+                >BLOG<small>writing &amp; notes</small></span
+              >
+            </button>
+            <button
+              class="planet feed"
+              type="button"
+              data-planet="feed"
+              aria-describedby="feed-label"
+            >
+              <span class="planet-core"></span
+              ><span class="signal-wrap" aria-hidden="true"
+                ><i class="signal-orbit"></i><i class="signal-core"></i
+                ><i class="signal-particle"></i><i class="signal-particle"></i
+                ><i class="signal-particle"></i></span
+              ><span class="planet-label" id="feed-label"
+                >FEED<small>public footprints</small></span
+              >
+            </button>
+            <button
+              class="planet learn"
+              type="button"
+              data-planet="learn"
+              aria-describedby="learn-label"
+            >
+              <span class="planet-core"></span
+              ><span class="signal-wrap" aria-hidden="true"
+                ><i class="signal-orbit"></i><i class="signal-core"></i
+                ><i class="signal-particle"></i><i class="signal-particle"></i
+                ><i class="signal-particle"></i></span
+              ><span class="planet-label" id="learn-label"
+                >LEARN<small>learning tracks</small></span
+              >
+            </button>
+            <button
+              class="planet projects reverse"
+              type="button"
+              data-planet="projects"
+              aria-describedby="projects-label"
+            >
+              <span class="planet-core"></span
+              ><span class="signal-wrap" aria-hidden="true"
+                ><i class="signal-orbit"></i><i class="signal-core"></i
+                ><i class="signal-particle"></i><i class="signal-particle"></i
+                ><i class="signal-particle"></i></span
+              ><span class="planet-label" id="projects-label"
+                >PROJECTS<small>selected builds</small></span
+              >
+            </button>
           </div>
-          <div class="about-zone" id="about-zone" aria-label="豹猫卫星彩蛋"><button class="cat" id="cat" type="button" aria-describedby="cat-hint"><span class="companion-body" aria-hidden="true"></span><i class="companion-particle" aria-hidden="true"></i><i class="companion-particle" aria-hidden="true"></i><i class="companion-particle" aria-hidden="true"></i><svg viewBox="0 0 210 130" aria-hidden="true"><path class="line" d="M24 91 L49 74 L63 45 L77 56 L91 40 L109 47 L127 61 L145 65 L166 82 L184 79 L167 88 L151 99 L128 101 L108 92 L91 102 L73 98 L57 106 L42 104 L27 110 L38 97 Z"/><path class="line inner" d="M63 77 L89 71 L112 78 L137 75 M76 92 L83 75 M119 93 L126 76 M146 91 L153 77"/><path class="line" d="M168 84 C196 61, 202 39, 185 26 C174 18, 169 31, 180 40"/><circle class="node" cx="49" cy="74" r="2"/><circle class="node" cx="63" cy="45" r="2"/><circle class="node" cx="91" cy="40" r="2"/><circle class="node" cx="127" cy="61" r="2"/><circle class="node" cx="166" cy="82" r="2"/><circle class="node" cx="108" cy="92" r="2"/><circle class="node" cx="57" cy="106" r="2"/></svg></button><span class="cat-hint" id="cat-hint">豹猫卫星彩蛋</span><span class="cat-dust" aria-hidden="true"><i style="--i:0;--dx:-72px;--dy:-43px"></i><i style="--i:1;--dx:-39px;--dy:-67px"></i><i style="--i:2;--dx:8px;--dy:-58px"></i><i style="--i:3;--dx:58px;--dy:-36px"></i><i style="--i:4;--dx:77px;--dy:9px"></i><i style="--i:5;--dx:32px;--dy:47px"></i><i style="--i:6;--dx:-31px;--dy:41px"></i><i style="--i:7;--dx:-76px;--dy:1px"></i></span></div>
-          <section class="planet-focus" id="planet-focus" aria-hidden="true" aria-label="星球特写">
+          <div class="about-zone" id="about-zone" aria-label="豹猫卫星彩蛋">
+            <button
+              class="cat"
+              id="cat"
+              type="button"
+              aria-describedby="cat-hint"
+            >
+              <span class="companion-body" aria-hidden="true"></span
+              ><i class="companion-particle" aria-hidden="true"></i
+              ><i class="companion-particle" aria-hidden="true"></i
+              ><i class="companion-particle" aria-hidden="true"></i
+              ><svg viewBox="0 0 210 130" aria-hidden="true">
+                <path
+                  class="line"
+                  d="M24 91 L49 74 L63 45 L77 56 L91 40 L109 47 L127 61 L145 65 L166 82 L184 79 L167 88 L151 99 L128 101 L108 92 L91 102 L73 98 L57 106 L42 104 L27 110 L38 97 Z"
+                />
+                <path
+                  class="line inner"
+                  d="M63 77 L89 71 L112 78 L137 75 M76 92 L83 75 M119 93 L126 76 M146 91 L153 77"
+                />
+                <path
+                  class="line"
+                  d="M168 84 C196 61, 202 39, 185 26 C174 18, 169 31, 180 40"
+                />
+                <circle class="node" cx="49" cy="74" r="2" />
+                <circle class="node" cx="63" cy="45" r="2" />
+                <circle class="node" cx="91" cy="40" r="2" />
+                <circle class="node" cx="127" cy="61" r="2" />
+                <circle class="node" cx="166" cy="82" r="2" />
+                <circle class="node" cx="108" cy="92" r="2" />
+                <circle class="node" cx="57" cy="106" r="2" />
+              </svg></button
+            ><span class="cat-hint" id="cat-hint">豹猫卫星彩蛋</span
+            ><span class="cat-dust" aria-hidden="true"
+              ><i style="--i: 0; --dx: -72px; --dy: -43px"></i
+              ><i style="--i: 1; --dx: -39px; --dy: -67px"></i
+              ><i style="--i: 2; --dx: 8px; --dy: -58px"></i
+              ><i style="--i: 3; --dx: 58px; --dy: -36px"></i
+              ><i style="--i: 4; --dx: 77px; --dy: 9px"></i
+              ><i style="--i: 5; --dx: 32px; --dy: 47px"></i
+              ><i style="--i: 6; --dx: -31px; --dy: 41px"></i
+              ><i style="--i: 7; --dx: -76px; --dy: 1px"></i
+            ></span>
+          </div>
+          <section
+            class="planet-focus"
+            id="planet-focus"
+            aria-hidden="true"
+            aria-label="星球特写"
+          >
             <article class="focus-shot" data-slot="primary" aria-hidden="true">
-              <div class="focus-planet-wrap" aria-hidden="true"><div class="focus-planet-core"></div></div>
-              <div class="focus-copy"><p class="focus-kicker">PROTOTYPE COPY / PLANET FOCUS</p><h2 class="focus-title">BLOG</h2><p class="focus-description">仅验证镜头中的阅读主次，不代表最终内容。</p><ul class="focus-notes"></ul><div class="focus-actions"><button class="focus-back" id="focus-back" type="button">返回星图</button><button class="focus-enter" id="focus-enter" type="button">ENTER BLOG</button></div></div>
+              <div class="focus-planet-wrap" aria-hidden="true">
+                <div class="focus-planet-core"></div>
+              </div>
+              <div class="focus-copy">
+                <p class="focus-kicker">PROTOTYPE COPY / PLANET FOCUS</p>
+                <h2 class="focus-title">BLOG</h2>
+                <p class="focus-description">
+                  仅验证镜头中的阅读主次，不代表最终内容。
+                </p>
+                <ul class="focus-notes"></ul>
+                <div class="focus-actions">
+                  <button class="focus-back" id="focus-back" type="button">
+                    返回星图</button
+                  ><button class="focus-enter" id="focus-enter" type="button">
+                    ENTER BLOG
+                  </button>
+                </div>
+              </div>
             </article>
-            <article class="focus-shot" data-slot="secondary" aria-hidden="true">
-              <div class="focus-planet-wrap" aria-hidden="true"><div class="focus-planet-core"></div></div>
-              <div class="focus-copy"><p class="focus-kicker">PROTOTYPE COPY / PLANET FOCUS</p><h2 class="focus-title">FEED</h2><p class="focus-description">仅验证镜头中的阅读主次，不代表最终内容。</p><ul class="focus-notes"></ul></div>
+            <article
+              class="focus-shot"
+              data-slot="secondary"
+              aria-hidden="true"
+            >
+              <div class="focus-planet-wrap" aria-hidden="true">
+                <div class="focus-planet-core"></div>
+              </div>
+              <div class="focus-copy">
+                <p class="focus-kicker">PROTOTYPE COPY / PLANET FOCUS</p>
+                <h2 class="focus-title">FEED</h2>
+                <p class="focus-description">
+                  仅验证镜头中的阅读主次，不代表最终内容。
+                </p>
+                <ul class="focus-notes"></ul>
+              </div>
             </article>
           </section>
           <div class="focus-proxy" id="focus-proxy" aria-hidden="true"></div>
-          <div class="push" id="push" aria-live="polite"><span id="push-message"></span></div>
+          <div class="push" id="push" aria-live="polite">
+            <span id="push-message"></span>
+          </div>
         </div>
       </section>
-      <footer class="footer"><p>星图在此自然收束为页脚；没有 Recently、列表、标题摘要或跨模块内容读取。</p></footer>
+      <footer class="footer">
+        <p>
+          星图在此自然收束为页脚；没有
+          Recently、列表、标题摘要或跨模块内容读取。
+        </p>
+      </footer>
     </main>
-    <nav class="flight-index" aria-label="Home 航行索引"><button type="button" data-anchor="entry"><i></i><span>ENTRY</span></button><button type="button" data-anchor="approach"><i></i><span>APPROACH</span></button><button type="button" data-anchor="overview"><i></i><span>STAR MAP</span></button><button type="button" data-focus="about"><i></i><span>ABOUT</span></button><button type="button" data-focus="feed"><i></i><span>FEED</span></button><button type="button" data-focus="blog"><i></i><span>BLOG</span></button><button type="button" data-focus="projects"><i></i><span>PROJECTS</span></button><button type="button" data-focus="learn"><i></i><span>LEARN</span></button></nav>
-    <canvas class="meteor-canvas" id="meteor-canvas" aria-hidden="true"></canvas>
-    <aside class="debug" aria-live="polite">STAGE <b id="debug-stage">ENTRY</b> · LOD <b id="debug-lod">FAR</b><br>MOCK <b id="debug-mock">Mixed states</b> · SIGNALS <b id="debug-signals">4</b></aside>
+    <nav class="flight-index" aria-label="Home 航行索引">
+      <button type="button" data-anchor="entry">
+        <i></i><span>ENTRY</span></button
+      ><button type="button" data-anchor="approach">
+        <i></i><span>APPROACH</span></button
+      ><button type="button" data-anchor="overview">
+        <i></i><span>STAR MAP</span></button
+      ><button type="button" data-focus="about">
+        <i></i><span>ABOUT</span></button
+      ><button type="button" data-focus="feed"><i></i><span>FEED</span></button
+      ><button type="button" data-focus="blog"><i></i><span>BLOG</span></button
+      ><button type="button" data-focus="projects">
+        <i></i><span>PROJECTS</span></button
+      ><button type="button" data-focus="learn">
+        <i></i><span>LEARN</span>
+      </button>
+    </nav>
+    <canvas
+      class="meteor-canvas"
+      id="meteor-canvas"
+      aria-hidden="true"
+    ></canvas>
+    <aside class="debug" aria-live="polite">
+      STAGE <b id="debug-stage">ENTRY</b> · LOD <b id="debug-lod">FAR</b
+      ><br />MOCK <b id="debug-mock">Mixed states</b> · SIGNALS
+      <b id="debug-signals">4</b>
+    </aside>
     <script>
       (() => {
-        const P = PROTOTYPE_VISUAL_PARAMETERS, root = document.documentElement;
-        const body = document.body, journey = document.querySelector('.journey'), stage = document.getElementById('stage');
-        const planets = [...document.querySelectorAll('.planet')], catZone = document.getElementById('about-zone'), cat = document.getElementById('cat');
-        const aboutPlanet = document.querySelector('[data-planet="about"]'), focusLayer = document.getElementById('planet-focus'), focusProxy = document.getElementById('focus-proxy');
-        const focusSlots = [...document.querySelectorAll('.focus-shot')], primarySlot = focusSlots[0], secondarySlot = focusSlots[1], focusBack = document.getElementById('focus-back'), focusEnter = document.getElementById('focus-enter');
-        const reduce = matchMedia('(prefers-reduced-motion: reduce)'), finePointer = matchMedia('(hover: hover) and (pointer: fine)');
-        const destinations = { blog:'/blog/', feed:'/feed/', learn:'/learn/', projects:'/projects/' };
-        const focusMeta = {
-          about: { title:'ABOUT', kicker:'PERSONAL ORBIT', description:'一个安静、偏远、只在 Home 原地展开的私人世界。', notes:['浅色岩质与柔和尘埃只是镜头占位。','直接展开与豹猫彩蛋通往同一状态。'], action:'OPEN ABOUT' },
-          feed: { title:'FEED', kicker:'PUBLIC FOOTPRINTS', description:'公开来时路的入口；此处只验证阅读区和推进动作。', notes:['沉积河谷表达时间方向。','原型不读取任何真实动态。'], action:'ENTER FEED' },
-          blog: { title:'BLOG', kicker:'WRITING & NOTES', description:'层状地貌作为写作世界的空间窗口，文字仍是主要阅读对象。', notes:['近景材质仍是可替换占位。','原型不加载文章标题或列表。'], action:'ENTER BLOG' },
-          projects: { title:'PROJECTS', kicker:'SELECTED BUILDS', description:'人工切面从自然地表中显露，但不在 Home 展开项目内容。', notes:['下部弧面用于验证不同镜头。','原型不加载项目卡片。'], action:'ENTER PROJECTS' },
-          learn: { title:'LEARN', kicker:'LEARNING TRACKS', description:'断层与矿脉提供纵深，稳定文字区承担进入前的说明。', notes:['只验证 Focus 的阅读节奏。','原型不加载章节或学习进度。'], action:'ENTER LEARN' }
+        const P = PROTOTYPE_VISUAL_PARAMETERS,
+          root = document.documentElement;
+        const body = document.body,
+          journey = document.querySelector(".journey"),
+          stage = document.getElementById("stage");
+        const planets = [...document.querySelectorAll(".planet")],
+          catZone = document.getElementById("about-zone"),
+          cat = document.getElementById("cat");
+        const aboutPlanet = document.querySelector('[data-planet="about"]'),
+          focusLayer = document.getElementById("planet-focus"),
+          focusProxy = document.getElementById("focus-proxy");
+        const focusSlots = [...document.querySelectorAll(".focus-shot")],
+          primarySlot = focusSlots[0],
+          secondarySlot = focusSlots[1],
+          focusBack = document.getElementById("focus-back"),
+          focusEnter = document.getElementById("focus-enter");
+        const reduce = matchMedia("(prefers-reduced-motion: reduce)"),
+          finePointer = matchMedia("(hover: hover) and (pointer: fine)");
+        const destinations = {
+          blog: "/blog/",
+          feed: "/feed/",
+          learn: "/learn/",
+          projects: "/projects/",
         };
-        let variant = new URLSearchParams(location.search).get('variant') === 'orbit' ? 'orbit' : 'drift', mockKey = new URLSearchParams(location.search).get('mock') || 'mixed', catState = 'rest', activeFocus = null, focusTrigger = null, focusMode = null, aboutExpanded = false, chargeTimer, signalsRevealed = false, manualAnimations = [], focusTransitionToken = 0;
-        const clamp = (n,min=0,max=1) => Math.max(min, Math.min(max,n)), ease = n => 1 - Math.pow(1-clamp(n),3), smooth = n => { n=clamp(n); return n*n*(3-2*n); }, lerp = (a,b,t) => a+(b-a)*t;
-        function applyParameters(){
-          root.style.setProperty('--background-bloom', P.environment.backgroundBloomOpacity); root.style.setProperty('--warm-dust', P.environment.warmDustOpacity); root.style.setProperty('--stars-far-opacity', P.environment.starLayerOpacity.far); root.style.setProperty('--stars-mid-opacity', P.environment.starLayerOpacity.mid); root.style.setProperty('--stars-near-opacity', P.environment.starLayerOpacity.near); root.style.setProperty('--stars-far-scale', P.environment.starLayerScale.far); root.style.setProperty('--stars-mid-scale', P.environment.starLayerScale.mid); root.style.setProperty('--stars-near-scale', P.environment.starLayerScale.near);
-          root.style.setProperty('--focus-in', `${P.transition.focusInMs}ms`); root.style.setProperty('--focus-out', `${P.transition.focusOutMs}ms`); root.style.setProperty('--focus-copy-in', `${Math.round(P.transition.focusInMs*.72)}ms`); root.style.setProperty('--focus-copy-delay', `${Math.round(P.transition.focusInMs*.28)}ms`); root.style.setProperty('--action-preview', `${P.transition.actionPreviewMs}ms`); root.style.setProperty('--satellite-response', `${P.satellite.responseMs}ms`);
-          root.style.setProperty('--micro',`${P.transition.microMs}ms`); root.style.setProperty('--hover',`${P.transition.hoverMs}ms`); root.style.setProperty('--parallax-ease',`${P.transition.parallaxEaseMs}ms`); root.style.setProperty('--navigation',`${P.transition.navigationMs}ms`); root.style.setProperty('--route-fade',`${P.transition.routeFadeMs}ms`); root.style.setProperty('--cat-charge',`${P.transition.catChargeMs}ms`); root.style.setProperty('--cat-burst',`${P.transition.catBurstMs}ms`); root.style.setProperty('--cat-recover',`${P.transition.catRecoverMs}ms`); root.style.setProperty('--cat-dust-stagger',`${P.transition.catDustStaggerMs}ms`);
-          root.style.setProperty('--parallax-far',P.camera.parallax.far); root.style.setProperty('--parallax-mid',P.camera.parallax.mid); root.style.setProperty('--parallax-near',P.camera.parallax.near);
-          root.style.setProperty('--focus-map-scale', P.camera.focusMapScale); root.style.setProperty('--focus-map-opacity', P.camera.focusMapOpacity); root.style.setProperty('--planet-min', `${P.planet.overviewSizePx.min}px`); root.style.setProperty('--planet-preferred', `${P.planet.overviewSizePx.preferredVw}vw`); root.style.setProperty('--planet-max', `${P.planet.overviewSizePx.max}px`); root.style.setProperty('--focus-planet-size', `min(${P.planet.focusDiameterVmin}vmin, ${P.planet.focusDiameterMaxPx}px)`);
-          root.style.setProperty('--atmosphere-opacity', P.planet.lighting.atmosphereOpacity); root.style.setProperty('--atmosphere-shadow-opacity', P.planet.lighting.atmosphereOpacity * .32); root.style.setProperty('--atmosphere-glow-opacity', P.planet.lighting.atmosphereOpacity * .2); root.style.setProperty('--atmosphere-width', `${P.planet.lighting.atmosphereWidthPx}px`); root.style.setProperty('--terminator-opacity', P.planet.lighting.terminatorOpacity); root.style.setProperty('--focus-terminator-opacity', P.planet.lighting.terminatorOpacity * .7); root.style.setProperty('--planet-shadow-opacity', P.planet.lighting.castShadowOpacity); root.style.setProperty('--planet-shadow-blur', `${P.planet.lighting.castShadowBlurPx}px`); root.style.setProperty('--signal-core-size', `${P.satellite.coreDiameterRatio * 100}%`);
-          root.style.setProperty('--companion-overview-scale', P.aboutCompanion.overviewScale); root.style.setProperty('--companion-reveal-start', P.aboutCompanion.revealStart); root.style.setProperty('--cat-line-opacity', P.aboutCompanion.catLineOpacity); root.style.setProperty('--cat-line-focus-opacity', P.aboutCompanion.catLineFocusOpacity);
-          planets.forEach(planet=>{ const key=planet.dataset.planet, material=P.planet.materials[key]; planet.style.setProperty('--planet-asset', `url("${material.asset}")`); planet.style.setProperty('--planet-material-scale', material.overviewScale); planet.style.setProperty('--planet-hover-scale', material.overviewScale * 1.012); planet.style.setProperty('--planet-contrast', material.contrast); planet.style.setProperty('--planet-hover-contrast', material.contrast + .025); planet.style.setProperty('--planet-saturation', material.saturation); const preload=new Image(); preload.src=material.asset; });
-          document.querySelectorAll('.companion-particle').forEach((particle,index)=>{particle.hidden=index>=P.aboutCompanion.particleCount;});
-          document.querySelectorAll('.entry-meteor').forEach((meteor,index)=>{ const m=P.meteor.entryLayers[index]; Object.entries({top:`${m.top}%`,left:`${m.left}%`,length:`${m.length}px`,thickness:`${m.thickness}px`,scale:m.scale,opacity:m.opacity,duration:`${m.durationMs}ms`,delay:`${m.delayMs}ms`,'travel-x':`${m.travelX}vw`,'travel-y':`${m.travelY}vh`,angle:`${m.angleDeg}deg`}).forEach(([key,value])=>meteor.style.setProperty(`--meteor-${key}`,value)); });
-          document.querySelectorAll('.cat-dust i').forEach((particle,index)=>{particle.style.animationDelay=`${index*P.transition.catDustStaggerMs}ms`;});
+        const focusMeta = {
+          about: {
+            title: "ABOUT",
+            kicker: "PERSONAL ORBIT",
+            description: "一个安静、偏远、只在 Home 原地展开的私人世界。",
+            notes: [
+              "浅色岩质与柔和尘埃只是镜头占位。",
+              "直接展开与豹猫彩蛋通往同一状态。",
+            ],
+            action: "",
+          },
+          feed: {
+            title: "FEED",
+            kicker: "PUBLIC FOOTPRINTS",
+            description: "公开来时路的入口；此处只验证阅读区和推进动作。",
+            notes: ["沉积河谷表达时间方向。", "原型不读取任何真实动态。"],
+            action: "ENTER FEED",
+          },
+          blog: {
+            title: "BLOG",
+            kicker: "WRITING & NOTES",
+            description:
+              "层状地貌作为写作世界的空间窗口，文字仍是主要阅读对象。",
+            notes: ["近景材质仍是可替换占位。", "原型不加载文章标题或列表。"],
+            action: "ENTER BLOG",
+          },
+          projects: {
+            title: "PROJECTS",
+            kicker: "SELECTED BUILDS",
+            description: "人工切面从自然地表中显露，但不在 Home 展开项目内容。",
+            notes: ["下部弧面用于验证不同镜头。", "原型不加载项目卡片。"],
+            action: "ENTER PROJECTS",
+          },
+          learn: {
+            title: "LEARN",
+            kicker: "LEARNING TRACKS",
+            description: "断层与矿脉提供纵深，稳定文字区承担进入前的说明。",
+            notes: ["只验证 Focus 的阅读节奏。", "原型不加载章节或学习进度。"],
+            action: "ENTER LEARN",
+          },
+        };
+        let variant =
+            new URLSearchParams(location.search).get("variant") === "orbit"
+              ? "orbit"
+              : "drift",
+          mockKey = new URLSearchParams(location.search).get("mock") || "mixed",
+          catState = "rest",
+          activeFocus = null,
+          focusTrigger = null,
+          focusMode = null,
+          chargeTimer,
+          returnTimer,
+          signalsRevealed = false,
+          manualAnimations = [],
+          focusTransitionToken = 0;
+        const clamp = (n, min = 0, max = 1) => Math.max(min, Math.min(max, n)),
+          ease = (n) => 1 - Math.pow(1 - clamp(n), 3),
+          smooth = (n) => {
+            n = clamp(n);
+            return n * n * (3 - 2 * n);
+          },
+          lerp = (a, b, t) => a + (b - a) * t;
+        function applyParameters() {
+          root.style.setProperty(
+            "--background-bloom",
+            P.environment.backgroundBloomOpacity,
+          );
+          root.style.setProperty("--warm-dust", P.environment.warmDustOpacity);
+          root.style.setProperty(
+            "--stars-far-opacity",
+            P.environment.starLayerOpacity.far,
+          );
+          root.style.setProperty(
+            "--stars-mid-opacity",
+            P.environment.starLayerOpacity.mid,
+          );
+          root.style.setProperty(
+            "--stars-near-opacity",
+            P.environment.starLayerOpacity.near,
+          );
+          root.style.setProperty(
+            "--stars-far-scale",
+            P.environment.starLayerScale.far,
+          );
+          root.style.setProperty(
+            "--stars-mid-scale",
+            P.environment.starLayerScale.mid,
+          );
+          root.style.setProperty(
+            "--stars-near-scale",
+            P.environment.starLayerScale.near,
+          );
+          root.style.setProperty("--focus-in", `${P.transition.focusInMs}ms`);
+          root.style.setProperty("--focus-out", `${P.transition.focusOutMs}ms`);
+          root.style.setProperty(
+            "--focus-copy-in",
+            `${Math.round(P.transition.focusInMs * 0.72)}ms`,
+          );
+          root.style.setProperty(
+            "--focus-copy-delay",
+            `${Math.round(P.transition.focusInMs * 0.28)}ms`,
+          );
+          root.style.setProperty(
+            "--action-preview",
+            `${P.transition.actionPreviewMs}ms`,
+          );
+          root.style.setProperty(
+            "--satellite-response",
+            `${P.satellite.responseMs}ms`,
+          );
+          root.style.setProperty("--micro", `${P.transition.microMs}ms`);
+          root.style.setProperty("--hover", `${P.transition.hoverMs}ms`);
+          root.style.setProperty(
+            "--parallax-ease",
+            `${P.transition.parallaxEaseMs}ms`,
+          );
+          root.style.setProperty(
+            "--navigation",
+            `${P.transition.navigationMs}ms`,
+          );
+          root.style.setProperty(
+            "--route-fade",
+            `${P.transition.routeFadeMs}ms`,
+          );
+          root.style.setProperty(
+            "--cat-charge",
+            `${P.transition.catChargeMs}ms`,
+          );
+          root.style.setProperty("--cat-burst", `${P.transition.catBurstMs}ms`);
+          root.style.setProperty(
+            "--cat-recover",
+            `${P.transition.catRecoverMs}ms`,
+          );
+          root.style.setProperty(
+            "--cat-dust-stagger",
+            `${P.transition.catDustStaggerMs}ms`,
+          );
+          root.style.setProperty("--parallax-far", P.camera.parallax.far);
+          root.style.setProperty("--parallax-mid", P.camera.parallax.mid);
+          root.style.setProperty("--parallax-near", P.camera.parallax.near);
+          root.style.setProperty("--focus-map-scale", P.camera.focusMapScale);
+          root.style.setProperty(
+            "--focus-map-opacity",
+            P.camera.focusMapOpacity,
+          );
+          root.style.setProperty(
+            "--planet-min",
+            `${P.planet.overviewSizePx.min}px`,
+          );
+          root.style.setProperty(
+            "--planet-preferred",
+            `${P.planet.overviewSizePx.preferredVw}vw`,
+          );
+          root.style.setProperty(
+            "--planet-max",
+            `${P.planet.overviewSizePx.max}px`,
+          );
+          root.style.setProperty(
+            "--focus-planet-size",
+            `min(${P.planet.focusDiameterVmin}vmin, ${P.planet.focusDiameterMaxPx}px)`,
+          );
+          root.style.setProperty(
+            "--atmosphere-opacity",
+            P.planet.lighting.atmosphereOpacity,
+          );
+          root.style.setProperty(
+            "--atmosphere-shadow-opacity",
+            P.planet.lighting.atmosphereOpacity * 0.32,
+          );
+          root.style.setProperty(
+            "--atmosphere-glow-opacity",
+            P.planet.lighting.atmosphereOpacity * 0.2,
+          );
+          root.style.setProperty(
+            "--atmosphere-width",
+            `${P.planet.lighting.atmosphereWidthPx}px`,
+          );
+          root.style.setProperty(
+            "--terminator-opacity",
+            P.planet.lighting.terminatorOpacity,
+          );
+          root.style.setProperty(
+            "--focus-terminator-opacity",
+            P.planet.lighting.terminatorOpacity * 0.7,
+          );
+          root.style.setProperty(
+            "--planet-shadow-opacity",
+            P.planet.lighting.castShadowOpacity,
+          );
+          root.style.setProperty(
+            "--planet-shadow-blur",
+            `${P.planet.lighting.castShadowBlurPx}px`,
+          );
+          root.style.setProperty(
+            "--signal-core-size",
+            `${P.satellite.coreDiameterRatio * 100}%`,
+          );
+          root.style.setProperty(
+            "--companion-overview-scale",
+            P.aboutCompanion.overviewScale,
+          );
+          root.style.setProperty(
+            "--companion-reveal-start",
+            P.aboutCompanion.revealStart,
+          );
+          root.style.setProperty(
+            "--cat-line-opacity",
+            P.aboutCompanion.catLineOpacity,
+          );
+          root.style.setProperty(
+            "--cat-line-focus-opacity",
+            P.aboutCompanion.catLineFocusOpacity,
+          );
+          root.style.setProperty(
+            "--entry-meteor-angle",
+            `${P.meteor.entryLayers[Math.floor(P.meteor.entryLayers.length / 2)].angleDeg}deg`,
+          );
+          planets.forEach((planet) => {
+            const key = planet.dataset.planet,
+              material = P.planet.materials[key];
+            planet.style.setProperty(
+              "--planet-asset",
+              `url("${material.asset}")`,
+            );
+            planet.style.setProperty(
+              "--planet-material-scale",
+              material.overviewScale,
+            );
+            planet.style.setProperty(
+              "--planet-hover-scale",
+              material.overviewScale * 1.012,
+            );
+            planet.style.setProperty("--planet-contrast", material.contrast);
+            planet.style.setProperty(
+              "--planet-hover-contrast",
+              material.contrast + 0.025,
+            );
+            planet.style.setProperty(
+              "--planet-saturation",
+              material.saturation,
+            );
+            const preload = new Image();
+            preload.src = material.asset;
+          });
+          document
+            .querySelectorAll(".companion-particle")
+            .forEach((particle, index) => {
+              particle.hidden = index >= P.aboutCompanion.particleCount;
+            });
+          document
+            .querySelectorAll(".entry-meteor")
+            .forEach((meteor, index) => {
+              const m = P.meteor.entryLayers[index];
+              Object.entries({
+                top: `${m.top}%`,
+                left: `${m.left}%`,
+                length: `${m.length}px`,
+                thickness: `${m.thickness}px`,
+                scale: m.scale,
+                opacity: m.opacity,
+                duration: `${m.durationMs}ms`,
+                delay: `${m.delayMs}ms`,
+                "travel-x": `${m.travelX}vw`,
+                "travel-y": `${m.travelY}vh`,
+                angle: `${m.angleDeg}deg`,
+              }).forEach(([key, value]) =>
+                meteor.style.setProperty(`--meteor-${key}`, value),
+              );
+            });
+          document
+            .querySelectorAll(".cat-dust i")
+            .forEach((particle, index) => {
+              particle.style.animationDelay = `${index * P.transition.catDustStaggerMs}ms`;
+            });
         }
-        function updateUrl(){ const q = new URLSearchParams({ variant, mock: mockKey }); history.replaceState(null,'',`?${q}`); }
-        function respond(signal){ if (!signal || reduce.matches || signal.dataset.state === 'dormant') return; signal.classList.remove('respond'); requestAnimationFrame(() => signal.classList.add('respond')); setTimeout(() => signal.classList.remove('respond'), P.satellite.responseMs); }
-        function setSignalMotion(signal,state){ signal._ambientMotion?.cancel(); signal._ambientMotion=null; if(reduce.matches||state==='dormant')return; const duration=P.satellite.microDurationMs[state], travel=P.satellite.microTravelPx[state], window=P.satellite.motionWindowPercent[state]/100, hold=1-window; signal._ambientMotion=signal.animate([{translate:'0 0',offset:0},{translate:'0 0',offset:hold},{translate:`${-travel*.42}px ${travel*.18}px`,offset:hold+window*.38},{translate:`${travel*.52}px ${-travel*.3}px`,offset:hold+window*.72},{translate:'0 0',offset:1}],{duration,iterations:Infinity,easing:'cubic-bezier(.2,.66,.24,1)'}); }
-        function setMock(next){ mockKey = next; const mock = ACTIVITY_MOCKS[next]; document.querySelectorAll('[data-mock]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mock === next))); planets.forEach(planet => { const key = planet.dataset.planet, signal = planet.querySelector('.signal-wrap'); if (!signal) return; const state = mock.projection === 'available' ? mock.states[key] : null; signal._ambientMotion?.cancel(); signal._ambientMotion=null; if (state){ signal.dataset.state=state; signal.dataset.particles=P.satellite.particleCount[state]; signal.style.setProperty('--particle-duration',`${P.satellite.microDurationMs[state] || 1}ms`); signal.style.setProperty('--particle-opacity',P.satellite.particleOpacity[state]); signal.style.setProperty('--signal-opacity',P.satellite.opacity[state]); signal.style.setProperty('--orbit',P.satellite.orbitOpacity[state]); signal.style.setProperty('--signal-scale',P.satellite.shellScale[state]); setSignalMotion(signal,state); } else { delete signal.dataset.state; delete signal.dataset.particles; } }); document.getElementById('debug-mock').textContent = mock.label; document.getElementById('debug-signals').textContent = mock.projection === 'available' ? '4' : '0'; updateUrl(); }
-        function cameraMetrics(){
-          const mobile=innerWidth<=760, baseJourneyVh=mobile?P.camera.journeyVh.mobile:P.camera.journeyVh[variant], stepVh=mobile?P.camera.focusSequence.stepVh.mobile:P.camera.focusSequence.stepVh.desktop, overviewHandoffVh=mobile?P.camera.focusSequence.overviewHandoffVh.mobile:P.camera.focusSequence.overviewHandoffVh.desktop, focusCount=P.camera.focusSequence.order.length, pxPerVh=innerHeight/100;
-          const totalJourneyVh=reduce.matches?baseJourneyVh:baseJourneyVh+P.camera.focusSequence.overviewHoldVh+overviewHandoffVh+stepVh*focusCount+P.camera.focusSequence.footerReleaseVh;
-          const baseTravelPx=Math.max(pxPerVh,(baseJourneyVh-100)*pxPerVh), overviewHoldPx=P.camera.focusSequence.overviewHoldVh*pxPerVh, overviewHandoffPx=overviewHandoffVh*pxPerVh, stepPx=stepVh*pxPerVh, footerReleasePx=P.camera.focusSequence.footerReleaseVh*pxPerVh, focusStartPx=baseTravelPx+overviewHoldPx, focusStepsStartPx=focusStartPx+overviewHandoffPx, focusStepsEndPx=focusStepsStartPx+stepPx*focusCount;
-          return {mobile,baseJourneyVh,stepVh,totalJourneyVh,baseTravelPx,overviewHoldPx,overviewHandoffPx,stepPx,footerReleasePx,focusStartPx,focusStepsStartPx,focusStepsEndPx};
+        function updateUrl() {
+          const q = new URLSearchParams({ variant, mock: mockKey });
+          history.replaceState(null, "", `?${q}`);
         }
-        function setVariant(next){ variant=next; body.dataset.variant=next; root.style.setProperty('--journey',`${cameraMetrics().totalJourneyVh}vh`); document.querySelectorAll('[data-variant]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.variant===next))); updateUrl(); updateScene(); }
-        function resolveFocusFrame(scrollPx,metrics){
-          if(reduce.matches||scrollPx<metrics.focusStartPx)return null;
-          if(scrollPx<metrics.focusStepsStartPx)return {phase:'overview-enter',fromKey:null,toKey:'about',progress:clamp((scrollPx-metrics.focusStartPx)/metrics.overviewHandoffPx),primaryKey:'about'};
-          if(scrollPx<metrics.focusStepsEndPx){ const sequence=P.camera.focusSequence.order, raw=(scrollPx-metrics.focusStepsStartPx)/metrics.stepPx, index=clamp(Math.floor(raw),0,sequence.length-1), local=clamp(raw-index), key=sequence[index], next=sequence[index+1], hold=P.camera.focusSequence.holdRatio; if(!next||local<=hold)return {phase:'hold',fromKey:key,toKey:null,progress:local/Math.max(hold,.001),primaryKey:key}; const handoff=clamp((local-hold)/(1-hold)); return {phase:'handoff',fromKey:key,toKey:next,progress:handoff,primaryKey:handoff<.5?key:next}; }
-          if(scrollPx<metrics.focusStepsEndPx+metrics.footerReleasePx)return {phase:'footer-release',fromKey:'learn',toKey:null,progress:clamp((scrollPx-metrics.focusStepsEndPx)/metrics.footerReleasePx),primaryKey:'learn'};
+        function respond(signal) {
+          if (!signal || reduce.matches || signal.dataset.state === "dormant")
+            return;
+          signal.classList.remove("respond");
+          requestAnimationFrame(() => signal.classList.add("respond"));
+          setTimeout(
+            () => signal.classList.remove("respond"),
+            P.satellite.responseMs,
+          );
+        }
+        function setSignalMotion(signal, state) {
+          signal._ambientMotion?.cancel();
+          signal._ambientMotion = null;
+          if (reduce.matches || state === "dormant") return;
+          const duration = P.satellite.microDurationMs[state],
+            travel = P.satellite.microTravelPx[state],
+            window = P.satellite.motionWindowPercent[state] / 100,
+            hold = 1 - window;
+          signal._ambientMotion = signal.animate(
+            [
+              { translate: "0 0", offset: 0 },
+              { translate: "0 0", offset: hold },
+              {
+                translate: `${-travel * 0.42}px ${travel * 0.18}px`,
+                offset: hold + window * 0.38,
+              },
+              {
+                translate: `${travel * 0.52}px ${-travel * 0.3}px`,
+                offset: hold + window * 0.72,
+              },
+              { translate: "0 0", offset: 1 },
+            ],
+            {
+              duration,
+              iterations: Infinity,
+              easing: "cubic-bezier(.2,.66,.24,1)",
+            },
+          );
+        }
+        function setMock(next) {
+          mockKey = next;
+          const mock = ACTIVITY_MOCKS[next];
+          document
+            .querySelectorAll("[data-mock]")
+            .forEach((b) =>
+              b.setAttribute("aria-pressed", String(b.dataset.mock === next)),
+            );
+          planets.forEach((planet) => {
+            const key = planet.dataset.planet,
+              signal = planet.querySelector(".signal-wrap");
+            if (!signal) return;
+            const state =
+              mock.projection === "available" ? mock.states[key] : null;
+            signal._ambientMotion?.cancel();
+            signal._ambientMotion = null;
+            if (state) {
+              signal.dataset.state = state;
+              signal.dataset.particles = P.satellite.particleCount[state];
+              signal.style.setProperty(
+                "--particle-duration",
+                `${P.satellite.microDurationMs[state] || 1}ms`,
+              );
+              signal.style.setProperty(
+                "--particle-opacity",
+                P.satellite.particleOpacity[state],
+              );
+              signal.style.setProperty(
+                "--signal-opacity",
+                P.satellite.opacity[state],
+              );
+              signal.style.setProperty(
+                "--orbit",
+                P.satellite.orbitOpacity[state],
+              );
+              signal.style.setProperty(
+                "--signal-scale",
+                P.satellite.shellScale[state],
+              );
+              setSignalMotion(signal, state);
+            } else {
+              delete signal.dataset.state;
+              delete signal.dataset.particles;
+            }
+          });
+          document.getElementById("debug-mock").textContent = mock.label;
+          document.getElementById("debug-signals").textContent =
+            mock.projection === "available" ? "4" : "0";
+          updateUrl();
+        }
+        function cameraMetrics() {
+          const mobile = innerWidth <= 760,
+            baseJourneyVh = mobile
+              ? P.camera.journeyVh.mobile
+              : P.camera.journeyVh[variant],
+            stepVh = mobile
+              ? P.camera.focusSequence.stepVh.mobile
+              : P.camera.focusSequence.stepVh.desktop,
+            overviewHandoffVh = mobile
+              ? P.camera.focusSequence.overviewHandoffVh.mobile
+              : P.camera.focusSequence.overviewHandoffVh.desktop,
+            focusCount = P.camera.focusSequence.order.length,
+            pxPerVh = innerHeight / 100;
+          const totalJourneyVh = reduce.matches
+            ? baseJourneyVh
+            : baseJourneyVh +
+              P.camera.focusSequence.overviewHoldVh +
+              overviewHandoffVh +
+              stepVh * focusCount +
+              P.camera.focusSequence.footerReleaseVh;
+          const baseTravelPx = Math.max(
+              pxPerVh,
+              (baseJourneyVh - 100) * pxPerVh,
+            ),
+            overviewHoldPx = P.camera.focusSequence.overviewHoldVh * pxPerVh,
+            overviewHandoffPx = overviewHandoffVh * pxPerVh,
+            stepPx = stepVh * pxPerVh,
+            footerReleasePx = P.camera.focusSequence.footerReleaseVh * pxPerVh,
+            focusStartPx = baseTravelPx + overviewHoldPx,
+            focusStepsStartPx = focusStartPx + overviewHandoffPx,
+            focusStepsEndPx = focusStepsStartPx + stepPx * focusCount;
+          return {
+            mobile,
+            baseJourneyVh,
+            stepVh,
+            totalJourneyVh,
+            baseTravelPx,
+            overviewHoldPx,
+            overviewHandoffPx,
+            stepPx,
+            footerReleasePx,
+            focusStartPx,
+            focusStepsStartPx,
+            focusStepsEndPx,
+          };
+        }
+        function setVariant(next) {
+          variant = next;
+          body.dataset.variant = next;
+          root.style.setProperty(
+            "--journey",
+            `${cameraMetrics().totalJourneyVh}vh`,
+          );
+          document
+            .querySelectorAll("[data-variant]")
+            .forEach((b) =>
+              b.setAttribute(
+                "aria-pressed",
+                String(b.dataset.variant === next),
+              ),
+            );
+          updateUrl();
+          updateScene();
+        }
+        function resolveFocusFrame(scrollPx, metrics) {
+          if (reduce.matches || scrollPx < metrics.focusStartPx) return null;
+          if (scrollPx < metrics.focusStepsStartPx)
+            return {
+              phase: "overview-enter",
+              fromKey: null,
+              toKey: "about",
+              progress: clamp(
+                (scrollPx - metrics.focusStartPx) / metrics.overviewHandoffPx,
+              ),
+              primaryKey: "about",
+            };
+          if (scrollPx < metrics.focusStepsEndPx) {
+            const sequence = P.camera.focusSequence.order,
+              raw = (scrollPx - metrics.focusStepsStartPx) / metrics.stepPx,
+              index = clamp(Math.floor(raw), 0, sequence.length - 1),
+              local = clamp(raw - index),
+              key = sequence[index],
+              next = sequence[index + 1],
+              hold = P.camera.focusSequence.holdRatio;
+            if (!next || local <= hold)
+              return {
+                phase: "hold",
+                fromKey: key,
+                toKey: null,
+                progress: local / Math.max(hold, 0.001),
+                primaryKey: key,
+              };
+            const handoff = clamp((local - hold) / (1 - hold));
+            return {
+              phase: "handoff",
+              fromKey: key,
+              toKey: next,
+              progress: handoff,
+              primaryKey: handoff < 0.5 ? key : next,
+            };
+          }
+          if (scrollPx < metrics.focusStepsEndPx + metrics.footerReleasePx)
+            return {
+              phase: "footer-release",
+              fromKey: "learn",
+              toKey: null,
+              progress: clamp(
+                (scrollPx - metrics.focusStepsEndPx) / metrics.footerReleasePx,
+              ),
+              primaryKey: "learn",
+            };
           return null;
         }
-        function getShot(key){ const base=P.planet.focusShots[key], mobile=innerWidth<=760?base.mobile:null; return mobile?{...base,...mobile,copy:{...base.copy,...mobile.copy}}:base; }
-        function shotDiameter(shot){ return Math.min(Math.min(innerWidth,innerHeight)*shot.diameterVmin/100,shot.maxPx); }
-        function setSlotContent(slot,key,expanded=false){
-          const identity=`${key}:${expanded}`; if(slot.dataset.identity===identity)return; slot.dataset.identity=identity; const meta=focusMeta[key], material=P.planet.materials[key], isExpanded=key==='about'&&expanded; slot.querySelector('.focus-title').textContent=isExpanded?'木下':meta.title; slot.querySelector('.focus-kicker').textContent=isExpanded?'PROTOTYPE COPY / ABOUT EXPANDED':`PROTOTYPE COPY / ${meta.kicker}`; slot.querySelector('.focus-description').textContent=isExpanded?'在星辰、内容与长期建造之间记录自己的数字生活。豹猫是隐藏签名，不是理解 About 的前置条件。':meta.description; const notes=isExpanded?['此处只验证稳定阅读层与关闭路径。','不恢复旧版玻璃卡片主舞台。']:meta.notes; slot.querySelector('.focus-notes').replaceChildren(...notes.map(text=>{const li=document.createElement('li');li.textContent=text;return li;})); slot.style.setProperty('--focus-planet-asset',`url("${material.asset}")`); slot.style.setProperty('--focus-material-scale',material.focusScale*P.planet.focusSurfaceScale); slot.style.setProperty('--focus-planet-contrast',material.contrast*P.planet.lighting.focusMaterialBoost); slot.style.setProperty('--focus-planet-saturation',material.saturation); if(slot===primarySlot){focusEnter.textContent=meta.action;focusBack.textContent=isExpanded?'关闭 ABOUT':'返回星图';}
+        function getShot(key) {
+          const base = P.planet.focusShots[key],
+            mobile = innerWidth <= 760 ? base.mobile : null;
+          return mobile
+            ? { ...base, ...mobile, copy: { ...base.copy, ...mobile.copy } }
+            : base;
         }
-        function setSlotGeometry(slot,key,state){
-          const shot=getShot(key), t=smooth(state.progress??1), targetSize=shotDiameter(shot); let x=shot.x,y=shot.y,size=targetSize,scale=shot.scale,planetOpacity=state.opacity??1,copyOpacity=state.copyOpacity??planetOpacity;
-          if(state.kind==='overview'){ const rect=document.querySelector(`[data-planet="${key}"]`).getBoundingClientRect(); x=lerp((rect.left+rect.width/2)/innerWidth*100,shot.x,t); y=lerp((rect.top+rect.height/2)/innerHeight*100,shot.y,t); size=lerp(rect.width,targetSize,t); scale=lerp(1,shot.scale,t); planetOpacity=smooth(clamp((state.progress-.02)/.78)); copyOpacity=smooth(clamp((state.progress-.52)/.38)); }
-          if(state.kind==='incoming'){ x=shot.x+shot.entryOffset[0]*(1-t); y=shot.y+shot.entryOffset[1]*(1-t); scale=shot.scale*lerp(.88,1,t); planetOpacity=smooth(clamp((state.progress-.02)/.82)); copyOpacity=smooth(clamp((state.progress-.26)/.66)); }
-          if(state.kind==='outgoing'){ x=shot.x+shot.exitOffset[0]*t; y=shot.y+shot.exitOffset[1]*t; scale=shot.scale*lerp(1,1.06,t); planetOpacity=1-smooth(clamp((state.progress-.12)/.86)); copyOpacity=1-smooth(clamp(state.progress/.68)); }
-          if(state.kind==='footer'){ y=shot.y-shot.exitOffset[1]*t*.7; scale=shot.scale*lerp(1,1.08,t); planetOpacity=1-smooth(state.progress); copyOpacity=1-smooth(clamp(state.progress/.62)); }
-          slot.style.setProperty('--shot-x',`${x}%`); slot.style.setProperty('--shot-y',`${y}%`); slot.style.setProperty('--shot-size',`${size}px`); slot.style.setProperty('--shot-max',`${size}px`); slot.style.setProperty('--shot-scale',scale); slot.style.setProperty('--shot-opacity',state.opacity??1); slot.style.setProperty('--planet-opacity',planetOpacity); slot.style.setProperty('--copy-opacity',copyOpacity); slot.style.setProperty('--focus-crop',shot.crop); slot.style.setProperty('--copy-x',`${shot.copy.x}%`); slot.style.setProperty('--copy-y',`${shot.copy.y}%`); slot.style.setProperty('--copy-width-ch',shot.copy.widthCh); slot.style.setProperty('--copy-align',shot.copy.align);
+        function shotDiameter(shot) {
+          return Math.min(
+            (Math.min(innerWidth, innerHeight) * shot.diameterVmin) / 100,
+            shot.maxPx,
+          );
         }
-        function setSlotSemantics(primaryKey){ focusSlots.forEach(slot=>{const interactive=slot===primarySlot&&slot.dataset.key===primaryKey; slot.dataset.interactive=String(interactive); slot.inert=!interactive; slot.setAttribute('aria-hidden',String(!interactive));}); }
-        function hideFocusVisual(){ body.classList.remove('focus-open'); delete body.dataset.focusMode; focusLayer.setAttribute('aria-hidden','true'); focusSlots.forEach(slot=>{slot.style.setProperty('--shot-opacity',0);slot.inert=true;slot.setAttribute('aria-hidden','true');}); root.style.setProperty('--focus-map-opacity-current',1); root.style.setProperty('--focus-map-scale-current',1); }
-        function renderScrollFocus(frame){
-          if(!frame){ if(focusMode==='scroll'){activeFocus=null;focusMode=null;aboutExpanded=false;hideFocusVisual();} return; }
-          focusMode='scroll'; body.dataset.focusMode='scroll'; aboutExpanded=false; activeFocus=frame.primaryKey; body.classList.add('focus-open'); focusLayer.setAttribute('aria-hidden','false'); focusLayer.dataset.focus=activeFocus; focusLayer.classList.remove('about-expanded'); let mapProgress=1;
-          if(frame.phase==='overview-enter'){ primarySlot.dataset.key='about'; secondarySlot.dataset.key=''; setSlotContent(primarySlot,'about'); setSlotGeometry(primarySlot,'about',{kind:'overview',progress:frame.progress,opacity:1}); secondarySlot.style.setProperty('--shot-opacity',0); mapProgress=frame.progress; }
-          if(frame.phase==='hold'){ primarySlot.dataset.key=frame.fromKey; secondarySlot.dataset.key=''; setSlotContent(primarySlot,frame.fromKey); setSlotGeometry(primarySlot,frame.fromKey,{kind:'stable',progress:1,opacity:1}); secondarySlot.style.setProperty('--shot-opacity',0); }
-          if(frame.phase==='handoff'){ primarySlot.dataset.key=frame.fromKey; secondarySlot.dataset.key=frame.toKey; setSlotContent(primarySlot,frame.fromKey); setSlotContent(secondarySlot,frame.toKey); setSlotGeometry(primarySlot,frame.fromKey,{kind:'outgoing',progress:frame.progress,opacity:1}); setSlotGeometry(secondarySlot,frame.toKey,{kind:'incoming',progress:frame.progress,opacity:1}); }
-          if(frame.phase==='footer-release'){ primarySlot.dataset.key='learn'; secondarySlot.dataset.key=''; setSlotContent(primarySlot,'learn'); setSlotGeometry(primarySlot,'learn',{kind:'footer',progress:frame.progress,opacity:1}); secondarySlot.style.setProperty('--shot-opacity',0); }
-          root.style.setProperty('--focus-map-opacity-current',lerp(1,P.camera.focusMapOpacity,smooth(mapProgress))); root.style.setProperty('--focus-map-scale-current',lerp(1,P.camera.focusMapScale,smooth(mapProgress))); setSlotSemantics(frame.phase==='handoff'?null:activeFocus); document.querySelectorAll('.flight-index button').forEach(b=>b.classList.toggle('active',b.dataset.focus===activeFocus));
+        function setSlotContent(slot, key) {
+          if (slot.dataset.identity === key) return;
+          slot.dataset.identity = key;
+          const meta = focusMeta[key],
+            material = P.planet.materials[key],
+            isAbout = key === "about";
+          slot.querySelector(".focus-title").textContent = isAbout
+            ? "木下"
+            : meta.title;
+          slot.querySelector(".focus-kicker").textContent = isAbout
+            ? "PROTOTYPE COPY / ABOUT"
+            : `PROTOTYPE COPY / ${meta.kicker}`;
+          slot.querySelector(".focus-description").textContent = isAbout
+            ? "在星辰、内容与长期建造之间记录自己的数字生活。豹猫是隐藏签名，不是理解 About 的前置条件。"
+            : meta.description;
+          const notes = isAbout
+            ? ["此处只验证稳定阅读层与返回路径。", "不恢复旧版玻璃卡片主舞台。"]
+            : meta.notes;
+          slot.querySelector(".focus-notes").replaceChildren(
+            ...notes.map((text) => {
+              const li = document.createElement("li");
+              li.textContent = text;
+              return li;
+            }),
+          );
+          slot.style.setProperty(
+            "--focus-planet-asset",
+            `url("${material.asset}")`,
+          );
+          slot.style.setProperty(
+            "--focus-material-scale",
+            material.focusScale * P.planet.focusSurfaceScale,
+          );
+          slot.style.setProperty(
+            "--focus-planet-contrast",
+            material.contrast * P.planet.lighting.focusMaterialBoost,
+          );
+          slot.style.setProperty(
+            "--focus-planet-saturation",
+            material.saturation,
+          );
+          if (slot === primarySlot) {
+            focusEnter.textContent = meta.action;
+            focusBack.textContent = "返回星图";
+          }
         }
-        function updateScene(){
-          const metrics=cameraMetrics(), scrollPx=clamp(-journey.getBoundingClientRect().top,0,Math.max(1,journey.offsetHeight-innerHeight)), rawProgress=clamp(scrollPx/metrics.baseTravelPx), p=reduce.matches?1:rawProgress, approach=clamp((p-P.camera.approachStart)/P.camera.approachSpan), overview=clamp((p-P.camera.overviewStart)/P.camera.overviewSpan), emergence=P.planet.emergence;
-          root.style.setProperty('--journey',`${metrics.totalJourneyVh}vh`);
-          root.style.setProperty('--progress',p.toFixed(3)); root.style.setProperty('--approach',approach.toFixed(3)); root.style.setProperty('--overview',overview.toFixed(3));
-          planets.forEach(planet=>{ const key=planet.dataset.planet,[tx,ty,z]=P.layout[variant].planets[key],ts=P.planet.overviewScale[variant][key]*P.planet.depthScale[key],depth=emergence.depthOffset[key],sphereStart=emergence.sphereStart+depth.progress,sphereEnd=emergence.sphereEnd+depth.progress*.22,sphere=smooth(clamp((p-sphereStart)/(sphereEnd-sphereStart))),halo=smooth(clamp((p-(emergence.haloStart+depth.progress*.45))/(sphereStart-emergence.haloStart))),label=smooth(clamp((p-(emergence.labelStart+depth.progress*.16))/(1-emergence.labelStart))),ready=p>=emergence.interactiveStart+depth.progress*.12&&!body.classList.contains('focus-open'); planet.style.setProperty('--x',`${tx}vw`); planet.style.setProperty('--y',`${ty}vh`); planet.style.setProperty('--emerge-x',`${depth.xVw*(1-sphere)}vw`); planet.style.setProperty('--emerge-y',`${depth.yVh*(1-sphere)}vh`); planet.style.setProperty('--scale',ts.toFixed(3)); planet.style.setProperty('--sphere-scale',lerp(.08,1,sphere).toFixed(3)); planet.style.setProperty('--sphere-visible',sphere.toFixed(3)); planet.style.setProperty('--target-visible',clamp(emergence.targetOpacity*(1-sphere*.92))); planet.style.setProperty('--target-halo',(halo*emergence.haloStrength*(1-sphere*.62)).toFixed(3)); planet.style.setProperty('--target-tone',emergence.targetTone[key]); planet.style.setProperty('--label-visible',label.toFixed(3)); planet.style.setProperty('--signal-reveal',label.toFixed(3)); planet.style.setProperty('--visible',p>=emergence.targetStart?1:0); planet.style.setProperty('--z',z); planet.classList.toggle('ready',ready); planet.tabIndex=ready?0:-1; });
-          const aboutRect=aboutPlanet.getBoundingClientRect(),aboutRadius=aboutRect.width/2,companion=P.aboutCompanion.offsetPlanetRadii,catX=clamp(aboutRect.left+aboutRadius+aboutRadius*companion.x,72,innerWidth-72),catY=clamp(aboutRect.top+aboutRadius+aboutRadius*companion.y,66,innerHeight-66),canEnter=planets.some(planet=>planet.classList.contains('ready')); catZone.style.setProperty('--cat-x',`${catX}px`); catZone.style.setProperty('--cat-y',`${catY}px`); catZone.classList.toggle('ready',canEnter); cat.tabIndex=canEnter?0:-1;
-          if(canEnter&&!signalsRevealed){signalsRevealed=true;document.querySelectorAll('.signal-wrap[data-state]').forEach(respond);} else if(overview<.08){signalsRevealed=false;}
-          const frame=resolveFocusFrame(scrollPx,metrics); if(focusMode!=='manual')renderScrollFocus(frame); const stageText=activeFocus?[`03 / ${activeFocus.toUpperCase()} FOCUS`,'content first · planet as spatial window',`FOCUS / ${activeFocus.toUpperCase()}`,'NEAR']:p<P.camera.entryEnd?['00 / ENTRY','five distant targets · one living starfield','ENTRY','FAR']:p<P.camera.approachEnd?['01 / APPROACH','target stars become small worlds in place','APPROACH','MID']:['02 / STAR MAP','five stable regions · full warm geologies','STAR MAP','OVERVIEW']; document.getElementById('stage-name').textContent=stageText[0];document.getElementById('stage-copy').textContent=stageText[1];document.getElementById('debug-stage').textContent=stageText[2];document.getElementById('debug-lod').textContent=stageText[3]; if(!activeFocus){const anchor=p<P.camera.entryEnd?'entry':p<P.camera.approachEnd?'approach':'overview';document.querySelectorAll('.flight-index button').forEach(b=>b.classList.toggle('active',b.dataset.anchor===anchor));}
+        function setSlotGeometry(slot, key, state) {
+          const shot = getShot(key),
+            t = smooth(state.progress ?? 1),
+            targetSize = shotDiameter(shot);
+          let x = shot.x,
+            y = shot.y,
+            size = targetSize,
+            scale = shot.scale,
+            planetOpacity = state.opacity ?? 1,
+            copyOpacity = state.copyOpacity ?? planetOpacity;
+          if (state.kind === "overview") {
+            const rect = document
+              .querySelector(`[data-planet="${key}"]`)
+              .getBoundingClientRect();
+            x = lerp(
+              ((rect.left + rect.width / 2) / innerWidth) * 100,
+              shot.x,
+              t,
+            );
+            y = lerp(
+              ((rect.top + rect.height / 2) / innerHeight) * 100,
+              shot.y,
+              t,
+            );
+            size = lerp(rect.width, targetSize, t);
+            scale = lerp(1, shot.scale, t);
+            planetOpacity = smooth(clamp((state.progress - 0.02) / 0.78));
+            copyOpacity = smooth(clamp((state.progress - 0.52) / 0.38));
+          }
+          if (state.kind === "incoming") {
+            x = shot.x + shot.entryOffset[0] * (1 - t);
+            y = shot.y + shot.entryOffset[1] * (1 - t);
+            scale = shot.scale * lerp(0.88, 1, t);
+            planetOpacity = smooth(clamp((state.progress - 0.02) / 0.82));
+            copyOpacity = smooth(clamp((state.progress - 0.26) / 0.66));
+          }
+          if (state.kind === "outgoing") {
+            x = shot.x + shot.exitOffset[0] * t;
+            y = shot.y + shot.exitOffset[1] * t;
+            scale = shot.scale * lerp(1, 1.06, t);
+            planetOpacity = 1 - smooth(clamp((state.progress - 0.12) / 0.86));
+            copyOpacity = 1 - smooth(clamp(state.progress / 0.68));
+          }
+          if (state.kind === "footer") {
+            y = shot.y - shot.exitOffset[1] * t * 0.7;
+            scale = shot.scale * lerp(1, 1.08, t);
+            planetOpacity = 1 - smooth(state.progress);
+            copyOpacity = 1 - smooth(clamp(state.progress / 0.62));
+          }
+          slot.style.setProperty("--shot-x", `${x}%`);
+          slot.style.setProperty("--shot-y", `${y}%`);
+          slot.style.setProperty("--shot-size", `${size}px`);
+          slot.style.setProperty("--shot-max", `${size}px`);
+          slot.style.setProperty("--shot-scale", scale);
+          slot.style.setProperty("--shot-opacity", state.opacity ?? 1);
+          slot.style.setProperty("--planet-opacity", planetOpacity);
+          slot.style.setProperty("--copy-opacity", copyOpacity);
+          slot.style.setProperty("--focus-crop", shot.crop);
+          slot.style.setProperty("--copy-x", `${shot.copy.x}%`);
+          slot.style.setProperty("--copy-y", `${shot.copy.y}%`);
+          slot.style.setProperty("--copy-width-ch", shot.copy.widthCh);
+          slot.style.setProperty("--copy-align", shot.copy.align);
         }
-        function targetFocusScroll(key){ const metrics=cameraMetrics(),index=P.camera.focusSequence.order.indexOf(key); return journey.offsetTop+metrics.focusStepsStartPx+metrics.stepPx*(index+P.camera.focusSequence.holdRatio*.5); }
-        function cancelManualAnimation(){ focusTransitionToken++; manualAnimations.forEach(animation=>animation.cancel()); manualAnimations=[]; focusProxy.classList.remove('active'); }
-        function jump(mark){ cancelManualAnimation(); closeFocusInstant(false); const metrics=cameraMetrics(),p={entry:.01,approach:.36,overview:.72}[mark]; scrollTo({top:journey.offsetTop+metrics.baseTravelPx*p,behavior:reduce.matches?'auto':'smooth'}); }
-        function setManualFocus(key,expanded=false){ activeFocus=key;focusMode='manual';body.dataset.focusMode='manual';aboutExpanded=key==='about'&&expanded;body.classList.add('focus-open');focusLayer.setAttribute('aria-hidden','false');focusLayer.dataset.focus=key;focusLayer.classList.toggle('about-expanded',aboutExpanded);primarySlot.dataset.key=key;secondarySlot.dataset.key='';setSlotContent(primarySlot,key,aboutExpanded);setSlotGeometry(primarySlot,key,{kind:'stable',progress:1,opacity:1});secondarySlot.style.setProperty('--shot-opacity',0);setSlotSemantics(key);root.style.setProperty('--focus-map-opacity-current',P.camera.focusMapOpacity);root.style.setProperty('--focus-map-scale-current',P.camera.focusMapScale); }
-        function animateFocusProxy(key,sourceRect,onComplete,sourceAssetKey=key){
-          const token=++focusTransitionToken,shot=getShot(key),size=shotDiameter(shot),target={left:innerWidth*shot.x/100-size/2,top:innerHeight*shot.y/100-size/2,width:size,height:size},material=P.planet.materials[sourceAssetKey],duration=P.transition.focusInMs,mobile=innerWidth<=760,copyFrom=mobile?'translateY(18px)':'translateY(calc(-50% + 18px))',copyTo=mobile?'translateY(0)':'translateY(-50%)'; focusProxy.style.setProperty('--proxy-asset',`url("${material.asset}")`);focusProxy.style.setProperty('--proxy-contrast',material.contrast*P.planet.lighting.focusMaterialBoost);focusProxy.style.setProperty('--proxy-saturation',material.saturation);focusProxy.classList.add('active');primarySlot.style.setProperty('--planet-opacity',1);primarySlot.style.setProperty('--copy-opacity',1);const proxyAnimation=focusProxy.animate([{left:`${sourceRect.left}px`,top:`${sourceRect.top}px`,width:`${sourceRect.width}px`,height:`${sourceRect.height}px`,opacity:1},{left:`${target.left}px`,top:`${target.top}px`,width:`${target.width}px`,height:`${target.height}px`,opacity:.92,offset:.72},{left:`${target.left}px`,top:`${target.top}px`,width:`${target.width}px`,height:`${target.height}px`,opacity:0}],{duration,easing:'cubic-bezier(.16,.76,.18,1)',fill:'forwards'}),planetAnimation=primarySlot.querySelector('.focus-planet-wrap').animate([{opacity:0},{opacity:0,offset:.42},{opacity:1}],{duration,easing:'ease-out',fill:'forwards'}),copyAnimation=primarySlot.querySelector('.focus-copy').animate([{opacity:0,transform:copyFrom},{opacity:0,transform:copyFrom,offset:.58},{opacity:1,transform:copyTo}],{duration,easing:'ease-out',fill:'forwards'});manualAnimations=[proxyAnimation,planetAnimation,copyAnimation]; proxyAnimation.finished.then(()=>{if(token!==focusTransitionToken)return;manualAnimations=[];focusProxy.classList.remove('active');onComplete?.();}).catch(()=>{});
+        function setSlotSemantics(primaryKey) {
+          focusSlots.forEach((slot) => {
+            const interactive =
+              slot === primarySlot && slot.dataset.key === primaryKey;
+            slot.dataset.interactive = String(interactive);
+            slot.inert = !interactive;
+            slot.setAttribute("aria-hidden", String(!interactive));
+          });
         }
-        function navigateToFocus(key,source,options={}){ const expanded=Boolean(options.expanded),sourcePlanet=document.querySelector(`[data-planet="${key}"]`),sourceRect=(source?.closest?.('.planet')||source||sourcePlanet).getBoundingClientRect(),sourceAssetKey=activeFocus||key;cancelManualAnimation();focusTrigger=source||sourcePlanet;setManualFocus(key,expanded); if(reduce.matches){primarySlot.style.setProperty('--planet-opacity',1);primarySlot.style.setProperty('--copy-opacity',1);focusBack.focus();return;} animateFocusProxy(key,sourceRect,()=>{scrollTo({top:targetFocusScroll(key),behavior:'auto'});if(!expanded){focusMode=null;delete body.dataset.focusMode;updateScene();}focusBack.focus();},sourceAssetKey); }
-        function jumpFocus(key){ const source=activeFocus?primarySlot.querySelector('.focus-planet-wrap'):document.querySelector(`[data-planet="${key}"]`); navigateToFocus(key,source,{expanded:false}); }
-        document.getElementById('discover').onclick=()=>jump('overview');document.querySelectorAll('.flight-index [data-anchor]').forEach(b=>b.onclick=()=>jump(b.dataset.anchor));document.querySelectorAll('.flight-index [data-focus]').forEach(b=>b.onclick=()=>jumpFocus(b.dataset.focus));
-        function closeFocusInstant(restoreFocus=true){ if(!activeFocus)return;const returnTarget=focusTrigger,wasCat=returnTarget===cat;cancelManualAnimation();body.classList.remove('focus-returning');hideFocusVisual();activeFocus=null;focusMode=null;aboutExpanded=false;focusTrigger=null;if(wasCat){catState='recover';catZone.classList.remove('burst');catZone.classList.add('recovering');setTimeout(()=>{catState='rest';catZone.classList.remove('recovering');document.getElementById('cat-hint').textContent='豹猫卫星彩蛋';if(restoreFocus)cat.focus();},reduce.matches?1:P.transition.catRecoverMs);}else if(returnTarget&&restoreFocus)returnTarget.focus();}
-        function animateFocusReturn(key,onComplete){ const token=++focusTransitionToken,sourceRect=primarySlot.querySelector('.focus-planet-wrap').getBoundingClientRect(),targetRect=document.querySelector(`[data-planet="${key}"]`).getBoundingClientRect(),material=P.planet.materials[key],duration=P.transition.focusOutMs;focusProxy.style.setProperty('--proxy-asset',`url("${material.asset}")`);focusProxy.style.setProperty('--proxy-contrast',material.contrast);focusProxy.style.setProperty('--proxy-saturation',material.saturation);focusProxy.classList.add('active');body.classList.add('focus-returning');const proxyAnimation=focusProxy.animate([{left:`${sourceRect.left}px`,top:`${sourceRect.top}px`,width:`${sourceRect.width}px`,height:`${sourceRect.height}px`,opacity:1},{left:`${targetRect.left}px`,top:`${targetRect.top}px`,width:`${targetRect.width}px`,height:`${targetRect.height}px`,opacity:.82,offset:.78},{left:`${targetRect.left}px`,top:`${targetRect.top}px`,width:`${targetRect.width}px`,height:`${targetRect.height}px`,opacity:0}],{duration,easing:'cubic-bezier(.2,.72,.18,1)',fill:'forwards'}),planetAnimation=primarySlot.querySelector('.focus-planet-wrap').animate([{opacity:1},{opacity:0,offset:.72},{opacity:0}],{duration,easing:'ease-in',fill:'forwards'}),copyAnimation=primarySlot.querySelector('.focus-copy').animate([{opacity:1},{opacity:0,transform:innerWidth<=760?'translateY(18px)':'translateY(calc(-50% + 18px))'}],{duration:duration*.62,easing:'ease-in',fill:'forwards'});manualAnimations=[proxyAnimation,planetAnimation,copyAnimation];proxyAnimation.finished.then(()=>{if(token!==focusTransitionToken)return;manualAnimations=[];focusProxy.classList.remove('active');body.classList.remove('focus-returning');onComplete?.();}).catch(()=>{}); }
-        function closeFocus(){ if(focusMode==='scroll'){jump('overview');return;} if(reduce.matches){closeFocusInstant(true);updateScene();return;} const key=activeFocus;animateFocusReturn(key,()=>{closeFocusInstant(true);updateScene();}); }
-        function expandAbout(){ if(activeFocus!=='about')return;aboutExpanded=true;focusLayer.classList.add('about-expanded');setSlotContent(primarySlot,'about',true); }
-        function previewDestination(){ if(!activeFocus)return; if(activeFocus==='about'){expandAbout();return;} const destination=destinations[activeFocus]; document.getElementById('push-message').textContent=`PLANET PUSH → ${destination} · 原型不跳转生产路由`; body.classList.add('pushing'); setTimeout(()=>body.classList.remove('pushing'),reduce.matches?1:P.transition.actionPreviewMs); }
-        focusBack.onclick=closeFocus;focusEnter.onclick=previewDestination;document.addEventListener('keydown',e=>{if(e.key==='Escape'&&activeFocus)closeFocus();});
-        planets.forEach(p=>{p.addEventListener('click',()=>navigateToFocus(p.dataset.planet,p,{expanded:p.dataset.planet==='about'}));p.addEventListener('mouseenter',()=>respond(p.querySelector('.signal-wrap')));p.addEventListener('focus',()=>respond(p.querySelector('.signal-wrap')));});
-        aboutPlanet.addEventListener('mouseenter',()=>catZone.classList.add('revealed')); aboutPlanet.addEventListener('mouseleave',()=>catZone.classList.remove('revealed')); aboutPlanet.addEventListener('focus',()=>catZone.classList.add('revealed')); aboutPlanet.addEventListener('blur',()=>catZone.classList.remove('revealed'));
-        cat.onclick=()=>{if(catState==='rest'||catState==='recover'){catState='charged';catZone.classList.add('charged');document.getElementById('cat-hint').textContent='再次点击，进入 About';clearTimeout(chargeTimer);chargeTimer=setTimeout(()=>{if(catState==='charged'){catState='rest';catZone.classList.remove('charged');document.getElementById('cat-hint').textContent='豹猫卫星彩蛋';}},reduce.matches?1:P.transition.catChargeMs);return;}if(catState==='charged'){clearTimeout(chargeTimer);catState='burst';catZone.classList.remove('charged');catZone.classList.add('burst');setTimeout(()=>navigateToFocus('about',cat,{expanded:true}),reduce.matches?1:P.transition.catBurstMs);}};
-        document.querySelectorAll('[data-variant]').forEach(b=>b.onclick=()=>setVariant(b.dataset.variant)); document.querySelectorAll('[data-mock]').forEach(b=>b.onclick=()=>setMock(b.dataset.mock));
-        document.addEventListener('keydown',event=>{const target=event.target,editing=target.matches?.('input, textarea, [contenteditable="true"]');if(editing||activeFocus||!['ArrowLeft','ArrowRight'].includes(event.key))return;event.preventDefault();const variants=['orbit','drift'],index=variants.indexOf(variant),step=event.key==='ArrowRight'?1:-1;setVariant(variants[(index+step+variants.length)%variants.length]);});
-        function seededRandom(seed){let state=seed>>>0;return()=>{state=(state*1664525+1013904223)>>>0;return state/4294967296;};}
-        function drawStarfield(){ const cfg=P.environment.starfield,mobile=innerWidth<=760,densityScale=mobile?cfg.mobileDensityScale:1;document.querySelectorAll('[data-star-layer]').forEach((canvas,layerIndex)=>{const name=canvas.dataset.starLayer,layer=cfg.layers[name],rect=canvas.getBoundingClientRect(),dpr=Math.min(devicePixelRatio||1,2),w=Math.max(1,rect.width),h=Math.max(1,rect.height),ctx=canvas.getContext('2d'),rng=seededRandom(cfg.seed+layerIndex*7919),count=Math.round(w*h/1000000*layer.densityPerMegapixel*densityScale*(mobile&&name==='near'?.36:1));canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);let drawn=0,attempts=0;while(drawn<count&&attempts<count*12){attempts++;const x=rng(),y=rng();let chance=.42;for(const c of cfg.clusters){const d=Math.hypot(x-c.x,y-c.y)/c.radius;if(d<1)chance+=c.strength*(1-d);}for(const d of cfg.darkZones){const distance=Math.hypot(x-d.x,y-d.y)/d.radius;if(distance<1)chance-=d.strength*(1-distance);}if(rng()>clamp(chance,.04,1))continue;const warm=rng()<layer.warmRatio,color=warm?[237,222,196]:rng()<.72?[216,224,242]:[168,182,218],radius=lerp(layer.radiusPx[0],layer.radiusPx[1],rng()),alpha=lerp(layer.opacity[0],layer.opacity[1],rng());ctx.fillStyle=`rgba(${color.join(',')},${alpha})`;ctx.beginPath();ctx.arc(x*w,y*h,radius,0,Math.PI*2);ctx.fill();if(name!=='far'&&rng()>.94){ctx.fillStyle=`rgba(${color.join(',')},${alpha*.13})`;ctx.beginPath();ctx.arc(x*w,y*h,radius*4.2,0,Math.PI*2);ctx.fill();}drawn++;}});}
-        function setupMeteor(){
-          const canvas=document.getElementById('meteor-canvas'); if(!finePointer.matches||reduce.matches){canvas.hidden=true;return;} const ctx=canvas.getContext('2d'), cfg=P.meteor.cursor; let W=innerWidth,H=innerHeight,dpr=Math.min(devicePixelRatio||1,2),curX=W*.5,curY=H*.5,targetX=curX,targetY=curY,prevX=curX,prevY=curY,visible=0,targetVisible=0,lastTime=performance.now(); const trail=[],debris=[];
-          function resize(){W=innerWidth;H=innerHeight;dpr=Math.min(devicePixelRatio||1,2);canvas.width=Math.round(W*dpr);canvas.height=Math.round(H*dpr);canvas.style.width=`${W}px`;canvas.style.height=`${H}px`;ctx.setTransform(dpr,0,0,dpr,0,0);}
-          function color(t){const stops=t<.55?[[0,47,167],[51,92,255],t/.55]:[[51,92,255],[184,200,255],(t-.55)/.45],a=stops[0],b=stops[1],k=stops[2];return `${Math.round(lerp(a[0],b[0],k))},${Math.round(lerp(a[1],b[1],k))},${Math.round(lerp(a[2],b[2],k))}`;}
-          function draw(){ctx.save();ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,canvas.width,canvas.height);ctx.restore();if(visible<.01&&!debris.length)return;const N=trail.length;if(N>1){ctx.lineCap='round';for(let j=0;j<N-1;j++){const t=(j+1)/N,a=trail[j],b=trail[j+1];ctx.strokeStyle=`rgba(${color(t)},${(t*visible*.92).toFixed(3)})`;ctx.lineWidth=cfg.trailWidth*t;ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();}}const radius=cfg.headRadius*visible;if(radius>.5){const glow=ctx.createRadialGradient(curX,curY,0,curX,curY,radius);glow.addColorStop(0,`rgba(232,239,255,${(.72*visible).toFixed(3)})`);glow.addColorStop(.26,`rgba(51,92,255,${(.42*visible).toFixed(3)})`);glow.addColorStop(1,'rgba(0,47,167,0)');ctx.fillStyle=glow;ctx.beginPath();ctx.arc(curX,curY,radius,0,Math.PI*2);ctx.fill();ctx.fillStyle=`rgba(235,241,255,${(.82*visible).toFixed(3)})`;ctx.beginPath();ctx.arc(curX,curY,1.9*visible,0,Math.PI*2);ctx.fill();}for(const d of debris){const alpha=(d.life/d.maxLife)*visible;if(alpha<=0)continue;ctx.save();ctx.translate(d.x,d.y);ctx.rotate(Math.atan2(d.vy,d.vx));ctx.fillStyle=`rgba(${d.hue},${alpha.toFixed(3)})`;ctx.fillRect(-d.size*.5,-d.size*.8,d.size,d.size*1.6);ctx.restore();}}
-          function tick(now){const dt=Math.min((now-lastTime)/1000,.05);lastTime=now;prevX=curX;prevY=curY;curX+=(targetX-curX)*cfg.follow;curY+=(targetY-curY)*cfg.follow;const dx=curX-prevX,dy=curY-prevY,speed=Math.hypot(dx,dy)/Math.max(dt,.001);visible+=(targetVisible-visible)*cfg.visibilityLerp;trail.push({x:curX,y:curY});while(trail.length>cfg.maxTrailPoints)trail.shift();if(speed>cfg.speedThreshold&&trail.length>4&&Math.random()<cfg.debrisChance){const count=Math.random()<.6?1:2;for(let i=0;i<count;i++){const point=trail[Math.floor(Math.random()*(trail.length-1))],angle=Math.random()*Math.PI*2,speedOut=cfg.debrisMinSpeed+Math.random()*(cfg.debrisMaxSpeed-cfg.debrisMinSpeed),life=cfg.debrisLifeMin+Math.random()*(cfg.debrisLifeMax-cfg.debrisLifeMin);debris.push({x:point.x,y:point.y,vx:Math.cos(angle)*speedOut,vy:Math.sin(angle)*speedOut-10,life,maxLife:life,size:.6+Math.random()*.9,hue:Math.random()<.5?'51,92,255':'184,200,255'});}}for(let i=debris.length-1;i>=0;i--){const d=debris[i];d.x+=d.vx*dt;d.y+=d.vy*dt;d.vy+=30*dt;d.vx*=.98;d.vy*=.98;d.life-=dt;if(d.life<=0)debris.splice(i,1);}draw();requestAnimationFrame(tick);}
-          addEventListener('pointermove',e=>{if(e.pointerType!=='mouse')return;targetX=e.clientX;targetY=e.clientY;targetVisible=1;const nx=e.clientX/innerWidth-.5,ny=e.clientY/innerHeight-.5;document.querySelectorAll('.signal-wrap[data-state]').forEach(signal=>{const state=signal.dataset.state,factor=state==='active'?1:state==='stable'?.55:0;signal.style.setProperty('--satellite-px',`${nx*P.satellite.parallaxPx*factor}px`);signal.style.setProperty('--satellite-py',`${ny*P.satellite.parallaxPx*factor}px`);});catZone.style.setProperty('--companion-px',`${nx*P.aboutCompanion.parallaxPx}px`);catZone.style.setProperty('--companion-py',`${ny*P.aboutCompanion.parallaxPx}px`);},{passive:true});document.addEventListener('mouseleave',()=>{targetVisible=0;catZone.style.setProperty('--companion-px','0px');catZone.style.setProperty('--companion-py','0px');});addEventListener('resize',resize);resize();requestAnimationFrame(tick);
+        function hideFocusVisual() {
+          body.classList.remove("focus-open");
+          delete body.dataset.focusMode;
+          focusLayer.setAttribute("aria-hidden", "true");
+          focusSlots.forEach((slot) => {
+            slot.style.setProperty("--shot-opacity", 0);
+            slot.inert = true;
+            slot.setAttribute("aria-hidden", "true");
+          });
+          root.style.setProperty("--focus-map-opacity-current", 1);
+          root.style.setProperty("--focus-map-scale-current", 1);
         }
-        function releaseManualToScroll(){if(focusMode!=='manual'||aboutExpanded)return;cancelManualAnimation();focusMode=null;delete body.dataset.focusMode;updateScene();}
-        addEventListener('scroll',updateScene,{passive:true});addEventListener('wheel',releaseManualToScroll,{passive:true});addEventListener('touchstart',releaseManualToScroll,{passive:true});addEventListener('resize',()=>{cancelManualAnimation();drawStarfield();setVariant(variant);updateScene();});reduce.addEventListener('change',()=>{cancelManualAnimation();drawStarfield();setVariant(variant);setMock(mockKey);document.getElementById('meteor-canvas').hidden=reduce.matches||!finePointer.matches;updateScene();});applyParameters();drawStarfield();setVariant(variant);setMock(ACTIVITY_MOCKS[mockKey]?mockKey:'mixed');setupMeteor();updateScene();
+        function renderScrollFocus(frame) {
+          const previousFocus = activeFocus;
+          if (!frame) {
+            if (focusMode === "scroll") {
+              if (
+                previousFocus === "about" &&
+                (focusTrigger === cat || catState === "burst")
+              ) {
+                recoverCatCompanion();
+                focusTrigger = null;
+              }
+              activeFocus = null;
+              focusMode = null;
+              hideFocusVisual();
+            }
+            return;
+          }
+          focusMode = "scroll";
+          body.dataset.focusMode = "scroll";
+          activeFocus = frame.primaryKey;
+          body.classList.add("focus-open");
+          focusLayer.setAttribute("aria-hidden", "false");
+          focusLayer.dataset.focus = activeFocus;
+          let mapProgress = 1;
+          if (
+            previousFocus === "about" &&
+            activeFocus !== "about" &&
+            (focusTrigger === cat || catState === "burst")
+          ) {
+            recoverCatCompanion();
+            focusTrigger = null;
+          }
+          if (frame.phase === "overview-enter") {
+            primarySlot.dataset.key = "about";
+            secondarySlot.dataset.key = "";
+            setSlotContent(primarySlot, "about");
+            setSlotGeometry(primarySlot, "about", {
+              kind: "overview",
+              progress: frame.progress,
+              opacity: 1,
+            });
+            secondarySlot.style.setProperty("--shot-opacity", 0);
+            mapProgress = frame.progress;
+          }
+          if (frame.phase === "hold") {
+            primarySlot.dataset.key = frame.fromKey;
+            secondarySlot.dataset.key = "";
+            setSlotContent(primarySlot, frame.fromKey);
+            setSlotGeometry(primarySlot, frame.fromKey, {
+              kind: "stable",
+              progress: 1,
+              opacity: 1,
+            });
+            secondarySlot.style.setProperty("--shot-opacity", 0);
+          }
+          if (frame.phase === "handoff") {
+            primarySlot.dataset.key = frame.fromKey;
+            secondarySlot.dataset.key = frame.toKey;
+            setSlotContent(primarySlot, frame.fromKey);
+            setSlotContent(secondarySlot, frame.toKey);
+            setSlotGeometry(primarySlot, frame.fromKey, {
+              kind: "outgoing",
+              progress: frame.progress,
+              opacity: 1,
+            });
+            setSlotGeometry(secondarySlot, frame.toKey, {
+              kind: "incoming",
+              progress: frame.progress,
+              opacity: 1,
+            });
+          }
+          if (frame.phase === "footer-release") {
+            primarySlot.dataset.key = "learn";
+            secondarySlot.dataset.key = "";
+            setSlotContent(primarySlot, "learn");
+            setSlotGeometry(primarySlot, "learn", {
+              kind: "footer",
+              progress: frame.progress,
+              opacity: 1,
+            });
+            secondarySlot.style.setProperty("--shot-opacity", 0);
+          }
+          root.style.setProperty(
+            "--focus-map-opacity-current",
+            lerp(1, P.camera.focusMapOpacity, smooth(mapProgress)),
+          );
+          root.style.setProperty(
+            "--focus-map-scale-current",
+            lerp(1, P.camera.focusMapScale, smooth(mapProgress)),
+          );
+          setSlotSemantics(frame.phase === "handoff" ? null : activeFocus);
+          document
+            .querySelectorAll(".flight-index button")
+            .forEach((b) =>
+              b.classList.toggle("active", b.dataset.focus === activeFocus),
+            );
+        }
+        function updateScene() {
+          const metrics = cameraMetrics(),
+            scrollPx = clamp(
+              -journey.getBoundingClientRect().top,
+              0,
+              Math.max(1, journey.offsetHeight - innerHeight),
+            ),
+            rawProgress = clamp(scrollPx / metrics.baseTravelPx),
+            p = reduce.matches ? 1 : rawProgress,
+            approach = clamp(
+              (p - P.camera.approachStart) / P.camera.approachSpan,
+            ),
+            overview = clamp(
+              (p - P.camera.overviewStart) / P.camera.overviewSpan,
+            ),
+            emergence = P.planet.emergence;
+          root.style.setProperty("--journey", `${metrics.totalJourneyVh}vh`);
+          root.style.setProperty("--progress", p.toFixed(3));
+          root.style.setProperty("--approach", approach.toFixed(3));
+          root.style.setProperty("--overview", overview.toFixed(3));
+          planets.forEach((planet) => {
+            const key = planet.dataset.planet,
+              [tx, ty, z] = P.layout[variant].planets[key],
+              ts =
+                P.planet.overviewScale[variant][key] * P.planet.depthScale[key],
+              depth = emergence.depthOffset[key],
+              sphereStart = emergence.sphereStart + depth.progress,
+              sphereEnd = emergence.sphereEnd + depth.progress * 0.22,
+              sphere = smooth(
+                clamp((p - sphereStart) / (sphereEnd - sphereStart)),
+              ),
+              halo = smooth(
+                clamp(
+                  (p - (emergence.haloStart + depth.progress * 0.45)) /
+                    (sphereStart - emergence.haloStart),
+                ),
+              ),
+              label = smooth(
+                clamp(
+                  (p - (emergence.labelStart + depth.progress * 0.16)) /
+                    (1 - emergence.labelStart),
+                ),
+              ),
+              ready =
+                p >= emergence.interactiveStart + depth.progress * 0.12 &&
+                !body.classList.contains("focus-open");
+            planet.style.setProperty("--x", `${tx}vw`);
+            planet.style.setProperty("--y", `${ty}vh`);
+            planet.style.setProperty(
+              "--emerge-x",
+              `${depth.xVw * (1 - sphere)}vw`,
+            );
+            planet.style.setProperty(
+              "--emerge-y",
+              `${depth.yVh * (1 - sphere)}vh`,
+            );
+            planet.style.setProperty("--scale", ts.toFixed(3));
+            planet.style.setProperty(
+              "--sphere-scale",
+              lerp(0.08, 1, sphere).toFixed(3),
+            );
+            planet.style.setProperty("--sphere-visible", sphere.toFixed(3));
+            planet.style.setProperty(
+              "--target-visible",
+              clamp(emergence.targetOpacity * (1 - sphere * 0.92)),
+            );
+            planet.style.setProperty(
+              "--target-halo",
+              (halo * emergence.haloStrength * (1 - sphere * 0.62)).toFixed(3),
+            );
+            planet.style.setProperty(
+              "--target-tone",
+              emergence.targetTone[key],
+            );
+            planet.style.setProperty("--label-visible", label.toFixed(3));
+            planet.style.setProperty("--signal-reveal", label.toFixed(3));
+            planet.style.setProperty(
+              "--visible",
+              p >= emergence.targetStart ? 1 : 0,
+            );
+            planet.style.setProperty("--z", z);
+            planet.classList.toggle("ready", ready);
+            planet.tabIndex = ready ? 0 : -1;
+          });
+          const aboutRect = aboutPlanet.getBoundingClientRect(),
+            aboutRadius = aboutRect.width / 2,
+            companion = P.aboutCompanion.offsetPlanetRadii,
+            catX = clamp(
+              aboutRect.left + aboutRadius + aboutRadius * companion.x,
+              72,
+              innerWidth - 72,
+            ),
+            catY = clamp(
+              aboutRect.top + aboutRadius + aboutRadius * companion.y,
+              66,
+              innerHeight - 66,
+            ),
+            canEnter = planets.some((planet) =>
+              planet.classList.contains("ready"),
+            );
+          catZone.style.setProperty("--cat-x", `${catX}px`);
+          catZone.style.setProperty("--cat-y", `${catY}px`);
+          catZone.classList.toggle("ready", canEnter);
+          cat.tabIndex = canEnter ? 0 : -1;
+          if (canEnter && !signalsRevealed) {
+            signalsRevealed = true;
+            document
+              .querySelectorAll(".signal-wrap[data-state]")
+              .forEach(respond);
+          } else if (overview < 0.08) {
+            signalsRevealed = false;
+          }
+          const frame = resolveFocusFrame(scrollPx, metrics);
+          if (focusMode !== "manual" && focusMode !== "returning")
+            renderScrollFocus(frame);
+          const stageText = activeFocus
+            ? [
+                `03 / ${activeFocus.toUpperCase()} FOCUS`,
+                "content first · planet as spatial window",
+                `FOCUS / ${activeFocus.toUpperCase()}`,
+                "NEAR",
+              ]
+            : p < P.camera.entryEnd
+              ? [
+                  "00 / ENTRY",
+                  "five distant targets · one living starfield",
+                  "ENTRY",
+                  "FAR",
+                ]
+              : p < P.camera.approachEnd
+                ? [
+                    "01 / APPROACH",
+                    "target stars become small worlds in place",
+                    "APPROACH",
+                    "MID",
+                  ]
+                : [
+                    "02 / STAR MAP",
+                    "five stable regions · full warm geologies",
+                    "STAR MAP",
+                    "OVERVIEW",
+                  ];
+          document.getElementById("stage-name").textContent = stageText[0];
+          document.getElementById("stage-copy").textContent = stageText[1];
+          document.getElementById("debug-stage").textContent = stageText[2];
+          document.getElementById("debug-lod").textContent = stageText[3];
+          if (!activeFocus) {
+            const anchor =
+              p < P.camera.entryEnd
+                ? "entry"
+                : p < P.camera.approachEnd
+                  ? "approach"
+                  : "overview";
+            document
+              .querySelectorAll(".flight-index button")
+              .forEach((b) =>
+                b.classList.toggle("active", b.dataset.anchor === anchor),
+              );
+          }
+        }
+        function targetFocusScroll(key) {
+          const metrics = cameraMetrics(),
+            index = P.camera.focusSequence.order.indexOf(key);
+          return (
+            journey.offsetTop +
+            metrics.focusStepsStartPx +
+            metrics.stepPx * (index + P.camera.focusSequence.holdRatio * 0.5)
+          );
+        }
+        function cancelManualAnimation() {
+          focusTransitionToken++;
+          manualAnimations.forEach((animation) => animation.cancel());
+          manualAnimations = [];
+          focusProxy.classList.remove("active");
+        }
+        function jump(mark) {
+          cancelManualAnimation();
+          closeFocusInstant(false);
+          const metrics = cameraMetrics(),
+            p = { entry: 0.01, approach: 0.36, overview: 0.72 }[mark];
+          scrollTo({
+            top: journey.offsetTop + metrics.baseTravelPx * p,
+            behavior: reduce.matches ? "auto" : "smooth",
+          });
+        }
+        function setManualFocus(key) {
+          activeFocus = key;
+          focusMode = "manual";
+          body.dataset.focusMode = "manual";
+          body.classList.add("focus-open");
+          focusLayer.setAttribute("aria-hidden", "false");
+          focusLayer.dataset.focus = key;
+          primarySlot.dataset.key = key;
+          secondarySlot.dataset.key = "";
+          setSlotContent(primarySlot, key);
+          setSlotGeometry(primarySlot, key, {
+            kind: "stable",
+            progress: 1,
+            opacity: 1,
+          });
+          secondarySlot.style.setProperty("--shot-opacity", 0);
+          setSlotSemantics(key);
+          root.style.setProperty(
+            "--focus-map-opacity-current",
+            P.camera.focusMapOpacity,
+          );
+          root.style.setProperty(
+            "--focus-map-scale-current",
+            P.camera.focusMapScale,
+          );
+        }
+        function animateFocusProxy(
+          key,
+          sourceRect,
+          onComplete,
+          sourceAssetKey = key,
+        ) {
+          const token = ++focusTransitionToken,
+            shot = getShot(key),
+            size = shotDiameter(shot),
+            target = {
+              left: (innerWidth * shot.x) / 100 - size / 2,
+              top: (innerHeight * shot.y) / 100 - size / 2,
+              width: size,
+              height: size,
+            },
+            material = P.planet.materials[sourceAssetKey],
+            duration = P.transition.focusInMs,
+            mobile = innerWidth <= 760,
+            copyFrom = mobile
+              ? "translateY(18px)"
+              : "translateY(calc(-50% + 18px))",
+            copyTo = mobile ? "translateY(0)" : "translateY(-50%)";
+          focusProxy.style.setProperty(
+            "--proxy-asset",
+            `url("${material.asset}")`,
+          );
+          focusProxy.style.setProperty(
+            "--proxy-contrast",
+            material.contrast * P.planet.lighting.focusMaterialBoost,
+          );
+          focusProxy.style.setProperty(
+            "--proxy-saturation",
+            material.saturation,
+          );
+          focusProxy.classList.add("active");
+          primarySlot.style.setProperty("--planet-opacity", 1);
+          primarySlot.style.setProperty("--copy-opacity", 1);
+          const proxyAnimation = focusProxy.animate(
+              [
+                {
+                  left: `${sourceRect.left}px`,
+                  top: `${sourceRect.top}px`,
+                  width: `${sourceRect.width}px`,
+                  height: `${sourceRect.height}px`,
+                  opacity: 1,
+                },
+                {
+                  left: `${target.left}px`,
+                  top: `${target.top}px`,
+                  width: `${target.width}px`,
+                  height: `${target.height}px`,
+                  opacity: 0.92,
+                  offset: 0.72,
+                },
+                {
+                  left: `${target.left}px`,
+                  top: `${target.top}px`,
+                  width: `${target.width}px`,
+                  height: `${target.height}px`,
+                  opacity: 0,
+                },
+              ],
+              {
+                duration,
+                easing: "cubic-bezier(.16,.76,.18,1)",
+                fill: "forwards",
+              },
+            ),
+            planetAnimation = primarySlot
+              .querySelector(".focus-planet-wrap")
+              .animate(
+                [{ opacity: 0 }, { opacity: 0, offset: 0.42 }, { opacity: 1 }],
+                { duration, easing: "ease-out", fill: "forwards" },
+              ),
+            copyAnimation = primarySlot.querySelector(".focus-copy").animate(
+              [
+                { opacity: 0, transform: copyFrom },
+                { opacity: 0, transform: copyFrom, offset: 0.58 },
+                { opacity: 1, transform: copyTo },
+              ],
+              { duration, easing: "ease-out", fill: "forwards" },
+            );
+          manualAnimations = [proxyAnimation, planetAnimation, copyAnimation];
+          proxyAnimation.finished
+            .then(() => {
+              if (token !== focusTransitionToken) return;
+              manualAnimations = [];
+              focusProxy.classList.remove("active");
+              onComplete?.();
+            })
+            .catch(() => {});
+        }
+        function navigateToFocus(key, source) {
+          const sourcePlanet = document.querySelector(`[data-planet="${key}"]`),
+            sourceRect = (
+              source?.closest?.(".planet") ||
+              source ||
+              sourcePlanet
+            ).getBoundingClientRect(),
+            sourceAssetKey = activeFocus || key;
+          cancelManualAnimation();
+          focusTrigger = source || sourcePlanet;
+          setManualFocus(key);
+          if (reduce.matches) {
+            primarySlot.style.setProperty("--planet-opacity", 1);
+            primarySlot.style.setProperty("--copy-opacity", 1);
+            focusBack.focus();
+            return;
+          }
+          animateFocusProxy(
+            key,
+            sourceRect,
+            () => {
+              scrollTo({ top: targetFocusScroll(key), behavior: "auto" });
+              focusMode = null;
+              delete body.dataset.focusMode;
+              updateScene();
+              focusBack.focus();
+            },
+            sourceAssetKey,
+          );
+        }
+        function jumpFocus(key) {
+          const source = activeFocus
+            ? primarySlot.querySelector(".focus-planet-wrap")
+            : document.querySelector(`[data-planet="${key}"]`);
+          navigateToFocus(key, source);
+        }
+        document.getElementById("discover").onclick = () => jump("overview");
+        document
+          .querySelectorAll(".flight-index [data-anchor]")
+          .forEach((b) => (b.onclick = () => jump(b.dataset.anchor)));
+        document
+          .querySelectorAll(".flight-index [data-focus]")
+          .forEach((b) => (b.onclick = () => jumpFocus(b.dataset.focus)));
+        function recoverCatCompanion(restoreFocus = false) {
+          if (catState !== "burst" && focusTrigger !== cat) return;
+          catState = "recover";
+          catZone.classList.remove("burst");
+          catZone.classList.add("recovering");
+          setTimeout(
+            () => {
+              catState = "rest";
+              catZone.classList.remove("recovering");
+              document.getElementById("cat-hint").textContent = "豹猫卫星彩蛋";
+              if (restoreFocus) cat.focus();
+            },
+            reduce.matches ? 1 : P.transition.catRecoverMs,
+          );
+        }
+        function closeFocusInstant(restoreFocus = true) {
+          if (!activeFocus) return;
+          const returnTarget = focusTrigger,
+            wasCat = returnTarget === cat;
+          cancelManualAnimation();
+          body.classList.remove("focus-returning");
+          hideFocusVisual();
+          activeFocus = null;
+          focusMode = null;
+          focusTrigger = null;
+          if (wasCat) recoverCatCompanion(restoreFocus);
+          else if (returnTarget && restoreFocus) returnTarget.focus();
+        }
+        function animateFocusReturn(key, onComplete) {
+          const token = ++focusTransitionToken,
+            sourceRect = primarySlot
+              .querySelector(".focus-planet-wrap")
+              .getBoundingClientRect(),
+            targetRect = document
+              .querySelector(`[data-planet="${key}"]`)
+              .getBoundingClientRect(),
+            material = P.planet.materials[key],
+            duration = P.transition.focusOutMs;
+          focusProxy.style.setProperty(
+            "--proxy-asset",
+            `url("${material.asset}")`,
+          );
+          focusProxy.style.setProperty("--proxy-contrast", material.contrast);
+          focusProxy.style.setProperty(
+            "--proxy-saturation",
+            material.saturation,
+          );
+          focusProxy.classList.add("active");
+          body.classList.add("focus-returning");
+          const proxyAnimation = focusProxy.animate(
+              [
+                {
+                  left: `${sourceRect.left}px`,
+                  top: `${sourceRect.top}px`,
+                  width: `${sourceRect.width}px`,
+                  height: `${sourceRect.height}px`,
+                  opacity: 1,
+                },
+                {
+                  left: `${targetRect.left}px`,
+                  top: `${targetRect.top}px`,
+                  width: `${targetRect.width}px`,
+                  height: `${targetRect.height}px`,
+                  opacity: 0.82,
+                  offset: 0.78,
+                },
+                {
+                  left: `${targetRect.left}px`,
+                  top: `${targetRect.top}px`,
+                  width: `${targetRect.width}px`,
+                  height: `${targetRect.height}px`,
+                  opacity: 0,
+                },
+              ],
+              {
+                duration,
+                easing: "cubic-bezier(.2,.72,.18,1)",
+                fill: "forwards",
+              },
+            ),
+            planetAnimation = primarySlot
+              .querySelector(".focus-planet-wrap")
+              .animate(
+                [{ opacity: 1 }, { opacity: 0, offset: 0.72 }, { opacity: 0 }],
+                { duration, easing: "ease-in", fill: "forwards" },
+              ),
+            copyAnimation = primarySlot
+              .querySelector(".focus-copy")
+              .animate(
+                [
+                  { opacity: 1 },
+                  {
+                    opacity: 0,
+                    transform:
+                      innerWidth <= 760
+                        ? "translateY(18px)"
+                        : "translateY(calc(-50% + 18px))",
+                  },
+                ],
+                {
+                  duration: duration * 0.62,
+                  easing: "ease-in",
+                  fill: "forwards",
+                },
+              );
+          manualAnimations = [proxyAnimation, planetAnimation, copyAnimation];
+          proxyAnimation.finished
+            .then(() => {
+              if (token !== focusTransitionToken) return;
+              manualAnimations = [];
+              focusProxy.classList.remove("active");
+              body.classList.remove("focus-returning");
+              onComplete?.();
+            })
+            .catch(() => {});
+        }
+        function returnToOverview() {
+          const returnTarget = focusTrigger;
+          closeFocusInstant(false);
+          focusMode = "returning";
+          body.dataset.focusMode = "returning";
+          const metrics = cameraMetrics(),
+            target = journey.offsetTop + metrics.baseTravelPx * 0.72;
+          let finished = false;
+          const finish = () => {
+            if (finished || focusMode !== "returning") return;
+            finished = true;
+            clearTimeout(returnTimer);
+            focusMode = null;
+            delete body.dataset.focusMode;
+            updateScene();
+            returnTarget?.focus();
+          };
+          addEventListener("scrollend", finish, { once: true });
+          returnTimer = setTimeout(finish, P.transition.focusOutMs + 500);
+          scrollTo({
+            top: target,
+            behavior: reduce.matches ? "auto" : "smooth",
+          });
+          if (reduce.matches) finish();
+        }
+        function closeFocus() {
+          if (focusMode === "scroll") {
+            returnToOverview();
+            return;
+          }
+          if (reduce.matches) {
+            closeFocusInstant(true);
+            updateScene();
+            return;
+          }
+          const key = activeFocus;
+          animateFocusReturn(key, () => {
+            closeFocusInstant(true);
+            updateScene();
+          });
+        }
+        function previewDestination() {
+          if (!activeFocus || activeFocus === "about") return;
+          const destination = destinations[activeFocus];
+          document.getElementById("push-message").textContent =
+            `PLANET PUSH → ${destination} · 原型不跳转生产路由`;
+          body.classList.add("pushing");
+          setTimeout(
+            () => body.classList.remove("pushing"),
+            reduce.matches ? 1 : P.transition.actionPreviewMs,
+          );
+        }
+        focusBack.onclick = closeFocus;
+        focusEnter.onclick = previewDestination;
+        document.addEventListener("keydown", (e) => {
+          if (e.key === "Escape" && activeFocus) closeFocus();
+        });
+        planets.forEach((p) => {
+          p.addEventListener("click", () =>
+            navigateToFocus(p.dataset.planet, p),
+          );
+          p.addEventListener("mouseenter", () =>
+            respond(p.querySelector(".signal-wrap")),
+          );
+          p.addEventListener("focus", () =>
+            respond(p.querySelector(".signal-wrap")),
+          );
+        });
+        aboutPlanet.addEventListener("mouseenter", () =>
+          catZone.classList.add("revealed"),
+        );
+        aboutPlanet.addEventListener("mouseleave", () =>
+          catZone.classList.remove("revealed"),
+        );
+        aboutPlanet.addEventListener("focus", () =>
+          catZone.classList.add("revealed"),
+        );
+        aboutPlanet.addEventListener("blur", () =>
+          catZone.classList.remove("revealed"),
+        );
+        cat.onclick = () => {
+          if (catState === "rest" || catState === "recover") {
+            catState = "charged";
+            catZone.classList.add("charged");
+            document.getElementById("cat-hint").textContent =
+              "再次点击，进入 About";
+            clearTimeout(chargeTimer);
+            chargeTimer = setTimeout(
+              () => {
+                if (catState === "charged") {
+                  catState = "rest";
+                  catZone.classList.remove("charged");
+                  document.getElementById("cat-hint").textContent =
+                    "豹猫卫星彩蛋";
+                }
+              },
+              reduce.matches ? 1 : P.transition.catChargeMs,
+            );
+            return;
+          }
+          if (catState === "charged") {
+            clearTimeout(chargeTimer);
+            catState = "burst";
+            catZone.classList.remove("charged");
+            catZone.classList.add("burst");
+            setTimeout(
+              () => navigateToFocus("about", cat),
+              reduce.matches ? 1 : P.transition.catBurstMs,
+            );
+          }
+        };
+        document
+          .querySelectorAll("[data-variant]")
+          .forEach((b) => (b.onclick = () => setVariant(b.dataset.variant)));
+        document
+          .querySelectorAll("[data-mock]")
+          .forEach((b) => (b.onclick = () => setMock(b.dataset.mock)));
+        document.addEventListener("keydown", (event) => {
+          const target = event.target,
+            editing = target.matches?.(
+              'input, textarea, [contenteditable="true"]',
+            );
+          if (
+            editing ||
+            activeFocus ||
+            !["ArrowLeft", "ArrowRight"].includes(event.key)
+          )
+            return;
+          event.preventDefault();
+          const variants = ["orbit", "drift"],
+            index = variants.indexOf(variant),
+            step = event.key === "ArrowRight" ? 1 : -1;
+          setVariant(
+            variants[(index + step + variants.length) % variants.length],
+          );
+        });
+        function seededRandom(seed) {
+          let state = seed >>> 0;
+          return () => {
+            state = (state * 1664525 + 1013904223) >>> 0;
+            return state / 4294967296;
+          };
+        }
+        function drawStarfield() {
+          const cfg = P.environment.starfield,
+            mobile = innerWidth <= 760,
+            densityScale = mobile ? cfg.mobileDensityScale : 1;
+          document
+            .querySelectorAll("[data-star-layer]")
+            .forEach((canvas, layerIndex) => {
+              const name = canvas.dataset.starLayer,
+                layer = cfg.layers[name],
+                rect = canvas.getBoundingClientRect(),
+                dpr = Math.min(devicePixelRatio || 1, 2),
+                w = Math.max(1, rect.width),
+                h = Math.max(1, rect.height),
+                ctx = canvas.getContext("2d"),
+                rng = seededRandom(cfg.seed + layerIndex * 7919),
+                count = Math.round(
+                  ((w * h) / 1000000) *
+                    layer.densityPerMegapixel *
+                    densityScale *
+                    (mobile && name === "near" ? 0.36 : 1),
+                );
+              canvas.width = Math.round(w * dpr);
+              canvas.height = Math.round(h * dpr);
+              ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+              ctx.clearRect(0, 0, w, h);
+              let drawn = 0,
+                attempts = 0;
+              while (drawn < count && attempts < count * 12) {
+                attempts++;
+                const x = rng(),
+                  y = rng();
+                let chance = 0.42;
+                for (const c of cfg.clusters) {
+                  const d = Math.hypot(x - c.x, y - c.y) / c.radius;
+                  if (d < 1) chance += c.strength * (1 - d);
+                }
+                for (const d of cfg.darkZones) {
+                  const distance = Math.hypot(x - d.x, y - d.y) / d.radius;
+                  if (distance < 1) chance -= d.strength * (1 - distance);
+                }
+                if (rng() > clamp(chance, 0.04, 1)) continue;
+                const warm = rng() < layer.warmRatio,
+                  color = warm
+                    ? [237, 222, 196]
+                    : rng() < 0.72
+                      ? [216, 224, 242]
+                      : [168, 182, 218],
+                  radius = lerp(layer.radiusPx[0], layer.radiusPx[1], rng()),
+                  alpha = lerp(layer.opacity[0], layer.opacity[1], rng());
+                ctx.fillStyle = `rgba(${color.join(",")},${alpha})`;
+                ctx.beginPath();
+                ctx.arc(x * w, y * h, radius, 0, Math.PI * 2);
+                ctx.fill();
+                if (name !== "far" && rng() > 0.94) {
+                  ctx.fillStyle = `rgba(${color.join(",")},${alpha * 0.13})`;
+                  ctx.beginPath();
+                  ctx.arc(x * w, y * h, radius * 4.2, 0, Math.PI * 2);
+                  ctx.fill();
+                }
+                drawn++;
+              }
+            });
+        }
+        function setupMeteor() {
+          const canvas = document.getElementById("meteor-canvas");
+          if (!finePointer.matches || reduce.matches) {
+            canvas.hidden = true;
+            return;
+          }
+          const ctx = canvas.getContext("2d"),
+            cfg = P.meteor.cursor;
+          let W = innerWidth,
+            H = innerHeight,
+            dpr = Math.min(devicePixelRatio || 1, 2),
+            curX = W * 0.5,
+            curY = H * 0.5,
+            targetX = curX,
+            targetY = curY,
+            prevX = curX,
+            prevY = curY,
+            visible = 0,
+            targetVisible = 0,
+            lastTime = performance.now();
+          const trail = [],
+            debris = [];
+          function resize() {
+            W = innerWidth;
+            H = innerHeight;
+            dpr = Math.min(devicePixelRatio || 1, 2);
+            canvas.width = Math.round(W * dpr);
+            canvas.height = Math.round(H * dpr);
+            canvas.style.width = `${W}px`;
+            canvas.style.height = `${H}px`;
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+          }
+          function color(t) {
+            const stops =
+                t < 0.55
+                  ? [[0, 47, 167], [51, 92, 255], t / 0.55]
+                  : [[51, 92, 255], [184, 200, 255], (t - 0.55) / 0.45],
+              a = stops[0],
+              b = stops[1],
+              k = stops[2];
+            return `${Math.round(lerp(a[0], b[0], k))},${Math.round(lerp(a[1], b[1], k))},${Math.round(lerp(a[2], b[2], k))}`;
+          }
+          function draw() {
+            ctx.save();
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.restore();
+            if (visible < 0.01 && !debris.length) return;
+            const N = trail.length;
+            if (N > 1) {
+              ctx.lineCap = "round";
+              for (let j = 0; j < N - 1; j++) {
+                const t = (j + 1) / N,
+                  a = trail[j],
+                  b = trail[j + 1];
+                ctx.strokeStyle = `rgba(${color(t)},${(t * visible * 0.92).toFixed(3)})`;
+                ctx.lineWidth = cfg.trailWidth * t;
+                ctx.beginPath();
+                ctx.moveTo(a.x, a.y);
+                ctx.lineTo(b.x, b.y);
+                ctx.stroke();
+              }
+            }
+            const radius = cfg.headRadius * visible;
+            if (radius > 0.5) {
+              const glow = ctx.createRadialGradient(
+                curX,
+                curY,
+                0,
+                curX,
+                curY,
+                radius,
+              );
+              glow.addColorStop(
+                0,
+                `rgba(232,239,255,${(0.72 * visible).toFixed(3)})`,
+              );
+              glow.addColorStop(
+                0.26,
+                `rgba(51,92,255,${(0.42 * visible).toFixed(3)})`,
+              );
+              glow.addColorStop(1, "rgba(0,47,167,0)");
+              ctx.fillStyle = glow;
+              ctx.beginPath();
+              ctx.arc(curX, curY, radius, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.fillStyle = `rgba(235,241,255,${(0.82 * visible).toFixed(3)})`;
+              ctx.beginPath();
+              ctx.arc(curX, curY, 1.9 * visible, 0, Math.PI * 2);
+              ctx.fill();
+            }
+            for (const d of debris) {
+              const alpha = (d.life / d.maxLife) * visible;
+              if (alpha <= 0) continue;
+              ctx.save();
+              ctx.translate(d.x, d.y);
+              ctx.rotate(Math.atan2(d.vy, d.vx));
+              ctx.fillStyle = `rgba(${d.hue},${alpha.toFixed(3)})`;
+              ctx.fillRect(-d.size * 0.5, -d.size * 0.8, d.size, d.size * 1.6);
+              ctx.restore();
+            }
+          }
+          function tick(now) {
+            const dt = Math.min((now - lastTime) / 1000, 0.05);
+            lastTime = now;
+            prevX = curX;
+            prevY = curY;
+            curX += (targetX - curX) * cfg.follow;
+            curY += (targetY - curY) * cfg.follow;
+            const dx = curX - prevX,
+              dy = curY - prevY,
+              speed = Math.hypot(dx, dy) / Math.max(dt, 0.001);
+            visible += (targetVisible - visible) * cfg.visibilityLerp;
+            trail.push({ x: curX, y: curY });
+            while (trail.length > cfg.maxTrailPoints) trail.shift();
+            if (
+              speed > cfg.speedThreshold &&
+              trail.length > 4 &&
+              Math.random() < cfg.debrisChance
+            ) {
+              const count = Math.random() < 0.6 ? 1 : 2;
+              for (let i = 0; i < count; i++) {
+                const point =
+                    trail[Math.floor(Math.random() * (trail.length - 1))],
+                  angle = Math.random() * Math.PI * 2,
+                  speedOut =
+                    cfg.debrisMinSpeed +
+                    Math.random() * (cfg.debrisMaxSpeed - cfg.debrisMinSpeed),
+                  life =
+                    cfg.debrisLifeMin +
+                    Math.random() * (cfg.debrisLifeMax - cfg.debrisLifeMin);
+                debris.push({
+                  x: point.x,
+                  y: point.y,
+                  vx: Math.cos(angle) * speedOut,
+                  vy: Math.sin(angle) * speedOut - 10,
+                  life,
+                  maxLife: life,
+                  size: 0.6 + Math.random() * 0.9,
+                  hue: Math.random() < 0.5 ? "51,92,255" : "184,200,255",
+                });
+              }
+            }
+            for (let i = debris.length - 1; i >= 0; i--) {
+              const d = debris[i];
+              d.x += d.vx * dt;
+              d.y += d.vy * dt;
+              d.vy += 30 * dt;
+              d.vx *= 0.98;
+              d.vy *= 0.98;
+              d.life -= dt;
+              if (d.life <= 0) debris.splice(i, 1);
+            }
+            draw();
+            requestAnimationFrame(tick);
+          }
+          addEventListener(
+            "pointermove",
+            (e) => {
+              if (e.pointerType !== "mouse") return;
+              targetX = e.clientX;
+              targetY = e.clientY;
+              targetVisible = 1;
+              const nx = e.clientX / innerWidth - 0.5,
+                ny = e.clientY / innerHeight - 0.5;
+              document
+                .querySelectorAll(".signal-wrap[data-state]")
+                .forEach((signal) => {
+                  const state = signal.dataset.state,
+                    factor =
+                      state === "active" ? 1 : state === "stable" ? 0.55 : 0;
+                  signal.style.setProperty(
+                    "--satellite-px",
+                    `${nx * P.satellite.parallaxPx * factor}px`,
+                  );
+                  signal.style.setProperty(
+                    "--satellite-py",
+                    `${ny * P.satellite.parallaxPx * factor}px`,
+                  );
+                });
+              catZone.style.setProperty(
+                "--companion-px",
+                `${nx * P.aboutCompanion.parallaxPx}px`,
+              );
+              catZone.style.setProperty(
+                "--companion-py",
+                `${ny * P.aboutCompanion.parallaxPx}px`,
+              );
+            },
+            { passive: true },
+          );
+          document.addEventListener("mouseleave", () => {
+            targetVisible = 0;
+            catZone.style.setProperty("--companion-px", "0px");
+            catZone.style.setProperty("--companion-py", "0px");
+          });
+          addEventListener("resize", resize);
+          resize();
+          requestAnimationFrame(tick);
+        }
+        function releaseManualToScroll() {
+          if (focusMode !== "manual") return;
+          cancelManualAnimation();
+          if (reduce.matches) {
+            closeFocusInstant(false);
+            return;
+          }
+          const key = activeFocus;
+          scrollTo({ top: targetFocusScroll(key), behavior: "auto" });
+          focusMode = null;
+          delete body.dataset.focusMode;
+          updateScene();
+        }
+        addEventListener("scroll", updateScene, { passive: true });
+        addEventListener("wheel", releaseManualToScroll, { passive: true });
+        addEventListener("touchstart", releaseManualToScroll, {
+          passive: true,
+        });
+        addEventListener("resize", () => {
+          cancelManualAnimation();
+          drawStarfield();
+          setVariant(variant);
+          updateScene();
+        });
+        reduce.addEventListener("change", () => {
+          cancelManualAnimation();
+          drawStarfield();
+          setVariant(variant);
+          setMock(mockKey);
+          document.getElementById("meteor-canvas").hidden =
+            reduce.matches || !finePointer.matches;
+          updateScene();
+        });
+        applyParameters();
+        drawStarfield();
+        setVariant(variant);
+        setMock(ACTIVITY_MOCKS[mockKey] ? mockKey : "mixed");
+        setupMeteor();
+        updateScene();
       })();
     </script>
   </body>

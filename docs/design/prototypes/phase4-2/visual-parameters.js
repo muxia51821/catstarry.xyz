@@ -39,7 +39,7 @@ window.PROTOTYPE_VISUAL_PARAMETERS = {
       order: ["about", "feed", "blog", "projects", "learn"],
       overviewHoldVh: 45,
       overviewHandoffVh: { desktop: 54, mobile: 42 },
-      stepVh: { desktop: 88, mobile: 76 },
+      stepVh: { desktop: 144, mobile: 126 },
       footerReleaseVh: 35,
       holdRatio: 0.72
     },
