@@ -12,7 +12,7 @@
       "measurable_criteria": [
         "Home 的主路径为宇宙入口、接近星域、自由星图总览与页脚。",
         "Home 不展示混合时间线、内容卡片、内容筛选、分页或无限滚动。",
-        "Blog、Feed、Learn、Projects 通过星图点击进入各自功能页面。",
+        "Blog、Feed、Learn、Projects 可从星图进入对应 Planet Focus，并在 Focus action 后进入各自功能页面。",
         "About 在 Home 原地展开。"
       ]
     },
@@ -47,8 +47,13 @@
       "status": "locked"
     },
     {
-      "decision": "非 About 星球短推进后进入各自功能页面。",
-      "tradeoffs": "Home 保持轻量，不将各功能页重做成星球内页。",
+      "decision": "非 About 星球先进入只含近景、材质、标题与 action 的 Planet Focus，再由 action 短推进进入各自功能页面。",
+      "tradeoffs": "增加一次明确的观察与目的地选择，但 Focus 不加载板块内容，也不将各功能页重做成星球内页。",
+      "status": "locked"
+    },
+    {
+      "decision": "自然滚动按 About、Feed、Blog、Projects、Learn 提供默认 Focus 观察顺序，同时允许从 Star Map 直接跳到任一 Focus。",
+      "tradeoffs": "保留连续空间叙事与可学习的默认路径，同时避免强制通关。",
       "status": "locked"
     },
     {

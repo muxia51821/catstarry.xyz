@@ -11,11 +11,11 @@
 
 | 属性 | 值 |
 | --- | --- |
-| 渲染 | SSG；客户端 island 只处理滚动阶段、短推进与 About 原地展开 |
-| 内容 | 宇宙入口（远处星点）→ 2–3 屏接近同一星域 → 五颗完整暖性地质星球的自由总览 → 页脚；About 在 Home 原地展开 |
+| 渲染 | SSG；客户端 island 只处理滚动阶段、Star Map / Focus 切换、Planet Push 与 About 原地展开 |
+| 内容 | 宇宙入口（远处星点）→ 2–3 屏接近同一星域 → 五颗完整暖性地质星球的自由总览 → 单星 Focus 浏览 → 页脚；About 在 Home 原地展开 |
 | 数据来源 | 静态星图目的地配置；不读取 Blog / Feed / Learn / Projects 的最新内容作聚合流 |
-| 交互 | 滚动只表达空间纵深；点击 Blog / Feed / Learn / Projects 后短推进并跳转；About 可直接展开，豹猫卫星是进入同一展开态的可选彩蛋 |
-| 链接到 | /blog、/feed、/projects、/learn；点击对应星球后进入各功能页面 |
+| 交互 | 自然滚动按 About → Feed → Blog → Projects → Learn 浏览 Focus；总览可直接跳到任一 Focus；非 About 星球在 Focus action 后执行 Planet Push 并跳转；About 可直接展开，豹猫卫星是进入同一展开态的可选彩蛋 |
+| 链接到 | /blog、/feed、/projects、/learn；在对应星球 Focus 中触发 action 后进入各功能页面 |
 
 ### `/blog/` — 博客列表页
 

@@ -1,14 +1,14 @@
 ---
-version: 2.0
+version: 2.1
 name: catstarry.xyz-design-system
 description: catstarry.xyz 视觉与交互设计系统。Home 是从远处接近 catstarry 星域的空间导航入口；Content 是奶油画廊；Finance 是赛博数据暗面。以 Klein Blue 作为全站 Brand Voltage，以暖性地质星球、克制粒子与滚动纵深构成 Home 的宇宙语法，同时保持 CJK 优先、WCAG 与 GB/T 44808 可访问性约束。
 ---
 
 # catstarry.xyz 设计系统
 
-> Phase 4.1（Design 2.0）审定稿。
+> Phase 4.1（Design 2.1）极小交互重锁稿，2026-07-18 完成。
 >
-> 本版以 ADR-005、ADR-006、Home / Feed 定向回流后的需求与验收为边界。它替代 Design 1.4 中“Home 两栏布局、About 首屏卡片、Home 混合时间线”的旧假设。
+> 本版以 ADR-005、ADR-006、ADR-007、Home / Feed 定向回流后的需求与验收为边界，并正式吸收本次极小重锁已确认的 `Star Map → Focus → action` 交互合同。它替代 Design 1.4 中“Home 两栏布局、About 首屏卡片、Home 混合时间线”的旧假设。
 
 ---
 
@@ -16,8 +16,8 @@ description: catstarry.xyz 视觉与交互设计系统。Home 是从远处接近
 
 ### 0.1 当前阶段
 
-- Phase 4.1 已完成：Design 2.0、canonical CSS token、CJK 基线与通用工具类已完成重锁。
-- Phase 4.2 尚未开始：等待流程治理确认后，只负责用一次性原型校准滚动距离、视差比例、资源规格与动效参数。
+- Phase 4.1 已完成：Design 2.0、HAS 视觉重锁以及本次 Design 2.1 极小交互重锁均已闭合；本次未修改 canonical CSS。
+- Phase 4.2 进行中：只负责用一次性原型校准滚动距离、Focus 浏览路径、Drift 构图、资源规格与动效参数。
 - Phase 5 尚未开始：本文件不授权生产组件、页面或数据实现。
 
 ### 0.2 上游边界
@@ -42,7 +42,9 @@ Phase 4.2 只校准：
 
 - 星图是否短暂 sticky，以及具体滚动距离；
 - 各景深层的视差比例、模糊量与缩放量；
-- 星球图片分辨率、裁切、加载切换点；
+- Drift 语义构图内的相对位置、深度与命中范围；
+- 默认滚动 Focus 序列、直接跳转 Focus 与 action 的节奏；
+- 星球图片分辨率、裁切、加载切换点，以及 Overview / Focus / Mobile 的同一身份连续性；
 - 豹猫粒子密度、蓄能与回收时长的最终数值；
 - 移动端粒子数量和动效降级幅度。
 
@@ -74,9 +76,11 @@ Home 不是多个独立 section 拼接出的作品集，也不是游戏地图。
 1. **宇宙入口**：深空、大留白、远处星点和待定世界观短句；一次性流星与 DISCOVER MORE 提供继续探索的入口。
 2. **接近星域**：自然滚动推进 2–3 个视口的空间距离；远、中、近景产生轻量视差，星点逐渐分化为完整小型星球。
 3. **自由星图总览**：About、Blog、Feed、Learn、Projects 五颗完整星球自由分布；标签低声量常驻，hover / focus 时清晰。
-4. **直接抵达**：点击 Blog、Feed、Learn、Projects 后，从当前视角短暂推进目标星球，再进入对应功能页。
-5. **About 例外**：点击 About 星球或通过豹猫彩蛋触发后，在 Home 原地展开介绍。
-6. **自然收束**：星图释放后进入页脚；没有 Home Recently、内容卡片、类型筛选或无限信息流。
+4. **Planet Focus 浏览**：总览后可自然滚动经过 `About → Feed → Blog → Projects → Learn` 的默认观察顺序；该顺序只组织镜头路径，不表达栏目重要性，也不是强制通关。
+5. **直接抵达 Focus**：从星图点击、键盘触发或侧边航行索引选择任一星球，可直接进入目标 Focus，不必按默认顺序浏览前置星球。
+6. **Focus action**：Blog、Feed、Learn、Projects 在 Focus 中通过明确 action 触发 Planet Push，随后进入对应功能页；Focus 不加载板块内容，也不是星球详情页。
+7. **About 例外**：About 保留 Home 原地展开。总览中直接点击 About 可在轻推近后连续展开；自然滚动进入 About Focus 时也提供明确 action；豹猫彩蛋进入同一展开态。
+8. **自然收束**：最后一个 Focus 释放后进入页脚；没有 Home Recently、内容卡片、类型筛选或无限信息流。
 
 首次看见的总览与后续聚焦属于同一片星图，不重复建立第二张地图。
 
@@ -357,9 +361,20 @@ DISCOVER MORE 同时支持：
 
 - 五颗星球自由分布，不使用规整轨道或中心太阳。
 - 总览必须看见完整球体；聚焦可只见弧面和高细节局部。
-- 星球在任何可点击阶段都能直接导航，不要求按固定顺序“通关”。
+- 星球在任何可点击阶段都能直接进入对应 Focus，不要求按固定顺序“通关”。
 - 星体位置、尺度和清晰度只表达深度，不表达内容优先级。
 - 星图不得自动旋转、自动巡航或持续改变焦点。
+
+语义布局锁定为：
+
+- About 位于右上远端，可发现但不成为最大主星或中心太阳；
+- Blog 位于左上区域；
+- Feed 位于中部偏右的近景区域，是最容易接近和命中的功能星球；
+- Projects 位于左下区域；
+- Learn 位于右下区域；
+- 豹猫 companion 永远以 About 星球的实际位置和半径计算相对位置，不拥有独立随机坐标。
+
+Drift 是 Phase 4.2 当前主构图方向，但精确坐标尚未锁定。允许在上述语义区域内使用少量人工编排的构图变化；不得在每次加载时运行时随机换位，也不得跨区域漂移。Orbit 只保留为对照原型，不再作为同等候选精修。
 
 ### 4.3 Planet Label
 
@@ -372,13 +387,15 @@ DISCOVER MORE 同时支持：
 
 名称不能完全隐藏，否则星图会退化为猜谜式艺术海报。所有星球还必须在全站导航中有普通文字入口。
 
-### 4.4 Planet Push
+### 4.4 Planet Focus、action 与 Planet Push
 
-- 点击 Blog、Feed、Learn、Projects 后，从当前观察位置快速锁定目标。
-- 星球放大并显露更多材质，随后进入对应页面。
-- 过渡必须短、可中断、不锁滚动、不要求二次确认。
+- `Planet Focus` 是 Home 内的观察状态：镜头锁定目标，星球放大并显露同一材质体系的更多细节，同时显示名称、极短说明和明确 action。
+- 自然滚动采用 `About → Feed → Blog → Projects → Learn` 的默认 Focus 顺序；点击、键盘或航行索引可从 Star Map 直接跳到任一 Focus。
+- Focus 只验证星球近景、材质显露、标题与 action，不加载 Blog、Feed、Learn 或 Projects 的真实内容。
+- 对 Blog、Feed、Learn、Projects，只有触发 Focus action 后才执行 `Planet Push`：从当前观察位置继续快速推进目标并进入对应页面。
+- Planet Push 必须短、可中断、不锁滚动；Focus action 是明确的目的地选择，不得再增加第三次确认。
 - 页面落地后回归对应功能画布；不建立 Home 内的“星球详情页”。
-- reduced motion 下直接进行普通页面导航。
+- reduced motion 下直接切换到稳定 Focus；触发 action 后进行普通页面导航。
 
 ### 4.5 About 的双路径
 
@@ -386,9 +403,8 @@ About 必须有两条通往同一展开态的路径：
 
 **主路径：直接、可访问**
 
-- 点击 About 星球或文字标签；
-- 镜头轻推近；
-- About 信息在星球附近原地展开；
+- 在总览点击 About 星球或文字标签时，镜头轻推近并连续进入 About 展开态，不增加第二次确认；
+- 自然滚动进入 About Focus 时，提供明确的 About action，触发后在星球附近原地展开信息；
 - 不要求用户发现豹猫或完成彩蛋。
 
 **彩蛋路径：豹猫卫星**
@@ -580,6 +596,9 @@ Finance 保留高密度数据布局、精确网格和暗色操作面，不使用
 - [ ] Entry、Approach、Overview、Push 属于同一片星域。
 - [ ] 远景可抽象，接近后必须显现完整、具实星球。
 - [ ] 总览用完整球体，聚焦用同材质高细节图。
+- [ ] Star Map 后存在可停留的 Planet Focus；自然滚动有默认观察顺序，点击与键盘可直接跳到任一 Focus。
+- [ ] Blog、Feed、Learn、Projects 只在 Focus action 后执行 Planet Push；Focus 不加载板块内容。
+- [ ] Drift 保持稳定语义区域：About 右上远端、Feed 近景易达、Blog 左上、Projects 左下、Learn 右下。
 - [ ] 五颗星球平权，尺度只表达深度。
 - [ ] About 有直接展开主路径，豹猫只是可选彩蛋路径。
 - [ ] 豹猫爆炸不影响 About 星球，关闭后反向重组。
@@ -655,6 +674,14 @@ Finance 保留高密度数据布局、精确网格和暗色操作面，不使用
 | Focus High Detail | 聚焦与点击推进 | 高分辨率地表、大气、阴影和局部弧面；与总览无换图感 |
 | Mobile Optimized | 移动端 | 保留轮廓和主地貌，降低尺寸、粒度和透明叠层成本 |
 
+Phase 4.2 的资产 Gate 锁定“身份与连续性”，不要求五颗最终生产导出文件全部定稿：
+
+- 五颗星球各自的 Overview 主地貌与共享光学方向必须获得木下认可；明显不符合目标的图只能标记为 calibration placeholder，不能在 verdict 中判为视觉通过；
+- Focus 与 Mobile 可使用候选资产，但必须证明它们与 Overview 是同一物理星球，没有重新设计或明显换图感；
+- 原型必须保留稳定、集中、可替换的资产槽。只要星球身份、裁切与接口不变，后续可替换为更高质量同名文件或修改集中参数路径，不得重写交互逻辑；
+- 最终生产分辨率、批量渲染、格式压缩与响应式导出在 Phase 4.2 校准通过后完成，正式接入生产前再锁定；
+- Phase 4.2 资产生成与验收使用 `docs/design/prototypes/phase4-2/planet-asset-prompt-kit-v2.md`，候选资产不得写入 `src/assets/`。
+
 资产验收：
 
 - 光源方向一致；
@@ -699,4 +726,4 @@ Finance 保留高密度数据布局、精确网格和暗色操作面，不使用
 
 ## 结论
 
-Design 2.0 将 Home 从内容聚合布局重锁为一片连续、可导航的 catstarry 星域：远处是星点，靠近后成为具实体积和各自地貌的暖性地质星球；滚动只负责空间纵深，点击负责抵达内容。About 通过直接展开和豹猫彩蛋两条路径进入同一信息态。Feed 独立承担公开足迹，Content 页面保持功能与阅读优先。Klein Blue、鼠标流星尾和豹猫共同构成木下的个人签名，但都不取代内容成为主角。
+Design 2.1 将 Home 锁定为一片连续、可导航的 catstarry 星域：远处是星点，靠近后成为具实体积和各自地貌的暖性地质星球；滚动提供默认 Focus 浏览，点击、键盘和航行索引可直接抵达任一 Focus，功能星球只在 Focus action 后进入内容。About 通过直接展开和豹猫彩蛋两条路径进入同一信息态。Feed 独立承担公开足迹，Content 页面保持功能与阅读优先。Klein Blue、鼠标流星尾和豹猫共同构成木下的个人签名，但都不取代内容成为主角。

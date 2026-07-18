@@ -190,7 +190,7 @@ Phase 7: 部署上线 ──→ Phase 8: 运营维护 ──→ (循环回 Phase
 
 **产出物**：根目录 `DESIGN.md`（以文档内目录与当前版本为准）+ canonical CSS 设计系统契约（`src/styles/variables.css`、`typography.css`、`components.css`）+ `docs/design/reference-design/`（木下人工选取的参照）+ 可交互 HTML 原型。
 
-**skill 边界**：Phase 4.2 默认只使用 `prototype`。当前安装的 `gpt-taste` 强制 AIDA、随机设计与 GSAP ScrollTrigger，与 Design 2.0 冲突，不得作为 Policy Engine 或 Quality Gate。其他视觉 skill 只有在先通过 DESIGN.md 兼容性审查后才能使用。
+**skill 边界**：Phase 4.2 默认只使用 `prototype`。当前安装的 `gpt-taste` 强制 AIDA、随机设计与 GSAP ScrollTrigger，与当前 `DESIGN.md` 冲突，不得作为 Policy Engine 或 Quality Gate。其他视觉 skill 只有在先通过 DESIGN.md 兼容性审查后才能使用。
 
 **设计基调**：由 4.0 木下挑选的 reference-design 决定。不做预设（不预设色系、不预设风格）。
 
@@ -200,7 +200,7 @@ Phase 7: 部署上线 ──→ Phase 8: 运营维护 ──→ (循环回 Phase
 | --- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ | ------------------------------- |
 | 4.0 | 木下人工选参照：浏览 getdesign.md 挑选 2-3 个视觉锚点，笔记提取至 `docs/design/reference-design/` | —（人工）                                                                      | `docs/design/reference-design/` |
 | 4.1 | Design Read + Design System Re-lock：AI 读 `reference-design/` → 声明 Design Read → 维护根目录 DESIGN.md 的设计目录、决策与视觉接口 → 对齐 canonical CSS token、CJK 基线与通用工具类，退役已失效的旧页面语义 | — | `DESIGN.md` + canonical CSS 设计系统契约 |
-| 4.2 | 隔离原型与参数校准：以 DESIGN.md 驱动一次性 HTML/CSS/JS 原型，只验证明确标记为 calibration 的参数 | `prototype` | `docs/design/prototypes/phase4-2/` 下的独立原型 + verdict |
+| 4.2 | 隔离原型与参数校准：以 DESIGN.md 驱动一次性 HTML/CSS/JS 原型，验证 Drift 语义构图、Star Map → Focus → action、默认滚动 Focus 序列、星球候选资产管线、信号卫星与豹猫 companion；真实活动状态只用 mock | `prototype` | `docs/design/prototypes/phase4-2/` 下的独立原型、Planet Asset Prompt Kit、候选资产 + verdict |
 | 4.3 | 选定原型落地 + UI 质检：把获选组件样式落回 canonical CSS，执行 CJK、keyboard、touch、reduced-motion、性能与视觉一致性检查 | `web-design-engineer` | 更新后的 canonical CSS + UI 质检报告 |
 
 > Phase 4.1 的 CSS 工作只维护 token 契约、排版基线、通用工具类和过时语义清理，不实现新页面组件。Phase 4.2 的一次性实验 CSS 不直接写入 canonical styles；选定原型的组件样式在 Phase 4.3 才落回 `components.css`，经验证的数值再固化至 `variables.css`。
@@ -208,7 +208,7 @@ Phase 7: 部署上线 ──→ Phase 8: 运营维护 ──→ (循环回 Phase
 **结束条件**：
 
 - **4.1**：`DESIGN.md` 与 canonical token、CJK、通用工具类完成重锁；CSS 解析、token 引用和 Astro build 通过；未实现新页面组件；流程治理确认闭合。
-- **4.2**：隔离原型与 `prototype-verdict.md` 完成，木下确认关键参数；未修改 canonical CSS、生产路由或架构；返回流程治理报告。
+- **4.2**：隔离原型与 `prototype-verdict.md` 完成；木下确认 Drift 构图、Focus / action、五颗 Overview 身份、Overview / Focus / Mobile 连续性、信号卫星和豹猫 companion 的关键参数；未修改 canonical CSS、生产路由或架构；返回流程治理报告。候选资产可在后续按稳定资产槽替换，不要求本阶段完成最终生产批量导出。
 - **4.3**：获选组件样式与参数落回 canonical CSS，并通过 CJK、keyboard、touch、reduced-motion、性能和视觉一致性质检；返回流程治理确认 Phase 4 完成。
 
 > Phase 3 对话结束后，木下回到流程治理报告完成状态，流程治理确认后 fork Phase 4。避免原型先行导致设计绑架架构。
