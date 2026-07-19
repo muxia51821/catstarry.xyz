@@ -990,17 +990,34 @@
         cursor: pointer;
         filter: drop-shadow(0 0 5px rgb(0 47 167 / 0.2));
       }
-      .cat svg {
+      .cat-svg {
         position: relative;
         z-index: 2;
         width: 100%;
         height: 100%;
         overflow: visible;
-        opacity: var(--cat-line-opacity, 0.12);
+        color: var(--klein-500);
         transition:
           opacity var(--hover) ease,
           color var(--hover) ease,
           filter var(--hover) ease;
+      }
+      .cat-svg .cat-aura {
+        color: var(--klein-500);
+        opacity: var(--cat-aura-rest-opacity, 0.14);
+        transform-box: fill-box;
+        transform-origin: center;
+        transition: opacity var(--hover) ease, filter var(--hover) ease;
+      }
+      .cat-svg .cat-fragment {
+        color: var(--klein-500);
+        opacity: var(--cat-fragment-rest-opacity, 0.14);
+        transform-box: fill-box;
+        transform-origin: center;
+        transition: opacity var(--hover) ease, filter var(--hover) ease;
+      }
+      .cat-svg .cat-fragment--hint {
+        opacity: var(--cat-fragment-hint-opacity, 0.4);
       }
       .cat .line {
         fill: none;
@@ -1037,6 +1054,9 @@
         stroke-width: 0.72;
         stroke-dasharray: 2 3.4;
         opacity: 0.38;
+      }
+      .cat-svg .cat-fragment use {
+        pointer-events: none;
       }
       .companion-body {
         position: absolute;
@@ -1110,21 +1130,16 @@
           opacity: var(--companion-dust-rest-opacity, 0.1);
         }
       }
-      .about-zone.revealed .cat svg,
-      .about-zone:hover .cat svg,
-      .about-zone:focus-within .cat svg {
-        opacity: var(--cat-line-focus-opacity, 0.84);
+      .about-zone.revealed .cat-svg .cat-fragment,
+      .about-zone:hover .cat-svg .cat-fragment,
+      .about-zone:focus-within .cat-svg .cat-fragment {
+        opacity: var(--cat-fragment-reveal-opacity, 0.86);
+        filter: drop-shadow(0 0 3px rgb(0 47 167 / 0.2));
       }
-      .about-zone.revealed .cat .constellation,
-      .about-zone:hover .cat .constellation,
-      .about-zone:focus-within .cat .constellation {
-        opacity: var(--cat-constellation-reveal-opacity, 0.9);
-        filter: drop-shadow(0 0 4px rgb(0 47 167 / 0.28));
-      }
-      .about-zone.revealed .cat .aura,
-      .about-zone:hover .cat .aura,
-      .about-zone:focus-within .cat .aura {
-        fill: rgb(0 47 167 / var(--cat-aura-reveal-opacity, 0.46));
+      .about-zone.revealed .cat-svg .cat-aura,
+      .about-zone:hover .cat-svg .cat-aura,
+      .about-zone:focus-within .cat-svg .cat-aura {
+        opacity: var(--cat-aura-reveal-opacity, 0.22);
       }
       .about-zone.revealed .companion-body,
       .about-zone:hover .companion-body,
@@ -1141,12 +1156,13 @@
       .about-zone.charged .cat {
         animation: cat-charge var(--cat-charge) ease-in-out;
       }
-      .about-zone.charged .cat .constellation {
+      .about-zone.charged .cat-svg .cat-fragment {
         opacity: var(--cat-constellation-charge-opacity, 1);
+        filter: drop-shadow(0 0 7px rgb(51 92 255 / 0.58));
         animation: constellation-charge var(--cat-charge) ease-in-out;
       }
-      .about-zone.charged .cat .aura {
-        fill: rgb(51 92 255 / var(--cat-aura-charge-opacity, 0.7));
+      .about-zone.charged .cat-svg .cat-aura {
+        opacity: var(--cat-aura-charge-opacity, 0.42);
       }
       .about-zone.charged::before {
         content: "";
@@ -1244,9 +1260,14 @@
         box-shadow: 0 0 8px var(--klein-400);
         transform: translate(-50%, -50%);
       }
-      .about-zone.burst .cat {
+      .about-zone.burst .cat-svg .cat-aura {
         opacity: 0;
         transition: opacity var(--micro);
+      }
+      .about-zone.burst .cat-svg .cat-fragment {
+        animation: cat-fragment-burst var(--cat-burst)
+          cubic-bezier(0.12, 0.8, 0.22, 1) forwards;
+        animation-delay: var(--fragment-delay);
       }
       .about-zone.recovering .cat {
         animation: cat-recover var(--cat-recover)
@@ -1276,6 +1297,90 @@
           scale: 0.5;
         }
       }
+      @keyframes cat-fragment-burst {
+        0% {
+          opacity: 1;
+          translate: 0 0;
+          scale: 1;
+          filter: drop-shadow(0 0 4px rgb(51 92 255 / 0.5));
+        }
+        24% {
+          opacity: 1;
+          translate: var(--fragment-early-x) var(--fragment-early-y);
+          scale: 1.04;
+        }
+        72% {
+          opacity: 0.62;
+          translate: var(--fragment-x) var(--fragment-y);
+          scale: 0.9;
+          filter: drop-shadow(0 0 9px rgb(51 92 255 / 0.34));
+        }
+        100% {
+          opacity: 0.14;
+          translate: var(--fragment-final-x) var(--fragment-final-y);
+          scale: 0.72;
+          filter: drop-shadow(0 0 2px rgb(0 47 167 / 0.12));
+        }
+      }
+      .focus-open.cat-residue-visible .about-zone {
+        z-index: 30;
+        left: 39vw;
+        top: 21vh;
+        pointer-events: none;
+        opacity: var(--cat-residue-opacity, 0.1);
+        filter: blur(0.16px);
+        transform: translate(-50%, -50%) scale(0.58);
+      }
+      .focus-open.cat-residue-visible .cat-svg .cat-aura {
+        opacity: 0;
+      }
+      .focus-open.cat-residue-visible .cat-svg .cat-fragment {
+        animation: none;
+        opacity: 1;
+        translate: 0 0;
+        scale: 1;
+        filter: none;
+      }
+      .focus-open.cat-residue-visible .cat-hint {
+        opacity: 0;
+      }
+      /* Prototype constellation layers: geometry stays in SVG coordinates. */
+      .cat-contour-layer .cat-fragment,
+      .cat-link-layer .cat-link-fragment,
+      .cat-node-layer .cat-node,
+      .cat-burst-layer .cat-burst-particle {
+        transform-box: fill-box;
+        transform-origin: center;
+        transition: opacity var(--hover) ease, filter var(--hover) ease;
+      }
+      .cat-link-layer .cat-link-fragment {
+        fill: none;
+        stroke: currentColor;
+        opacity: 0.22;
+      }
+      .cat-node-layer .cat-node {
+        color: var(--klein-pale);
+        opacity: var(--cat-node-rest-opacity, 0.52);
+      }
+      .cat-node-layer .cat-node--secondary { opacity: calc(var(--cat-node-rest-opacity, .52) * .72); }
+      .cat-node-halo { fill: rgb(51 92 255 / .16); filter: blur(.45px); }
+      .cat-node-core { fill: currentColor; filter: drop-shadow(0 0 var(--cat-node-glow, 2.5px) rgb(51 92 255 / .7)); }
+      .cat-burst-layer { pointer-events: none; }
+      .cat-burst-particle { opacity: 0; color: var(--klein-400); }
+      .cat-burst-particle circle { fill: currentColor; filter: drop-shadow(0 0 2px rgb(51 92 255 / .58)); }
+      .about-zone.revealed .cat-node-layer .cat-node,
+      .about-zone:hover .cat-node-layer .cat-node,
+      .about-zone:focus-within .cat-node-layer .cat-node { opacity: var(--cat-node-reveal-opacity, .96); }
+      .about-zone.revealed .cat-link-layer .cat-link-fragment,
+      .about-zone:hover .cat-link-layer .cat-link-fragment,
+      .about-zone:focus-within .cat-link-layer .cat-link-fragment { opacity: .42; }
+      .about-zone.charged .cat-svg .cat-fragment { animation: none; }
+      .about-zone.charged .cat-node-layer .cat-node { opacity: var(--cat-node-charged-opacity, 1); }
+      .about-zone.burst .cat-svg .cat-fragment { animation: none; }
+      .focus-open.cat-residue-visible .cat-contour-layer,
+      .focus-open.cat-residue-visible .cat-link-layer { opacity: 0; }
+      .focus-open.cat-residue-visible .cat-node-layer .cat-node:not(.is-residue),
+      .focus-open.cat-residue-visible .cat-burst-particle:not(.is-residue) { opacity: 0 !important; }
       @keyframes cat-recover {
         0% {
           opacity: 0;
@@ -1811,60 +1916,36 @@
               aria-describedby="cat-hint"
             >
               <span class="companion-body" aria-hidden="true"></span
-              ><i class="companion-particle" aria-hidden="true"></i
-              ><i class="companion-particle" aria-hidden="true"></i
-              ><i class="companion-particle" aria-hidden="true"></i
-              ><svg viewBox="0 0 210 130" aria-hidden="true">
-                <path
-                  class="aura"
-                  d="M24 91 L35 78 L39 51 L52 62 L65 46 L72 68 C91 60 113 61 132 68 C146 73 154 79 165 79 C178 80 185 67 181 56 C177 45 186 36 194 43 C205 53 198 76 180 87 C171 93 162 96 151 96 L147 108 L137 108 L136 96 L112 96 L105 108 L95 108 L99 95 L76 95 L69 105 L59 105 L62 92 L45 91 L36 98 L25 97 L32 88 Z"
-                />
-                <path
-                  class="line"
-                  d="M24 91 L35 78 L39 51 L52 62 L65 46 L72 68 C91 60 113 61 132 68 C146 73 154 79 165 79 C178 80 185 67 181 56 C177 45 186 36 194 43 C205 53 198 76 180 87 C171 93 162 96 151 96 L147 108 L137 108 L136 96 L112 96 L105 108 L95 108 L99 95 L76 95 L69 105 L59 105 L62 92 L45 91 L36 98 L25 97 L32 88 Z"
-                />
-                <path
-                  class="line inner"
-                  d="M72 75 C92 69 113 70 133 77 M76 95 L83 79 M112 96 L118 80 M145 96 L151 81"
-                />
-                <g class="constellation">
-                  <path
-                    class="constellation-link"
-                    d="M39 51 L65 46 L95 61 L132 68 L165 79 L181 56 M72 75 L101 77 L132 77 M76 95 L105 95 L136 96 L147 108"
-                  />
-                  <circle cx="35" cy="78" r="1.8" />
-                  <circle cx="39" cy="51" r="1.35" />
-                  <circle cx="52" cy="62" r="1.1" />
-                  <circle cx="65" cy="46" r="1.45" />
-                  <circle cx="72" cy="68" r="1.12" />
-                  <circle cx="95" cy="61" r="1.05" />
-                  <circle cx="83" cy="77" r="1.12" />
-                  <circle cx="101" cy="77" r="1.45" />
-                  <circle cx="118" cy="76" r="1.04" />
-                  <circle cx="132" cy="68" r="1.45" />
-                  <circle cx="165" cy="79" r="1.22" />
-                  <circle cx="181" cy="56" r="1.48" />
-                  <circle cx="194" cy="43" r="1.28" />
-                  <circle cx="180" cy="87" r="1.05" />
-                  <circle cx="147" cy="108" r="1.22" />
-                  <circle cx="136" cy="96" r="1.08" />
-                  <circle cx="105" cy="108" r="1.18" />
-                  <circle cx="95" cy="95" r="1.02" />
-                  <circle cx="69" cy="105" r="1.12" />
-                  <circle cx="36" cy="98" r="1.02" />
+              ><svg
+                class="cat-svg"
+                viewBox="0 0 1202 528"
+                aria-hidden="true"
+              >
+                <defs>
+                  <path id="cat-silhouette-source" d="M45 148 L52 117 L86 87 L79 26 L123 65 L125 30 L131 24 L164 59 L179 95 L258 131 L433 138 L643 109 L701 111 L755 122 L796 137 L855 171 L972 284 L1033 327 L1073 342 L1110 345 L1170 321 L1180 330 L1180 342 L1160 364 L1126 377 L1086 379 L1040 369 L970 330 L849 220 L793 188 L799 228 L821 279 L851 314 L891 341 L932 462 L930 489 L921 502 L877 498 L879 486 L901 477 L903 467 L856 381 L832 366 L751 337 L693 303 L691 353 L700 408 L615 500 L566 502 L564 487 L598 475 L646 407 L603 310 L596 279 L425 311 L450 438 L439 488 L428 502 L383 499 L388 483 L415 475 L416 452 L405 420 L357 339 L332 317 L301 311 L150 476 L117 502 L78 503 L69 497 L73 484 L104 476 L123 456 L188 357 L217 298 L204 251 L158 213 L134 203 L59 225 L33 203 L24 179 Z" />
+                </defs>
+                <g class="cat-aura"><use href="#cat-silhouette-source" /></g>
+                <g class="cat-fragment cat-fragment--hint" data-burst-x="-0.82" data-burst-y="-0.56" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M45 148 L52 117 L86 87 L79 26 L123 65 L125 30 L131 24 L164 59 L179 95 L158 213 L134 203 L59 225 L33 203 L24 179 Z" stroke-width="8" stroke-dasharray="42 19"/><path d="M59 156 L113 132 L159 149" stroke-width="3.5" stroke-dasharray="13 16" opacity=".54"/><circle cx="79" cy="26" r="6.8" fill="currentColor"/><circle cx="131" cy="24" r="6.3" fill="currentColor"/><circle cx="164" cy="59" r="5.4" fill="currentColor"/><circle cx="45" cy="148" r="5.8" fill="currentColor"/><circle cx="179" cy="95" r="5.2" fill="currentColor"/>
+                </g>
+                <g class="cat-fragment cat-fragment--hint" data-burst-x="-0.16" data-burst-y="-0.66" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M179 95 L258 131 L433 138 L643 109 L701 111 L755 122 L796 137 L855 171" stroke-width="8" stroke-dasharray="58 22"/><path d="M216 137 L425 176 L643 153 L790 177" stroke-width="3.5" stroke-dasharray="12 18" opacity=".48"/><circle cx="258" cy="131" r="5.5" fill="currentColor"/><circle cx="433" cy="138" r="5.1" fill="currentColor"/><circle cx="643" cy="109" r="5.8" fill="currentColor"/><circle cx="755" cy="122" r="4.8" fill="currentColor"/><circle cx="855" cy="171" r="5.4" fill="currentColor"/>
+                </g>
+                <g class="cat-fragment cat-fragment--hint" data-burst-x="0.92" data-burst-y="-0.32" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M855 171 L972 284 L1033 327 L1073 342 L1110 345 L1170 321 L1180 330 L1180 342 L1160 364 L1126 377 L1086 379 L1040 369 L970 330 L849 220" stroke-width="8" stroke-dasharray="46 18"/><path d="M899 211 L1004 306 L1083 343 L1157 341" stroke-width="3.5" stroke-dasharray="11 17" opacity=".5"/><circle cx="972" cy="284" r="5.3" fill="currentColor"/><circle cx="1073" cy="342" r="5.1" fill="currentColor"/><circle cx="1170" cy="321" r="5.7" fill="currentColor"/><circle cx="1126" cy="377" r="5" fill="currentColor"/>
+                </g>
+                <g class="cat-fragment" data-burst-x="-0.72" data-burst-y="0.58" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M204 251 L217 298 L188 357 L123 456 L104 476 L73 484 L69 497 L78 503 L117 502 L150 476 L301 311 L332 317" stroke-width="8" stroke-dasharray="43 18"/><path d="M217 298 L264 315 L188 357" stroke-width="3.5" stroke-dasharray="10 15" opacity=".46"/><circle cx="204" cy="251" r="5.2" fill="currentColor"/><circle cx="188" cy="357" r="5.1" fill="currentColor"/><circle cx="123" cy="456" r="5.3" fill="currentColor"/><circle cx="78" cy="503" r="4.9" fill="currentColor"/>
+                </g>
+                <g class="cat-fragment" data-burst-x="-0.24" data-burst-y="0.82" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M332 317 L357 339 L405 420 L416 452 L415 475 L388 483 L383 499 L428 502 L439 488 L450 438 L425 311 L596 279" stroke-width="8" stroke-dasharray="42 18"/><path d="M357 339 L425 311 L405 420" stroke-width="3.5" stroke-dasharray="10 15" opacity=".46"/><circle cx="332" cy="317" r="5.1" fill="currentColor"/><circle cx="425" cy="311" r="5.4" fill="currentColor"/><circle cx="416" cy="452" r="5.1" fill="currentColor"/><circle cx="428" cy="502" r="4.9" fill="currentColor"/>
+                </g>
+                <g class="cat-fragment" data-burst-x="0.68" data-burst-y="0.66" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M596 279 L603 310 L646 407 L598 475 L564 487 L566 502 L615 500 L700 408 L691 353 L693 303 L751 337 L832 366 L856 381 L903 467 L901 477 L879 486 L877 498 L921 502 L930 489 L932 462 L891 341 L851 314 L821 279 L799 228 L793 188" stroke-width="8" stroke-dasharray="45 20"/><path d="M646 407 L693 303 L751 337 M821 279 L856 381 L903 467" stroke-width="3.5" stroke-dasharray="10 16" opacity=".48"/><circle cx="596" cy="279" r="5.5" fill="currentColor"/><circle cx="646" cy="407" r="5.2" fill="currentColor"/><circle cx="615" cy="500" r="5" fill="currentColor"/><circle cx="751" cy="337" r="5.1" fill="currentColor"/><circle cx="856" cy="381" r="5.2" fill="currentColor"/><circle cx="921" cy="502" r="4.9" fill="currentColor"/>
                 </g>
               </svg></button
             ><span class="cat-hint" id="cat-hint">豹猫卫星彩蛋</span
-            ><span class="cat-dust" aria-hidden="true"
-              ><i style="--i: 0; --dx: -72px; --dy: -43px"></i
-              ><i style="--i: 1; --dx: -39px; --dy: -67px"></i
-              ><i style="--i: 2; --dx: 8px; --dy: -58px"></i
-              ><i style="--i: 3; --dx: 58px; --dy: -36px"></i
-              ><i style="--i: 4; --dx: 77px; --dy: 9px"></i
-              ><i style="--i: 5; --dx: 32px; --dy: 47px"></i
-              ><i style="--i: 6; --dx: -31px; --dy: 41px"></i
-              ><i style="--i: 7; --dx: -76px; --dy: 1px"></i
-            ></span>
+            >
           </div>
           <section
             class="planet-focus"
@@ -2271,6 +2352,38 @@
             P.aboutCompanion.revealStart,
           );
           root.style.setProperty(
+            "--cat-fragment-rest-opacity",
+            P.aboutCompanion.fragmentRestOpacity,
+          );
+          root.style.setProperty(
+            "--cat-fragment-hint-opacity",
+            P.aboutCompanion.fragmentHintOpacity,
+          );
+          root.style.setProperty(
+            "--cat-fragment-reveal-opacity",
+            P.aboutCompanion.fragmentRevealOpacity,
+          );
+          root.style.setProperty(
+            "--cat-residue-opacity",
+            P.aboutCompanion.residueOpacity,
+          );
+          root.style.setProperty(
+            "--cat-node-rest-opacity",
+            P.aboutCompanion.nodes.restOpacity,
+          );
+          root.style.setProperty(
+            "--cat-node-reveal-opacity",
+            P.aboutCompanion.nodes.revealOpacity,
+          );
+          root.style.setProperty(
+            "--cat-node-charged-opacity",
+            P.aboutCompanion.nodes.chargedOpacity,
+          );
+          root.style.setProperty(
+            "--cat-node-glow",
+            `${P.aboutCompanion.nodes.restGlowPx}px`,
+          );
+          root.style.setProperty(
             "--cat-line-opacity",
             P.aboutCompanion.catLineOpacity,
           );
@@ -2366,6 +2479,20 @@
             .forEach((particle, index) => {
               particle.hidden = index >= P.aboutCompanion.particleCount;
             });
+          document.querySelectorAll(".cat-fragment").forEach((fragment, index) => {
+            const x = Number(fragment.dataset.burstX) * P.aboutCompanion.burstRadiusPx,
+              y = Number(fragment.dataset.burstY) * P.aboutCompanion.burstRadiusPx;
+            fragment.style.setProperty("--fragment-x", `${x}px`);
+            fragment.style.setProperty("--fragment-y", `${y}px`);
+            fragment.style.setProperty("--fragment-early-x", `${x * 0.34}px`);
+            fragment.style.setProperty("--fragment-early-y", `${y * 0.34}px`);
+            fragment.style.setProperty("--fragment-final-x", `${x * 1.12}px`);
+            fragment.style.setProperty("--fragment-final-y", `${y * 1.12}px`);
+            fragment.style.setProperty(
+              "--fragment-delay",
+              `${index * P.aboutCompanion.fragmentStaggerMs}ms`,
+            );
+          });
           document
             .querySelectorAll(".entry-meteor")
             .forEach((meteor, index) => {
@@ -2391,6 +2518,191 @@
             .forEach((particle, index) => {
               particle.style.animationDelay = `${index * P.transition.catDustStaggerMs}ms`;
             });
+        }
+        const CAT_SVG_NS = "http://www.w3.org/2000/svg";
+        let catPhysics = null,
+          catBurstOrigin = { x: 601, y: 264 },
+          catPhysicsFrame = 0,
+          catPhysicsLast = 0;
+        const catPrimaryNodeIndices = new Set([
+          0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 16, 19, 23,
+        ]);
+        const catRandom = (seed) => {
+          const value = Math.sin(seed * 12.9898 + 78.233) * 43758.5453;
+          return value - Math.floor(value);
+        };
+        function svgElement(name, attributes = {}) {
+          const element = document.createElementNS(CAT_SVG_NS, name);
+          Object.entries(attributes).forEach(([key, value]) =>
+            element.setAttribute(key, value),
+          );
+          return element;
+        }
+        function setupCatConstellation() {
+          const svg = cat.querySelector(".cat-svg");
+          if (!svg || svg.dataset.constellationReady === "true") return;
+          const defs = svg.querySelector("defs"), aura = svg.querySelector(".cat-aura"),
+            sourceFragments = [...svg.querySelectorAll(":scope > .cat-fragment")],
+            contourLayer = svgElement("g", { class: "cat-contour-layer" }),
+            linkLayer = svgElement("g", { class: "cat-link-layer" }),
+            nodeLayer = svgElement("g", { class: "cat-node-layer" }),
+            burstLayer = svgElement("g", { class: "cat-burst-layer", "aria-hidden": "true" }),
+            entries = [], links = [], fragments = [];
+          let nodeIndex = 0;
+          sourceFragments.forEach((source, fragmentIndex) => {
+            const contour = svgElement("g", {
+              class: source.className.baseVal,
+              "data-fragment-index": fragmentIndex,
+              "data-burst-x": source.dataset.burstX,
+              "data-burst-y": source.dataset.burstY,
+              fill: "none", stroke: "currentColor", "stroke-linecap": "round", "stroke-linejoin": "round",
+            });
+            const link = svgElement("g", {
+              class: "cat-link-fragment", "data-fragment-index": fragmentIndex,
+              fill: "none", stroke: "currentColor", "stroke-linecap": "round", "stroke-linejoin": "round",
+            });
+            const paths = [...source.querySelectorAll("path")];
+            if (paths[0]) contour.append(paths[0]);
+            if (paths[1]) {
+              link.append(paths[1]);
+              const midpoint = paths[1].getPointAtLength(paths[1].getTotalLength() / 2);
+              links.push({ element: link, x: midpoint.x, y: midpoint.y });
+            }
+            [...source.querySelectorAll("circle")].forEach((circle) => {
+              const x = Number(circle.getAttribute("cx")), y = Number(circle.getAttribute("cy")),
+                primary = catPrimaryNodeIndices.has(nodeIndex),
+                node = svgElement("g", {
+                  class: `cat-node cat-node--${primary ? "primary" : "secondary"}`,
+                  "data-node-id": `node-${nodeIndex}`,
+                  "data-origin-x": x,
+                  "data-origin-y": y,
+                  transform: `translate(${x} ${y})`,
+                }),
+                radius = Number(circle.getAttribute("r"));
+              node.append(
+                svgElement("circle", { class: "cat-node-halo", r: radius * 2.15 }),
+                svgElement("circle", { class: "cat-node-core", r: radius * (primary ? 0.72 : 0.56) }),
+              );
+              nodeLayer.append(node);
+              entries.push({ element: node, originX: x, originY: y, x, y, vx: 0, vy: 0, kind: "node", importance: primary ? 1 : 0.62, index: nodeIndex++ });
+            });
+            contourLayer.append(contour);
+            linkLayer.append(link);
+            fragments.push({ element: contour, x: Number(source.dataset.burstX), y: Number(source.dataset.burstY) });
+          });
+          [...contourLayer.querySelectorAll("path")].forEach((path, pathIndex) => {
+            const count = P.aboutCompanion.burst.contourSamplesPerPath;
+            for (let sample = 1; sample <= count; sample += 1) {
+              const point = path.getPointAtLength((path.getTotalLength() * sample) / (count + 1));
+              const particle = svgElement("g", { class: "cat-burst-particle" });
+              particle.append(svgElement("circle", { r: sample % 3 === 0 ? 2.15 : 1.45 }));
+              burstLayer.append(particle);
+              entries.push({ element: particle, originX: point.x, originY: point.y, x: point.x, y: point.y, vx: 0, vy: 0, kind: "particle", importance: 0.28, index: 100 + pathIndex * count + sample });
+            }
+          });
+          svg.replaceChildren(defs, aura, contourLayer, linkLayer, nodeLayer, burstLayer);
+          svg.dataset.constellationReady = "true";
+          catPhysics = { svg, entries, links, fragments, mode: "rest", startedAt: 0 };
+        }
+        function recordCatBurstOrigin(event) {
+          if (!catPhysics) return;
+          const point = event?.changedTouches?.[0] || event?.touches?.[0] || event;
+          if (!point || !Number.isFinite(point.clientX) || !Number.isFinite(point.clientY)) return;
+          const matrix = catPhysics.svg.getScreenCTM();
+          if (!matrix) return;
+          const local = new DOMPoint(point.clientX, point.clientY).matrixTransform(matrix.inverse());
+          catBurstOrigin = { x: local.x, y: local.y };
+        }
+        function catRange() {
+          const rect = catPhysics.svg.getBoundingClientRect();
+          return Math.max(80, (P.aboutCompanion.burstRadiusPx / Math.max(1, rect.width)) * 1202);
+        }
+        function resetCatPhysics() {
+          cancelAnimationFrame(catPhysicsFrame);
+          catPhysicsFrame = 0;
+          if (!catPhysics) return;
+          catPhysics.mode = "rest";
+          window.__catPhysicsMode = "rest";
+          root.style.setProperty("--cat-node-glow", `${P.aboutCompanion.nodes.restGlowPx}px`);
+          catPhysics.entries.forEach((entry) => {
+            entry.x = entry.originX; entry.y = entry.originY; entry.vx = 0; entry.vy = 0;
+            entry.element.setAttribute("transform", `translate(${entry.x} ${entry.y})`);
+            entry.element.style.removeProperty("opacity");
+            entry.element.classList.remove("is-residue");
+          });
+          catPhysics.links.forEach((link) => link.element.style.removeProperty("opacity"));
+          catPhysics.fragments.forEach((fragment) => {
+            fragment.element.removeAttribute("transform");
+            fragment.element.style.removeProperty("opacity");
+          });
+        }
+        function beginCatPhysics(mode) {
+          if (!catPhysics || reduce.matches) return;
+          catPhysics.mode = mode;
+          window.__catPhysicsMode = mode;
+          catPhysics.startedAt = performance.now();
+          if (mode === "charged") root.style.setProperty("--cat-node-glow", `${P.aboutCompanion.nodes.chargedGlowPx}px`);
+          if (mode === "burst") {
+            const range = catRange(), breakRange = range * P.aboutCompanion.burst.breakRadiusRatio;
+            catPhysics.entries.forEach((entry) => {
+              const dx = entry.originX - catBurstOrigin.x, dy = entry.originY - catBurstOrigin.y,
+                length = Math.hypot(dx, dy) || 1,
+                radialX = dx / length, radialY = dy / length,
+                proximity = clamp(1 - length / breakRange),
+                random = (catRandom(entry.index) - .5) * P.aboutCompanion.burst.impulseRandomness,
+                tangential = (catRandom(entry.index + 41) - .5) * P.aboutCompanion.burst.tangentialRatio,
+                impulse = P.aboutCompanion.burst.impulse * (0.55 + proximity * .45) * (entry.kind === "particle" ? .62 : 1);
+              entry.vx = impulse * (radialX + random - radialY * tangential);
+              entry.vy = impulse * (radialY + random + radialX * tangential);
+              entry.element.classList.toggle("is-residue", catRandom(entry.index + 93) < P.aboutCompanion.burst.residueRatio && (entry.kind === "particle" || entry.importance === 1));
+            });
+            catPhysics.links.forEach((link) => {
+              const near = clamp(1 - Math.hypot(link.x - catBurstOrigin.x, link.y - catBurstOrigin.y) / breakRange);
+              link.breakWeight = near;
+            });
+          }
+          if (!catPhysicsFrame) {
+            catPhysicsLast = performance.now();
+            catPhysicsFrame = requestAnimationFrame(tickCatPhysics);
+          }
+        }
+        function tickCatPhysics(now) {
+          if (!catPhysics || catPhysics.mode === "rest") { catPhysicsFrame = 0; return; }
+          const dt = Math.min(.034, Math.max(.001, (now - catPhysicsLast) / 1000));
+          catPhysicsLast = now;
+          const elapsed = now - catPhysics.startedAt, mode = catPhysics.mode, range = catRange();
+          catPhysics.entries.forEach((entry) => {
+            if (mode === "charged") {
+              const dx = entry.originX - catBurstOrigin.x, dy = entry.originY - catBurstOrigin.y, length = Math.hypot(dx, dy) || 1;
+              const pull = range * .026 * smooth(clamp(elapsed / P.transition.catChargeMs));
+              entry.x = entry.originX - (dx / length) * pull * entry.importance;
+              entry.y = entry.originY - (dy / length) * pull * entry.importance;
+            } else if (mode === "burst" || mode === "residue") {
+              entry.x += entry.vx * dt; entry.y += entry.vy * dt;
+              entry.vx *= mode === "burst" ? .976 : .94; entry.vy *= mode === "burst" ? .976 : .94;
+              entry.element.style.opacity = mode === "burst" ? Math.max(.2, 1 - elapsed / (P.transition.catBurstMs * 1.25)) : entry.element.classList.contains("is-residue") ? P.aboutCompanion.residueOpacity : 0;
+            } else if (mode === "recovering") {
+              const ax = (entry.originX - entry.x) * P.aboutCompanion.burst.spring - entry.vx * P.aboutCompanion.burst.damping;
+              const ay = (entry.originY - entry.y) * P.aboutCompanion.burst.spring - entry.vy * P.aboutCompanion.burst.damping;
+              entry.vx += ax * dt; entry.vy += ay * dt; entry.x += entry.vx * dt; entry.y += entry.vy * dt;
+            }
+            entry.element.setAttribute("transform", `translate(${entry.x} ${entry.y})`);
+          });
+          catPhysics.links.forEach((link) => {
+            if (mode === "burst") link.element.style.opacity = Math.max(0, .42 * (1 - link.breakWeight * clamp(elapsed / 260)));
+            if (mode === "recovering") link.element.style.opacity = clamp((elapsed - P.transition.catRecoverMs * .48) / (P.transition.catRecoverMs * .32)) * .42;
+          });
+          catPhysics.fragments.forEach((fragment) => {
+            if (mode === "burst") {
+              const travel = range * P.aboutCompanion.burst.fragmentTravelRatio * clamp(elapsed / 210);
+              fragment.element.setAttribute("transform", `translate(${fragment.x * travel} ${fragment.y * travel})`);
+              fragment.element.dataset.travel = travel;
+              fragment.element.style.opacity = String(Math.max(0, .9 * (1 - elapsed / 360)));
+            }
+          });
+          if (mode === "burst" && elapsed >= P.transition.catBurstMs) { catPhysics.mode = "residue"; window.__catPhysicsMode = "residue"; catPhysics.startedAt = now; }
+          if (mode === "recovering" && elapsed >= P.transition.catRecoverMs) { resetCatPhysics(); return; }
+          catPhysicsFrame = requestAnimationFrame(tickCatPhysics);
         }
         function updateUrl() {
           const q = new URLSearchParams({ variant, mock: mockKey });
@@ -3400,6 +3712,8 @@
           clearTimeout(catBurstTimer);
           clearTimeout(catRecoverTimer);
           catState = "rest";
+          resetCatPhysics();
+          body.classList.remove("cat-residue-visible");
           catZone.classList.remove("charged", "burst", "recovering");
           document.getElementById("cat-hint").textContent = "豹猫卫星彩蛋";
         }
@@ -3407,12 +3721,14 @@
           if (!force && catState !== "burst" && focusTrigger !== cat) return;
           clearTimeout(chargeTimer);
           clearTimeout(catBurstTimer);
+          body.classList.remove("cat-residue-visible");
           if (reduce.matches) {
             resetCatToRest();
             if (restoreFocus && catZone.classList.contains("ready")) cat.focus();
             return;
           }
           catState = "recover";
+          beginCatPhysics("recovering");
           catZone.classList.remove("burst");
           catZone.classList.add("recovering");
           clearTimeout(catRecoverTimer);
@@ -3620,8 +3936,10 @@
           clearTimeout(chargeTimer);
           clearTimeout(catBurstTimer);
           catState = "burst";
+          body.classList.add("cat-residue-visible");
           catZone.classList.remove("charged", "recovering");
           catZone.classList.add("burst");
+          beginCatPhysics("burst");
           document.getElementById("cat-hint").textContent = "豹猫卫星彩蛋";
           if (reduce.matches) {
             resetCatToRest();
@@ -3630,17 +3948,22 @@
           }
           catBurstTimer = setTimeout(() => {
             catBurstTimer = undefined;
-            if (catState === "burst") navigateToFocus("about", cat);
+            if (catState === "burst") {
+              if (catPhysics) catPhysics.mode = "residue";
+              navigateToFocus("about", cat);
+            }
           }, P.transition.catBurstMs);
         }
-        function activateCat({ direct = false } = {}) {
+        function activateCat({ direct = false, event } = {}) {
           if (!catZone.classList.contains("ready") || catState === "burst") return;
+          recordCatBurstOrigin(event);
           if (reduce.matches || direct) {
             enterAboutFromCat();
             return;
           }
           if (catState === "rest" || catState === "recover") {
             catState = "charged";
+            beginCatPhysics("charged");
             catZone.classList.remove("recovering");
             catZone.classList.add("charged");
             document.getElementById("cat-hint").textContent =
@@ -3664,14 +3987,14 @@
           if (event.pointerType !== "touch") return;
           event.preventDefault();
           suppressSyntheticCatClickUntil = performance.now() + 750;
-          activateCat({ direct: true });
+          activateCat({ direct: true, event });
         });
         cat.addEventListener("click", (event) => {
           if (performance.now() < suppressSyntheticCatClickUntil) {
             event.preventDefault();
             return;
           }
-          activateCat();
+          activateCat({ event });
         });
         document
           .querySelectorAll("[data-variant]")
@@ -4061,6 +4384,7 @@
           updateScene();
         });
         finePointer.addEventListener("change", () => setMock(mockKey));
+        setupCatConstellation();
         applyParameters();
         drawStarfield();
         setVariant(variant);

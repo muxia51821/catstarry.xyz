@@ -60,7 +60,7 @@ async function navigate({ mock = "mixed", mobile = false, reduce = "no-preferenc
     mobile ? { enabled: true, maxTouchPoints: 5 } : { enabled: false },
   );
   await send("Page.navigate", {
-    url: `http://127.0.0.1:4172/index.html?variant=drift&mock=${mock}&test=${Date.now()}`,
+    url: `file:///D:/catstarry.xyz/docs/design/prototypes/phase4-2/index.html?variant=drift&mock=${mock}&test=${Date.now()}`,
   });
   await wait(520);
 }
@@ -126,12 +126,26 @@ const initial = await evaluate(`(() => ({
     staticMotion: document.querySelector('[data-planet="' + key + '"] .signal-wrap').dataset.staticMotion
   }))
 }))()`);
+const catStructure = await evaluate(`(() => ({
+  layers: ['cat-aura', 'cat-contour-layer', 'cat-link-layer', 'cat-node-layer', 'cat-burst-layer'].every((name) => document.querySelector('.' + name)),
+  nodes: document.querySelectorAll('.cat-node-layer .cat-node').length,
+  primaryNodes: document.querySelectorAll('.cat-node--primary').length,
+  secondaryNodes: document.querySelectorAll('.cat-node--secondary').length,
+  fragmentCircles: document.querySelectorAll('.cat-fragment circle').length,
+  burstParticles: document.querySelectorAll('.cat-burst-layer .cat-burst-particle').length,
+  companionBody: Boolean(document.querySelector('.companion-body'))
+}))()`);
 const quiet = await selectMock("quiet");
 const rotation = await selectMock("rotation");
 await selectMock("mixed");
 
 await evaluate(`document.getElementById('cat').click()`);
 const charged = await evaluate(`document.getElementById('about-zone').classList.contains('charged')`);
+await wait(100);
+const chargedNodes = await evaluate(`(() => ({
+  mode: window.__catPhysicsMode || null,
+  moved: [...document.querySelectorAll('.cat-node')].some((node) => node.getAttribute('transform') !== 'translate(' + node.dataset.originX + ' ' + node.dataset.originY + ')')
+}))()`);
 await evaluate(`window.scrollBy(0, 2)`);
 await wait(80);
 const chargeCancelledByScroll = await evaluate(`(() => ({
@@ -145,19 +159,34 @@ const chargeExpired = await evaluate(`(() => ({
   hint: document.getElementById('cat-hint').textContent
 }))()`);
 await evaluate(`document.getElementById('cat').click(); document.getElementById('cat').click()`);
+await wait(140);
+const burstMotion = await evaluate(`(() => ({
+  nodeMoved: [...document.querySelectorAll('.cat-node')].some((node) => node.style.opacity !== ''),
+  fragmentsShortRange: [...document.querySelectorAll('.cat-fragment')].every((fragment) => {
+    return Number(fragment.dataset.travel || 0) < 180;
+  })
+}))()`);
 await wait(2450);
 const desktopCat = await evaluate(`(() => ({
   focus: document.getElementById('planet-focus').dataset.focus,
   focusOpen: document.body.classList.contains('focus-open'),
   catState: document.getElementById('about-zone').className
 }))()`);
+const focusResidue = await evaluate(`(() => ({
+  active: document.body.classList.contains('cat-residue-visible'),
+  visibleResidue: [...document.querySelectorAll('.is-residue')].filter((item) => getComputedStyle(item).opacity !== '0').length,
+  contourOpacity: getComputedStyle(document.querySelector('.cat-contour-layer')).opacity,
+  linkOpacity: getComputedStyle(document.querySelector('.cat-link-layer')).opacity
+}))()`);
 await evaluate(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`);
 await wait(120);
 const desktopEscape = await evaluate(`!document.body.classList.contains('focus-open')`);
-await wait(2850);
+await wait(3150);
 const desktopRecovery = await evaluate(`(() => ({
   classes: document.getElementById('about-zone').className,
-  hint: document.getElementById('cat-hint').textContent
+  hint: document.getElementById('cat-hint').textContent,
+  residue: document.body.classList.contains('cat-residue-visible'),
+  nodeTransformsReset: [...document.querySelectorAll('.cat-node')].every((node) => node.getAttribute('transform') === 'translate(' + node.dataset.originX + ' ' + node.dataset.originY + ')')
 }))()`);
 await evaluate(`(() => {
   const P = PROTOTYPE_VISUAL_PARAMETERS;
@@ -211,12 +240,16 @@ console.log(
       errors,
       beforeAboutReady,
       initial,
+      catStructure,
       quiet,
       rotation,
       charged,
+      chargedNodes,
       chargeCancelledByScroll,
       chargeExpired,
+      burstMotion,
       desktopCat,
+      focusResidue,
       desktopEscape,
       desktopRecovery,
       feedAfterAbout,
