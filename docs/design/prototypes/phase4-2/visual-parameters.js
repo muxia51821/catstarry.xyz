@@ -21,7 +21,16 @@ window.PROTOTYPE_VISUAL_PARAMETERS = {
       darkZones: [
         { x: 0.52, y: 0.48, radius: 0.2, strength: 0.84 },
         { x: 0.84, y: 0.25, radius: 0.12, strength: 0.52 }
-      ]
+      ],
+      galaxy: {
+        center: [0.56, 0.46],
+        angleDeg: -22,
+        halfLength: 0.82,
+        halfWidth: 0.105,
+        densityBoost: { far: 0.82, mid: 0.5, near: 0.1 },
+        bandStarFraction: { far: 0.3, mid: 0.14, near: 0.02 },
+        dustOpacity: 0.072
+      }
     }
   },
 
@@ -125,7 +134,14 @@ window.PROTOTYPE_VISUAL_PARAMETERS = {
       terminatorOpacity: 0.18,
       castShadowOpacity: 0.44,
       castShadowBlurPx: 34,
-      focusMaterialBoost: 1.06
+      focusMaterialBoost: 1.06,
+      passiveRimOpacity: 0.1,
+      passiveRimBlurPx: 18,
+      readyRimOpacity: 0.3,
+      hoverGlowOpacity: 0.74,
+      hoverGlowBlurPx: 28,
+      hoverHaloOpacity: 0.24,
+      hoverHaloBlurPx: 56
     },
     focusShots: {
       about: {

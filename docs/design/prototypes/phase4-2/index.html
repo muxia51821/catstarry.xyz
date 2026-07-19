@@ -53,6 +53,15 @@
         --terminator-opacity: 0.18;
         --planet-shadow-opacity: 0.44;
         --planet-shadow-blur: 34px;
+        --planet-passive-rim-opacity: 0.1;
+        --planet-passive-rim-blur: 18px;
+        --planet-ready-rim-opacity: 0.3;
+        --planet-hover-glow-opacity: 0.74;
+        --planet-hover-glow-blur: 28px;
+        --planet-hover-halo-opacity: 0.24;
+        --planet-hover-halo-blur: 56px;
+        --galaxy-dust-opacity: 0.052;
+        --galaxy-gradient-angle: 68deg;
         font-family:
           Inter,
           ui-sans-serif,
@@ -157,6 +166,24 @@
             transparent 31%
           );
         filter: blur(28px);
+      }
+      .stage::after {
+        content: "";
+        position: absolute;
+        inset: -24%;
+        z-index: -1;
+        pointer-events: none;
+        opacity: var(--galaxy-dust-opacity);
+        background: linear-gradient(
+          var(--galaxy-gradient-angle),
+          transparent 41%,
+          rgb(113 129 177 / 0.13) 46%,
+          rgb(160 173 214 / 0.42) 50%,
+          rgb(113 129 177 / 0.13) 54%,
+          transparent 59%
+        );
+        filter: blur(24px);
+        transform: scale(1.08);
       }
       .star-layer {
         position: absolute;
@@ -424,14 +451,23 @@
         overflow: visible;
         opacity: var(--sphere-visible, 0);
         border-radius: 50%;
-        background-color: #b89c78;
+        background-color: transparent;
         background-image: var(--planet-asset, var(--planet-fallback));
         background-position: center;
         background-repeat: no-repeat;
         background-size: contain;
         box-shadow:
-          0 0 calc(8px + 22px * var(--target-halo, 0))
-            rgb(236 226 208 / calc(0.12 + var(--target-halo, 0) * 0.35)),
+          0 0 calc(
+              var(--planet-passive-rim-blur) +
+                12px * var(--target-halo, 0)
+            )
+            rgb(
+              111 139 230 /
+                calc(
+                  var(--planet-passive-rim-opacity) +
+                    var(--target-halo, 0) * 0.08
+                )
+            ),
           0 21px var(--planet-shadow-blur)
             rgb(
               0 0 0 /
@@ -469,17 +505,39 @@
         pointer-events: none;
         opacity: var(--sphere-visible, 0);
         border: var(--atmosphere-width) solid
-          rgb(241 225 199 / var(--atmosphere-opacity));
-        border-right-color: rgb(104 127 177 / var(--atmosphere-shadow-opacity));
+          rgb(173 190 255 / var(--planet-ready-rim-opacity));
+        border-right-color: rgb(63 83 157 / var(--atmosphere-shadow-opacity));
         border-bottom-color: transparent;
         box-shadow: -4px -3px 9px
-          rgb(255 238 208 / var(--atmosphere-glow-opacity));
+          rgb(91 123 255 / var(--atmosphere-glow-opacity));
+      }
+      .planet.ready .planet-core::after {
+        border-color: rgb(122 151 255 / var(--planet-ready-rim-opacity));
+        border-right-color: rgb(63 83 157 / var(--atmosphere-shadow-opacity));
       }
       .planet:hover .planet-core,
       .planet:focus-visible .planet-core {
         filter: contrast(var(--planet-hover-contrast, 1.025))
           saturate(var(--planet-saturation, 0.82));
         transform: scale(var(--planet-hover-scale, 1.012));
+        box-shadow:
+          0 0 var(--planet-hover-glow-blur)
+            rgb(0 47 167 / var(--planet-hover-glow-opacity)),
+          0 0 var(--planet-hover-halo-blur)
+            rgb(51 92 255 / var(--planet-hover-halo-opacity)),
+          0 21px var(--planet-shadow-blur)
+            rgb(
+              0 0 0 /
+                calc(var(--planet-shadow-opacity) * var(--sphere-visible, 0))
+            );
+      }
+      .planet:hover .planet-core::after,
+      .planet:focus-visible .planet-core::after {
+        border-color: rgb(184 200 255 / 0.9);
+        border-right-color: rgb(75 103 220 / 0.58);
+        box-shadow:
+          -4px -3px 13px rgb(51 92 255 / 0.68),
+          0 0 22px rgb(0 47 167 / 0.34);
       }
       .planet.about {
         --planet-fallback: radial-gradient(
@@ -1700,6 +1758,10 @@
             "--stars-near-scale",
             P.environment.starLayerScale.near,
           );
+          root.style.setProperty(
+            "--galaxy-gradient-angle",
+            `${P.environment.starfield.galaxy.angleDeg + 90}deg`,
+          );
           root.style.setProperty("--focus-in", `${P.transition.focusInMs}ms`);
           root.style.setProperty("--focus-out", `${P.transition.focusOutMs}ms`);
           root.style.setProperty(
@@ -1800,6 +1862,34 @@
           root.style.setProperty(
             "--planet-shadow-blur",
             `${P.planet.lighting.castShadowBlurPx}px`,
+          );
+          root.style.setProperty(
+            "--planet-passive-rim-opacity",
+            P.planet.lighting.passiveRimOpacity,
+          );
+          root.style.setProperty(
+            "--planet-passive-rim-blur",
+            `${P.planet.lighting.passiveRimBlurPx}px`,
+          );
+          root.style.setProperty(
+            "--planet-ready-rim-opacity",
+            P.planet.lighting.readyRimOpacity,
+          );
+          root.style.setProperty(
+            "--planet-hover-glow-opacity",
+            P.planet.lighting.hoverGlowOpacity,
+          );
+          root.style.setProperty(
+            "--planet-hover-glow-blur",
+            `${P.planet.lighting.hoverGlowBlurPx}px`,
+          );
+          root.style.setProperty(
+            "--planet-hover-halo-opacity",
+            P.planet.lighting.hoverHaloOpacity,
+          );
+          root.style.setProperty(
+            "--planet-hover-halo-blur",
+            `${P.planet.lighting.hoverHaloBlurPx}px`,
           );
           root.style.setProperty(
             "--signal-core-size",
@@ -2362,6 +2452,13 @@
           root.style.setProperty("--progress", p.toFixed(3));
           root.style.setProperty("--approach", approach.toFixed(3));
           root.style.setProperty("--overview", overview.toFixed(3));
+          root.style.setProperty(
+            "--galaxy-dust-opacity",
+            (
+              P.environment.starfield.galaxy.dustOpacity *
+              (1 - overview * 0.48)
+            ).toFixed(3),
+          );
           planets.forEach((planet) => {
             const key = planet.dataset.planet,
               [tx, ty, z] = P.layout[variant].planets[key],
@@ -2956,7 +3053,11 @@
         function drawStarfield() {
           const cfg = P.environment.starfield,
             mobile = innerWidth <= 760,
-            densityScale = mobile ? cfg.mobileDensityScale : 1;
+            densityScale = mobile ? cfg.mobileDensityScale : 1,
+            galaxy = cfg.galaxy,
+            galaxyAngle = (galaxy.angleDeg * Math.PI) / 180,
+            galaxyCos = Math.cos(galaxyAngle),
+            galaxySin = Math.sin(galaxyAngle);
           document
             .querySelectorAll("[data-star-layer]")
             .forEach((canvas, layerIndex) => {
@@ -2978,22 +3079,7 @@
               canvas.height = Math.round(h * dpr);
               ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
               ctx.clearRect(0, 0, w, h);
-              let drawn = 0,
-                attempts = 0;
-              while (drawn < count && attempts < count * 12) {
-                attempts++;
-                const x = rng(),
-                  y = rng();
-                let chance = 0.42;
-                for (const c of cfg.clusters) {
-                  const d = Math.hypot(x - c.x, y - c.y) / c.radius;
-                  if (d < 1) chance += c.strength * (1 - d);
-                }
-                for (const d of cfg.darkZones) {
-                  const distance = Math.hypot(x - d.x, y - d.y) / d.radius;
-                  if (distance < 1) chance -= d.strength * (1 - distance);
-                }
-                if (rng() > clamp(chance, 0.04, 1)) continue;
+              const drawStar = (x, y, alphaMultiplier = 1) => {
                 const warm = rng() < layer.warmRatio,
                   color = warm
                     ? [237, 222, 196]
@@ -3001,7 +3087,9 @@
                       ? [216, 224, 242]
                       : [168, 182, 218],
                   radius = lerp(layer.radiusPx[0], layer.radiusPx[1], rng()),
-                  alpha = lerp(layer.opacity[0], layer.opacity[1], rng());
+                  alpha =
+                    lerp(layer.opacity[0], layer.opacity[1], rng()) *
+                    alphaMultiplier;
                 ctx.fillStyle = `rgba(${color.join(",")},${alpha})`;
                 ctx.beginPath();
                 ctx.arc(x * w, y * h, radius, 0, Math.PI * 2);
@@ -3012,7 +3100,66 @@
                   ctx.arc(x * w, y * h, radius * 4.2, 0, Math.PI * 2);
                   ctx.fill();
                 }
+              };
+              let drawn = 0,
+                attempts = 0;
+              while (drawn < count && attempts < count * 12) {
+                attempts++;
+                const x = rng(),
+                  y = rng();
+                let chance = 0.42;
+                const galaxyX = x - galaxy.center[0],
+                  galaxyY = y - galaxy.center[1],
+                  galaxyAlong = galaxyX * galaxyCos + galaxyY * galaxySin,
+                  galaxyAcross =
+                    -galaxyX * galaxySin + galaxyY * galaxyCos;
+                if (Math.abs(galaxyAlong) < galaxy.halfLength) {
+                  const alongFalloff =
+                      1 - Math.abs(galaxyAlong) / galaxy.halfLength,
+                    acrossFalloff = Math.exp(
+                      -0.5 *
+                        Math.pow(galaxyAcross / galaxy.halfWidth, 2),
+                    );
+                  chance +=
+                    galaxy.densityBoost[name] * alongFalloff * acrossFalloff;
+                }
+                for (const c of cfg.clusters) {
+                  const d = Math.hypot(x - c.x, y - c.y) / c.radius;
+                  if (d < 1) chance += c.strength * (1 - d);
+                }
+                for (const d of cfg.darkZones) {
+                  const distance = Math.hypot(x - d.x, y - d.y) / d.radius;
+                  if (distance < 1) chance -= d.strength * (1 - distance);
+                }
+                if (rng() > clamp(chance, 0.04, 1)) continue;
+                drawStar(x, y);
                 drawn++;
+              }
+              const bandCount = Math.round(
+                count * (galaxy.bandStarFraction[name] || 0),
+              );
+              for (let index = 0; index < bandCount; index++) {
+                const along = lerp(
+                    -galaxy.halfLength,
+                    galaxy.halfLength,
+                    rng(),
+                  ),
+                  across =
+                    (rng() + rng() + rng() - 1.5) * galaxy.halfWidth * 1.12,
+                  x =
+                    galaxy.center[0] +
+                    along * galaxyCos -
+                    across * galaxySin,
+                  y =
+                    galaxy.center[1] +
+                    along * galaxySin +
+                    across * galaxyCos;
+                if (x < 0 || x > 1 || y < 0 || y > 1) continue;
+                drawStar(
+                  x,
+                  y,
+                  0.54 + 0.46 * (1 - Math.abs(along) / galaxy.halfLength),
+                );
               }
             });
         }
