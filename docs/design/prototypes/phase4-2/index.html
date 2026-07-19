@@ -1058,78 +1058,6 @@
       .cat-svg .cat-fragment use {
         pointer-events: none;
       }
-      .companion-body {
-        position: absolute;
-        z-index: 1;
-        left: 48%;
-        top: 55%;
-        width: var(--companion-body-diameter, 20px);
-        aspect-ratio: 1;
-        border-radius: 50%;
-        opacity: var(--companion-body-rest-opacity, 0.54);
-        background: radial-gradient(
-          circle at 27% 22%,
-          rgb(192 204 255 / 0.66) 0 4%,
-          #234da8 10%,
-          #0b2470 28%,
-          #041337 48%,
-          #020715 68%,
-          #01020b 100%
-        );
-        box-shadow:
-          -4px 5px 8px rgb(0 0 0 / 0.82) inset,
-          -1px -1px 0 rgb(184 200 255 / 0.18),
-          0 0 6px rgb(0 47 167 / 0.12);
-        transform: translate(-50%, -50%);
-        transition:
-          opacity var(--hover) ease,
-          scale var(--hover) ease;
-      }
-      .companion-particle {
-        position: absolute;
-        z-index: 1;
-        left: 48%;
-        top: 55%;
-        width: 2px;
-        height: 2px;
-        border-radius: 50%;
-        opacity: 0.18;
-        background: var(--klein-400);
-        box-shadow: 0 0 4px rgb(0 47 167 / 0.28);
-        animation: companion-dust var(--companion-dust-duration, 28000ms)
-          linear infinite;
-      }
-      .companion-particle:nth-of-type(1) {
-        margin: -18px 0 0 22px;
-        animation-delay: -7s;
-      }
-      .companion-particle:nth-of-type(2) {
-        margin: 19px 0 0 -17px;
-        animation-delay: -13s;
-      }
-      .companion-particle:nth-of-type(3) {
-        margin: -4px 0 0 -27px;
-        animation-delay: -18s;
-      }
-      @keyframes companion-dust {
-        0%,
-        75% {
-          translate: 0 0;
-          opacity: var(--companion-dust-rest-opacity, 0.1);
-        }
-        84% {
-          translate: -3px 2px;
-          opacity: calc(var(--companion-dust-rest-opacity, 0.1) * 2.4);
-        }
-        93% {
-          translate: 5px -4px;
-          opacity: calc(var(--companion-dust-rest-opacity, 0.1) * 1.6);
-        }
-        100% {
-          translate: 0 0;
-          opacity: var(--companion-dust-rest-opacity, 0.1);
-        }
-      }
       .about-zone.revealed .cat-svg .cat-fragment,
       .about-zone:hover .cat-svg .cat-fragment,
       .about-zone:focus-within .cat-svg .cat-fragment {
@@ -1140,12 +1068,6 @@
       .about-zone:hover .cat-svg .cat-aura,
       .about-zone:focus-within .cat-svg .cat-aura {
         opacity: var(--cat-aura-reveal-opacity, 0.22);
-      }
-      .about-zone.revealed .companion-body,
-      .about-zone:hover .companion-body,
-      .about-zone:focus-within .companion-body {
-        opacity: var(--companion-body-reveal-opacity, 0.18);
-        scale: 0.88;
       }
       .about-zone:hover .cat,
       .about-zone:focus-within .cat,
@@ -1915,8 +1837,7 @@
               type="button"
               aria-describedby="cat-hint"
             >
-              <span class="companion-body" aria-hidden="true"></span
-              ><svg
+              <svg
                 class="cat-svg"
                 viewBox="0 0 1202 528"
                 aria-hidden="true"
@@ -2424,26 +2345,6 @@
             P.aboutCompanion.auraChargeOpacity,
           );
           root.style.setProperty(
-            "--companion-body-diameter",
-            `${P.aboutCompanion.bodyDiameterPx}px`,
-          );
-          root.style.setProperty(
-            "--companion-body-rest-opacity",
-            P.aboutCompanion.bodyRestOpacity,
-          );
-          root.style.setProperty(
-            "--companion-body-reveal-opacity",
-            P.aboutCompanion.bodyRevealOpacity,
-          );
-          root.style.setProperty(
-            "--companion-dust-duration",
-            `${P.aboutCompanion.dustDurationMs}ms`,
-          );
-          root.style.setProperty(
-            "--companion-dust-rest-opacity",
-            P.aboutCompanion.dustRestOpacity,
-          );
-          root.style.setProperty(
             "--entry-meteor-angle",
             `${P.meteor.entryLayers[Math.floor(P.meteor.entryLayers.length / 2)].angleDeg}deg`,
           );
@@ -2474,11 +2375,6 @@
             const preload = new Image();
             preload.src = material.asset;
           });
-          document
-            .querySelectorAll(".companion-particle")
-            .forEach((particle, index) => {
-              particle.hidden = index >= P.aboutCompanion.particleCount;
-            });
           document.querySelectorAll(".cat-fragment").forEach((fragment, index) => {
             const x = Number(fragment.dataset.burstX) * P.aboutCompanion.burstRadiusPx,
               y = Number(fragment.dataset.burstY) * P.aboutCompanion.burstRadiusPx;

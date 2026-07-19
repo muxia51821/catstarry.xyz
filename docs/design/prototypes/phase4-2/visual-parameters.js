@@ -250,12 +250,6 @@ window.PROTOTYPE_VISUAL_PARAMETERS = {
     auraRestOpacity: 0.14,
     auraRevealOpacity: 0.22,
     auraChargeOpacity: 0.42,
-    bodyDiameterPx: 20,
-    bodyRestOpacity: 0.54,
-    bodyRevealOpacity: 0.18,
-    dustDurationMs: 28000,
-    dustRestOpacity: 0.1,
-    particleCount: 3,
     parallaxPx: 4
   },
 

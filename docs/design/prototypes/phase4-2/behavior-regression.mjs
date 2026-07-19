@@ -133,7 +133,7 @@ const catStructure = await evaluate(`(() => ({
   secondaryNodes: document.querySelectorAll('.cat-node--secondary').length,
   fragmentCircles: document.querySelectorAll('.cat-fragment circle').length,
   burstParticles: document.querySelectorAll('.cat-burst-layer .cat-burst-particle').length,
-  companionBody: Boolean(document.querySelector('.companion-body'))
+  companionBodyAbsent: !document.querySelector('.companion-body')
 }))()`);
 const quiet = await selectMock("quiet");
 const rotation = await selectMock("rotation");
