@@ -803,6 +803,15 @@
       .signal-wrap.respond .signal-core {
         animation: signal-response var(--satellite-response) ease-out;
       }
+      .signal-wrap.ambient-pulse .signal-core::after {
+        border-color: rgb(121 150 255 / 0.7);
+        border-right-color: transparent;
+        border-bottom-color: transparent;
+      }
+      .signal-wrap.ambient-pulse .signal-orbit {
+        border-color: rgb(74 107 240 / calc(var(--orbit) + var(--signal-pulse-orbit-boost, 0.06)));
+        filter: drop-shadow(0 0 2px rgb(51 92 255 / 0.1));
+      }
       .signal-wrap.attention .signal-core {
         border-color: rgb(189 204 255 / 0.36);
         box-shadow:
@@ -2135,6 +2144,10 @@
             P.satellite.hoverOrbitBoost,
           );
           root.style.setProperty(
+            "--signal-pulse-orbit-boost",
+            P.satellite.ambientPulse.orbitBoost,
+          );
+          root.style.setProperty(
             "--companion-overview-scale",
             P.aboutCompanion.overviewScale,
           );
@@ -2268,7 +2281,15 @@
           const q = new URLSearchParams({ variant, mock: mockKey });
           history.replaceState(null, "", `?${q}`);
         }
-        function respond(signal) {
+        function clearSignalResponse(signal) {
+          if (!signal) return;
+          cancelAnimationFrame(signal._responseFrame);
+          clearTimeout(signal._responseTimer);
+          signal._responseFrame = null;
+          signal._responseTimer = null;
+          signal.classList.remove("respond", "ambient-pulse");
+        }
+        function respond(signal, ambient = false) {
           if (
             !signal ||
             reduce.matches ||
@@ -2276,12 +2297,46 @@
             signal.dataset.state === "dormant"
           )
             return;
-          signal.classList.remove("respond");
-          requestAnimationFrame(() => signal.classList.add("respond"));
-          setTimeout(
-            () => signal.classList.remove("respond"),
-            P.satellite.responseMs,
+          clearSignalResponse(signal);
+          signal._responseFrame = requestAnimationFrame(() => {
+            signal._responseFrame = null;
+            if (!signal.dataset.state) return;
+            signal.classList.add("respond");
+            signal.classList.toggle("ambient-pulse", ambient);
+            signal._responseTimer = setTimeout(
+              () => clearSignalResponse(signal),
+              P.satellite.responseMs,
+            );
+          });
+        }
+        function clearAmbientPulse(signal) {
+          if (!signal) return;
+          clearTimeout(signal._ambientPulseTimer);
+          signal._ambientPulseTimer = null;
+          signal.classList.remove("ambient-pulse");
+        }
+        function canRunAmbientPulse(signal) {
+          const state = signal?.dataset.state;
+          return (
+            (state === "active" || state === "stable") &&
+            !reduce.matches &&
+            finePointer.matches &&
+            signal.dataset.staticMotion !== "true" &&
+            !signal.classList.contains("attention")
           );
+        }
+        function scheduleAmbientPulse(signal) {
+          clearAmbientPulse(signal);
+          if (!canRunAmbientPulse(signal)) return;
+          const [minMs, maxMs] =
+              P.satellite.ambientPulse.intervalMs[signal.dataset.state],
+            delay = minMs + Math.random() * (maxMs - minMs);
+          signal._ambientPulseTimer = setTimeout(() => {
+            signal._ambientPulseTimer = null;
+            if (!canRunAmbientPulse(signal)) return;
+            respond(signal, true);
+            scheduleAmbientPulse(signal);
+          }, delay);
         }
         function clearSignalRateTween(signal) {
           if (!signal) return;
@@ -2315,12 +2370,14 @@
           signal.classList.toggle("attention", attentive);
           if (state === "dormant") return;
           if (attentive === wasAttentive) return;
+          if (attentive) clearAmbientPulse(signal);
           setSignalOrbitRate(
             signal,
             attentive ? P.satellite.hoverOrbitRate : 1,
             attentive ? P.satellite.hoverSlowMs : P.satellite.hoverResumeMs,
           );
           if (attentive) respond(signal);
+          else scheduleAmbientPulse(signal);
         }
         function setSignalPointerAttention(signal, attentive) {
           if (!signal) return;
@@ -2338,6 +2395,8 @@
           signal._pointerAttention = false;
           signal._focusAttention = false;
           clearSignalRateTween(signal);
+          clearSignalResponse(signal);
+          clearAmbientPulse(signal);
           if (signal._ambientMotion) signal._ambientMotion.playbackRate = 1;
         }
         const signalDepthSignals = new Set();
@@ -2400,6 +2459,8 @@
         }
         function setSignalMotion(signal, state) {
           clearSignalRateTween(signal);
+          clearAmbientPulse(signal);
+          clearSignalResponse(signal);
           stopSignalDepthSync(signal);
           signal._ambientMotion?.cancel();
           signal._ambientMotion = null;
@@ -2486,7 +2547,10 @@
               );
               status.textContent = signalStateText[state];
               setSignalMotion(signal, state);
+              scheduleAmbientPulse(signal);
             } else {
+              clearAmbientPulse(signal);
+              clearSignalResponse(signal);
               delete signal.dataset.state;
               delete signal.dataset.particles;
               delete signal.dataset.staticMotion;
@@ -2976,9 +3040,6 @@
           cat.disabled = !canEnter;
           if (canEnter && !signalsRevealed) {
             signalsRevealed = true;
-            document
-              .querySelectorAll(".signal-wrap[data-state]")
-              .forEach(respond);
           } else if (overview < 0.08) {
             signalsRevealed = false;
           }

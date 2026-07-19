@@ -100,7 +100,11 @@ window.PROTOTYPE_VISUAL_PARAMETERS = {
     hoverGlowBoost: 0.18,
     hoverOrbitBoost: 0.14,
     parallaxPx: 5,
-    coreDiameterRatio: 0.075,
+    coreDiameterRatio: 0.06375,
+    ambientPulse: {
+      intervalMs: { active: [4000, 8000], stable: [9000, 13000] },
+      orbitBoost: 0.06
+    },
     particleOpacity: { active: 0.46, stable: 0.24, dormant: 0 },
     particleCount: { active: 3, stable: 1, dormant: 0 }
   },
