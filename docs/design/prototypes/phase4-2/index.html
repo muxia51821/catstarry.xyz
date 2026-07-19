@@ -630,6 +630,17 @@
       .planet.reverse:focus-visible .planet-label {
         translate: -5px 0;
       }
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
       .signal-wrap {
         position: absolute;
         z-index: 2;
@@ -700,6 +711,13 @@
       .signal-wrap[data-particles="1"] .signal-particle:nth-of-type(3),
       .signal-wrap[data-particles="3"] .signal-particle {
         animation: satellite-dust var(--particle-duration) linear infinite;
+      }
+      .signal-wrap[data-static-motion="true"][data-particles="1"]
+        .signal-particle:nth-of-type(3),
+      .signal-wrap[data-static-motion="true"][data-particles="3"]
+        .signal-particle {
+        animation: none;
+        opacity: calc(var(--particle-opacity, 0.3) * 0.7);
       }
       .signal-wrap[data-state="active"] {
         --signal-opacity: 0.88;
@@ -1468,7 +1486,7 @@
               class="planet blog"
               type="button"
               data-planet="blog"
-              aria-describedby="blog-label"
+              aria-describedby="blog-label blog-signal-status"
             >
               <span class="planet-core"></span
               ><span class="signal-wrap" aria-hidden="true"
@@ -1477,13 +1495,13 @@
                 ><i class="signal-particle"></i></span
               ><span class="planet-label" id="blog-label"
                 >BLOG<small>writing &amp; notes</small></span
-              >
+              ><span class="sr-only" id="blog-signal-status"></span>
             </button>
             <button
               class="planet feed"
               type="button"
               data-planet="feed"
-              aria-describedby="feed-label"
+              aria-describedby="feed-label feed-signal-status"
             >
               <span class="planet-core"></span
               ><span class="signal-wrap" aria-hidden="true"
@@ -1492,13 +1510,13 @@
                 ><i class="signal-particle"></i></span
               ><span class="planet-label" id="feed-label"
                 >FEED<small>public footprints</small></span
-              >
+              ><span class="sr-only" id="feed-signal-status"></span>
             </button>
             <button
               class="planet learn"
               type="button"
               data-planet="learn"
-              aria-describedby="learn-label"
+              aria-describedby="learn-label learn-signal-status"
             >
               <span class="planet-core"></span
               ><span class="signal-wrap" aria-hidden="true"
@@ -1507,13 +1525,13 @@
                 ><i class="signal-particle"></i></span
               ><span class="planet-label" id="learn-label"
                 >LEARN<small>learning tracks</small></span
-              >
+              ><span class="sr-only" id="learn-signal-status"></span>
             </button>
             <button
               class="planet projects reverse"
               type="button"
               data-planet="projects"
-              aria-describedby="projects-label"
+              aria-describedby="projects-label projects-signal-status"
             >
               <span class="planet-core"></span
               ><span class="signal-wrap" aria-hidden="true"
@@ -1522,7 +1540,7 @@
                 ><i class="signal-particle"></i></span
               ><span class="planet-label" id="projects-label"
                 >PROJECTS<small>selected builds</small></span
-              >
+              ><span class="sr-only" id="projects-signal-status"></span>
             </button>
           </div>
           <div class="about-zone" id="about-zone" aria-label="豹猫卫星彩蛋">
@@ -1730,6 +1748,9 @@
           focusTrigger = null,
           focusMode = null,
           chargeTimer,
+          catBurstTimer,
+          catRecoverTimer,
+          suppressSyntheticCatClickUntil = 0,
           returnTimer,
           signalsRevealed = false,
           manualAnimations = [],
@@ -1741,6 +1762,12 @@
             return n * n * (3 - 2 * n);
           },
           lerp = (a, b, t) => a + (b - a) * t;
+        const signalStateText = {
+          active: "活动状态：活跃",
+          stable: "活动状态：稳定",
+          dormant: "活动状态：休眠",
+          unavailable: "活动状态：当前不可用",
+        };
         function applyParameters() {
           root.style.setProperty(
             "--background-bloom",
@@ -1991,7 +2018,12 @@
           history.replaceState(null, "", `?${q}`);
         }
         function respond(signal) {
-          if (!signal || reduce.matches || signal.dataset.state === "dormant")
+          if (
+            !signal ||
+            reduce.matches ||
+            !finePointer.matches ||
+            signal.dataset.state === "dormant"
+          )
             return;
           signal.classList.remove("respond");
           requestAnimationFrame(() => signal.classList.add("respond"));
@@ -2003,7 +2035,10 @@
         function setSignalMotion(signal, state) {
           signal._ambientMotion?.cancel();
           signal._ambientMotion = null;
-          if (reduce.matches || state === "dormant") return;
+          const staticMotion =
+            reduce.matches || !finePointer.matches || state === "dormant";
+          signal.dataset.staticMotion = String(staticMotion);
+          if (staticMotion) return;
           const duration = P.satellite.microDurationMs[state],
             travel = P.satellite.microTravelPx[state],
             window = P.satellite.motionWindowPercent[state] / 100,
@@ -2039,7 +2074,8 @@
             );
           planets.forEach((planet) => {
             const key = planet.dataset.planet,
-              signal = planet.querySelector(".signal-wrap");
+              signal = planet.querySelector(".signal-wrap"),
+              status = document.getElementById(`${key}-signal-status`);
             if (!signal) return;
             const state =
               mock.projection === "available" ? mock.states[key] : null;
@@ -2068,10 +2104,13 @@
                 "--signal-scale",
                 P.satellite.shellScale[state],
               );
+              status.textContent = signalStateText[state];
               setSignalMotion(signal, state);
             } else {
               delete signal.dataset.state;
               delete signal.dataset.particles;
+              delete signal.dataset.staticMotion;
+              status.textContent = signalStateText.unavailable;
             }
           });
           document.getElementById("debug-mock").textContent = mock.label;
@@ -2549,13 +2588,12 @@
               66,
               innerHeight - 66,
             ),
-            canEnter = planets.some((planet) =>
-              planet.classList.contains("ready"),
-            );
+            canEnter = aboutPlanet.classList.contains("ready");
           catZone.style.setProperty("--cat-x", `${catX}px`);
           catZone.style.setProperty("--cat-y", `${catY}px`);
           catZone.classList.toggle("ready", canEnter);
           cat.tabIndex = canEnter ? 0 : -1;
+          cat.disabled = !canEnter;
           if (canEnter && !signalsRevealed) {
             signalsRevealed = true;
             document
@@ -2801,12 +2839,28 @@
         document
           .querySelectorAll(".flight-index [data-focus]")
           .forEach((b) => (b.onclick = () => jumpFocus(b.dataset.focus)));
-        function recoverCatCompanion(restoreFocus = false) {
-          if (catState !== "burst" && focusTrigger !== cat) return;
+        function resetCatToRest() {
+          clearTimeout(chargeTimer);
+          clearTimeout(catBurstTimer);
+          clearTimeout(catRecoverTimer);
+          catState = "rest";
+          catZone.classList.remove("charged", "burst", "recovering");
+          document.getElementById("cat-hint").textContent = "豹猫卫星彩蛋";
+        }
+        function recoverCatCompanion(restoreFocus = false, force = false) {
+          if (!force && catState !== "burst" && focusTrigger !== cat) return;
+          clearTimeout(chargeTimer);
+          clearTimeout(catBurstTimer);
+          if (reduce.matches) {
+            resetCatToRest();
+            if (restoreFocus && catZone.classList.contains("ready")) cat.focus();
+            return;
+          }
           catState = "recover";
           catZone.classList.remove("burst");
           catZone.classList.add("recovering");
-          setTimeout(
+          clearTimeout(catRecoverTimer);
+          catRecoverTimer = setTimeout(
             () => {
               catState = "rest";
               catZone.classList.remove("recovering");
@@ -2826,7 +2880,7 @@
           activeFocus = null;
           focusMode = null;
           focusTrigger = null;
-          if (wasCat) recoverCatCompanion(restoreFocus);
+          if (wasCat) recoverCatCompanion(restoreFocus, true);
           else if (returnTarget && restoreFocus) returnTarget.focus();
         }
         function animateFocusReturn(key, onComplete) {
@@ -3000,9 +3054,32 @@
         aboutPlanet.addEventListener("blur", () =>
           catZone.classList.remove("revealed"),
         );
-        cat.onclick = () => {
+        function enterAboutFromCat() {
+          clearTimeout(chargeTimer);
+          clearTimeout(catBurstTimer);
+          catState = "burst";
+          catZone.classList.remove("charged", "recovering");
+          catZone.classList.add("burst");
+          document.getElementById("cat-hint").textContent = "豹猫卫星彩蛋";
+          if (reduce.matches) {
+            resetCatToRest();
+            navigateToFocus("about", cat);
+            return;
+          }
+          catBurstTimer = setTimeout(() => {
+            catBurstTimer = undefined;
+            if (catState === "burst") navigateToFocus("about", cat);
+          }, P.transition.catBurstMs);
+        }
+        function activateCat({ direct = false } = {}) {
+          if (!catZone.classList.contains("ready") || catState === "burst") return;
+          if (reduce.matches || direct) {
+            enterAboutFromCat();
+            return;
+          }
           if (catState === "rest" || catState === "recover") {
             catState = "charged";
+            catZone.classList.remove("recovering");
             catZone.classList.add("charged");
             document.getElementById("cat-hint").textContent =
               "再次点击，进入 About";
@@ -3010,27 +3087,30 @@
             chargeTimer = setTimeout(
               () => {
                 if (catState === "charged") {
-                  catState = "rest";
-                  catZone.classList.remove("charged");
-                  document.getElementById("cat-hint").textContent =
-                    "豹猫卫星彩蛋";
+                  resetCatToRest();
                 }
               },
-              reduce.matches ? 1 : P.transition.catChargeMs,
+              P.transition.catChargeMs,
             );
             return;
           }
           if (catState === "charged") {
-            clearTimeout(chargeTimer);
-            catState = "burst";
-            catZone.classList.remove("charged");
-            catZone.classList.add("burst");
-            setTimeout(
-              () => navigateToFocus("about", cat),
-              reduce.matches ? 1 : P.transition.catBurstMs,
-            );
+            enterAboutFromCat();
           }
-        };
+        }
+        cat.addEventListener("pointerup", (event) => {
+          if (event.pointerType !== "touch") return;
+          event.preventDefault();
+          suppressSyntheticCatClickUntil = performance.now() + 750;
+          activateCat({ direct: true });
+        });
+        cat.addEventListener("click", (event) => {
+          if (performance.now() < suppressSyntheticCatClickUntil) {
+            event.preventDefault();
+            return;
+          }
+          activateCat();
+        });
         document
           .querySelectorAll("[data-variant]")
           .forEach((b) => (b.onclick = () => setVariant(b.dataset.variant)));
@@ -3389,7 +3469,15 @@
           delete body.dataset.focusMode;
           updateScene();
         }
-        addEventListener("scroll", updateScene, { passive: true });
+        addEventListener(
+          "scroll",
+          () => {
+            if (catState === "charged" || (catState === "burst" && !activeFocus))
+              resetCatToRest();
+            updateScene();
+          },
+          { passive: true },
+        );
         addEventListener("wheel", releaseManualToScroll, { passive: true });
         addEventListener("touchstart", releaseManualToScroll, {
           passive: true,
@@ -3401,6 +3489,7 @@
           updateScene();
         });
         reduce.addEventListener("change", () => {
+          if (reduce.matches) resetCatToRest();
           cancelManualAnimation();
           drawStarfield();
           setVariant(variant);
@@ -3409,6 +3498,7 @@
             reduce.matches || !finePointer.matches;
           updateScene();
         });
+        finePointer.addEventListener("change", () => setMock(mockKey));
         applyParameters();
         drawStarfield();
         setVariant(variant);

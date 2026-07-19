@@ -14,6 +14,16 @@ python -m http.server 4172 --directory docs/design/prototypes/phase4-2
 http://localhost:4172/?variant=drift&mock=mixed
 ```
 
+## 行为回归
+
+原型在已开启 Chrome DevTools Protocol（`127.0.0.1:9227`）且本地 server 运行时，可执行：
+
+```powershell
+node docs/design/prototypes/phase4-2/behavior-regression.mjs
+```
+
+它检查四个 mock、桌面两阶段点击、蓄能超时与滚动取消、豹猫回收、触控单击 burst → About、reduced-motion 直接路径、`unavailable` 隐藏和控制台错误。它不判断 HAS 或豹猫的视觉质量。
+
 ## URL 校准面
 
 | 参数 | 值 | 验证内容 |
@@ -52,16 +62,16 @@ docs/design/prototypes/phase4-2/visual-parameters.js
 
 1. 从 Entry 正常滚动：五个远端目标星应从一开始就在最终语义区域内，以 `目标星 → 光晕 → 微小天体 → 完整球体` 的顺序原地显现；不应从共同中心散开，也不应有滚动劫持。
 2. 用 `Orbit` 与 `Drift` 比较受控构图。五颗完整球体保持稳定语义区域；About 位于右上远端，且不是最大主星。
-3. hover 或 Tab 聚焦 Blog / Feed / Learn / Projects：标签增强，且对应 `active` / `stable` 伴星只回应一次。其低频运动应是长时间静止后的短弧移动；`dormant` 完全静止。
+3. hover 或 Tab 聚焦 Blog / Feed / Learn / Projects：标签增强，且对应 `active` / `stable` 伴星只回应一次。其低频运动应是长时间静止后的短弧移动；`dormant` 完全静止。活动状态以仅屏幕阅读器可见的描述关联到对应星球，不在星图中增加状态文字。
 4. 依次切换四个 mock：`unavailable` 必须同时隐藏四颗活动卫星，不能把它们猜成 dormant。
 5. 从 Star Map 继续自然滚动：依次进入 `About → Feed → Blog → Projects → Learn` 的单星 Focus。检查每个镜头是否不同、文字是否是主体、星球是否只作为空间窗口；每个 Focus 仅有标题、1–3 条原型事实和 action，不加载板块内容。About 是例外：它直接显示同一 Home 原地内容态，只保留“返回星图”。
 6. 慢速、快速和反向滚过两个相邻 Focus：前一镜头应先稳定停留，在共享 Handoff 区间中退场，下一镜头同时进入；不应出现突然换球、空白帧、残留副本或持续追赶滚动位置的动画。
 7. 从 Star Map 点击任一星球，或用侧边航行索引选择任一名称：直接进入目标 Focus，不必经过前序星球。
 8. 在非 About Focus 点击 `ENTER`：只模拟约 600ms 的路由推进，绝不跳转生产路由；点击“返回星图”或按 Esc 回到总览。
 9. 从总览直接点击 About、自然滚动到 About Focus，或完成豹猫彩蛋：都直接进入同一个 Home 原地内容态；不再存在 `OPEN ABOUT` 的二级步骤。
-10. 在 About 邻近区域操作 companion：总览先读成低音量 Klein Blue 小天体；进入引力范围后再显出豹猫。第一次点击蓄能，第二次点击局部爆开后进入相同 About 展开态；关闭后回收重组。
+10. 在 About 邻近区域操作 companion：总览先读成低音量 Klein Blue 小天体；进入引力范围后再显出豹猫。桌面使用两次独立点击：第一次蓄能，第二次局部爆开后进入相同 About 展开态；这不是浏览器 `dblclick`。触控端单击豹猫直接爆开后进入 About；关闭后沿用既有回收逻辑。
 11. 检查三层首屏流星的方向、长度与远近，以及 Canvas 鼠标流星尾的头部辉光、渐变拖尾和碎屑。
-12. 在浏览器启用 `prefers-reduced-motion`，或用触控设备访问：应直接得到完整、可读、可点击的静态星图；视差、尾迹、流星、连续卫星漂移与爆开均静止/瞬时降级，About 和全部导航路径仍可用。
+12. 在浏览器启用 `prefers-reduced-motion`，或用触控设备访问：应直接得到完整、可读、可点击的静态星图；触控端 HAS 停止持续短弧与尘埃漂移，reduced-motion 下卫星与豹猫均取消过程动画。触控豹猫直接进入 About，reduced-motion 下豹猫也直接进入 About；所有主路径仍可用。
 
 ## 预渲染行星资产
 
@@ -89,7 +99,7 @@ Phase 4.2 必须确认五颗 Overview 的视觉身份，并验证 Overview / Foc
 - Focus 序列：总览停留 `45vh`；Overview → About 交接为桌面 `54vh` / 移动端 `42vh`；每颗桌面 `144vh` / 移动端 `126vh`；每步前 `72%` 为稳定 Hold，后 `28%` 为共享 Handoff；最后释放到页脚 `35vh`。因此 Drift 桌面原型总高度为 `1284vh`。在 `1440×900` 检查中，每个桌面 Focus 段为 `1296px`，其中约 `933px` 为 Hold、`363px` 为 Handoff。
 - Focus 进入 / 退出：`1100ms / 800ms`；action preview：`600ms`。
 - Star Emergence / 星域本轮校准：目标星不透明度 `0.70`、标签起点 `.68`、光晕强度 `.50`；固定 seed 三层星场密度为远 / 中 / 近 `300 / 100 / 20` 每百万像素。它们是可继续手调的原型参数，不是生产 Token。
-- HAS 伴星周期：active `24s`、stable `32s`；只有末尾 `18% / 12%` 时间执行短弧移动；dormant 静止。
+- HAS 伴星周期：active `24s`、stable `32s`；只有末尾 `18% / 12%` 时间执行短弧移动；dormant 静止。仅在 fine pointer 且未启用 reduced-motion 时运行；触控端保留静态三态材质。
 - 豹猫：蓄能 `3800ms`、爆开 `1140ms`、回收 `2750ms`。
 - 三层首屏流星：`5–6.6s`、`330–760px`；Cursor Meteor 最多 `45` 个轨迹点。
 
@@ -101,4 +111,5 @@ Phase 4.2 必须确认五颗 Overview 的视觉身份，并验证 Overview / Foc
 - 三层星域由固定 seed 生成，同一视口与参数下可复现；星团、暗区和移动端密度均由 `environment.starfield` 集中控制。
 - Drift 是主构图方向；About 保持右上远端，Feed 保持最容易接近，Blog / Projects / Learn 分别稳定在左上 / 左下 / 右下语义区域。允许区域内人工微调，不做运行时随机换位。
 - 未接入 `activity-signals.json`、Worker、R2、D1、KV 或任何生产数据链路。
+- HAS 与豹猫本轮只完成状态可靠性、触控、reduced-motion 和无障碍路径；轮廓、材质、尺寸比例、轨道、rim、尘埃、身体比例及静态关键状态仍是视觉待校准，不是视觉定稿。
 - `prototype-verdict.md` 已记录本轮结构状态；所有标记为“待目测”的项目仍需木下在浏览器中判断。

@@ -1,0 +1,231 @@
+const targets = await fetch("http://127.0.0.1:9227/json").then((response) =>
+  response.json(),
+);
+const target = targets.find((item) => item.type === "page");
+if (!target) throw new Error("No CDP page target");
+
+const socket = new WebSocket(target.webSocketDebuggerUrl);
+await new Promise((resolve, reject) => {
+  socket.addEventListener("open", resolve, { once: true });
+  socket.addEventListener("error", reject, { once: true });
+});
+
+let id = 0;
+const pending = new Map();
+const errors = [];
+socket.addEventListener("message", (event) => {
+  const message = JSON.parse(event.data);
+  if (message.id && pending.has(message.id)) {
+    const callbacks = pending.get(message.id);
+    pending.delete(message.id);
+    message.error
+      ? callbacks.reject(new Error(message.error.message))
+      : callbacks.resolve(message.result);
+  }
+  if (message.method === "Runtime.exceptionThrown")
+    errors.push(message.params.exceptionDetails.text);
+  if (message.method === "Runtime.consoleAPICalled" && message.params.type === "error")
+    errors.push(message.params.args.map((arg) => arg.value ?? arg.description).join(" "));
+});
+
+function send(method, params = {}) {
+  const requestId = ++id;
+  socket.send(JSON.stringify({ id: requestId, method, params }));
+  return new Promise((resolve, reject) => pending.set(requestId, { resolve, reject }));
+}
+
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+async function evaluate(expression) {
+  const result = await send("Runtime.evaluate", {
+    expression,
+    returnByValue: true,
+    awaitPromise: true,
+  });
+  if (result.exceptionDetails) throw new Error(result.exceptionDetails.text);
+  return result.result.value;
+}
+
+async function navigate({ mock = "mixed", mobile = false, reduce = "no-preference" } = {}) {
+  await send("Emulation.setEmulatedMedia", {
+    features: [{ name: "prefers-reduced-motion", value: reduce }],
+  });
+  await send("Emulation.setDeviceMetricsOverride", {
+    width: mobile ? 390 : 1440,
+    height: mobile ? 844 : 900,
+    deviceScaleFactor: 1,
+    mobile,
+  });
+  await send(
+    "Emulation.setTouchEmulationEnabled",
+    mobile ? { enabled: true, maxTouchPoints: 5 } : { enabled: false },
+  );
+  await send("Page.navigate", {
+    url: `http://127.0.0.1:4172/index.html?variant=drift&mock=${mock}&test=${Date.now()}`,
+  });
+  await wait(520);
+}
+
+async function moveToOverview() {
+  await evaluate(`(() => {
+    const P = PROTOTYPE_VISUAL_PARAMETERS;
+    const base = (P.camera.journeyVh.drift - 100) * innerHeight / 100;
+    const latestThreshold = Math.max(
+      ...Object.values(P.planet.emergence.depthOffset).map(
+        ({ progress }) => P.planet.emergence.interactiveStart + progress * .12,
+      ),
+    );
+    window.scrollTo(0, base * Math.min(1, latestThreshold + .002));
+  })()`);
+  await wait(180);
+}
+
+async function selectMock(key) {
+  await evaluate(`document.querySelector('[data-mock="${key}"]').click()`);
+  await wait(60);
+  return evaluate(`(() => ({
+    key: '${key}',
+    signals: ['blog', 'feed', 'learn', 'projects'].map((planet) => {
+      const signal = document.querySelector('[data-planet="' + planet + '"] .signal-wrap');
+      return {
+        planet,
+        state: signal.dataset.state || null,
+        status: document.getElementById(planet + '-signal-status').textContent
+      };
+    })
+  }))()`);
+}
+
+await send("Runtime.enable");
+await send("Page.enable");
+
+await navigate();
+await evaluate(`(() => {
+  const P = PROTOTYPE_VISUAL_PARAMETERS;
+  const threshold = (key) => P.planet.emergence.interactiveStart + P.planet.emergence.depthOffset[key].progress * .12;
+  const about = threshold('about');
+  const earliestOther = Math.min(...['blog', 'feed', 'learn', 'projects'].map(threshold));
+  const base = (P.camera.journeyVh.drift - 100) * innerHeight / 100;
+  window.scrollTo(0, base * ((about + earliestOther) / 2));
+})()`);
+await wait(120);
+const beforeAboutReady = await evaluate(`(() => ({
+  somePlanetReady: [...document.querySelectorAll('.planet')].some((planet) => planet.classList.contains('ready')),
+  aboutReady: document.querySelector('[data-planet="about"]').classList.contains('ready'),
+  catReady: document.getElementById('about-zone').classList.contains('ready'),
+  catDisabled: document.getElementById('cat').disabled
+}))()`);
+await moveToOverview();
+const initial = await evaluate(`(() => ({
+  aboutReady: document.querySelector('[data-planet="about"]').classList.contains('ready'),
+  catReady: document.getElementById('about-zone').classList.contains('ready'),
+  catDisabled: document.getElementById('cat').disabled,
+  states: ['blog', 'feed', 'learn', 'projects'].map((key) => ({
+    key,
+    state: document.querySelector('[data-planet="' + key + '"] .signal-wrap').dataset.state,
+    status: document.getElementById(key + '-signal-status').textContent,
+    staticMotion: document.querySelector('[data-planet="' + key + '"] .signal-wrap').dataset.staticMotion
+  }))
+}))()`);
+const quiet = await selectMock("quiet");
+const rotation = await selectMock("rotation");
+await selectMock("mixed");
+
+await evaluate(`document.getElementById('cat').click()`);
+const charged = await evaluate(`document.getElementById('about-zone').classList.contains('charged')`);
+await evaluate(`window.scrollBy(0, 2)`);
+await wait(80);
+const chargeCancelledByScroll = await evaluate(`(() => ({
+  charged: document.getElementById('about-zone').classList.contains('charged'),
+  hint: document.getElementById('cat-hint').textContent
+}))()`);
+await evaluate(`document.getElementById('cat').click()`);
+await wait(3950);
+const chargeExpired = await evaluate(`(() => ({
+  state: document.getElementById('about-zone').className,
+  hint: document.getElementById('cat-hint').textContent
+}))()`);
+await evaluate(`document.getElementById('cat').click(); document.getElementById('cat').click()`);
+await wait(2450);
+const desktopCat = await evaluate(`(() => ({
+  focus: document.getElementById('planet-focus').dataset.focus,
+  focusOpen: document.body.classList.contains('focus-open'),
+  catState: document.getElementById('about-zone').className
+}))()`);
+await evaluate(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`);
+await wait(120);
+const desktopEscape = await evaluate(`!document.body.classList.contains('focus-open')`);
+await wait(2850);
+const desktopRecovery = await evaluate(`(() => ({
+  classes: document.getElementById('about-zone').className,
+  hint: document.getElementById('cat-hint').textContent
+}))()`);
+await evaluate(`(() => {
+  const P = PROTOTYPE_VISUAL_PARAMETERS;
+  const h = innerHeight / 100;
+  const base = (P.camera.journeyVh.drift - 100) * h;
+  const target = base + P.camera.focusSequence.overviewHoldVh * h + P.camera.focusSequence.overviewHandoffVh.desktop * h + P.camera.focusSequence.stepVh.desktop * h * (1 + P.camera.focusSequence.holdRatio * .5);
+  window.scrollTo(0, target);
+})()`);
+await wait(140);
+const feedAfterAbout = await evaluate(`document.getElementById('planet-focus').dataset.focus`);
+
+await navigate({ mobile: true });
+await moveToOverview();
+const touchRect = await evaluate(`(() => {
+  const rect = document.getElementById('cat').getBoundingClientRect();
+  return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+})()`);
+await send("Input.dispatchTouchEvent", {
+  type: "touchStart",
+  touchPoints: [{ x: touchRect.x, y: touchRect.y, radiusX: 1, radiusY: 1, force: 1, id: 1 }],
+});
+await send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+await wait(2450);
+const touchCat = await evaluate(`(() => ({
+  focus: document.getElementById('planet-focus').dataset.focus,
+  focusOpen: document.body.classList.contains('focus-open'),
+  charged: document.getElementById('about-zone').classList.contains('charged'),
+  staticSignals: [...document.querySelectorAll('.signal-wrap[data-state]')].every((signal) => signal.dataset.staticMotion === 'true')
+}))()`);
+await evaluate(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`);
+await wait(80);
+
+await navigate({ mock: "unavailable", reduce: "reduce" });
+await moveToOverview();
+await evaluate(`document.getElementById('cat').click()`);
+await wait(100);
+const reduced = await evaluate(`(() => ({
+  focus: document.getElementById('planet-focus').dataset.focus,
+  focusOpen: document.body.classList.contains('focus-open'),
+  catClasses: document.getElementById('about-zone').className,
+  signalsVisible: [...document.querySelectorAll('.signal-wrap')].filter((signal) => signal.dataset.state).length,
+  statuses: ['blog', 'feed', 'learn', 'projects'].map((key) => document.getElementById(key + '-signal-status').textContent)
+}))()`);
+await evaluate(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`);
+await wait(80);
+const reducedEscape = await evaluate(`!document.body.classList.contains('focus-open')`);
+
+console.log(
+  JSON.stringify(
+    {
+      errors,
+      beforeAboutReady,
+      initial,
+      quiet,
+      rotation,
+      charged,
+      chargeCancelledByScroll,
+      chargeExpired,
+      desktopCat,
+      desktopEscape,
+      desktopRecovery,
+      feedAfterAbout,
+      touchCat,
+      reduced,
+      reducedEscape,
+    },
+    null,
+    2,
+  ),
+);
+socket.close();

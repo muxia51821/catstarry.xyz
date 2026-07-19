@@ -15,15 +15,15 @@
 | 语义布局 | 已修正 / 待目测 | Drift 默认打开；About 右上远端并降低有效尺度，Feed 位于中右近景且有效尺度最高，Blog 左上、Projects 左下、Learn 右下。Orbit 只作对照。 |
 | 五星原地显现 | 结构通过 / 待目测 | 五颗星从 Entry 起就在各自最终语义区域内作为远端目标星出现，并依次经历光晕、微小天体和完整球体；Feed 较早建立体积，About 较晚显现。没有共同中心散开。本轮提高目标星、光晕和标签的可读性，仍需木下确认没有过早暴露为导航。 |
 | 深空星域 | 结构通过 / 待目测 | 三层 Canvas 星域使用固定 seed、非均匀星团与暗区；只响应滚动视差，不持续自动运动，移动端降低密度。本轮仅增加远 / 中 / 近静态密度与层透明度，未引入闪烁或屏保式循环。 |
-| 信号卫星语义 | 待目测 | 伴星具有明暗面、局部轨道、稀疏尘埃、指针视差和一次响应；active / stable 长静止后短弧移动，dormant 静止。 |
-| About companion | 待目测 | Klein Blue 伴星与豹猫合并为同一个个人 companion；位置由 About 星球实际尺寸与相对半径参数计算。 |
+| 信号卫星语义 | 行为通过 / 视觉待校准 | `active / stable / dormant` 与 `unavailable` mock 的状态、隐藏、触控静止、reduced-motion 和屏幕阅读器描述已接入；轮廓、材质、尺寸、轨道、rim 与尘埃不是视觉定稿。 |
+| About companion | 行为通过 / 视觉待校准 | companion 仅在 About 自身可交互后启用，并继续由 About 实际尺寸与相对半径定位；身体比例、轮廓、Klein Blue 主次与静态状态仍待专项校准。 |
 | 单星 Focus | 结构通过 / 初轮目测完成 | 自然滚动按 `About → Feed → Blog → Projects → Learn` 进入五个独立构图 Focus；星图点击和侧边索引可直接跳转。每个 Focus 仅显示近景空间窗口、标题、1–3 条原型事实与 action。Projects 已从遮挡文字的过大居中球体改为右下窗口构图；五个镜头仍待木下最终目测。 |
 | Focus Hold / Handoff | 结构通过 / 初轮目测完成 | 每个 Focus 步长前 `72%` 保持稳定，后 `28%` 与下一镜头共享交接；两个永久槽位直接由滚动位置驱动，不创建临时克隆、监听器或持续 RAF 追赶。桌面单段已校准到 `144vh`（`900px` 高窗口中为 `1296px`，其中约 `933px` Hold、`363px` Handoff）；Overview → About 与 Learn → Footer 单独处理。 |
 | 路由推进 | 通过结构检查 | 非 About Focus 的 action 只模拟短 Planet Push，不建立真实路由或内容页。 |
-| About 双路径 | 结构通过 / 回归通过 | 总览直接点击 About、自然滚动进入 About Focus、豹猫两次点击都直接进入同一个 Home 原地内容态；不再存在 `OPEN ABOUT` 二级状态。About 内只保留“返回星图”，之后仍可继续原生滚动到 Feed；Esc 和豹猫回收路径已回归检查。 |
+| About 双路径 | 结构通过 / 回归通过 | 总览直接点击 About、自然滚动进入 About Focus、桌面豹猫两次独立点击、触控豹猫单击爆开后都进入同一个 Home 原地内容态；不使用浏览器 `dblclick`，也不再存在 `OPEN ABOUT` 二级状态。About 内只保留“返回星图”，之后仍可继续原生滚动到 Feed；Esc、reduced-motion 与豹猫回收路径均纳入回归。 |
 | 流星系统 | 待目测 | 首屏为三层长轨迹；光标尾迹移植旧 About Canvas 的跟随、辉光、渐变拖尾与碎屑机制，并改为 Klein Blue。 |
 | 参数集中化 | 通过结构检查 | 相机、流星、卫星、星球尺度和转场时长集中在 `visual-parameters.js`。 |
-| reduced-motion | 通过结构检查 | 直接呈现完整可读的静态星图；流星、尾迹、视差、连续卫星漂移与爆开均降级，导航与 About 保留。 |
+| reduced-motion | 行为通过 / 回归通过 | 直接呈现完整可读的静态星图；流星、尾迹、视差、HAS 持续漂移与豹猫过程动画均降级，导航与 About 保留。 |
 
 ## 待木下校准的参数
 
@@ -50,7 +50,6 @@
 - 五个 Focus 的独立构图是否真正让文字成为主体、星球成为空间窗口；当前文案只用于构图验证，不是功能内容。
 - 三层星域的密度、星团和暗区是否足够形成深空，同时不抢五颗主星。
 - Drift 新坐标、尺度与 companion 向内侧偏移是否真正实现 About 右上远端、Feed 最易接近的空间关系。
-- 触控设备上的豹猫彩蛋是否保留双击，或退化为仅 About 直接展开。
 - 真正的生产路由切换、真实 HAS 静态投影、Worker/R2/D1/KV 数据链路。
 - Phase 4.3 的 canonical CSS 或生产组件落地。
 
@@ -60,7 +59,6 @@
 2. 目测默认滚动 Focus 序列、Hold / Handoff，以及点击、键盘和航行索引的直接跳转与返回；重点检查快速滚动和反向滚动。
 3. 使用 `planet-asset-prompt-kit-v2.md` 重做并确认五颗 Overview 身份，再验证 Overview / Focus / Mobile 连续性；最终生产导出可后置。
 4. 确认 / 调整 Focus、Planet Push、豹猫和流星的时长。
-5. 专项梳理四颗 HAS 信号卫星与 About 豹猫 companion：先在 Phase 4.2 验证视觉身份、状态和交互，Phase 4.3 只负责把已通过方案组件化。
-6. 确认移动端要保留或移除豹猫双击彩蛋。
+5. 下一轮专项校准四颗 HAS 信号卫星与 About 豹猫 companion 的视觉身份：轮廓、材质、尺寸比例、轨道、rim、尘埃、身体比例与静态状态仍未通过；Phase 4.3 只负责把已通过方案组件化。
 
 只有上述结论明确后，才可由流程治理决定是否进入 Phase 4.3。
