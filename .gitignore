@@ -40,3 +40,6 @@ _archive/
 
 # Local-only visual reference material
 docs/design/reference-design/深水/
+
+# Local Phase 4.2 calibration note
+docs/design/prototypes/phase4-2/4.2-mini-prompt.md

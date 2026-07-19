@@ -176,11 +176,11 @@
         opacity: var(--galaxy-dust-opacity);
         background: linear-gradient(
           var(--galaxy-gradient-angle),
-          transparent 41%,
-          rgb(113 129 177 / 0.13) 46%,
-          rgb(160 173 214 / 0.42) 50%,
-          rgb(113 129 177 / 0.13) 54%,
-          transparent 59%
+          transparent 39%,
+          rgb(113 129 177 / 0.16) 45%,
+          rgb(160 173 214 / 0.62) 50%,
+          rgb(113 129 177 / 0.16) 55%,
+          transparent 61%
         );
         filter: blur(24px);
         transform: scale(1.08);
@@ -1066,7 +1066,7 @@
         inset: 0;
         overflow: visible;
         border-radius: 50%;
-        background-color: #a98e6e;
+        background-color: transparent;
         background-image: var(--focus-planet-asset, none);
         background-position: var(--focus-crop, center);
         background-repeat: no-repeat;
@@ -1096,11 +1096,11 @@
         inset: 3.15%;
         border-radius: 50%;
         border: var(--atmosphere-width) solid
-          rgb(241 225 199 / var(--atmosphere-opacity));
-        border-right-color: rgb(104 127 177 / var(--atmosphere-shadow-opacity));
+          rgb(151 167 206 / calc(var(--atmosphere-opacity) * 0.72));
+        border-right-color: rgb(60 78 142 / var(--atmosphere-shadow-opacity));
         border-bottom-color: transparent;
         box-shadow: -6px -5px 17px
-          rgb(255 238 208 / var(--atmosphere-glow-opacity));
+          rgb(83 113 230 / var(--atmosphere-glow-opacity));
       }
       .focus-copy {
         position: absolute;
@@ -2456,7 +2456,7 @@
             "--galaxy-dust-opacity",
             (
               P.environment.starfield.galaxy.dustOpacity *
-              (1 - overview * 0.48)
+              (0.92 + overview * 0.08)
             ).toFixed(3),
           );
           planets.forEach((planet) => {
