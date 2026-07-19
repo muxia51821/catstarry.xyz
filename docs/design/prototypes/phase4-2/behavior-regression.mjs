@@ -45,13 +45,13 @@ async function evaluate(expression) {
   return result.result.value;
 }
 
-async function navigate({ mock = "mixed", mobile = false, reduce = "no-preference" } = {}) {
+async function navigate({ mock = "mixed", mobile = false, reduce = "no-preference", variant = "drift", width, height } = {}) {
   await send("Emulation.setEmulatedMedia", {
     features: [{ name: "prefers-reduced-motion", value: reduce }],
   });
   await send("Emulation.setDeviceMetricsOverride", {
-    width: mobile ? 390 : 1440,
-    height: mobile ? 844 : 900,
+    width: width ?? (mobile ? 390 : 1440),
+    height: height ?? (mobile ? 844 : 900),
     deviceScaleFactor: 1,
     mobile,
   });
@@ -60,7 +60,7 @@ async function navigate({ mock = "mixed", mobile = false, reduce = "no-preferenc
     mobile ? { enabled: true, maxTouchPoints: 5 } : { enabled: false },
   );
   await send("Page.navigate", {
-    url: `file:///D:/catstarry.xyz/docs/design/prototypes/phase4-2/index.html?variant=drift&mock=${mock}&test=${Date.now()}`,
+    url: `file:///D:/catstarry.xyz/docs/design/prototypes/phase4-2/index.html?variant=${variant}&mock=${mock}&test=${Date.now()}`,
   });
   await wait(520);
 }
@@ -197,6 +197,25 @@ await evaluate(`(() => {
 })()`);
 await wait(140);
 const feedAfterAbout = await evaluate(`document.getElementById('planet-focus').dataset.focus`);
+const footerRelease = await evaluate(`(() => {
+  window.scrollTo(0, document.documentElement.scrollHeight - innerHeight - 1);
+  return new Promise((resolve) => setTimeout(() => resolve({ focus: document.getElementById('planet-focus').dataset.focus, footerVisible: document.querySelector('.footer').getBoundingClientRect().top < innerHeight }), 120));
+})()`);
+const reverseFromFooter = await evaluate(`(() => {
+  const P = PROTOTYPE_VISUAL_PARAMETERS, base = (P.camera.journeyVh.drift - 100) * innerHeight / 100;
+  const latest = Math.max(...Object.values(P.planet.emergence.depthOffset).map(({ progress }) => P.planet.emergence.interactiveStart + progress * .12));
+  window.scrollTo(0, base * Math.min(1, latest + .002));
+  return new Promise((resolve) => setTimeout(() => resolve({ focusOpen: document.body.classList.contains('focus-open'), stage: document.getElementById('stage-name').textContent }), 120));
+})()`);
+
+await navigate({ variant: 'orbit', width: 1366, height: 768 });
+await moveToOverview();
+const orbit1366 = await evaluate(`(() => ({
+  variant: new URLSearchParams(location.search).get('variant'),
+  readyPlanets: [...document.querySelectorAll('.planet.ready')].map((planet) => planet.dataset.planet),
+  catReady: document.getElementById('about-zone').classList.contains('ready'),
+  catDisabled: document.getElementById('cat').disabled
+}))()`);
 
 await navigate({ mobile: true });
 await moveToOverview();
@@ -253,6 +272,9 @@ console.log(
       desktopEscape,
       desktopRecovery,
       feedAfterAbout,
+      footerRelease,
+      reverseFromFooter,
+      orbit1366,
       touchCat,
       reduced,
       reducedEscape,
