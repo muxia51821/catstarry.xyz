@@ -243,6 +243,7 @@
         left: clamp(24px, 8vw, 132px);
         bottom: clamp(58px, 14vh, 142px);
         width: min(430px, calc(100vw - 48px));
+        pointer-events: none;
         opacity: calc(1 - var(--approach) * 1.4);
         transform: translateY(calc(var(--approach) * -36px));
       }
@@ -279,6 +280,7 @@
         color: var(--ink);
         background: transparent;
         cursor: pointer;
+        pointer-events: auto;
         font-size: 11px;
         letter-spacing: 0.13em;
       }

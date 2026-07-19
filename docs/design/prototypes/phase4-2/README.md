@@ -24,6 +24,14 @@ node docs/design/prototypes/phase4-2/behavior-regression.mjs
 
 它检查四个 mock、桌面两阶段点击、蓄能超时与滚动取消、豹猫回收、触控单击 burst → About、reduced-motion 直接路径、`unavailable` 隐藏和控制台错误。它不判断 HAS 或豹猫的视觉质量。
 
+Learn 星球命中与 Focus 路径可单独检查：
+
+```powershell
+node docs/design/prototypes/phase4-2/learn-focus-regression.mjs
+```
+
+它以真实鼠标坐标验证 Learn 的 ready、命中元素和直接进入 Focus，并覆盖侧边 LEARN、自然滚动、返回星图与 footer-release。
+
 ## URL 校准面
 
 | 参数 | 值 | 验证内容 |
