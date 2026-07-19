@@ -101,6 +101,16 @@ window.PROTOTYPE_VISUAL_PARAMETERS = {
     hoverOrbitBoost: 0.14,
     parallaxPx: 5,
     coreDiameterRatio: 0.06375,
+    material: {
+      bodyAsset: "./assets/satellites/has-beacon-body-v1.png",
+      bodyAssetScale: "148%",
+      bodyBrightness: 0.86,
+      bodyContrast: 1.08,
+      bodySaturation: 0.72,
+      signalBandTiltDeg: -8,
+      signalBandTop: "30%",
+      signalBandHeight: "44%"
+    },
     ambientPulse: {
       intervalMs: { active: [4000, 8000], stable: [9000, 13000] },
       orbitBoost: 0.06

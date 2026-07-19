@@ -721,33 +721,101 @@
         aspect-ratio: 1;
         border-radius: 50%;
         overflow: hidden;
-        border: 1px solid rgb(185 198 255 / 0.22);
+        isolation: isolate;
+        border: 1px solid rgb(157 169 192 / 0.25);
         background: radial-gradient(
-          circle at 28% 22%,
-          rgb(203 213 255 / 0.72) 0 3%,
-          rgb(77 104 222 / 0.76) 9%,
-          #11328a 21%,
-          #07173d 43%,
-          #020716 64%,
-          #01020a 100%
+          circle at 31% 24%,
+          rgb(160 169 180 / 0.72) 0 4%,
+          rgb(74 83 98 / 0.86) 19%,
+          #252c38 48%,
+          #111620 73%,
+          #090c13 100%
         );
         box-shadow:
           -3px 4px 7px rgb(0 0 0 / 0.84) inset,
-          -1px -1px 0 rgb(184 200 255 / 0.2),
-          0 0 6px rgb(0 47 167 / 0.1);
+          -1px -1px 0 rgb(184 200 255 / 0.16),
+          0 0 5px rgb(0 47 167 / 0.07);
         transition:
           border-color var(--hover) ease,
           box-shadow var(--hover) ease;
+      }
+      .signal-core::before {
+        content: "";
+        position: absolute;
+        inset: -7%;
+        z-index: 0;
+        background: var(--signal-body-asset) center / var(--signal-body-asset-scale)
+          no-repeat;
+        filter: brightness(var(--signal-body-brightness))
+          contrast(var(--signal-body-contrast)) saturate(var(--signal-body-saturation));
       }
       .signal-core::after {
         content: "";
         position: absolute;
         inset: -12%;
+        z-index: 2;
         border: 1px solid rgb(91 122 255 / 0.46);
         border-right-color: transparent;
         border-bottom-color: transparent;
         border-radius: 50%;
         transform: rotate(-18deg);
+      }
+      .signal-band {
+        position: absolute;
+        z-index: 1;
+        top: var(--signal-band-top);
+        left: -5%;
+        width: 110%;
+        height: var(--signal-band-height);
+        overflow: hidden;
+        border: 1px solid rgb(14 29 82 / 0.9);
+        border-radius: 55%;
+        background: linear-gradient(
+          180deg,
+          rgb(13 28 78 / 0.74) 0%,
+          rgb(20 52 150 / 0.9) 24%,
+          rgb(41 86 221 / 0.96) 48%,
+          rgb(15 42 124 / 0.92) 76%,
+          rgb(8 20 56 / 0.82) 100%
+        );
+        box-shadow:
+          0 0 0 1px rgb(0 0 0 / 0.3) inset,
+          0 0 3px rgb(39 79 216 / 0.22);
+        transform: rotate(var(--signal-band-tilt));
+        opacity: var(--signal-band-opacity, 0.78);
+        -webkit-mask-image: linear-gradient(
+          90deg,
+          transparent 0%,
+          #000 9%,
+          #000 91%,
+          transparent 100%
+        );
+        mask-image: linear-gradient(
+          90deg,
+          transparent 0%,
+          #000 9%,
+          #000 91%,
+          transparent 100%
+        );
+        transition:
+          opacity var(--hover) ease,
+          box-shadow var(--hover) ease,
+          filter var(--hover) ease;
+      }
+      .signal-band::after {
+        content: "";
+        position: absolute;
+        inset: 26% 8%;
+        border-radius: inherit;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          rgb(139 164 255 / 0.36) 24%,
+          rgb(184 198 255 / 0.6) 50%,
+          rgb(70 110 255 / 0.38) 76%,
+          transparent
+        );
+        box-shadow: 0 0 2px rgb(75 110 255 / 0.32);
       }
       .signal-particle {
         position: absolute;
@@ -785,16 +853,19 @@
         --signal-opacity: 0.88;
         --orbit: 0.46;
         --signal-scale: 1;
+        --signal-band-opacity: 0.92;
       }
       .signal-wrap[data-state="stable"] {
         --signal-opacity: 0.67;
         --orbit: 0.28;
         --signal-scale: 0.84;
+        --signal-band-opacity: 0.76;
       }
       .signal-wrap[data-state="dormant"] {
         --signal-opacity: 0.48;
         --orbit: 0.14;
         --signal-scale: 0.7;
+        --signal-band-opacity: 0.54;
       }
       .signal-wrap[data-state] .signal-core {
         opacity: var(--signal-opacity);
@@ -807,6 +878,12 @@
         border-color: rgb(121 150 255 / 0.7);
         border-right-color: transparent;
         border-bottom-color: transparent;
+      }
+      .signal-wrap.ambient-pulse .signal-band {
+        box-shadow:
+          0 0 0 1px rgb(20 42 110 / 0.48) inset,
+          0 0 4px rgb(58 97 246 / 0.3);
+        filter: brightness(1.12);
       }
       .signal-wrap.ambient-pulse .signal-orbit {
         border-color: rgb(74 107 240 / calc(var(--orbit) + var(--signal-pulse-orbit-boost, 0.06)));
@@ -823,6 +900,12 @@
         border-color: rgb(105 135 255 / 0.64);
         border-right-color: transparent;
         border-bottom-color: transparent;
+      }
+      .signal-wrap.attention .signal-band {
+        box-shadow:
+          0 0 0 1px rgb(46 75 176 / 0.48) inset,
+          0 0 5px rgb(58 97 246 / 0.34);
+        filter: brightness(1.1);
       }
       .signal-wrap.attention .signal-orbit {
         border-color: rgb(84 119 255 / calc(var(--orbit) + var(--signal-hover-orbit-boost, 0.14)));
@@ -1645,7 +1728,7 @@
                 ><span class="signal-layer signal-orbit-layer front"
                   ><i class="signal-orbit"></i></span
                 ><span class="signal-layer signal-core-layer front"
-                  ><i class="signal-core"></i></span
+                  ><i class="signal-core"><i class="signal-band"></i></i></span
                 ><span class="signal-layer signal-dust-layer"
                   ><i class="signal-particle"></i><i class="signal-particle"></i
                   ><i class="signal-particle"></i></span></span
@@ -1667,7 +1750,7 @@
                 ><span class="signal-layer signal-orbit-layer front"
                   ><i class="signal-orbit"></i></span
                 ><span class="signal-layer signal-core-layer front"
-                  ><i class="signal-core"></i></span
+                  ><i class="signal-core"><i class="signal-band"></i></i></span
                 ><span class="signal-layer signal-dust-layer"
                   ><i class="signal-particle"></i><i class="signal-particle"></i
                   ><i class="signal-particle"></i></span></span
@@ -1689,7 +1772,7 @@
                 ><span class="signal-layer signal-orbit-layer front"
                   ><i class="signal-orbit"></i></span
                 ><span class="signal-layer signal-core-layer front"
-                  ><i class="signal-core"></i></span
+                  ><i class="signal-core"><i class="signal-band"></i></i></span
                 ><span class="signal-layer signal-dust-layer"
                   ><i class="signal-particle"></i><i class="signal-particle"></i
                   ><i class="signal-particle"></i></span></span
@@ -1711,7 +1794,7 @@
                 ><span class="signal-layer signal-orbit-layer front"
                   ><i class="signal-orbit"></i></span
                 ><span class="signal-layer signal-core-layer front"
-                  ><i class="signal-core"></i></span
+                  ><i class="signal-core"><i class="signal-band"></i></i></span
                 ><span class="signal-layer signal-dust-layer"
                   ><i class="signal-particle"></i><i class="signal-particle"></i
                   ><i class="signal-particle"></i></span></span
@@ -2130,6 +2213,38 @@
           root.style.setProperty(
             "--signal-core-size",
             `${P.satellite.coreDiameterRatio * 100}%`,
+          );
+          root.style.setProperty(
+            "--signal-body-asset",
+            `url("${P.satellite.material.bodyAsset}")`,
+          );
+          root.style.setProperty(
+            "--signal-body-asset-scale",
+            P.satellite.material.bodyAssetScale,
+          );
+          root.style.setProperty(
+            "--signal-body-brightness",
+            P.satellite.material.bodyBrightness,
+          );
+          root.style.setProperty(
+            "--signal-body-contrast",
+            P.satellite.material.bodyContrast,
+          );
+          root.style.setProperty(
+            "--signal-body-saturation",
+            P.satellite.material.bodySaturation,
+          );
+          root.style.setProperty(
+            "--signal-band-tilt",
+            `${P.satellite.material.signalBandTiltDeg}deg`,
+          );
+          root.style.setProperty(
+            "--signal-band-top",
+            P.satellite.material.signalBandTop,
+          );
+          root.style.setProperty(
+            "--signal-band-height",
+            P.satellite.material.signalBandHeight,
           );
           root.style.setProperty(
             "--signal-orbit-shell-size",
