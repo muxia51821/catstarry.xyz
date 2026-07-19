@@ -4,15 +4,15 @@ window.PROTOTYPE_VISUAL_PARAMETERS = {
   environment: {
     backgroundBloomOpacity: 0.16,
     warmDustOpacity: 0.11,
-    starLayerOpacity: { far: 0.34, mid: 0.46, near: 0.18 },
+    starLayerOpacity: { far: 0.42, mid: 0.52, near: 0.21 },
     starLayerScale: { far: 0.72, mid: 1, near: 1.42 },
     starfield: {
       seed: 4217,
       mobileDensityScale: 0.54,
       layers: {
-        far: { densityPerMegapixel: 230, opacity: [0.12, 0.54], radiusPx: [0.28, 0.82], warmRatio: 0.2 },
-        mid: { densityPerMegapixel: 82, opacity: [0.2, 0.72], radiusPx: [0.46, 1.18], warmRatio: 0.24 },
-        near: { densityPerMegapixel: 18, opacity: [0.24, 0.66], radiusPx: [0.72, 1.55], warmRatio: 0.18 }
+        far: { densityPerMegapixel: 300, opacity: [0.12, 0.54], radiusPx: [0.28, 0.82], warmRatio: 0.2 },
+        mid: { densityPerMegapixel: 100, opacity: [0.2, 0.72], radiusPx: [0.46, 1.18], warmRatio: 0.24 },
+        near: { densityPerMegapixel: 20, opacity: [0.24, 0.66], radiusPx: [0.72, 1.55], warmRatio: 0.18 }
       },
       clusters: [
         { x: 0.18, y: 0.24, radius: 0.15, strength: 0.72 },
@@ -90,13 +90,13 @@ window.PROTOTYPE_VISUAL_PARAMETERS = {
     depthScale: { about: 0.72, blog: 0.9, feed: 1, projects: 0.86, learn: 0.84 },
     emergence: {
       targetStart: 0.015,
-      targetOpacity: 0.58,
+      targetOpacity: 0.7,
       haloStart: 0.07,
       sphereStart: 0.2,
       sphereEnd: 0.86,
-      labelStart: 0.76,
+      labelStart: 0.68,
       interactiveStart: 0.84,
-      haloStrength: 0.42,
+      haloStrength: 0.5,
       targetTone: {
         about: "226 224 219",
         blog: "231 218 197",
@@ -147,9 +147,9 @@ window.PROTOTYPE_VISUAL_PARAMETERS = {
         mobile: { x: 67, y: 27, diameterVmin: 82, maxPx: 560, scale: 1.07, crop: "38% 52%", copy: { x: 6, y: 70, widthCh: 31, align: "left" } }
       },
       projects: {
-        x: 50, y: 82, diameterVmin: 104, maxPx: 1280, scale: 1.2, crop: "48% 34%",
-        entryOffset: [-7, 8], exitOffset: [8, -8],
-        copy: { x: 8, y: 26, widthCh: 36, align: "left" },
+        x: 69, y: 80, diameterVmin: 90, maxPx: 1100, scale: 1.1, crop: "46% 36%",
+        entryOffset: [-6, 8], exitOffset: [7, -7],
+        copy: { x: 8, y: 30, widthCh: 34, align: "left" },
         mobile: { x: 50, y: 36, diameterVmin: 92, maxPx: 620, scale: 1.1, crop: "48% 34%", copy: { x: 6, y: 70, widthCh: 31, align: "left" } }
       },
       learn: {
