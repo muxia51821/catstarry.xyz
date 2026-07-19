@@ -174,15 +174,28 @@
         z-index: -1;
         pointer-events: none;
         opacity: var(--galaxy-dust-opacity);
-        background: linear-gradient(
-          var(--galaxy-gradient-angle),
-          transparent 39%,
-          rgb(113 129 177 / 0.16) 45%,
-          rgb(160 173 214 / 0.62) 50%,
-          rgb(113 129 177 / 0.16) 55%,
-          transparent 61%
-        );
-        filter: blur(24px);
+        background:
+          radial-gradient(
+            ellipse 19% 12% at 24% 68%,
+            rgb(135 151 196 / 0.46),
+            rgb(108 124 169 / 0.12) 52%,
+            transparent 76%
+          ),
+          radial-gradient(
+            ellipse 16% 10% at 62% 47%,
+            rgb(135 151 196 / 0.32),
+            rgb(108 124 169 / 0.08) 54%,
+            transparent 76%
+          ),
+          linear-gradient(
+            var(--galaxy-gradient-angle),
+            transparent 37%,
+            rgb(113 129 177 / 0.05) 45%,
+            rgb(160 173 214 / 0.3) 50%,
+            rgb(113 129 177 / 0.05) 55%,
+            transparent 63%
+          );
+        filter: blur(38px);
         transform: scale(1.08);
       }
       .star-layer {
@@ -1760,7 +1773,7 @@
           );
           root.style.setProperty(
             "--galaxy-gradient-angle",
-            `${P.environment.starfield.galaxy.angleDeg + 90}deg`,
+            `${P.environment.starfield.galaxy.angleDeg}deg`,
           );
           root.style.setProperty("--focus-in", `${P.transition.focusInMs}ms`);
           root.style.setProperty("--focus-out", `${P.transition.focusOutMs}ms`);

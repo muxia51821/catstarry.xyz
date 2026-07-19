@@ -4,15 +4,15 @@ window.PROTOTYPE_VISUAL_PARAMETERS = {
   environment: {
     backgroundBloomOpacity: 0.16,
     warmDustOpacity: 0.11,
-    starLayerOpacity: { far: 0.56, mid: 0.56, near: 0.21 },
+    starLayerOpacity: { far: 0.68, mid: 0.66, near: 0.31 },
     starLayerScale: { far: 0.72, mid: 1, near: 1.42 },
     starfield: {
       seed: 4217,
       mobileDensityScale: 0.54,
       layers: {
-        far: { densityPerMegapixel: 560, opacity: [0.12, 0.54], radiusPx: [0.28, 0.82], warmRatio: 0.2 },
-        mid: { densityPerMegapixel: 135, opacity: [0.2, 0.72], radiusPx: [0.46, 1.18], warmRatio: 0.24 },
-        near: { densityPerMegapixel: 20, opacity: [0.24, 0.66], radiusPx: [0.72, 1.55], warmRatio: 0.18 }
+        far: { densityPerMegapixel: 720, opacity: [0.12, 0.54], radiusPx: [0.28, 0.82], warmRatio: 0.16 },
+        mid: { densityPerMegapixel: 255, opacity: [0.22, 0.82], radiusPx: [0.5, 1.3], warmRatio: 0.18 },
+        near: { densityPerMegapixel: 60, opacity: [0.24, 0.66], radiusPx: [0.72, 1.55], warmRatio: 0.18 }
       },
       clusters: [
         { x: 0.22, y: 0.6, radius: 0.18, strength: 0.86 },
@@ -28,9 +28,9 @@ window.PROTOTYPE_VISUAL_PARAMETERS = {
         angleDeg: -22,
         halfLength: 0.82,
         halfWidth: 0.17,
-        densityBoost: { far: 1.3, mid: 0.82, near: 0.12 },
-        bandStarFraction: { far: 0.82, mid: 0.38, near: 0.03 },
-        dustOpacity: 0.19
+        densityBoost: { far: 1.45, mid: 0.92, near: 0.12 },
+        bandStarFraction: { far: 0.9, mid: 0.44, near: 0.03 },
+        dustOpacity: 0.075
       }
     }
   },
