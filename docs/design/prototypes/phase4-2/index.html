@@ -646,9 +646,9 @@
       .signal-wrap {
         position: absolute;
         z-index: 2;
-        top: -10%;
-        left: 70%;
-        width: 44%;
+        top: calc((100% - var(--signal-orbit-shell-size, 132%)) / 2);
+        left: calc((100% - var(--signal-orbit-shell-size, 132%)) / 2);
+        width: var(--signal-orbit-shell-size, 132%);
         aspect-ratio: 1;
         pointer-events: none;
         opacity: 0;
@@ -663,31 +663,44 @@
       .signal-orbit {
         position: absolute;
         inset: 9%;
-        border: 1px solid rgb(51 92 255 / 0.2);
+        border-radius: 50%;
+        border: 1px solid rgb(51 92 255 / var(--orbit, 0.2));
         border-left-color: transparent;
         border-bottom-color: transparent;
-        border-radius: 50%;
         transform: rotate(-32deg) scaleY(0.52);
       }
       .signal-core {
         position: absolute;
-        top: 5%;
-        right: 20%;
+        top: var(--signal-orbit-start-y, 26%);
+        left: var(--signal-orbit-start-x, 74%);
         width: var(--signal-core-size, 16%);
         aspect-ratio: 1;
         border-radius: 50%;
+        overflow: hidden;
+        border: 1px solid rgb(185 198 255 / 0.22);
         background: radial-gradient(
-          circle at 31% 25%,
-          rgb(168 186 244 / 0.76),
-          var(--klein-500) 31%,
-          #071b5a 49%,
-          #020718 69%,
-          #01030e 80%
+          circle at 28% 22%,
+          rgb(203 213 255 / 0.72) 0 3%,
+          rgb(77 104 222 / 0.76) 9%,
+          #11328a 21%,
+          #07173d 43%,
+          #020716 64%,
+          #01020a 100%
         );
         box-shadow:
-          -4px 5px 8px rgb(0 0 0 / 0.78) inset,
-          -1px -1px 0 rgb(184 200 255 / 0.28),
-          0 0 9px rgb(0 47 167 / 0.13);
+          -3px 4px 7px rgb(0 0 0 / 0.84) inset,
+          -1px -1px 0 rgb(184 200 255 / 0.2),
+          0 0 6px rgb(0 47 167 / 0.1);
+      }
+      .signal-core::after {
+        content: "";
+        position: absolute;
+        inset: -12%;
+        border: 1px solid rgb(91 122 255 / 0.46);
+        border-right-color: transparent;
+        border-bottom-color: transparent;
+        border-radius: 50%;
+        transform: rotate(-18deg);
       }
       .signal-particle {
         position: absolute;
@@ -741,9 +754,7 @@
         scale: var(--signal-scale);
       }
       .signal-wrap[data-state] .signal-orbit {
-        border-color: rgb(51 92 255 / var(--orbit));
-        border-left-color: transparent;
-        border-bottom-color: transparent;
+        opacity: 1;
       }
       .signal-wrap.respond .signal-core {
         animation: signal-response var(--satellite-response) ease-out;
@@ -842,10 +853,10 @@
       .cat .line {
         fill: none;
         stroke: currentColor;
-        stroke-width: 1.45;
+        stroke-width: var(--cat-line-width, 1.65);
         stroke-linecap: round;
         stroke-linejoin: round;
-        opacity: 0.84;
+        opacity: 0.9;
       }
       .cat .node {
         fill: #092da3;
@@ -853,29 +864,50 @@
         stroke-width: 0.45;
       }
       .cat .inner {
-        opacity: 0.34;
+        opacity: var(--cat-inner-line-opacity, 0.22);
+      }
+      .cat .aura {
+        fill: rgb(0 47 167 / var(--cat-aura-rest-opacity, 0.14));
+        stroke: none;
+        transition: fill var(--hover) ease;
+      }
+      .cat .constellation {
+        opacity: var(--cat-constellation-rest-opacity, 0.42);
+        transition: opacity var(--hover) ease, filter var(--hover) ease;
+      }
+      .cat .constellation circle {
+        fill: var(--klein-pale);
+        filter: drop-shadow(0 0 3px rgb(51 92 255 / 0.58));
+      }
+      .cat .constellation-link {
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 0.72;
+        stroke-dasharray: 2 3.4;
+        opacity: 0.38;
       }
       .companion-body {
         position: absolute;
         z-index: 1;
         left: 48%;
         top: 55%;
-        width: 27px;
+        width: var(--companion-body-diameter, 20px);
         aspect-ratio: 1;
         border-radius: 50%;
-        opacity: 0.78;
+        opacity: var(--companion-body-rest-opacity, 0.54);
         background: radial-gradient(
-          circle at 30% 27%,
-          #849ce8 0 5%,
-          var(--klein-500) 27%,
-          #07194f 48%,
-          #020718 69%,
-          #01030e 78%
+          circle at 27% 22%,
+          rgb(192 204 255 / 0.66) 0 4%,
+          #234da8 10%,
+          #0b2470 28%,
+          #041337 48%,
+          #020715 68%,
+          #01020b 100%
         );
         box-shadow:
-          -5px 6px 10px rgb(0 0 0 / 0.78) inset,
-          -1px -1px 0 rgb(184 200 255 / 0.25),
-          0 0 10px rgb(0 47 167 / 0.18);
+          -4px 5px 8px rgb(0 0 0 / 0.82) inset,
+          -1px -1px 0 rgb(184 200 255 / 0.18),
+          0 0 6px rgb(0 47 167 / 0.12);
         transform: translate(-50%, -50%);
         transition:
           opacity var(--hover) ease,
@@ -891,8 +923,9 @@
         border-radius: 50%;
         opacity: 0.18;
         background: var(--klein-400);
-        box-shadow: 0 0 6px rgb(0 47 167 / 0.42);
-        animation: companion-dust 22000ms linear infinite;
+        box-shadow: 0 0 4px rgb(0 47 167 / 0.28);
+        animation: companion-dust var(--companion-dust-duration, 28000ms)
+          linear infinite;
       }
       .companion-particle:nth-of-type(1) {
         margin: -18px 0 0 22px;
@@ -910,19 +943,19 @@
         0%,
         75% {
           translate: 0 0;
-          opacity: 0.08;
+          opacity: var(--companion-dust-rest-opacity, 0.1);
         }
         84% {
           translate: -3px 2px;
-          opacity: 0.34;
+          opacity: calc(var(--companion-dust-rest-opacity, 0.1) * 2.4);
         }
         93% {
           translate: 5px -4px;
-          opacity: 0.19;
+          opacity: calc(var(--companion-dust-rest-opacity, 0.1) * 1.6);
         }
         100% {
           translate: 0 0;
-          opacity: 0.08;
+          opacity: var(--companion-dust-rest-opacity, 0.1);
         }
       }
       .about-zone.revealed .cat svg,
@@ -930,27 +963,63 @@
       .about-zone:focus-within .cat svg {
         opacity: var(--cat-line-focus-opacity, 0.84);
       }
+      .about-zone.revealed .cat .constellation,
+      .about-zone:hover .cat .constellation,
+      .about-zone:focus-within .cat .constellation {
+        opacity: var(--cat-constellation-reveal-opacity, 0.9);
+        filter: drop-shadow(0 0 4px rgb(0 47 167 / 0.28));
+      }
+      .about-zone.revealed .cat .aura,
+      .about-zone:hover .cat .aura,
+      .about-zone:focus-within .cat .aura {
+        fill: rgb(0 47 167 / var(--cat-aura-reveal-opacity, 0.46));
+      }
       .about-zone.revealed .companion-body,
       .about-zone:hover .companion-body,
       .about-zone:focus-within .companion-body {
-        opacity: 0.34;
+        opacity: var(--companion-body-reveal-opacity, 0.18);
         scale: 0.88;
       }
       .about-zone:hover .cat,
       .about-zone:focus-within .cat,
       .about-zone.revealed .cat {
         color: var(--klein-500);
-        filter: drop-shadow(0 0 10px rgb(0 47 167 / 0.36));
+        filter: drop-shadow(0 0 7px rgb(0 47 167 / 0.26));
       }
       .about-zone.charged .cat {
         animation: cat-charge var(--cat-charge) ease-in-out;
+      }
+      .about-zone.charged .cat .constellation {
+        opacity: var(--cat-constellation-charge-opacity, 1);
+        animation: constellation-charge var(--cat-charge) ease-in-out;
+      }
+      .about-zone.charged .cat .aura {
+        fill: rgb(51 92 255 / var(--cat-aura-charge-opacity, 0.7));
       }
       .about-zone.charged::before {
         content: "";
         position: absolute;
         inset: 22px 25px;
-        border: 1px solid rgb(51 92 255 / 0.32);
-        border-left-color: transparent;
+        background: conic-gradient(
+          from 220deg,
+          transparent 0 17%,
+          rgb(51 92 255 / 0.22) 18% 36%,
+          transparent 37% 61%,
+          rgb(51 92 255 / 0.14) 62% 72%,
+          transparent 73% 100%
+        );
+        -webkit-mask: radial-gradient(
+          ellipse,
+          transparent 0 62%,
+          #000 64% 67%,
+          transparent 69%
+        );
+        mask: radial-gradient(
+          ellipse,
+          transparent 0 62%,
+          #000 64% 67%,
+          transparent 69%
+        );
         border-radius: 50%;
         animation: orbit-charge var(--cat-charge) ease-in-out;
       }
@@ -984,6 +1053,15 @@
         }
         100% {
           scale: 1;
+        }
+      }
+      @keyframes constellation-charge {
+        0%,
+        100% {
+          filter: drop-shadow(0 0 3px rgb(0 47 167 / 0.28));
+        }
+        70% {
+          filter: drop-shadow(0 0 9px rgb(51 92 255 / 0.7));
         }
       }
       @keyframes orbit-charge {
@@ -1558,24 +1636,43 @@
               ><i class="companion-particle" aria-hidden="true"></i
               ><svg viewBox="0 0 210 130" aria-hidden="true">
                 <path
+                  class="aura"
+                  d="M24 91 L35 78 L39 51 L52 62 L65 46 L72 68 C91 60 113 61 132 68 C146 73 154 79 165 79 C178 80 185 67 181 56 C177 45 186 36 194 43 C205 53 198 76 180 87 C171 93 162 96 151 96 L147 108 L137 108 L136 96 L112 96 L105 108 L95 108 L99 95 L76 95 L69 105 L59 105 L62 92 L45 91 L36 98 L25 97 L32 88 Z"
+                />
+                <path
                   class="line"
-                  d="M24 91 L49 74 L63 45 L77 56 L91 40 L109 47 L127 61 L145 65 L166 82 L184 79 L167 88 L151 99 L128 101 L108 92 L91 102 L73 98 L57 106 L42 104 L27 110 L38 97 Z"
+                  d="M24 91 L35 78 L39 51 L52 62 L65 46 L72 68 C91 60 113 61 132 68 C146 73 154 79 165 79 C178 80 185 67 181 56 C177 45 186 36 194 43 C205 53 198 76 180 87 C171 93 162 96 151 96 L147 108 L137 108 L136 96 L112 96 L105 108 L95 108 L99 95 L76 95 L69 105 L59 105 L62 92 L45 91 L36 98 L25 97 L32 88 Z"
                 />
                 <path
                   class="line inner"
-                  d="M63 77 L89 71 L112 78 L137 75 M76 92 L83 75 M119 93 L126 76 M146 91 L153 77"
+                  d="M72 75 C92 69 113 70 133 77 M76 95 L83 79 M112 96 L118 80 M145 96 L151 81"
                 />
-                <path
-                  class="line"
-                  d="M168 84 C196 61, 202 39, 185 26 C174 18, 169 31, 180 40"
-                />
-                <circle class="node" cx="49" cy="74" r="2" />
-                <circle class="node" cx="63" cy="45" r="2" />
-                <circle class="node" cx="91" cy="40" r="2" />
-                <circle class="node" cx="127" cy="61" r="2" />
-                <circle class="node" cx="166" cy="82" r="2" />
-                <circle class="node" cx="108" cy="92" r="2" />
-                <circle class="node" cx="57" cy="106" r="2" />
+                <g class="constellation">
+                  <path
+                    class="constellation-link"
+                    d="M39 51 L65 46 L95 61 L132 68 L165 79 L181 56 M72 75 L101 77 L132 77 M76 95 L105 95 L136 96 L147 108"
+                  />
+                  <circle cx="35" cy="78" r="1.8" />
+                  <circle cx="39" cy="51" r="1.35" />
+                  <circle cx="52" cy="62" r="1.1" />
+                  <circle cx="65" cy="46" r="1.45" />
+                  <circle cx="72" cy="68" r="1.12" />
+                  <circle cx="95" cy="61" r="1.05" />
+                  <circle cx="83" cy="77" r="1.12" />
+                  <circle cx="101" cy="77" r="1.45" />
+                  <circle cx="118" cy="76" r="1.04" />
+                  <circle cx="132" cy="68" r="1.45" />
+                  <circle cx="165" cy="79" r="1.22" />
+                  <circle cx="181" cy="56" r="1.48" />
+                  <circle cx="194" cy="43" r="1.28" />
+                  <circle cx="180" cy="87" r="1.05" />
+                  <circle cx="147" cy="108" r="1.22" />
+                  <circle cx="136" cy="96" r="1.08" />
+                  <circle cx="105" cy="108" r="1.18" />
+                  <circle cx="95" cy="95" r="1.02" />
+                  <circle cx="69" cy="105" r="1.12" />
+                  <circle cx="36" cy="98" r="1.02" />
+                </g>
               </svg></button
             ><span class="cat-hint" id="cat-hint">豹猫卫星彩蛋</span
             ><span class="cat-dust" aria-hidden="true"
@@ -1938,6 +2035,10 @@
             `${P.satellite.coreDiameterRatio * 100}%`,
           );
           root.style.setProperty(
+            "--signal-orbit-shell-size",
+            `${P.satellite.orbitShellPercent}%`,
+          );
+          root.style.setProperty(
             "--companion-overview-scale",
             P.aboutCompanion.overviewScale,
           );
@@ -1952,6 +2053,58 @@
           root.style.setProperty(
             "--cat-line-focus-opacity",
             P.aboutCompanion.catLineFocusOpacity,
+          );
+          root.style.setProperty(
+            "--cat-line-width",
+            `${P.aboutCompanion.lineWidth}px`,
+          );
+          root.style.setProperty(
+            "--cat-inner-line-opacity",
+            P.aboutCompanion.innerLineOpacity,
+          );
+          root.style.setProperty(
+            "--cat-constellation-rest-opacity",
+            P.aboutCompanion.constellationRestOpacity,
+          );
+          root.style.setProperty(
+            "--cat-constellation-reveal-opacity",
+            P.aboutCompanion.constellationRevealOpacity,
+          );
+          root.style.setProperty(
+            "--cat-constellation-charge-opacity",
+            P.aboutCompanion.constellationChargeOpacity,
+          );
+          root.style.setProperty(
+            "--cat-aura-rest-opacity",
+            P.aboutCompanion.auraRestOpacity,
+          );
+          root.style.setProperty(
+            "--cat-aura-reveal-opacity",
+            P.aboutCompanion.auraRevealOpacity,
+          );
+          root.style.setProperty(
+            "--cat-aura-charge-opacity",
+            P.aboutCompanion.auraChargeOpacity,
+          );
+          root.style.setProperty(
+            "--companion-body-diameter",
+            `${P.aboutCompanion.bodyDiameterPx}px`,
+          );
+          root.style.setProperty(
+            "--companion-body-rest-opacity",
+            P.aboutCompanion.bodyRestOpacity,
+          );
+          root.style.setProperty(
+            "--companion-body-reveal-opacity",
+            P.aboutCompanion.bodyRevealOpacity,
+          );
+          root.style.setProperty(
+            "--companion-dust-duration",
+            `${P.aboutCompanion.dustDurationMs}ms`,
+          );
+          root.style.setProperty(
+            "--companion-dust-rest-opacity",
+            P.aboutCompanion.dustRestOpacity,
           );
           root.style.setProperty(
             "--entry-meteor-angle",
@@ -2037,34 +2190,38 @@
         function setSignalMotion(signal, state) {
           signal._ambientMotion?.cancel();
           signal._ambientMotion = null;
+          const core = signal.querySelector(".signal-core"),
+            path = P.satellite.orbitPath,
+            [centerX, centerY] = path.centerPercent,
+            [baseRadiusX, baseRadiusY] = path.radiusPercent,
+            travel = P.satellite.microTravelPx[state] || 0,
+            radiusX = baseRadiusX + travel * 0.42,
+            radiusY = baseRadiusY + travel * 0.24,
+            pointAt = (angleDeg) => {
+              const angle = (angleDeg * Math.PI) / 180;
+              return {
+                left: `${centerX + Math.cos(angle) * radiusX}%`,
+                top: `${centerY + Math.sin(angle) * radiusY}%`,
+              };
+            },
+            start = pointAt(path.startAngleDeg);
+          core.style.left = start.left;
+          core.style.top = start.top;
           const staticMotion =
             reduce.matches || !finePointer.matches || state === "dormant";
           signal.dataset.staticMotion = String(staticMotion);
           if (staticMotion) return;
-          const duration = P.satellite.microDurationMs[state],
-            travel = P.satellite.microTravelPx[state],
-            window = P.satellite.motionWindowPercent[state] / 100,
-            hold = 1 - window;
-          signal._ambientMotion = signal.animate(
-            [
-              { translate: "0 0", offset: 0 },
-              { translate: "0 0", offset: hold },
-              {
-                translate: `${-travel * 0.42}px ${travel * 0.18}px`,
-                offset: hold + window * 0.38,
-              },
-              {
-                translate: `${travel * 0.52}px ${-travel * 0.3}px`,
-                offset: hold + window * 0.72,
-              },
-              { translate: "0 0", offset: 1 },
-            ],
-            {
-              duration,
-              iterations: Infinity,
-              easing: "cubic-bezier(.2,.66,.24,1)",
-            },
-          );
+          const coverage = P.satellite.motionWindowPercent[state] / 100,
+            samples = Math.max(3, path.sampleCount),
+            keyframes = Array.from({ length: samples + 1 }, (_, index) => ({
+              ...pointAt(path.startAngleDeg + coverage * 360 * (index / samples)),
+              offset: index / samples,
+            }));
+          signal._ambientMotion = core.animate(keyframes, {
+            duration: P.satellite.microDurationMs[state],
+            iterations: Infinity,
+            easing: "linear",
+          });
         }
         function setMock(next) {
           mockKey = next;
