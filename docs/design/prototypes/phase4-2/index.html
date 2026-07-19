@@ -462,6 +462,7 @@
       }
       .planet-core {
         position: absolute;
+        z-index: 2;
         inset: 0;
         overflow: visible;
         opacity: var(--sphere-visible, 0);
@@ -596,6 +597,7 @@
       }
       .planet-label {
         position: absolute;
+        z-index: 5;
         top: 50%;
         left: calc(100% + 13px);
         width: max-content;
@@ -644,8 +646,10 @@
         border: 0;
       }
       .signal-wrap {
+        display: contents;
+      }
+      .signal-layer {
         position: absolute;
-        z-index: 2;
         top: calc((100% - var(--signal-orbit-shell-size, 132%)) / 2);
         left: calc((100% - var(--signal-orbit-shell-size, 132%)) / 2);
         width: var(--signal-orbit-shell-size, 132%);
@@ -657,16 +661,53 @@
           opacity var(--micro) ease,
           transform var(--parallax-ease) ease-out;
       }
-      .signal-wrap[data-state] {
+      .signal-wrap[data-state] .signal-layer {
         opacity: var(--signal-reveal, 0);
+      }
+      .signal-orbit-layer,
+      .signal-core-layer {
+        overflow: hidden;
+      }
+      .signal-orbit-layer.back,
+      .signal-core-layer.back {
+        z-index: 1;
+      }
+      .signal-orbit-layer.front,
+      .signal-core-layer.front,
+      .signal-dust-layer {
+        z-index: 3;
+      }
+      .signal-orbit-layer.back {
+        clip-path: inset(0 0 50% 0);
+      }
+      .signal-orbit-layer.front {
+        clip-path: inset(50% 0 0 0);
+      }
+      .signal-orbit-layer.back .signal-orbit {
+        opacity: 0.58;
+      }
+      .signal-orbit-layer.front .signal-orbit {
+        opacity: 0.82;
       }
       .signal-orbit {
         position: absolute;
         inset: 9%;
         border-radius: 50%;
         border: 1px solid rgb(51 92 255 / var(--orbit, 0.2));
-        border-left-color: transparent;
-        border-bottom-color: transparent;
+        -webkit-mask: conic-gradient(
+          from 18deg,
+          #000 0deg 104deg,
+          transparent 110deg 188deg,
+          #000 194deg 292deg,
+          transparent 298deg 360deg
+        );
+        mask: conic-gradient(
+          from 18deg,
+          #000 0deg 104deg,
+          transparent 110deg 188deg,
+          #000 194deg 292deg,
+          transparent 298deg 360deg
+        );
         transform: rotate(-32deg) scaleY(0.52);
         transition:
           border-color var(--hover) ease,
@@ -759,9 +800,6 @@
         opacity: var(--signal-opacity);
         scale: var(--signal-scale);
       }
-      .signal-wrap[data-state] .signal-orbit {
-        opacity: 1;
-      }
       .signal-wrap.respond .signal-core {
         animation: signal-response var(--satellite-response) ease-out;
       }
@@ -778,8 +816,7 @@
         border-bottom-color: transparent;
       }
       .signal-wrap.attention .signal-orbit {
-        border-top-color: rgb(84 119 255 / calc(var(--orbit) + var(--signal-hover-orbit-boost, 0.14)));
-        border-right-color: rgb(84 119 255 / calc(var(--orbit) + var(--signal-hover-orbit-boost, 0.14)));
+        border-color: rgb(84 119 255 / calc(var(--orbit) + var(--signal-hover-orbit-boost, 0.14)));
         filter: drop-shadow(0 0 3px rgb(51 92 255 / 0.16));
       }
       @keyframes satellite-dust {
@@ -1593,9 +1630,16 @@
             >
               <span class="planet-core"></span
               ><span class="signal-wrap" aria-hidden="true"
-                ><i class="signal-orbit"></i><i class="signal-core"></i
-                ><i class="signal-particle"></i><i class="signal-particle"></i
-                ><i class="signal-particle"></i></span
+                ><span class="signal-layer signal-orbit-layer back"
+                  ><i class="signal-orbit"></i></span
+                ><span class="signal-layer signal-core-layer back"></span
+                ><span class="signal-layer signal-orbit-layer front"
+                  ><i class="signal-orbit"></i></span
+                ><span class="signal-layer signal-core-layer front"
+                  ><i class="signal-core"></i></span
+                ><span class="signal-layer signal-dust-layer"
+                  ><i class="signal-particle"></i><i class="signal-particle"></i
+                  ><i class="signal-particle"></i></span></span
               ><span class="planet-label" id="blog-label"
                 >BLOG<small>writing &amp; notes</small></span
               ><span class="sr-only" id="blog-signal-status"></span>
@@ -1608,9 +1652,16 @@
             >
               <span class="planet-core"></span
               ><span class="signal-wrap" aria-hidden="true"
-                ><i class="signal-orbit"></i><i class="signal-core"></i
-                ><i class="signal-particle"></i><i class="signal-particle"></i
-                ><i class="signal-particle"></i></span
+                ><span class="signal-layer signal-orbit-layer back"
+                  ><i class="signal-orbit"></i></span
+                ><span class="signal-layer signal-core-layer back"></span
+                ><span class="signal-layer signal-orbit-layer front"
+                  ><i class="signal-orbit"></i></span
+                ><span class="signal-layer signal-core-layer front"
+                  ><i class="signal-core"></i></span
+                ><span class="signal-layer signal-dust-layer"
+                  ><i class="signal-particle"></i><i class="signal-particle"></i
+                  ><i class="signal-particle"></i></span></span
               ><span class="planet-label" id="feed-label"
                 >FEED<small>public footprints</small></span
               ><span class="sr-only" id="feed-signal-status"></span>
@@ -1623,9 +1674,16 @@
             >
               <span class="planet-core"></span
               ><span class="signal-wrap" aria-hidden="true"
-                ><i class="signal-orbit"></i><i class="signal-core"></i
-                ><i class="signal-particle"></i><i class="signal-particle"></i
-                ><i class="signal-particle"></i></span
+                ><span class="signal-layer signal-orbit-layer back"
+                  ><i class="signal-orbit"></i></span
+                ><span class="signal-layer signal-core-layer back"></span
+                ><span class="signal-layer signal-orbit-layer front"
+                  ><i class="signal-orbit"></i></span
+                ><span class="signal-layer signal-core-layer front"
+                  ><i class="signal-core"></i></span
+                ><span class="signal-layer signal-dust-layer"
+                  ><i class="signal-particle"></i><i class="signal-particle"></i
+                  ><i class="signal-particle"></i></span></span
               ><span class="planet-label" id="learn-label"
                 >LEARN<small>learning tracks</small></span
               ><span class="sr-only" id="learn-signal-status"></span>
@@ -1638,9 +1696,16 @@
             >
               <span class="planet-core"></span
               ><span class="signal-wrap" aria-hidden="true"
-                ><i class="signal-orbit"></i><i class="signal-core"></i
-                ><i class="signal-particle"></i><i class="signal-particle"></i
-                ><i class="signal-particle"></i></span
+                ><span class="signal-layer signal-orbit-layer back"
+                  ><i class="signal-orbit"></i></span
+                ><span class="signal-layer signal-core-layer back"></span
+                ><span class="signal-layer signal-orbit-layer front"
+                  ><i class="signal-orbit"></i></span
+                ><span class="signal-layer signal-core-layer front"
+                  ><i class="signal-core"></i></span
+                ><span class="signal-layer signal-dust-layer"
+                  ><i class="signal-particle"></i><i class="signal-particle"></i
+                  ><i class="signal-particle"></i></span></span
               ><span class="planet-label" id="projects-label"
                 >PROJECTS<small>selected builds</small></span
               ><span class="sr-only" id="projects-signal-status"></span>
@@ -2275,8 +2340,67 @@
           clearSignalRateTween(signal);
           if (signal._ambientMotion) signal._ambientMotion.playbackRate = 1;
         }
+        const signalDepthSignals = new Set();
+        let signalDepthFrame = null;
+        function placeSignalCore(signal, depth, exposeDepth = true) {
+          const core = signal?.querySelector(".signal-core"),
+            layer = signal?.querySelector(`.signal-core-layer.${depth}`);
+          if (!core || !layer) return;
+          if (core.parentElement !== layer) layer.append(core);
+          if (exposeDepth) signal.dataset.depth = depth;
+        }
+        function stopSignalDepthSync(signal) {
+          if (!signal) return;
+          signalDepthSignals.delete(signal);
+          if (!signalDepthSignals.size && signalDepthFrame) {
+            cancelAnimationFrame(signalDepthFrame);
+            signalDepthFrame = null;
+          }
+          placeSignalCore(signal, "front", false);
+          delete signal.dataset.depth;
+        }
+        function syncSignalDepth(signal) {
+          const state = signal?.dataset.state,
+            animation = signal?._ambientMotion;
+          if (!state || !animation || signal.dataset.staticMotion === "true") {
+            stopSignalDepthSync(signal);
+            return;
+          }
+          const duration = Number(animation.effect?.getTiming().duration),
+            elapsed = Number(animation.currentTime || 0),
+            progress =
+              duration > 0
+                ? ((elapsed % duration) + duration) % duration / duration
+                : 0,
+            angle =
+              P.satellite.orbitPath.startAngleDeg +
+              P.satellite.motionWindowPercent[state] * 3.6 * progress,
+            depthValue = Math.sin((angle * Math.PI) / 180),
+            threshold = P.satellite.depthHysteresis,
+            currentDepth = signal.dataset.depth;
+          let nextDepth = currentDepth || (depthValue >= 0 ? "front" : "back");
+          if (currentDepth === "front" && depthValue < -threshold)
+            nextDepth = "back";
+          else if (currentDepth === "back" && depthValue > threshold)
+            nextDepth = "front";
+          placeSignalCore(signal, nextDepth);
+        }
+        function runSignalDepthSync() {
+          signalDepthFrame = null;
+          signalDepthSignals.forEach(syncSignalDepth);
+          if (signalDepthSignals.size)
+            signalDepthFrame = requestAnimationFrame(runSignalDepthSync);
+        }
+        function startSignalDepthSync(signal) {
+          if (!signal || signal.dataset.staticMotion === "true") return;
+          signalDepthSignals.add(signal);
+          syncSignalDepth(signal);
+          if (!signalDepthFrame)
+            signalDepthFrame = requestAnimationFrame(runSignalDepthSync);
+        }
         function setSignalMotion(signal, state) {
           clearSignalRateTween(signal);
+          stopSignalDepthSync(signal);
           signal._ambientMotion?.cancel();
           signal._ambientMotion = null;
           const core = signal.querySelector(".signal-core"),
@@ -2293,13 +2417,18 @@
                 top: `${centerY + Math.sin(angle) * radiusY}%`,
               };
             },
-            start = pointAt(path.startAngleDeg);
+            staticMotion =
+              reduce.matches || !finePointer.matches || state === "dormant",
+            start = pointAt(
+              staticMotion ? P.satellite.staticAngleDeg : path.startAngleDeg,
+            );
           core.style.left = start.left;
           core.style.top = start.top;
-          const staticMotion =
-            reduce.matches || !finePointer.matches || state === "dormant";
           signal.dataset.staticMotion = String(staticMotion);
-          if (staticMotion) return;
+          if (staticMotion) {
+            placeSignalCore(signal, "front");
+            return;
+          }
           const coverage = P.satellite.motionWindowPercent[state] / 100,
             samples = Math.max(3, path.sampleCount),
             keyframes = Array.from({ length: samples + 1 }, (_, index) => ({
@@ -2311,6 +2440,7 @@
             iterations: Infinity,
             easing: "linear",
           });
+          startSignalDepthSync(signal);
         }
         function setMock(next) {
           mockKey = next;
@@ -2327,6 +2457,7 @@
             if (!signal) return;
             const state =
               mock.projection === "available" ? mock.states[key] : null;
+            stopSignalDepthSync(signal);
             clearSignalAttention(signal);
             signal._ambientMotion?.cancel();
             signal._ambientMotion = null;

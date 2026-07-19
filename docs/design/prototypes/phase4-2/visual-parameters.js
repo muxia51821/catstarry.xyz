@@ -91,6 +91,8 @@ window.PROTOTYPE_VISUAL_PARAMETERS = {
       startAngleDeg: -52,
       sampleCount: 8
     },
+    depthHysteresis: 0.16,
+    staticAngleDeg: 0,
     responseMs: 820,
     hoverOrbitRate: 0.2,
     hoverSlowMs: 900,
