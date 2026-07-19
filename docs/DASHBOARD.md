@@ -1,6 +1,6 @@
 # catstarry.xyz 项目看板
 
-> 最后更新：2026-07-18
+> 最后更新：2026-07-20
 >
 > 一眼看全局。执行细节、定向回流规则见 `docs/workflow-orchestration.md`。
 
@@ -28,7 +28,7 @@
 | 1 | 需求澄清 | ✅ |
 | 2 | 规格化 | ✅ |
 | 3 | 架构设计 | ✅ |
-| 4 | UI/原型 | 🟡 Design 2.1 极小重锁完成；Phase 4.2 进行中 |
+| 4 | UI/原型 | 🟡 Phase 4.2 木下目测验收完成；等待进入 Phase 4.3 |
 | 5 | 开发实现 | 🔴 |
 | 6 | 测试/QA | 🔴 |
 | 7 | 部署上线 | 🔴 |
@@ -50,7 +50,7 @@
 | Home Activity Signal 定向 Phase 3 | ✅ | ADR-007 锁定受控静态投影；不恢复 `/api/home`、Home 聚合或 Public Timeline 给 Home 的读取关系 |
 | HAS 返回 Phase 4.1 | ✅ | 三态信号卫星视觉和 token 接口已在 `DESIGN.md` 与 canonical CSS 中重锁；不得重新裁决 HAS 产品/架构 |
 | Design 2.1 极小重锁 | ✅ | 正式确认 Star Map → Focus → action、Drift 语义布局与星球候选资产边界；未改架构或 canonical CSS |
-| Phase 4.2 | 🟡 | 进行中；继续校准 Drift、滚动 Focus 序列、候选资产、信号卫星与豹猫 companion；不接入真实投影 |
+| Phase 4.2 | ✅ | 隔离原型完成并经木下目测验收；Drift、Entry / Approach / Overview、Star Map → Focus → action、mock HAS、About / 豹猫 companion、触控、reduced-motion 与回归脚本均已验证；五颗星球资产继续作为可替换占位 |
 
 ---
 
@@ -64,8 +64,8 @@ Astro hybrid + React + shadcn/ui + CF Workers + D1 + KV + R2。
 
 ## 当前待办
 
-1. 在现有 Phase 4.2 隔离原型中以 Drift 为主方向，补齐默认滚动 Focus 序列与直接跳转 Focus。
-2. 使用 `planet-asset-prompt-kit-v2.md` 替换不合格的星球候选；当前五张图只作可热替换校准占位，不得标记为视觉通过。
-3. Phase 4.2 只能用模拟 `active` / `stable` / `dormant` 校准信号卫星视觉；不得接入真实投影、生产 API 或 canonical CSS。
-4. 完成信号卫星与 About 豹猫 companion 专项目测后更新 verdict，再回流程治理判断是否进入 Phase 4.3。
+1. fork Phase 4.3：选定原型落地 + UI 质检。
+2. Phase 4.3 负责把获选组件样式与经验证参数落回 canonical CSS，并执行 CJK、keyboard、touch、reduced-motion、性能与视觉一致性质检。
+3. 五颗星球资产的统一调整、Overview / Focus / Mobile 身份确认后置到 Phase 4.3；当前 Phase 4.2 资产只作为可替换占位。
+4. Phase 4.3 不得重新裁决 Home / Feed 产品关系、HAS 架构或 Phase 4.2 已验收的交互结构。
 5. blog 原型在 Phase 5 按已锁定需求重做；当前 Astro 7 迁移只保证旧原型能构建，不为其保留 Design 1.x 兼容层。

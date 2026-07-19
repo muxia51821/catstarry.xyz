@@ -17,7 +17,8 @@ description: catstarry.xyz 视觉与交互设计系统。Home 是从远处接近
 ### 0.1 当前阶段
 
 - Phase 4.1 已完成：Design 2.0、HAS 视觉重锁以及本次 Design 2.1 极小交互重锁均已闭合；本次未修改 canonical CSS。
-- Phase 4.2 进行中：只负责用一次性原型校准滚动距离、Focus 浏览路径、Drift 构图、资源规格与动效参数。
+- Phase 4.2 已完成木下目测验收：隔离原型验证了滚动距离、Focus 浏览路径、Drift 构图、mock HAS、About / 豹猫 companion、触控与 reduced-motion。
+- Phase 4.3 尚未开始：负责将获选组件样式、经验证参数与最终资产接口落回 canonical CSS，并完成 UI 质检。
 - Phase 5 尚未开始：本文件不授权生产组件、页面或数据实现。
 
 ### 0.2 上游边界
@@ -44,7 +45,7 @@ Phase 4.2 只校准：
 - 各景深层的视差比例、模糊量与缩放量；
 - Drift 语义构图内的相对位置、深度与命中范围；
 - 默认滚动 Focus 序列、直接跳转 Focus 与 action 的节奏；
-- 星球图片分辨率、裁切、加载切换点，以及 Overview / Focus / Mobile 的同一身份连续性；
+- 星球资产槽、占位图接入、裁切和加载切换点；Overview / Focus / Mobile 的最终身份连续性后置 Phase 4.3；
 - 豹猫粒子密度、蓄能与回收时长的最终数值；
 - 移动端粒子数量和动效降级幅度。
 
@@ -638,7 +639,7 @@ Finance 保留高密度数据布局、精确网格和暗色操作面，不使用
 | Parallax | 辅助纵深 | 远景慢、中景适中、前景稍快 |
 | Hover / Focus | 表达可进入性 | 标签清晰、边缘光、一次短脉冲 |
 | Planet Push | 完成导航转场 | 短暂锁定目标、放大、进入页面 |
-| Activity Satellite | 表达最低限度的板块活动状态 | `active` / `stable` 的局部微移、一次 focus 反馈；`dormant` 静态 |
+| Activity Satellite | 表达最低限度的板块活动状态 | `active` / `stable` 的微移、一次 focus 反馈；`dormant` 静态 |
 | About Cat | 可发现彩蛋 | 蓄能、局部爆开、尘埃落下、反向重组 |
 | Cursor Meteor | 个人鼠标签名 | 短尾跟随、快速衰减 |
 
@@ -674,12 +675,12 @@ Finance 保留高密度数据布局、精确网格和暗色操作面，不使用
 | Focus High Detail | 聚焦与点击推进 | 高分辨率地表、大气、阴影和局部弧面；与总览无换图感 |
 | Mobile Optimized | 移动端 | 保留轮廓和主地貌，降低尺寸、粒度和透明叠层成本 |
 
-Phase 4.2 的资产 Gate 锁定“身份与连续性”，不要求五颗最终生产导出文件全部定稿：
+Phase 4.2 的资产 Gate 已调整为“可替换占位 + 接口连续性”，不要求五颗星球最终身份定稿：
 
-- 五颗星球各自的 Overview 主地貌与共享光学方向必须获得木下认可；明显不符合目标的图只能标记为 calibration placeholder，不能在 verdict 中判为视觉通过；
-- Focus 与 Mobile 可使用候选资产，但必须证明它们与 Overview 是同一物理星球，没有重新设计或明显换图感；
+- 五颗星球当前资产可继续作为可替换占位，用于验证接入、尺度、遮挡、滚动和替换链路；不得把当前占位图提升为最终视觉资产；
+- 五颗星球的统一调整、Overview / Focus / Mobile 身份确认后置 Phase 4.3；
 - 原型必须保留稳定、集中、可替换的资产槽。只要星球身份、裁切与接口不变，后续可替换为更高质量同名文件或修改集中参数路径，不得重写交互逻辑；
-- 最终生产分辨率、批量渲染、格式压缩与响应式导出在 Phase 4.2 校准通过后完成，正式接入生产前再锁定；
+- 最终生产分辨率、批量渲染、格式压缩与响应式导出在 Phase 4.3 或正式接入生产前再锁定；
 - Phase 4.2 资产生成与验收使用 `docs/design/prototypes/phase4-2/planet-asset-prompt-kit-v2.md`，候选资产不得写入 `src/assets/`。
 
 资产验收：

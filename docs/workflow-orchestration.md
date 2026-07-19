@@ -155,12 +155,12 @@ Phase 7: 部署上线 ──→ Phase 8: 运营维护 ──→ (循环回 Phase
 - `.scratch/` 下多个 `issue.md` + triage 标签（给 AI，英文/技术语言，可包含 D1/KV/CORS/schema 等技术细节）
 - `docs/acceptance-*.md`（给木下，纯中文业务语言，不含技术细节，按模块列出"这个功能做到了/没做到"）
 
-| #   | 动作                           | skill       | 产出                                                  |
-| --- | ------------------------------ | ----------- | ----------------------------------------------------- |
-| 2.1 | 已确认讨论 → PRD / spec        | `to-spec`    | 每个模块一份可执行规格                               |
-| 2.2 | PRD / spec → tracer tickets    | `to-tickets` | `.scratch/*/issue.md`（含阻塞边）                    |
-| 2.3 | ticket 分类评估 + 打标签        | `triage`     | 给每个 issue 打 `needs-triage` / `ready-for-agent` 等 |
-| 2.4 | 生成验收清单                   | —           | `docs/acceptance-*.md`（给木下，纯业务语言）          |
+| #   | 动作                        | skill        | 产出                                                  |
+| --- | --------------------------- | ------------ | ----------------------------------------------------- |
+| 2.1 | 已确认讨论 → PRD / spec     | `to-spec`    | 每个模块一份可执行规格                                |
+| 2.2 | PRD / spec → tracer tickets | `to-tickets` | `.scratch/*/issue.md`（含阻塞边）                     |
+| 2.3 | ticket 分类评估 + 打标签    | `triage`     | 给每个 issue 打 `needs-triage` / `ready-for-agent` 等 |
+| 2.4 | 生成验收清单                | —            | `docs/acceptance-*.md`（给木下，纯业务语言）          |
 
 **结束条件**：全部模块有开发 issue + triage 标签 + PRD + 验收清单，木下确认验收清单可操作。
 
@@ -190,26 +190,24 @@ Phase 7: 部署上线 ──→ Phase 8: 运营维护 ──→ (循环回 Phase
 
 **产出物**：根目录 `DESIGN.md`（以文档内目录与当前版本为准）+ canonical CSS 设计系统契约（`src/styles/variables.css`、`typography.css`、`components.css`）+ `docs/design/reference-design/`（木下人工选取的参照）+ 可交互 HTML 原型。
 
-**skill 边界**：Phase 4.2 默认只使用 `prototype`。当前安装的 `gpt-taste` 强制 AIDA、随机设计与 GSAP ScrollTrigger，与当前 `DESIGN.md` 冲突，不得作为 Policy Engine 或 Quality Gate。其他视觉 skill 只有在先通过 DESIGN.md 兼容性审查后才能使用。
-
 **设计基调**：由 4.0 木下挑选的 reference-design 决定。不做预设（不预设色系、不预设风格）。
 
 **CJK 约束**：以 `DESIGN.md` 与 `src/styles/typography.css` 的 canonical 规则为准，不依赖外部 taste skill。
 
-| #   | 动作                                                                                              | skill                                                                          | 产出                            |
-| --- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ | ------------------------------- |
-| 4.0 | 木下人工选参照：浏览 getdesign.md 挑选 2-3 个视觉锚点，笔记提取至 `docs/design/reference-design/` | —（人工）                                                                      | `docs/design/reference-design/` |
-| 4.1 | Design Read + Design System Re-lock：AI 读 `reference-design/` → 声明 Design Read → 维护根目录 DESIGN.md 的设计目录、决策与视觉接口 → 对齐 canonical CSS token、CJK 基线与通用工具类，退役已失效的旧页面语义 | — | `DESIGN.md` + canonical CSS 设计系统契约 |
-| 4.2 | 隔离原型与参数校准：以 DESIGN.md 驱动一次性 HTML/CSS/JS 原型，验证 Drift 语义构图、Star Map → Focus → action、默认滚动 Focus 序列、星球候选资产管线、信号卫星与豹猫 companion；真实活动状态只用 mock | `prototype` | `docs/design/prototypes/phase4-2/` 下的独立原型、Planet Asset Prompt Kit、候选资产 + verdict |
-| 4.3 | 选定原型落地 + UI 质检：把获选组件样式落回 canonical CSS，执行 CJK、keyboard、touch、reduced-motion、性能与视觉一致性检查 | `web-design-engineer` | 更新后的 canonical CSS + UI 质检报告 |
+| #   | 动作                                                                                                                                                                                                         | skill                    | 产出                                                                                         |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------ | -------------------------------------------------------------------------------------------- |
+| 4.0 | 木下人工选参照：浏览 getdesign.md 挑选 2-3 个视觉锚点，笔记提取至 `docs/design/reference-design/`                                                                                                            | —（人工）                | `docs/design/reference-design/`                                                              |
+| 4.1 | Design Read + Design System Re-lock：AI 读 `reference-design/` → 声明 Design Read → 维护根目录 DESIGN.md 的设计目录、决策与视觉接口 → 对齐 canonical CSS token、CJK 基线与通用工具类，退役已失效的旧页面语义 | —                        | `DESIGN.md` + canonical CSS 设计系统契约                                                     |
+| 4.2 | 隔离原型与参数校准：以 DESIGN.md 驱动一次性 HTML/CSS/JS 原型，验证 Drift 语义构图、Star Map → Focus → action、默认滚动 Focus 序列、星球候选资产管线、信号卫星与豹猫 companion；真实活动状态只用 mock         | `prototype`、`gpt-taste` | `docs/design/prototypes/phase4-2/` 下的独立原型、Planet Asset Prompt Kit、候选资产 + verdict |
+| 4.3 | 选定原型落地 + UI 质检：把获选组件样式落回 canonical CSS，执行 CJK、keyboard、touch、reduced-motion、性能与视觉一致性检查                                                                                    | `web-design-engineer`    | 更新后的 canonical CSS + UI 质检报告                                                         |
 
 > Phase 4.1 的 CSS 工作只维护 token 契约、排版基线、通用工具类和过时语义清理，不实现新页面组件。Phase 4.2 的一次性实验 CSS 不直接写入 canonical styles；选定原型的组件样式在 Phase 4.3 才落回 `components.css`，经验证的数值再固化至 `variables.css`。
 
 **结束条件**：
 
 - **4.1**：`DESIGN.md` 与 canonical token、CJK、通用工具类完成重锁；CSS 解析、token 引用和 Astro build 通过；未实现新页面组件；流程治理确认闭合。
-- **4.2**：隔离原型与 `prototype-verdict.md` 完成；木下确认 Drift 构图、Focus / action、五颗 Overview 身份、Overview / Focus / Mobile 连续性、信号卫星和豹猫 companion 的关键参数；未修改 canonical CSS、生产路由或架构；返回流程治理报告。候选资产可在后续按稳定资产槽替换，不要求本阶段完成最终生产批量导出。
-- **4.3**：获选组件样式与参数落回 canonical CSS，并通过 CJK、keyboard、touch、reduced-motion、性能和视觉一致性质检；返回流程治理确认 Phase 4 完成。
+- **4.2**：隔离原型与 `prototype-verdict.md` 完成；木下目测确认 Drift Star Map、Entry / Approach / Overview、Star Map → Focus → action、默认 Focus 序列、点击与侧边索引跳转、返回与 footer release、mock HAS、About / 豹猫 companion、touch、reduced-motion、回归脚本与控制台检查；未修改 canonical CSS、生产路由或架构；返回流程治理报告。五颗星球资产可作为可替换占位通过本阶段，不要求 Overview / Focus / Mobile 最终身份确认。
+- **4.3**：获选组件样式与参数落回 canonical CSS，完成五颗星球资产统一调整、Overview / Focus / Mobile 身份确认，并通过 CJK、keyboard、touch、reduced-motion、性能和视觉一致性质检；返回流程治理确认 Phase 4 完成。
 
 > Phase 3 对话结束后，木下回到流程治理报告完成状态，流程治理确认后 fork Phase 4。避免原型先行导致设计绑架架构。
 
@@ -221,10 +219,10 @@ Phase 7: 部署上线 ──→ Phase 8: 运营维护 ──→ (循环回 Phase
 
 **输入**：PRD + ADR + UI 原型 + DESIGN.md + triage 后的 issue + `docs/agents/frontend-rules.md`。
 
-| #   | 动作 | skill | 产出 |
-| --- | --- | --- | --- |
-| 5.0A | 依赖基线复核：核对 Astro、官方 integrations、React、Cloudflare adapter 与 Node 的最新稳定版本；仅在审计通过后升级 | — | 依赖兼容矩阵 + 升级／保持决定（必要时 ADR） |
-| 5.0B | 前端规则固化：将 DESIGN.md 核心规则、canonical CJK 质检清单与三画布规则固化至 `docs/agents/frontend-rules.md`。标记为“原型已验证、Phase 5 仅可微调非核心参数”，各模块开发线程必须引用 | — | `docs/agents/frontend-rules.md` |
+| #    | 动作                                                                                                                                                                                  | skill | 产出                                        |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- | ------------------------------------------- |
+| 5.0A | 依赖基线复核：核对 Astro、官方 integrations、React、Cloudflare adapter 与 Node 的最新稳定版本；仅在审计通过后升级                                                                     | —     | 依赖兼容矩阵 + 升级／保持决定（必要时 ADR） |
+| 5.0B | 前端规则固化：将 DESIGN.md 核心规则、canonical CJK 质检清单与三画布规则固化至 `docs/agents/frontend-rules.md`。标记为“原型已验证、Phase 5 仅可微调非核心参数”，各模块开发线程必须引用 | —     | `docs/agents/frontend-rules.md`             |
 
 **策略**：分两波执行。
 
@@ -297,12 +295,12 @@ tdd → implement → code-review → 木下按 acceptance 验收 → 通过/回
 
 ### AI 维护（按需触发）
 
-| 触发     | 动作                    | skills                                        |
-| -------- | ----------------------- | --------------------------------------------- |
-| 线上 bug | 诊断 → 修 → 部署        | `diagnosing-bugs` → `tdd` → `implement`       |
-| 性能退化 | 定位 → 优化             | `web-perf` → `improve-codebase-architecture`  |
+| 触发     | 动作                    | skills                                         |
+| -------- | ----------------------- | ---------------------------------------------- |
+| 线上 bug | 诊断 → 修 → 部署        | `diagnosing-bugs` → `tdd` → `implement`        |
+| 性能退化 | 定位 → 优化             | `web-perf` → `improve-codebase-architecture`   |
 | 技术债   | 分析 → 重构方案 → issue | `improve-codebase-architecture` → `to-tickets` |
-| 新功能   | 回到 Phase 1            | `grill-me` → …                                |
+| 新功能   | 回到 Phase 1            | `grill-me` → …                                 |
 
 **周期维护**：每季度 D1 备份（`wrangler d1 backup`）。
 
