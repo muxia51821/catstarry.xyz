@@ -668,6 +668,9 @@
         border-left-color: transparent;
         border-bottom-color: transparent;
         transform: rotate(-32deg) scaleY(0.52);
+        transition:
+          border-color var(--hover) ease,
+          filter var(--hover) ease;
       }
       .signal-core {
         position: absolute;
@@ -691,6 +694,9 @@
           -3px 4px 7px rgb(0 0 0 / 0.84) inset,
           -1px -1px 0 rgb(184 200 255 / 0.2),
           0 0 6px rgb(0 47 167 / 0.1);
+        transition:
+          border-color var(--hover) ease,
+          box-shadow var(--hover) ease;
       }
       .signal-core::after {
         content: "";
@@ -758,6 +764,23 @@
       }
       .signal-wrap.respond .signal-core {
         animation: signal-response var(--satellite-response) ease-out;
+      }
+      .signal-wrap.attention .signal-core {
+        border-color: rgb(189 204 255 / 0.36);
+        box-shadow:
+          -3px 4px 7px rgb(0 0 0 / 0.84) inset,
+          -1px -1px 0 rgb(184 200 255 / 0.32),
+          0 0 9px rgb(51 92 255 / var(--signal-hover-glow, 0.18));
+      }
+      .signal-wrap.attention .signal-core::after {
+        border-color: rgb(105 135 255 / 0.64);
+        border-right-color: transparent;
+        border-bottom-color: transparent;
+      }
+      .signal-wrap.attention .signal-orbit {
+        border-top-color: rgb(84 119 255 / calc(var(--orbit) + var(--signal-hover-orbit-boost, 0.14)));
+        border-right-color: rgb(84 119 255 / calc(var(--orbit) + var(--signal-hover-orbit-boost, 0.14)));
+        filter: drop-shadow(0 0 3px rgb(51 92 255 / 0.16));
       }
       @keyframes satellite-dust {
         0%,
@@ -2039,6 +2062,14 @@
             `${P.satellite.orbitShellPercent}%`,
           );
           root.style.setProperty(
+            "--signal-hover-glow",
+            P.satellite.hoverGlowBoost,
+          );
+          root.style.setProperty(
+            "--signal-hover-orbit-boost",
+            P.satellite.hoverOrbitBoost,
+          );
+          root.style.setProperty(
             "--companion-overview-scale",
             P.aboutCompanion.overviewScale,
           );
@@ -2187,7 +2218,65 @@
             P.satellite.responseMs,
           );
         }
+        function clearSignalRateTween(signal) {
+          if (!signal) return;
+          cancelAnimationFrame(signal._rateFrame);
+          signal._rateFrame = null;
+        }
+        function setSignalOrbitRate(signal, targetRate, durationMs) {
+          const animation = signal?._ambientMotion;
+          clearSignalRateTween(signal);
+          if (!animation) return;
+          const startRate = animation.playbackRate,
+            startedAt = performance.now();
+          const tick = (now) => {
+            if (signal._ambientMotion !== animation) return;
+            const progress = Math.min(1, (now - startedAt) / durationMs),
+              eased = progress * (2 - progress);
+            animation.playbackRate = startRate + (targetRate - startRate) * eased;
+            if (progress < 1) signal._rateFrame = requestAnimationFrame(tick);
+            else signal._rateFrame = null;
+          };
+          signal._rateFrame = requestAnimationFrame(tick);
+        }
+        function updateSignalAttention(signal) {
+          if (!signal?.dataset.state || reduce.matches || !finePointer.matches)
+            return;
+          const attentive = Boolean(
+              signal._pointerAttention || signal._focusAttention,
+            ),
+            wasAttentive = signal.classList.contains("attention"),
+            state = signal.dataset.state;
+          signal.classList.toggle("attention", attentive);
+          if (state === "dormant") return;
+          if (attentive === wasAttentive) return;
+          setSignalOrbitRate(
+            signal,
+            attentive ? P.satellite.hoverOrbitRate : 1,
+            attentive ? P.satellite.hoverSlowMs : P.satellite.hoverResumeMs,
+          );
+          if (attentive) respond(signal);
+        }
+        function setSignalPointerAttention(signal, attentive) {
+          if (!signal) return;
+          signal._pointerAttention = attentive;
+          updateSignalAttention(signal);
+        }
+        function setSignalFocusAttention(signal, attentive) {
+          if (!signal) return;
+          signal._focusAttention = attentive;
+          updateSignalAttention(signal);
+        }
+        function clearSignalAttention(signal) {
+          if (!signal) return;
+          signal.classList.remove("attention", "respond");
+          signal._pointerAttention = false;
+          signal._focusAttention = false;
+          clearSignalRateTween(signal);
+          if (signal._ambientMotion) signal._ambientMotion.playbackRate = 1;
+        }
         function setSignalMotion(signal, state) {
+          clearSignalRateTween(signal);
           signal._ambientMotion?.cancel();
           signal._ambientMotion = null;
           const core = signal.querySelector(".signal-core"),
@@ -2238,6 +2327,7 @@
             if (!signal) return;
             const state =
               mock.projection === "available" ? mock.states[key] : null;
+            clearSignalAttention(signal);
             signal._ambientMotion?.cancel();
             signal._ambientMotion = null;
             if (state) {
@@ -3195,10 +3285,16 @@
             navigateToFocus(p.dataset.planet, p),
           );
           p.addEventListener("mouseenter", () =>
-            respond(p.querySelector(".signal-wrap")),
+            setSignalPointerAttention(p.querySelector(".signal-wrap"), true),
+          );
+          p.addEventListener("mouseleave", () =>
+            setSignalPointerAttention(p.querySelector(".signal-wrap"), false),
           );
           p.addEventListener("focus", () =>
-            respond(p.querySelector(".signal-wrap")),
+            setSignalFocusAttention(p.querySelector(".signal-wrap"), true),
+          );
+          p.addEventListener("blur", () =>
+            setSignalFocusAttention(p.querySelector(".signal-wrap"), false),
           );
         });
         aboutPlanet.addEventListener("mouseenter", () =>

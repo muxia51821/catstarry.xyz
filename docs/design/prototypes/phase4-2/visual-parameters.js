@@ -92,6 +92,11 @@ window.PROTOTYPE_VISUAL_PARAMETERS = {
       sampleCount: 8
     },
     responseMs: 820,
+    hoverOrbitRate: 0.2,
+    hoverSlowMs: 900,
+    hoverResumeMs: 700,
+    hoverGlowBoost: 0.18,
+    hoverOrbitBoost: 0.14,
     parallaxPx: 5,
     coreDiameterRatio: 0.075,
     particleOpacity: { active: 0.46, stable: 0.24, dormant: 0 },
