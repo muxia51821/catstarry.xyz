@@ -60,3 +60,20 @@
 6. 五颗星球当前资产继续作为可替换占位；星球资产统一调整与 Overview / Focus / Mobile 身份确认后置 Phase 4.3。
 
 本 verdict 支持流程治理登记 Phase 4.2 完成，并启动 Phase 4.3。
+
+## Phase 4.3 下游落地记录
+
+Phase 4.3 未改写上述 Phase 4.2 验收结论，仅完成其后置工作：
+
+- 将适合 CSS 的深空、星层、Star Map、Planet、Focus、HAS、豹猫星座、Cursor Meteor、交互与 reduced-motion 视觉值落回 canonical styles；
+- 将滚动阶段、Focus 顺序、Hold / Handoff、轨道相位、pulse 调度、随机星场和豹猫节点物理继续保留为 runtime-owned contract；
+- 选定五颗同系列星球并建立 Overview / Focus / Mobile 同源资产槽；本目录五张旧图继续作为 Phase 4.2 历史占位；
+- 完成 CJK、keyboard、touch、reduced-motion、性能、视觉一致性、1366×768 与 390×844 的设计侧 UI QA；
+- 修复 390×844 下 Projects 反向标签越出左侧安全区的问题，不改变星球位置、Focus 顺序或节奏。
+
+证据：
+
+- `docs/design/assets/planets/planet-asset-manifest.md`
+- `docs/design/qa/phase4-3-ui-qa.md`
+
+这不表示生产 Home 或真实 HAS 投影已经实现；`src/pages`、正式状态机、资源加载策略与数据链路仍属于后续阶段。

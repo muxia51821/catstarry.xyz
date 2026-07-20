@@ -1,5 +1,5 @@
 /* =========================================
-  catstarry.xyz Design System v2.0
+  catstarry.xyz Design System v2.1
 
   THREE-LAYER TOKEN ARCHITECTURE
   Layer 1 — Global Primitives: raw values and scales
@@ -10,7 +10,9 @@
   - Layer 2 references Layer 1.
   - Layer 3 references Layer 2 or layout primitives.
   - Component CSS consumes Layer 2 or Layer 3, never raw color primitives.
-  - Tokens marked "Phase 4.2 calibration" have a safe baseline, not a final visual value.
+  - "Phase 4.2 verified" marks visual values accepted in the isolated prototype.
+  - Runtime-owned geometry, ordering, random fields and physics do not live here.
+  - Asset-dependent aliases may be tuned when a selected render changes.
   ========================================= */
 
 /* =========================================
@@ -204,23 +206,34 @@
   --duration-slow: var(--motion-duration-slow);
   --stagger-base: var(--motion-stagger-step);
 
-  /* --- 2.6 Home space --- */
+  /* --- 2.6 Home space: canonical, Phase 4.2 verified --- */
   --space-bg: var(--home-void);
-  --space-haze: rgba(51, 92, 255, 0.1); /* Phase 4.2 calibration */
-  --space-dust: rgba(232, 223, 208, 0.14); /* Phase 4.2 calibration */
-  --space-star-far: rgba(229, 231, 235, 0.18); /* Phase 4.2 calibration */
-  --space-star-mid: rgba(102, 133, 255, 0.38); /* Phase 4.2 calibration */
-  --space-star-near: rgba(230, 236, 255, 0.72); /* Phase 4.2 calibration */
-  --space-depth-muted: 0.38; /* Phase 4.2 calibration */
+  --space-haze: rgba(51, 92, 255, 0.1);
+  --space-bloom-opacity: 0.16;
+  --space-dust: rgba(232, 223, 208, 0.14);
+  --space-dust-opacity: 0.11;
+  --space-galaxy-dust-opacity: 0.075;
+  --space-star-far: rgba(229, 231, 235, 0.18);
+  --space-star-mid: rgba(102, 133, 255, 0.38);
+  --space-star-near: rgba(230, 236, 255, 0.72);
+  --space-star-far-opacity: 0.68;
+  --space-star-mid-opacity: 0.66;
+  --space-star-near-opacity: 0.31;
+  --space-star-far-scale: 0.72;
+  --space-star-mid-scale: 1;
+  --space-star-near-scale: 1.42;
+  --space-depth-muted: 0.38;
   --space-depth-active: 1;
-  --space-route: rgba(102, 133, 255, 0.18); /* Phase 4.2 calibration */
-  --space-route-active: rgba(51, 92, 255, 0.62); /* Phase 4.2 calibration */
+  --space-route: rgba(102, 133, 255, 0.18);
+  --space-route-active: rgba(51, 92, 255, 0.62);
 
-  /* --- 2.7 Planet optics and shared warm geology --- */
+  /* Galaxy density fields, clusters, dark zones and random seeds remain runtime-owned. */
+
+  /* --- 2.7 Planet optics and shared warm geology: canonical --- */
   --planet-light-main: #f2e9db;
   --planet-shadow-cold: var(--gray-925);
-  --planet-rim: rgba(102, 133, 255, 0.52); /* Phase 4.2 calibration */
-  --planet-atmosphere: rgba(51, 92, 255, 0.18); /* Phase 4.2 calibration */
+  --planet-rim: rgba(102, 133, 255, 0.52);
+  --planet-atmosphere: rgba(51, 92, 255, 0.18);
   --planet-surface-cream: var(--geo-cream);
   --planet-surface-sand: var(--geo-sand);
   --planet-surface-clay: var(--geo-clay);
@@ -228,19 +241,16 @@
   --planet-detail-graphite: var(--geo-graphite);
   --planet-detail-pigment: var(--geo-pigment);
   --planet-detail-metal: var(--geo-metal);
-  --planet-grain: 0.12; /* Phase 4.2 calibration */
-  --planet-surface-contrast: 1.08; /* Phase 4.2 calibration */
-  --planet-surface-saturation: 0.82; /* Phase 4.2 calibration */
-  --planet-detail-opacity: 0.26; /* Phase 4.2 calibration */
-  --planet-scale-entry: 0.08; /* Phase 4.2 calibration */
-  --planet-scale-overview: 0.32; /* Phase 4.2 calibration */
-  --planet-scale-focus: 1; /* Phase 4.2 calibration */
+  --planet-grain: 0.12;
+  --planet-surface-contrast: 1.08;
+  --planet-surface-saturation: 0.82;
+  --planet-detail-opacity: 0.26;
   --planet-focus-rim: var(--klein-300);
-  --planet-focus-glow: rgba(51, 92, 255, 0.28); /* Phase 4.2 calibration */
+  --planet-focus-glow: rgba(51, 92, 255, 0.28);
   --planet-focus-label: var(--klein-100);
-  --planet-push-scale: 1.18; /* Phase 4.2 calibration */
-  --planet-push-fade: 0.18; /* Phase 4.2 calibration */
-  --planet-push-duration: var(--duration-base); /* Phase 4.2 calibration */
+  --planet-push-scale: 1.18;
+  --planet-push-fade: 0.18;
+  --planet-push-duration: var(--duration-base);
 }
 
 /* Canvas identity has precedence over OS color preference. */
@@ -322,72 +332,135 @@
   --feed-card-bg: var(--bg-surface-card);
   --feed-card-border: 1px solid var(--border-default);
 
-  /* --- 3.4 Star-map labels and planet material aliases --- */
+  /* --- 3.4 Star Map and interaction interfaces: Phase 4.2 verified --- */
+  --star-map-map-focus-scale: 1.72;
+  --star-map-map-focus-opacity: 0.12;
   --star-map-label-color: var(--space-star-far);
   --star-map-label-focus: var(--planet-focus-label);
   --star-map-label-route: var(--space-route);
+  --star-map-label-size: 11px;
+  --star-map-label-tracking: 0.18em;
+  --star-map-index-size: 10px;
+  --interaction-hit-size: 44px;
+  --interaction-focus-ring: var(--klein-300);
+  --interaction-focus-glow: rgba(51, 92, 255, 0.34);
+  --interaction-state-duration: 220ms;
+
+  /* --- 3.5 Planet overview, material and optical interfaces --- */
+  --planet-overview-size: clamp(112px, 16vw, 244px);
+  --planet-overview-about-scale: 0.88;
+  --planet-overview-blog-scale: 0.94;
+  --planet-overview-feed-scale: 1;
+  --planet-overview-projects-scale: 0.94;
+  --planet-overview-learn-scale: 0.91;
+  --planet-depth-about-scale: 0.72;
+  --planet-depth-blog-scale: 0.9;
+  --planet-depth-feed-scale: 1;
+  --planet-depth-projects-scale: 0.86;
+  --planet-depth-learn-scale: 0.84;
+
+  --planet-atmosphere-opacity: 0.23;
+  --planet-atmosphere-width: 1px;
+  --planet-terminator-opacity: 0.18;
+  --planet-cast-shadow-opacity: 0.44;
+  --planet-cast-shadow-blur: 34px;
+  --planet-passive-rim-opacity: 0.1;
+  --planet-passive-rim-blur: 18px;
+  --planet-ready-rim-opacity: 0.3;
+  --planet-hover-rim-opacity: 0.74;
+  --planet-hover-rim-blur: 28px;
+  --planet-hover-halo-opacity: 0.24;
+  --planet-hover-halo-blur: 56px;
+  --planet-focus-material-boost: 1.06;
+  --planet-focus-diameter: min(66vmin, 820px);
+  --planet-focus-surface-scale: 1.16;
+  --planet-focus-copy-width: 34ch;
+  --planet-focus-copy-color: var(--home-text-primary);
+  --planet-focus-copy-muted: var(--home-text-secondary);
+  --planet-focus-action-color: var(--klein-100);
+  --planet-focus-action-border: rgba(102, 133, 255, 0.42);
+
+  /* Identity aliases share one optical system; filters remain asset-dependent. */
   --planet-about-surface: var(--planet-surface-cream);
   --planet-about-detail: var(--planet-surface-mineral);
+  --planet-about-filter: contrast(1.02) saturate(0.82);
   --planet-blog-surface: var(--planet-surface-sand);
   --planet-blog-detail-primary: var(--planet-detail-pigment);
   --planet-blog-detail-secondary: var(--planet-detail-graphite);
+  --planet-blog-filter: contrast(1.04) saturate(0.8);
   --planet-feed-surface: var(--planet-surface-sand);
   --planet-feed-detail: var(--planet-detail-pigment);
+  --planet-feed-filter: contrast(1.03) saturate(0.78);
   --planet-learn-surface: var(--planet-surface-mineral);
   --planet-learn-detail: var(--planet-detail-graphite);
+  --planet-learn-filter: contrast(1.05) saturate(0.8);
   --planet-projects-surface: var(--planet-surface-clay);
   --planet-projects-detail: var(--planet-detail-metal);
+  --planet-projects-filter: contrast(1.02) saturate(0.76);
 
-  /* --- 3.5 Home Activity Signal satellite --- */
-  /* Base material stays near Klein 500; state values are Phase 4.2 calibration seeds. */
-  --signal-satellite-core: var(--klein-500);
-  --signal-satellite-rim: var(--klein-400);
-  --signal-satellite-shadow: rgba(1, 8, 31, 0.86);
-  --signal-satellite-orbit: rgba(0, 47, 167, 0.24);
-  --signal-satellite-focus-glow: rgba(51, 92, 255, 0.28);
-  --signal-satellite-pulse-duration: var(--motion-duration-base);
+  /* --- 3.6 Home Activity Signal: visual contract only --- */
+  --has-body-shadow: rgba(8, 13, 22, 0.9);
+  --has-body-light: #737b86;
+  --has-body-mid: #3d4654;
+  --has-rim: var(--klein-400);
+  --has-band: var(--klein-500);
+  --has-orbit: rgba(51, 92, 255, 0.32);
+  --has-attention-glow: rgba(51, 92, 255, 0.28);
+  --has-core-diameter: 6.375%;
+  --has-active-scale: 1;
+  --has-stable-scale: 0.88;
+  --has-dormant-scale: 0.76;
+  --has-active-opacity: 0.82;
+  --has-stable-opacity: 0.61;
+  --has-dormant-opacity: 0.39;
+  --has-active-orbit-opacity: 0.38;
+  --has-stable-orbit-opacity: 0.22;
+  --has-dormant-orbit-opacity: 0.1;
+  --has-active-orbit-back-opacity: 0.21;
+  --has-stable-orbit-back-opacity: 0.12;
+  --has-dormant-orbit-back-opacity: 0.055;
+  --has-hover-glow-boost: 0.18;
+  --has-hover-orbit-boost: 0.14;
+  --has-response-duration: 820ms;
 
-  --signal-satellite-active-size: 5%; /* Phase 4.2 calibration */
-  --signal-satellite-active-opacity: 0.78; /* Phase 4.2 calibration */
-  --signal-satellite-active-orbit-opacity: 0.38; /* Phase 4.2 calibration */
-  --signal-satellite-active-drift-range: 8deg; /* Phase 4.2 calibration */
-  --signal-satellite-active-drift-duration: 12s; /* Phase 4.2 calibration */
-  --signal-satellite-active-pulse-strength: 0.42; /* Phase 4.2 calibration */
+  /* Orbit geometry, phase, period, pulse scheduling and depth are runtime-owned. */
 
-  --signal-satellite-stable-size: 4.25%; /* Phase 4.2 calibration */
-  --signal-satellite-stable-opacity: 0.62; /* Phase 4.2 calibration */
-  --signal-satellite-stable-orbit-opacity: 0.24; /* Phase 4.2 calibration */
-  --signal-satellite-stable-drift-range: 4deg; /* Phase 4.2 calibration */
-  --signal-satellite-stable-drift-duration: 20s; /* Phase 4.2 calibration */
-  --signal-satellite-stable-pulse-strength: 0.24; /* Phase 4.2 calibration */
-
-  --signal-satellite-dormant-size: 3.5%; /* Phase 4.2 calibration */
-  --signal-satellite-dormant-opacity: 0.46; /* Phase 4.2 calibration */
-  --signal-satellite-dormant-orbit-opacity: 0.12; /* Phase 4.2 calibration */
-
-  /* --- 3.6 About leopard-cat satellite --- */
+  /* --- 3.7 About leopard-cat constellation: visual contract only --- */
   --leopardcat-particle: var(--klein-300);
-  --leopardcat-line: rgba(102, 133, 255, 0.55); /* Phase 4.2 calibration */
-  --leopardcat-glow: rgba(51, 92, 255, 0.35); /* Phase 4.2 calibration */
-  --leopardcat-rest-opacity: 0.28; /* Phase 4.2 calibration */
-  --leopardcat-focus-opacity: 0.92; /* Phase 4.2 calibration */
-  --leopardcat-charge-scale: 0.94; /* Phase 4.2 calibration */
-  --leopardcat-charge-orbit: rgba(102, 133, 255, 0.3); /* Phase 4.2 calibration */
-  --leopardcat-charge-duration: 2.4s; /* Phase 4.2 calibration */
-  --leopardcat-dust-radius: 18%; /* Phase 4.2 calibration */
-  --leopardcat-recover-duration: 1.6s; /* Phase 4.2 calibration */
+  --leopardcat-line: rgba(102, 133, 255, 0.55);
+  --leopardcat-glow: rgba(51, 92, 255, 0.35);
+  --leopardcat-contour-rest-opacity: 0.14;
+  --leopardcat-contour-reveal-opacity: 0.86;
+  --leopardcat-link-rest-opacity: 0.12;
+  --leopardcat-link-reveal-opacity: 0.28;
+  --leopardcat-aura-rest-opacity: 0.14;
+  --leopardcat-aura-reveal-opacity: 0.22;
+  --leopardcat-aura-charged-opacity: 0.42;
+  --leopardcat-node-rest-opacity: 0.52;
+  --leopardcat-node-reveal-opacity: 0.96;
+  --leopardcat-node-charged-opacity: 1;
+  --leopardcat-node-primary-scale: 1;
+  --leopardcat-node-secondary-scale: 0.72;
+  --leopardcat-node-rest-glow: 2.5px;
+  --leopardcat-node-reveal-glow: 4px;
+  --leopardcat-node-charged-glow: 7px;
+  --leopardcat-residue-opacity: 0.22;
+  --leopardcat-state-duration: 220ms;
 
-  /* --- 3.7 Cursor meteor: Home baseline --- */
+  /* Node coordinates, burst impulses, residue selection and spring recovery are runtime-owned. */
+
+  /* --- 3.8 Cursor meteor: canvas-specific visual intensity --- */
   --cursor-meteor-head: var(--klein-100);
-  --cursor-meteor-trail: rgba(51, 92, 255, 0.7); /* Phase 4.2 calibration */
-  --cursor-meteor-glow: rgba(51, 92, 255, 0.28); /* Phase 4.2 calibration */
-  --cursor-meteor-length: 36px; /* Phase 4.2 calibration */
-  --cursor-meteor-width: 1px; /* Phase 4.2 calibration */
-  --cursor-meteor-decay: 260ms; /* Phase 4.2 calibration */
-  --cursor-meteor-debris-opacity: 0.16; /* Phase 4.2 calibration */
+  --cursor-meteor-trail: rgba(51, 92, 255, 0.7);
+  --cursor-meteor-glow: rgba(51, 92, 255, 0.28);
+  --cursor-meteor-width: 2.2px;
+  --cursor-meteor-head-radius: 9px;
+  --cursor-meteor-debris-opacity: 0.16;
   --cursor-meteor-opacity: 1;
 
-  /* --- 3.8 Feed Public Footprint --- */
+  /* Trail sampling, follow interpolation, speed threshold and debris physics are runtime-owned. */
+
+  /* --- 3.9 Feed Public Footprint --- */
   --footprint-surface: var(--warm-150);
   --footprint-border: var(--warm-250);
   --footprint-source: var(--content-text-secondary);
@@ -398,14 +471,14 @@
   --footprint-learn: var(--category-learn);
   --footprint-project: var(--category-project);
 
-  /* --- 3.9 Generic imagery --- */
+  /* --- 3.10 Generic imagery --- */
   --img-radius: var(--radius-content);
   --img-grain-opacity: 0.03;
   --img-tint: sepia(0.3) saturate(0.8) hue-rotate(-10deg);
   --avatar-shape: 50%;
   --avatar-size: 120px;
 
-  /* --- 3.10 Generic motion utilities --- */
+  /* --- 3.11 Generic motion utilities --- */
   --reveal-offset: 24px;
   --stagger-offset: 16px;
   --parallax-bg-speed: 0.5; /* Phase 4.2 calibration */
@@ -415,11 +488,12 @@
 [data-canvas="content"] {
   --button-secondary-hover: rgba(0, 47, 167, 0.05);
   --cursor-meteor-head: var(--klein-500);
-  --cursor-meteor-trail: rgba(0, 47, 167, 0.34); /* Phase 4.2 calibration */
-  --cursor-meteor-glow: rgba(0, 47, 167, 0.12); /* Phase 4.2 calibration */
-  --cursor-meteor-length: 20px; /* Phase 4.2 calibration */
-  --cursor-meteor-debris-opacity: 0.05; /* Phase 4.2 calibration */
-  --cursor-meteor-opacity: 0.65; /* Phase 4.2 calibration */
+  --cursor-meteor-trail: rgba(0, 47, 167, 0.34);
+  --cursor-meteor-glow: rgba(0, 47, 167, 0.12);
+  --cursor-meteor-width: 1px;
+  --cursor-meteor-head-radius: 5px;
+  --cursor-meteor-debris-opacity: 0.05;
+  --cursor-meteor-opacity: 0.65;
 }
 
 [data-canvas="finance"] {

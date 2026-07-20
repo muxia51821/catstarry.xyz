@@ -1,6 +1,6 @@
 /* =========================================
-   catstarry.xyz Design System v2.0 - Components
-   仅包含通用组件与动效工具；星图组件由 Phase 4.3 落地
+   catstarry.xyz Design System v2.1 - Components
+   通用组件 + Phase 4.3 Home 视觉接口；不包含页面结构或运行时状态机
    ========================================= */
 
 /* --- Buttons --- */
@@ -98,6 +98,734 @@
 }
 
 /* ══════════════════════════════════════
+   Home Space / Star Map canonical interface
+   Runtime supplies phase, positions and state through data-* and custom properties.
+   ══════════════════════════════════════ */
+
+.home-space-stage {
+  position: relative;
+  isolation: isolate;
+  min-block-size: 100svh;
+  overflow: clip;
+  color: var(--home-text-primary);
+  background:
+    radial-gradient(circle at 48% 44%, rgba(51, 92, 255, 0.07), transparent 42%),
+    var(--space-bg);
+}
+
+.home-space-stage::before,
+.home-space-stage::after {
+  position: absolute;
+  inset: -12%;
+  z-index: -3;
+  pointer-events: none;
+  content: "";
+}
+
+.home-space-stage::before {
+  opacity: var(--space-bloom-opacity);
+  background:
+    radial-gradient(ellipse at 54% 45%, var(--space-haze), transparent 54%),
+    radial-gradient(ellipse at 24% 72%, rgba(102, 133, 255, 0.05), transparent 48%);
+}
+
+.home-space-stage::after {
+  opacity: var(--space-dust-opacity);
+  background: linear-gradient(22deg, transparent 31%, var(--space-dust) 49%, transparent 67%);
+  filter: blur(42px);
+}
+
+.home-star-layer {
+  position: absolute;
+  inset: -8%;
+  z-index: -2;
+  pointer-events: none;
+  color: var(--star-layer-color);
+  transform: translate3d(var(--star-layer-x, 0), var(--star-layer-y, 0), 0)
+    scale(var(--star-layer-scale, 1));
+  transform-origin: center;
+  opacity: var(--star-layer-opacity, 1);
+  will-change: transform;
+}
+
+.home-star-layer[data-star-layer="far"] {
+  --star-layer-color: var(--space-star-far);
+  --star-layer-opacity: var(--space-star-far-opacity);
+  --star-layer-scale: var(--space-star-far-scale);
+}
+
+.home-star-layer[data-star-layer="mid"] {
+  --star-layer-color: var(--space-star-mid);
+  --star-layer-opacity: var(--space-star-mid-opacity);
+  --star-layer-scale: var(--space-star-mid-scale);
+}
+
+.home-star-layer[data-star-layer="near"] {
+  --star-layer-color: var(--space-star-near);
+  --star-layer-opacity: var(--space-star-near-opacity);
+  --star-layer-scale: var(--space-star-near-scale);
+}
+
+.home-star-map {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  transform: scale(var(--star-map-scale, 1));
+  transform-origin: var(--star-map-origin-x, 50%) var(--star-map-origin-y, 50%);
+  opacity: var(--star-map-opacity, 1);
+  transition:
+    opacity var(--duration-slow) var(--ease-scroll-in),
+    transform var(--duration-slow) var(--ease-scroll-in);
+}
+
+.home-star-map[data-phase="focus"] {
+  --star-map-scale: var(--star-map-map-focus-scale);
+  --star-map-opacity: var(--star-map-map-focus-opacity);
+}
+
+/* Runtime owns semantic positions, depth and focus order. */
+.home-planet {
+  --planet-identity-scale: 1;
+  --planet-depth-scale: 1;
+  --planet-state-opacity: var(--space-depth-muted);
+  position: absolute;
+  inset-inline-start: var(--planet-x, 50%);
+  inset-block-start: var(--planet-y, 50%);
+  width: calc(var(--planet-overview-size) * var(--planet-identity-scale) * var(--planet-depth-scale));
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%) scale(var(--planet-state-scale, 1));
+  transform-origin: center;
+  opacity: var(--planet-state-opacity);
+  pointer-events: none;
+  transition:
+    opacity var(--interaction-state-duration) var(--ease-hover),
+    transform var(--interaction-state-duration) var(--ease-hover);
+}
+
+.home-planet[data-planet="about"] {
+  --planet-identity-scale: var(--planet-overview-about-scale);
+  --planet-depth-scale: var(--planet-depth-about-scale);
+  --planet-material-filter: var(--planet-about-filter);
+}
+
+.home-planet[data-planet="blog"] {
+  --planet-identity-scale: var(--planet-overview-blog-scale);
+  --planet-depth-scale: var(--planet-depth-blog-scale);
+  --planet-material-filter: var(--planet-blog-filter);
+}
+
+.home-planet[data-planet="feed"] {
+  --planet-identity-scale: var(--planet-overview-feed-scale);
+  --planet-depth-scale: var(--planet-depth-feed-scale);
+  --planet-material-filter: var(--planet-feed-filter);
+}
+
+.home-planet[data-planet="projects"] {
+  --planet-identity-scale: var(--planet-overview-projects-scale);
+  --planet-depth-scale: var(--planet-depth-projects-scale);
+  --planet-material-filter: var(--planet-projects-filter);
+}
+
+.home-planet[data-planet="learn"] {
+  --planet-identity-scale: var(--planet-overview-learn-scale);
+  --planet-depth-scale: var(--planet-depth-learn-scale);
+  --planet-material-filter: var(--planet-learn-filter);
+}
+
+.home-planet[data-planet-state="target"] {
+  --planet-state-scale: 0.08;
+  --planet-state-opacity: 0.7;
+}
+
+.home-planet[data-planet-state="overview"],
+.home-planet[data-planet-state="ready"] {
+  --planet-state-scale: 1;
+  --planet-state-opacity: 1;
+}
+
+.home-planet[data-planet-state="inactive"] {
+  --planet-state-opacity: var(--space-depth-muted);
+}
+
+.home-planet[data-interactive="true"] {
+  pointer-events: auto;
+}
+
+.home-planet__target {
+  display: grid;
+  min-width: var(--interaction-hit-size);
+  min-height: var(--interaction-hit-size);
+  padding: 0;
+  place-items: center;
+  color: inherit;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-radius: 50%;
+}
+
+.home-planet__core {
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  filter: drop-shadow(0 14px var(--planet-cast-shadow-blur) rgba(0, 0, 0, var(--planet-cast-shadow-opacity)));
+}
+
+.home-planet__surface,
+.home-planet__atmosphere,
+.home-planet__terminator,
+.home-planet__rim {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.home-planet__surface {
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: var(--planet-crop, 50% 50%);
+  filter: var(--planet-material-filter, none);
+  transform: scale(var(--planet-surface-scale, 1));
+}
+
+.home-planet__terminator {
+  z-index: 2;
+  opacity: var(--planet-terminator-opacity);
+  background: linear-gradient(132deg, transparent 28%, rgba(8, 12, 20, 0.22) 56%, var(--planet-shadow-cold) 100%);
+}
+
+.home-planet__atmosphere {
+  z-index: 3;
+  border: var(--planet-atmosphere-width) solid var(--planet-atmosphere);
+  opacity: var(--planet-atmosphere-opacity);
+  box-shadow: inset 0 0 12px rgba(102, 133, 255, 0.08);
+}
+
+.home-planet__rim {
+  z-index: 4;
+  opacity: var(--planet-passive-rim-opacity);
+  border: 1px solid var(--planet-rim);
+  box-shadow: 0 0 var(--planet-passive-rim-blur) rgba(51, 92, 255, 0.28);
+  transition:
+    opacity var(--interaction-state-duration) var(--ease-hover),
+    box-shadow var(--interaction-state-duration) var(--ease-hover);
+}
+
+.home-planet[data-planet-state="ready"] .home-planet__rim {
+  opacity: var(--planet-ready-rim-opacity);
+}
+
+.home-planet[data-interactive="true"]:is(:hover, :focus-within) .home-planet__rim,
+.home-planet[data-attention="true"] .home-planet__rim {
+  opacity: var(--planet-hover-rim-opacity);
+  box-shadow:
+    0 0 var(--planet-hover-rim-blur) rgba(51, 92, 255, 0.5),
+    0 0 var(--planet-hover-halo-blur) rgba(51, 92, 255, var(--planet-hover-halo-opacity));
+}
+
+.home-planet__target:focus-visible,
+.star-map-index__link:focus-visible,
+.planet-focus__action:focus-visible,
+.planet-focus__return:focus-visible,
+.leopard-cat__trigger:focus-visible {
+  outline: 2px solid var(--interaction-focus-ring);
+  outline-offset: 4px;
+  box-shadow: 0 0 0 5px var(--interaction-focus-glow);
+}
+
+.home-planet__label {
+  position: absolute;
+  inset-inline-start: 50%;
+  inset-block-start: calc(100% + var(--space-sm));
+  min-width: max-content;
+  transform: translateX(-50%);
+  color: var(--star-map-label-color);
+  opacity: var(--planet-label-opacity, 0.68);
+  pointer-events: none;
+  transition:
+    color var(--interaction-state-duration) var(--ease-hover),
+    opacity var(--interaction-state-duration) var(--ease-hover);
+}
+
+.home-planet[data-interactive="true"]:is(:hover, :focus-within) .home-planet__label,
+.home-planet[data-planet-state="focus"] .home-planet__label {
+  color: var(--star-map-label-focus);
+  opacity: 1;
+}
+
+/* ══════════════════════════════════════
+   Focus, copy, action and side index
+   ══════════════════════════════════════ */
+
+.planet-focus {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duration-slow) var(--ease-scroll-in);
+}
+
+.planet-focus[data-open="true"] {
+  visibility: visible;
+  opacity: 1;
+}
+
+.planet-focus__visual {
+  position: absolute;
+  inset-inline-start: var(--focus-x, 50%);
+  inset-block-start: var(--focus-y, 50%);
+  width: var(--focus-diameter, var(--planet-focus-diameter));
+  max-width: var(--focus-max-width, none);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.planet-focus__surface {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: var(--focus-crop, 50% 50%);
+  transform: scale(var(--planet-focus-surface-scale));
+  filter: brightness(var(--planet-focus-material-boost)) var(--planet-material-filter, none);
+}
+
+.planet-focus__shadow,
+.planet-focus__terminator,
+.planet-focus__atmosphere,
+.planet-focus__rim {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.planet-focus__shadow {
+  z-index: -1;
+  box-shadow: 0 24px var(--planet-cast-shadow-blur) rgba(0, 0, 0, var(--planet-cast-shadow-opacity));
+}
+
+.planet-focus__terminator {
+  z-index: 1;
+  opacity: var(--planet-terminator-opacity);
+  background: linear-gradient(132deg, transparent 28%, rgba(8, 12, 20, 0.18) 56%, var(--planet-shadow-cold) 100%);
+}
+
+.planet-focus__atmosphere {
+  z-index: 2;
+  opacity: var(--planet-atmosphere-opacity);
+  border: var(--planet-atmosphere-width) solid var(--planet-atmosphere);
+}
+
+.planet-focus__rim {
+  z-index: 3;
+  opacity: var(--planet-ready-rim-opacity);
+  border: 1px solid var(--planet-focus-rim);
+  box-shadow: 0 0 var(--planet-hover-rim-blur) var(--planet-focus-glow);
+}
+
+.planet-focus__copy {
+  position: absolute;
+  inset-inline-start: var(--focus-copy-x, 7%);
+  inset-block-start: var(--focus-copy-y, 50%);
+  width: min(var(--focus-copy-width, var(--planet-focus-copy-width)), calc(100% - 2 * var(--space-lg)));
+  z-index: 2;
+  color: var(--planet-focus-copy-color);
+  transform: translateY(-50%);
+}
+
+.planet-focus__action,
+.planet-focus__return {
+  display: inline-flex;
+  min-width: var(--interaction-hit-size);
+  min-height: var(--interaction-hit-size);
+  align-items: center;
+  justify-content: center;
+  color: var(--planet-focus-action-color);
+  text-decoration: none;
+  background: rgba(10, 10, 12, 0.56);
+  border: 1px solid var(--planet-focus-action-border);
+  border-radius: var(--radius-full);
+  transition:
+    color var(--interaction-state-duration) var(--ease-hover),
+    border-color var(--interaction-state-duration) var(--ease-hover),
+    background-color var(--interaction-state-duration) var(--ease-hover);
+}
+
+.planet-focus__action:is(:hover, :focus-visible),
+.planet-focus__return:is(:hover, :focus-visible) {
+  color: #fff;
+  background: rgba(0, 47, 167, 0.24);
+  border-color: var(--klein-300);
+}
+
+.about-expanded {
+  position: absolute;
+  inset: 0;
+  z-index: 7;
+  display: grid;
+  align-items: center;
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duration-base) var(--ease-scroll-in);
+}
+
+.about-expanded[data-open="true"] {
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.about-expanded__panel {
+  width: min(38rem, calc(100% - 2 * var(--space-lg)));
+  margin-inline: clamp(var(--space-lg), 7vw, var(--space-6xl));
+  padding: clamp(var(--space-lg), 4vw, var(--space-2xl));
+  color: var(--home-text-primary);
+  background: rgba(10, 10, 12, 0.84);
+  border: 1px solid rgba(102, 133, 255, 0.2);
+  border-radius: var(--radius-md);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.32);
+  backdrop-filter: blur(14px);
+}
+
+.star-map-index {
+  position: absolute;
+  inset-inline-end: max(var(--space-md), env(safe-area-inset-right));
+  inset-block-start: 50%;
+  z-index: 6;
+  display: grid;
+  gap: var(--space-sm);
+  transform: translateY(-50%);
+}
+
+.star-map-index__link {
+  min-width: var(--interaction-hit-size);
+  min-height: var(--interaction-hit-size);
+  padding: var(--space-sm);
+  color: var(--star-map-label-color);
+  text-align: end;
+  text-decoration: none;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-sm);
+}
+
+.star-map-index__link[aria-current="true"],
+.star-map-index__link:is(:hover, :focus-visible) {
+  color: var(--star-map-label-focus);
+}
+
+/* ══════════════════════════════════════
+   Home Activity Signal (HAS)
+   Orbit position/depth and pulses are runtime-owned; CSS owns material/states.
+   ══════════════════════════════════════ */
+
+.has-beacon {
+  --has-scale: var(--has-stable-scale);
+  --has-opacity: var(--has-stable-opacity);
+  --has-orbit-opacity: var(--has-stable-orbit-opacity);
+  --has-orbit-back-opacity: var(--has-stable-orbit-back-opacity);
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.has-beacon[data-has-state="active"] {
+  --has-scale: var(--has-active-scale);
+  --has-opacity: var(--has-active-opacity);
+  --has-orbit-opacity: var(--has-active-orbit-opacity);
+  --has-orbit-back-opacity: var(--has-active-orbit-back-opacity);
+}
+
+.has-beacon[data-has-state="dormant"] {
+  --has-scale: var(--has-dormant-scale);
+  --has-opacity: var(--has-dormant-opacity);
+  --has-orbit-opacity: var(--has-dormant-orbit-opacity);
+  --has-orbit-back-opacity: var(--has-dormant-orbit-back-opacity);
+}
+
+.has-beacon[data-has-state="unavailable"] {
+  display: none;
+}
+
+.has-beacon__orbit,
+.has-beacon__body {
+  position: absolute;
+  pointer-events: none;
+}
+
+.has-beacon__orbit {
+  inset: var(--has-orbit-inset, -16%);
+  border: 1px solid var(--has-orbit);
+  border-radius: 50%;
+  opacity: var(--has-orbit-opacity);
+  transform: rotate(var(--has-orbit-tilt, -12deg)) scaleY(var(--has-orbit-flattening, 0.76));
+  -webkit-mask-image: conic-gradient(from 18deg, #000 0 36%, transparent 42% 58%, #000 64% 88%, transparent 94%);
+  mask-image: conic-gradient(from 18deg, #000 0 36%, transparent 42% 58%, #000 64% 88%, transparent 94%);
+  transition: opacity var(--has-response-duration) var(--ease-hover);
+}
+
+.has-beacon__orbit[data-orbit-layer="back"] {
+  z-index: 0;
+  opacity: var(--has-orbit-back-opacity);
+}
+
+.has-beacon__orbit[data-orbit-layer="front"] {
+  z-index: 4;
+}
+
+.has-beacon__body {
+  inset-inline-start: var(--has-x, 50%);
+  inset-block-start: var(--has-y, 50%);
+  z-index: 5;
+  width: max(7px, var(--has-core-diameter));
+  aspect-ratio: 1.04;
+  overflow: hidden;
+  border-radius: 48%;
+  opacity: var(--has-opacity);
+  transform: translate(-50%, -50%) scale(var(--has-scale));
+  background:
+    linear-gradient(166deg, rgba(255, 255, 255, 0.18), transparent 30%),
+    radial-gradient(circle at 34% 28%, var(--has-body-light), var(--has-body-mid) 46%, var(--has-body-shadow) 83%);
+  border: 1px solid rgba(102, 133, 255, 0.22);
+  box-shadow:
+    inset -2px -3px 5px rgba(4, 7, 14, 0.72),
+    0 0 5px rgba(51, 92, 255, 0.16);
+  transition:
+    opacity var(--has-response-duration) var(--ease-hover),
+    box-shadow var(--has-response-duration) var(--ease-hover);
+}
+
+.has-beacon__body::after {
+  position: absolute;
+  inset-inline: -14%;
+  inset-block-start: 36%;
+  height: 24%;
+  content: "";
+  background: linear-gradient(90deg, transparent, var(--has-band) 22% 78%, transparent);
+  box-shadow: 0 0 4px rgba(51, 92, 255, 0.46);
+  transform: rotate(-8deg);
+  opacity: 0.72;
+}
+
+.has-beacon__body[data-orbit-depth="back"] {
+  z-index: 1;
+}
+
+.has-beacon__body[data-orbit-depth="front"] {
+  z-index: 5;
+}
+
+.has-beacon[data-attention="true"] .has-beacon__body {
+  box-shadow:
+    inset -2px -3px 5px rgba(4, 7, 14, 0.72),
+    0 0 8px var(--has-attention-glow);
+}
+
+.has-beacon[data-attention="true"] .has-beacon__orbit {
+  opacity: calc(var(--has-orbit-opacity) + var(--has-hover-orbit-boost));
+}
+
+/* ══════════════════════════════════════
+   About leopard-cat constellation
+   Geometry and particle physics remain runtime-owned.
+   ══════════════════════════════════════ */
+
+.leopard-cat {
+  position: absolute;
+  width: clamp(120px, 11.5vw, 160px);
+  color: var(--leopardcat-particle);
+  pointer-events: none;
+}
+
+.leopard-cat[data-interactive="true"] {
+  pointer-events: auto;
+}
+
+.leopard-cat__trigger {
+  display: block;
+  width: 100%;
+  min-height: var(--interaction-hit-size);
+  padding: 0;
+  color: inherit;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-sm);
+}
+
+.leopard-cat__svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.leopard-cat__aura,
+.leopard-cat__contour,
+.leopard-cat__link,
+.leopard-cat__node,
+.leopard-cat__burst-particle {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition:
+    opacity var(--leopardcat-state-duration) var(--ease-hover),
+    filter var(--leopardcat-state-duration) var(--ease-hover);
+}
+
+.leopard-cat__node-layer {
+  filter: drop-shadow(0 0 var(--leopardcat-node-rest-glow) var(--leopardcat-glow));
+  transition: filter var(--leopardcat-state-duration) var(--ease-hover);
+}
+
+.leopard-cat__aura {
+  opacity: var(--leopardcat-aura-rest-opacity);
+  filter: blur(5px);
+}
+
+.leopard-cat__contour {
+  opacity: var(--leopardcat-contour-rest-opacity);
+  fill: none;
+  stroke: currentColor;
+}
+
+.leopard-cat__link {
+  opacity: var(--leopardcat-link-rest-opacity);
+  fill: none;
+  stroke: var(--leopardcat-line);
+}
+
+.leopard-cat__node {
+  opacity: var(--leopardcat-node-rest-opacity);
+}
+
+.leopard-cat__node[data-importance="primary"] {
+  transform: scale(var(--leopardcat-node-primary-scale));
+}
+
+.leopard-cat__node[data-importance="secondary"] {
+  transform: scale(var(--leopardcat-node-secondary-scale));
+}
+
+.leopard-cat__burst-particle {
+  opacity: 0;
+}
+
+.leopard-cat[data-cat-state="reveal"] .leopard-cat__aura {
+  opacity: var(--leopardcat-aura-reveal-opacity);
+}
+
+.leopard-cat[data-cat-state="reveal"] .leopard-cat__contour {
+  opacity: var(--leopardcat-contour-reveal-opacity);
+}
+
+.leopard-cat[data-cat-state="reveal"] .leopard-cat__link {
+  opacity: var(--leopardcat-link-reveal-opacity);
+}
+
+.leopard-cat[data-cat-state="reveal"] .leopard-cat__node {
+  opacity: var(--leopardcat-node-reveal-opacity);
+}
+
+.leopard-cat[data-cat-state="reveal"] .leopard-cat__node-layer {
+  filter: drop-shadow(0 0 var(--leopardcat-node-reveal-glow) var(--leopardcat-glow));
+}
+
+.leopard-cat[data-cat-state="charged"] .leopard-cat__aura {
+  opacity: var(--leopardcat-aura-charged-opacity);
+}
+
+.leopard-cat[data-cat-state="charged"] .leopard-cat__node {
+  opacity: var(--leopardcat-node-charged-opacity);
+}
+
+.leopard-cat[data-cat-state="charged"] .leopard-cat__node-layer {
+  filter: drop-shadow(0 0 var(--leopardcat-node-charged-glow) var(--leopardcat-glow));
+}
+
+.leopard-cat[data-cat-state="residue"] {
+  pointer-events: none;
+}
+
+.leopard-cat[data-cat-state="residue"] :is(.leopard-cat__contour, .leopard-cat__link) {
+  opacity: 0;
+}
+
+.leopard-cat[data-cat-state="residue"] :is(.leopard-cat__node, .leopard-cat__burst-particle) {
+  opacity: var(--leopardcat-residue-opacity);
+}
+
+.leopard-cat[data-cat-state="recovering"] {
+  pointer-events: none;
+}
+
+/* ══════════════════════════════════════
+   Cursor Meteor visual canvas contract
+   Runtime owns sampling, velocity and particle lifetime.
+   ══════════════════════════════════════ */
+
+.cursor-meteor {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  width: 100%;
+  height: 100%;
+  opacity: var(--cursor-meteor-opacity);
+  pointer-events: none;
+  mix-blend-mode: screen;
+}
+
+@media (max-width: 760px) {
+  .planet-focus__visual {
+    inset-inline-start: var(--focus-mobile-x, 50%);
+    inset-block-start: var(--focus-mobile-y, 30%);
+    width: var(--focus-mobile-diameter, min(78vmin, 560px));
+  }
+
+  .planet-focus__copy {
+    inset-inline: max(var(--space-lg), env(safe-area-inset-left));
+    inset-block-start: var(--focus-mobile-copy-y, 69%);
+    width: auto;
+    max-width: 31ch;
+    transform: none;
+  }
+
+  .star-map-index {
+    inset-inline: max(var(--space-sm), env(safe-area-inset-left)) max(var(--space-sm), env(safe-area-inset-right));
+    inset-block-start: auto;
+    inset-block-end: max(var(--space-sm), env(safe-area-inset-bottom));
+    grid-auto-flow: column;
+    justify-content: space-between;
+    transform: none;
+  }
+}
+
+@media (hover: none), (pointer: coarse) {
+  .home-planet__target,
+  .star-map-index__link,
+  .planet-focus__action,
+  .planet-focus__return,
+  .leopard-cat__trigger {
+    min-width: var(--interaction-hit-size);
+    min-height: var(--interaction-hit-size);
+  }
+
+  .home-planet[data-interactive="true"]:hover .home-planet__rim {
+    opacity: var(--planet-ready-rim-opacity);
+    box-shadow: 0 0 var(--planet-passive-rim-blur) rgba(51, 92, 255, 0.28);
+  }
+}
+
+/* ══════════════════════════════════════
    Generic Motion Utilities
    Phase 4.2 可校准 token，但实验组件不得直接写入本文件
    所有动效遵从 prefers-reduced-motion
@@ -174,5 +902,38 @@
   .parallax-bg,
   .parallax-fg {
     transform: none;
+  }
+
+  .home-star-layer {
+    transform: none;
+    will-change: auto;
+  }
+
+  .home-star-map,
+  .home-planet,
+  .home-planet__rim,
+  .planet-focus,
+  .has-beacon__orbit,
+  .has-beacon__body,
+  .leopard-cat__aura,
+  .leopard-cat__contour,
+  .leopard-cat__link,
+  .leopard-cat__node-layer,
+  .leopard-cat__node,
+  .leopard-cat__burst-particle {
+    animation: none !important;
+    transition-duration: 1ms !important;
+  }
+
+  .has-beacon__body {
+    transform: translate(-50%, -50%) scale(var(--has-scale));
+  }
+
+  .leopard-cat__burst-particle {
+    display: none;
+  }
+
+  .cursor-meteor {
+    display: none;
   }
 }

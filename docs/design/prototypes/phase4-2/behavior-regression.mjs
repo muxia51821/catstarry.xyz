@@ -253,34 +253,79 @@ await evaluate(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Esca
 await wait(80);
 const reducedEscape = await evaluate(`!document.body.classList.contains('focus-open')`);
 
-console.log(
-  JSON.stringify(
-    {
-      errors,
-      beforeAboutReady,
-      initial,
-      catStructure,
-      quiet,
-      rotation,
-      charged,
-      chargedNodes,
-      chargeCancelledByScroll,
-      chargeExpired,
-      burstMotion,
-      desktopCat,
-      focusResidue,
-      desktopEscape,
-      desktopRecovery,
-      feedAfterAbout,
-      footerRelease,
-      reverseFromFooter,
-      orbit1366,
-      touchCat,
-      reduced,
-      reducedEscape,
-    },
-    null,
-    2,
-  ),
-);
+const result = {
+  errors,
+  beforeAboutReady,
+  initial,
+  catStructure,
+  quiet,
+  rotation,
+  charged,
+  chargedNodes,
+  chargeCancelledByScroll,
+  chargeExpired,
+  burstMotion,
+  desktopCat,
+  focusResidue,
+  desktopEscape,
+  desktopRecovery,
+  feedAfterAbout,
+  footerRelease,
+  reverseFromFooter,
+  orbit1366,
+  touchCat,
+  reduced,
+  reducedEscape,
+};
+
+console.log(JSON.stringify(result, null, 2));
+
+const failed =
+  errors.length > 0 ||
+  !beforeAboutReady.somePlanetReady ||
+  beforeAboutReady.aboutReady ||
+  beforeAboutReady.catReady ||
+  !beforeAboutReady.catDisabled ||
+  !initial.aboutReady ||
+  !initial.catReady ||
+  initial.catDisabled ||
+  !catStructure.layers ||
+  catStructure.nodes !== 28 ||
+  catStructure.primaryNodes !== 16 ||
+  catStructure.secondaryNodes !== 12 ||
+  catStructure.fragmentCircles !== 0 ||
+  catStructure.burstParticles < 1 ||
+  !catStructure.companionBodyAbsent ||
+  quiet.signals.some(({ state }) => state !== "dormant") ||
+  !charged ||
+  !chargedNodes.moved ||
+  chargeCancelledByScroll.charged ||
+  chargeExpired.state.includes("charged") ||
+  !burstMotion.nodeMoved ||
+  !burstMotion.fragmentsShortRange ||
+  desktopCat.focus !== "about" ||
+  !desktopCat.focusOpen ||
+  !focusResidue.active ||
+  focusResidue.visibleResidue < 1 ||
+  focusResidue.contourOpacity !== "0" ||
+  focusResidue.linkOpacity !== "0" ||
+  !desktopEscape ||
+  desktopRecovery.residue ||
+  !desktopRecovery.nodeTransformsReset ||
+  feedAfterAbout !== "feed" ||
+  !footerRelease.footerVisible ||
+  reverseFromFooter.focusOpen ||
+  !reverseFromFooter.stage.includes("STAR MAP") ||
+  orbit1366.readyPlanets.length !== 5 ||
+  touchCat.focus !== "about" ||
+  !touchCat.focusOpen ||
+  touchCat.charged ||
+  !touchCat.staticSignals ||
+  reduced.focus !== "about" ||
+  !reduced.focusOpen ||
+  reduced.signalsVisible !== 0 ||
+  reduced.statuses.some((status) => !status.includes("不可用")) ||
+  !reducedEscape;
+
+if (failed) process.exitCode = 1;
 socket.close();
