@@ -137,9 +137,9 @@ catstarry.xyz/
 
 ---
 
-## 开发状态 [快照 | Phase 4.3 设计侧完成，等待 Phase 5]
+## 开发状态 [快照 | Phase 4 已闭合，等待 Phase 5.0]
 
-> 全局 Phase 3、Home / Feed 定向 Phase 2/3、Astro 7 定向依赖基线、Home Activity Signal 定向 Phase 2/3 与 HAS 返回 Phase 4.1 均已完成。2026-07-18 的 Design 2.1 极小重锁正式化 Focus / action、Drift 语义布局和资产候选边界。Phase 4.2 隔离原型已完成木下目测验收：Drift、Entry / Approach / Overview、Star Map → Focus → action、mock HAS、About / 豹猫星座、触控、reduced-motion、1366×768、390×844、回归脚本与控制台检查均已验证。Phase 4.3 已完成获选视觉接口与参数的 canonical CSS 落回、五颗星球 Overview / Focus / Mobile 三槽身份闭环，以及 CJK、keyboard、touch、reduced-motion、性能与视觉一致性 QA。当前唯一正确入口是 Phase 5 启动前的开发边界确认；生产 Home、真实 HAS 投影和正式资源加载策略尚未实现。
+> 全局 Phase 3、Home / Feed 定向 Phase 2/3、Astro 7 定向依赖基线、Home Activity Signal 定向 Phase 2/3 与 HAS 返回 Phase 4.1 均已完成。2026-07-18 的 Design 2.1 极小重锁正式化 Focus / action、Drift 语义布局和资产候选边界。Phase 4.2 隔离原型已完成木下目测验收：Drift、Entry / Approach / Overview、Star Map → Focus → action、mock HAS、About / 豹猫星座、触控、reduced-motion、1366×768、390×844、回归脚本与控制台检查均已验证。Phase 4.3 已完成获选视觉接口与参数的 canonical CSS 落回、五颗星球 Overview / Focus / Mobile 三槽身份闭环，以及 CJK、keyboard、touch、reduced-motion、性能与视觉一致性 QA。Phase 4 正式闭合。当前唯一正确入口是 Phase 5.0A 依赖基线复核与 Phase 5.0B 前端规则固化；生产 Home、真实 HAS 投影和正式资源加载策略尚未实现。
 
 - /blog：🟡 原型已上线，Phase 5 重做
 - /：✅ 星图入口需求、SSG 无聚合架构与 Design 2.1 视觉边界已锁定；🔴 未开发

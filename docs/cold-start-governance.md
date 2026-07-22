@@ -95,7 +95,7 @@ DESIGN.md                           — Design 2.1 已锁定；Phase 4.3 已完�
 | 1 需求澄清 | 需求分析对话（独立）   | ✅ 已完成          |
 | 2 规格化   | fork 自 Phase 1        | ✅ 已完成          |
 | 3 架构设计 | fork 自 Phase 2        | ✅ 已完成          |
-| 4 UI/原型  | 独立（Phase 3 确认后） | ✅ Phase 4.3 设计侧完成；等待流程治理确认 Phase 4 闭合 |
+| 4 UI/原型  | 独立（Phase 3 确认后） | ✅ 已闭合 |
 | 5 开发实现 | 多线程 fork            | ✅ 需要报告        |
 | 6 测试/QA  | fork 自 Phase 5        | ✅ 需要报告        |
 | 7 部署上线 | 流程治理协调           | ✅ 需要报告        |
@@ -103,6 +103,6 @@ DESIGN.md                           — Design 2.1 已锁定；Phase 4.3 已完�
 
 ## 当前工作
 
-当前真实入口：Phase 4.3 设计侧已完成，产物包括 canonical CSS、五颗星球 Overview / Focus / Mobile 三槽 selected assets、UI QA 报告与证据截图。下一步应由流程治理确认 Phase 4 是否正式闭合，并准备 Phase 5 启动边界。不得重新裁决 Home / Feed 产品关系、HAS 架构、Phase 4.2 已验收交互或 Phase 4.3 已选资产身份。
+当前真实入口：Phase 4 已闭合。Phase 4.3 设计侧产物包括 canonical CSS、五颗星球 Overview / Focus / Mobile 三槽 selected assets、UI QA 报告与证据截图。下一步是 Phase 5.0A 依赖基线复核与 Phase 5.0B 前端规则固化；随后才能进入共享基础设施和业务模块开发。不得重新裁决 Home / Feed 产品关系、HAS 架构、Phase 4.2 已验收交互或 Phase 4.3 已选资产身份。
 
 先读取上述文件与当前 Git 状态，再告诉木下真实状态和唯一下一动作。不要假设，不要猜测。

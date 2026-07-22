@@ -112,4 +112,4 @@ Phase 4.2 可模拟 `active` / `stable` / `dormant` 三态来校准信号卫星�
 
 ## 做完后的报告
 
-Phase 4.2 与 Phase 4.3 的设计侧工作均已形成证据。下一步由「流程治理」确认 Phase 4 是否正式闭合，并准备 Phase 5 启动边界。
+Phase 4.2 与 Phase 4.3 的设计侧工作均已形成证据。流程治理已确认 Phase 4 正式闭合。下一步进入 Phase 5.0A 依赖基线复核与 Phase 5.0B 前端规则固化；不得由 Phase 4 对话继续推进生产实现。

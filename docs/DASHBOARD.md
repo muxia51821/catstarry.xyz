@@ -28,7 +28,7 @@
 | 1 | 需求澄清 | ✅ |
 | 2 | 规格化 | ✅ |
 | 3 | 架构设计 | ✅ |
-| 4 | UI/原型 | ✅ Phase 4.3 设计侧完成；canonical CSS、五颗星球三槽资产与 UI QA 已闭合 |
+| 4 | UI/原型 | ✅ 已闭合；Phase 4.3 设计侧完成，canonical CSS、五颗星球三槽资产与 UI QA 已闭合 |
 | 5 | 开发实现 | 🔴 |
 | 6 | 测试/QA | 🔴 |
 | 7 | 部署上线 | 🔴 |
@@ -65,7 +65,8 @@ Astro hybrid + React + shadcn/ui + CF Workers + D1 + KV + R2。
 
 ## 当前待办
 
-1. 回到流程治理确认 Phase 4 是否正式闭合，并准备 Phase 5 启动边界。
-2. Phase 5 开发实现不得重新裁决 Home / Feed 产品关系、HAS 架构、Phase 4.2 已验收交互或 Phase 4.3 已选资产身份。
-3. 正式 Home、真实 HAS 投影、资源加载策略、路由与页面实现仍属于 Phase 5；Phase 4.3 只完成设计系统、资产身份和隔离原型 QA。
-4. blog 原型在 Phase 5 按已锁定需求重做；当前 Astro 7 迁移只保证旧原型能构建，不为其保留 Design 1.x 兼容层。
+1. 启动 Phase 5.0A：开发前依赖基线复核；不得在功能任务中静默升级。
+2. 启动 Phase 5.0B：固化 `docs/agents/frontend-rules.md`，将 `DESIGN.md`、canonical CSS、CJK、三画布、Star Map / Planet / HAS / 豹猫星座边界写成开发线程必须引用的前端规则。
+3. Phase 5 开发实现不得重新裁决 Home / Feed 产品关系、HAS 架构、Phase 4.2 已验收交互或 Phase 4.3 已选资产身份。
+4. 正式 Home、真实 HAS 投影、资源加载策略、路由与页面实现属于 Phase 5；Phase 4.3 只完成设计系统、资产身份和隔离原型 QA。
+5. blog 原型在 Phase 5 按已锁定需求重做；当前 Astro 7 迁移只保证旧原型能构建，不为其保留 Design 1.x 兼容层。
