@@ -29,7 +29,7 @@
 | 2 | 规格化 | ✅ |
 | 3 | 架构设计 | ✅ |
 | 4 | UI/原型 | ✅ 已闭合；Phase 4.3 设计侧完成，canonical CSS、五颗星球三槽资产与 UI QA 已闭合 |
-| 5 | 开发实现 | 🔴 |
+| 5 | 开发实现 | 🟡 Phase 5.0A 已完成；下一步 Phase 5.0B 前端规则固化，然后进入共享基础设施 F |
 | 6 | 测试/QA | 🔴 |
 | 7 | 部署上线 | 🔴 |
 | 8 | 运营维护 | 🔴 |
@@ -61,12 +61,15 @@ Astro hybrid + React + shadcn/ui + CF Workers + D1 + KV + R2。
 
 当前本地基线为 Astro 7.0.9 + `@astrojs/react` 6.0.1 + React 19.2.7 + Vite 8.1.4。依赖基线迁移已完成并经流程治理确认。
 
+Phase 5.0A 复核结论：前端依赖维持现状，不启动独立依赖修复任务；Phase 5.0B 无阻塞。当前公开版本虽有 Astro 7.1.3、Vite 8.1.5 等同主线更新，但没有发现构建失败、兼容破坏或锁定架构无法满足的证据。Cloudflare adapter 未安装是正确状态，只有真正启用按需渲染时才应安装。
+
 ---
 
 ## 当前待办
 
-1. 启动 Phase 5.0A：开发前依赖基线复核；不得在功能任务中静默升级。
-2. 启动 Phase 5.0B：固化 `docs/agents/frontend-rules.md`，将 `DESIGN.md`、canonical CSS、CJK、三画布、Star Map / Planet / HAS / 豹猫星座边界写成开发线程必须引用的前端规则。
-3. Phase 5 开发实现不得重新裁决 Home / Feed 产品关系、HAS 架构、Phase 4.2 已验收交互或 Phase 4.3 已选资产身份。
-4. 正式 Home、真实 HAS 投影、资源加载策略、路由与页面实现属于 Phase 5；Phase 4.3 只完成设计系统、资产身份和隔离原型 QA。
-5. blog 原型在 Phase 5 按已锁定需求重做；当前 Astro 7 迁移只保证旧原型能构建，不为其保留 Design 1.x 兼容层。
+1. 启动 Phase 5.0B：固化 `docs/agents/frontend-rules.md`，将 `DESIGN.md`、canonical CSS、CJK、三画布、Star Map / Planet / HAS / 豹猫星座边界写成开发线程必须引用的前端规则。
+2. Phase 5.0B 完成后启动共享基础设施 F；F 的首个建置项是确定可跟踪的非机密 Worker 配置方案、核对真实 bindings、建立 Wrangler / type-generation 工具链，再执行 D1 / KV / R2 与 CI/CD。
+3. 当前 `workers/feed-api/wrangler.toml` 存在但被根 `.gitignore` 的 `wrangler.toml` 规则忽略且未跟踪，且其中 D1 名称为 `feed-db`，与锁定架构的 `catstarry-db` 不一致；不得直接复用为部署配置。
+4. Phase 5 开发实现不得重新裁决 Home / Feed 产品关系、HAS 架构、Phase 4.2 已验收交互或 Phase 4.3 已选资产身份。
+5. 正式 Home、真实 HAS 投影、资源加载策略、路由与页面实现属于 Phase 5；Phase 4.3 只完成设计系统、资产身份和隔离原型 QA。
+6. blog 原型在 Phase 5 按已锁定需求重做；当前 Astro 7 迁移只保证旧原型能构建，不为其保留 Design 1.x 兼容层。

@@ -224,11 +224,15 @@ Phase 7: 部署上线 ──→ Phase 8: 运营维护 ──→ (循环回 Phase
 | 5.0A | 依赖基线复核：核对 Astro、官方 integrations、React、Cloudflare adapter 与 Node 的最新稳定版本；仅在审计通过后升级                                                                     | —     | 依赖兼容矩阵 + 升级／保持决定（必要时 ADR） |
 | 5.0B | 前端规则固化：将 DESIGN.md 核心规则、canonical CJK 质检清单与三画布规则固化至 `docs/agents/frontend-rules.md`。标记为“原型已验证、Phase 5 仅可微调非核心参数”，各模块开发线程必须引用 | —     | `docs/agents/frontend-rules.md`             |
 
+> Phase 5.0A 已完成：前端依赖维持现状，不启动独立依赖修复任务；Phase 5.0B 无阻塞。Cloudflare adapter 未安装是当前静态前端的正确状态，不应提前安装。
+
 **策略**：分两波执行。
 
 ### 第一波：共享基础设施（开发-F，**必须先行**）
 
 D1 schema、类型定义、鉴权逻辑、CI/CD 配置必须先完成，其他线程才可独立开发。
+
+F 的首个建置项：`workers/feed-api/wrangler.toml` 当前存在但被根 `.gitignore` 的 `wrangler.toml` 规则忽略且未跟踪，且其中 D1 名称与锁定架构不一致。F 必须先确定可跟踪的非机密 Worker 配置方案、核对真实 bindings、建立 Wrangler / type-generation 工具链，再执行 D1 / KV / R2 与 CI/CD。该事项属于 F 的共享基础设施范围，不是独立前端依赖迁移任务。
 
 ……（后面不动）
 

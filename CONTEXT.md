@@ -137,9 +137,9 @@ catstarry.xyz/
 
 ---
 
-## 开发状态 [快照 | Phase 4 已闭合，等待 Phase 5.0]
+## 开发状态 [快照 | Phase 5.0A 已完成，等待 Phase 5.0B]
 
-> 全局 Phase 3、Home / Feed 定向 Phase 2/3、Astro 7 定向依赖基线、Home Activity Signal 定向 Phase 2/3 与 HAS 返回 Phase 4.1 均已完成。2026-07-18 的 Design 2.1 极小重锁正式化 Focus / action、Drift 语义布局和资产候选边界。Phase 4.2 隔离原型已完成木下目测验收：Drift、Entry / Approach / Overview、Star Map → Focus → action、mock HAS、About / 豹猫星座、触控、reduced-motion、1366×768、390×844、回归脚本与控制台检查均已验证。Phase 4.3 已完成获选视觉接口与参数的 canonical CSS 落回、五颗星球 Overview / Focus / Mobile 三槽身份闭环，以及 CJK、keyboard、touch、reduced-motion、性能与视觉一致性 QA。Phase 4 正式闭合。当前唯一正确入口是 Phase 5.0A 依赖基线复核与 Phase 5.0B 前端规则固化；生产 Home、真实 HAS 投影和正式资源加载策略尚未实现。
+> 全局 Phase 3、Home / Feed 定向 Phase 2/3、Astro 7 定向依赖基线、Home Activity Signal 定向 Phase 2/3 与 HAS 返回 Phase 4.1 均已完成。2026-07-18 的 Design 2.1 极小重锁正式化 Focus / action、Drift 语义布局和资产候选边界。Phase 4.2 隔离原型已完成木下目测验收：Drift、Entry / Approach / Overview、Star Map → Focus → action、mock HAS、About / 豹猫星座、触控、reduced-motion、1366×768、390×844、回归脚本与控制台检查均已验证。Phase 4.3 已完成获选视觉接口与参数的 canonical CSS 落回、五颗星球 Overview / Focus / Mobile 三槽身份闭环，以及 CJK、keyboard、touch、reduced-motion、性能与视觉一致性 QA。Phase 4 正式闭合。Phase 5.0A 复核已完成：前端依赖维持现状，不启动独立依赖修复任务；Phase 5.0B 无阻塞。当前唯一正确入口是 Phase 5.0B 前端规则固化；生产 Home、真实 HAS 投影和正式资源加载策略尚未实现。
 
 - /blog：🟡 原型已上线，Phase 5 重做
 - /：✅ 星图入口需求、SSG 无聚合架构与 Design 2.1 视觉边界已锁定；🔴 未开发
@@ -147,5 +147,6 @@ catstarry.xyz/
 - /learn、/projects、f.catstarry.xyz：✅ 需求已锁定 + 架构已锁定，🔴 未开发
 - poker.catstarry.xyz：✅ 已上线（独立部署）
 - 设计系统 CSS：✅ `variables.css` / `components.css` / `typography.css` / `main.css` 已完成 Phase 4.3 canonical 对齐；Star Map、Planet、Focus、HAS、豹猫星座、About Expanded 与 Cursor Meteor 的样式接口已建立；运行时状态机、生产路由和真实数据链路仍属 Phase 5。
-- 依赖基线：✅ Astro 7.0.9 + `@astrojs/react` 6.0.1 + React 19.2.7 + Vite 8.1.4 已确认；Content Layer、Markdown、React islands 与现有 build 已验证；`.astro/` 已停止追踪。
+- 依赖基线：✅ Phase 5.0A 复核完成。Astro 7.0.9 + `@astrojs/react` 6.0.1 + React 19.2.7 + Vite 8.1.4 + Node 24.15.0 维持现状；Content Layer、Markdown、React islands 与现有 build 已验证；`.astro/` 已停止追踪。Cloudflare adapter 未安装是当前静态前端的正确状态，不应提前安装。
 - Home Activity Signal：✅ 定向 Phase 2/3、返回 Phase 4.1 视觉重锁、Phase 4.2 mock 原型验收与 Phase 4.3 canonical 视觉接口落地均已完成；ADR-007 锁定受控静态投影，真实投影接入仍不得在 Phase 5 之前越权实现。
+- 共享基础设施 F 启动缺口：⚠️ `workers/feed-api/wrangler.toml` 实际存在但被根 `.gitignore` 的 `wrangler.toml` 规则忽略且未跟踪；该文件中的 D1 名称为 `feed-db`，与锁定架构 `catstarry-db` 不一致。根工具链当前不含 wrangler / workers types / Cloudflare adapter。F 必须先确定可跟踪的非机密 Worker 配置方案、核对真实 bindings、建立 Wrangler / type-generation 工具链，再执行 D1 / KV / R2 与 CI/CD。
