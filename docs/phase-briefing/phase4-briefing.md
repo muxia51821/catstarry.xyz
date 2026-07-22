@@ -1,7 +1,7 @@
 # Phase 4 任务说明 — UI / 原型对话
 
 > 流程治理更新：2026-07-20
-> 当前状态：Phase 4.2 隔离原型已完成木下目测验收；Phase 4.3 canonical CSS、星球资产身份与 UI QA 已完成设计侧交付，等待流程治理登记。
+> 当前状态：Phase 4.2 隔离原型已完成木下目测验收；Phase 4.3 canonical CSS、星球资产身份与 UI QA 已完成设计侧交付，并已由流程治理登记。
 
 ---
 
@@ -112,4 +112,4 @@ Phase 4.2 可模拟 `active` / `stable` / `dormant` 三态来校准信号卫星�
 
 ## 做完后的报告
 
-Phase 4.2 与 Phase 4.3 的设计侧工作均已形成证据。下一步回到「流程治理」报告，由流程治理同步 `DASHBOARD.md`、`CONTEXT.md` 与 `workflow-orchestration.md`，判断 Phase 4 是否闭合并能否进入 Phase 5。
+Phase 4.2 与 Phase 4.3 的设计侧工作均已形成证据。下一步由「流程治理」确认 Phase 4 是否正式闭合，并准备 Phase 5 启动边界。

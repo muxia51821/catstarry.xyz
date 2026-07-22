@@ -49,9 +49,9 @@ catstarry.xyz 是木下的个人网站，用 AI 驱动搭建。非程序员用�
 
 ---
 
-## 设计基调 [已锁定 | Phase 4.1 Home Activity Signal 重锁]
+## 设计基调 [已锁定 | Phase 4.3 设计侧闭合]
 
-> `DESIGN.md` v2.1 是当前全站视觉与交互事实来源。Home Activity Signal 已完成定向 Phase 2/3 与返回 Phase 4.1 视觉重锁；2026-07-18 又完成一次极小交互重锁，正式确认 `Star Map → Focus → action`。ADR-007 继续锁定 Home 可消费无内容的三态静态投影。Phase 4.2 隔离原型已完成木下目测验收；当前进入 Phase 4.3 前置状态。
+> `DESIGN.md` v2.1 是当前全站视觉与交互事实来源。Home Activity Signal 已完成定向 Phase 2/3 与返回 Phase 4.1 视觉重锁；2026-07-18 又完成一次极小交互重锁，正式确认 `Star Map → Focus → action`。ADR-007 继续锁定 Home 可消费无内容的三态静态投影。Phase 4.2 隔离原型已完成木下目测验收；Phase 4.3 已完成 canonical CSS、五颗星球三槽 selected assets 与 UI QA 的设计侧落地。
 
 ### 三画布系统
 
@@ -65,7 +65,7 @@ catstarry.xyz 是木下的个人网站，用 AI 驱动搭建。非程序员用�
 - Drift 是当前主构图方向：About 右上远端、Feed 近景易达、Blog 左上、Projects 左下、Learn 右下；Phase 4.2 已完成默认 Focus 序列、直接跳转、返回与 footer release 的原型验收，不运行时随机换位。
 - Star Map 后存在可停留的 Planet Focus；自然滚动默认按 About → Feed → Blog → Projects → Learn 浏览，点击或键盘可直接跳到任一 Focus。
 - Blog、Feed、Learn、Projects 只在 Focus action 后执行 Planet Push 并进入功能页；Focus 不加载真实板块内容。
-- About 可直接点击星球原地展开；豹猫卫星的两次点击蓄能 / 爆开是通往同一展开态的可选彩蛋，不是访问 About 的前置条件。
+- About 可直接点击星球原地展开；豹猫星座的两次点击蓄能 / 爆开是通往同一展开态的可选彩蛋，不是访问 About 的前置条件。
 - 鼠标流星尾在 Home 完整但克制，在 Content 弱化，在 Finance 关闭；首屏 DISCOVER MORE 流星是另一种一次性引导。
 - Home 不展示最近内容、Public Timeline、标题、摘要、列表或卡片；信号卫星只依据 ADR-007 的最小静态投影表达 `active` / `stable` / `dormant` 三态，视觉和 token 接口已由 Phase 4.1 重锁。
 - Feed 使用单列 Public Timeline；原生 note / clip 与系统足迹可辨认但不暴露物理分存差异。
@@ -137,15 +137,15 @@ catstarry.xyz/
 
 ---
 
-## 开发状态 [快照 | Phase 4.2 木下目测验收完成，等待 Phase 4.3]
+## 开发状态 [快照 | Phase 4.3 设计侧完成，等待 Phase 5]
 
-> 全局 Phase 3、Home / Feed 定向 Phase 2/3、Astro 7 定向依赖基线、Home Activity Signal 定向 Phase 2/3 与 HAS 返回 Phase 4.1 均已完成。2026-07-18 的 Design 2.1 极小重锁仅正式化 Focus / action、Drift 语义布局和资产候选边界，没有修改架构或 canonical CSS。Phase 4.2 隔离原型已完成木下目测验收：Drift、Entry / Approach / Overview、Star Map → Focus → action、mock HAS、About / 豹猫 companion、触控、reduced-motion、1366×768、390×844、回归脚本与控制台检查均已验证。当前唯一正确入口是 Phase 4.3：选定原型落地 + UI 质检。
+> 全局 Phase 3、Home / Feed 定向 Phase 2/3、Astro 7 定向依赖基线、Home Activity Signal 定向 Phase 2/3 与 HAS 返回 Phase 4.1 均已完成。2026-07-18 的 Design 2.1 极小重锁正式化 Focus / action、Drift 语义布局和资产候选边界。Phase 4.2 隔离原型已完成木下目测验收：Drift、Entry / Approach / Overview、Star Map → Focus → action、mock HAS、About / 豹猫星座、触控、reduced-motion、1366×768、390×844、回归脚本与控制台检查均已验证。Phase 4.3 已完成获选视觉接口与参数的 canonical CSS 落回、五颗星球 Overview / Focus / Mobile 三槽身份闭环，以及 CJK、keyboard、touch、reduced-motion、性能与视觉一致性 QA。当前唯一正确入口是 Phase 5 启动前的开发边界确认；生产 Home、真实 HAS 投影和正式资源加载策略尚未实现。
 
 - /blog：🟡 原型已上线，Phase 5 重做
 - /：✅ 星图入口需求、SSG 无聚合架构与 Design 2.1 视觉边界已锁定；🔴 未开发
 - /feed：✅ 公开足迹需求、分存事件架构与 Design 2.1 视觉边界已锁定；🔴 未开发
 - /learn、/projects、f.catstarry.xyz：✅ 需求已锁定 + 架构已锁定，🔴 未开发
 - poker.catstarry.xyz：✅ 已上线（独立部署）
-- 设计系统 CSS：✅ `variables.css` / `components.css` / `typography.css` 已对齐 Design 2.0 token 契约；Design 2.1 与 Phase 4.2 均未改 canonical CSS；新星图页面组件与经验证参数等待 Phase 4.3 落地。
+- 设计系统 CSS：✅ `variables.css` / `components.css` / `typography.css` / `main.css` 已完成 Phase 4.3 canonical 对齐；Star Map、Planet、Focus、HAS、豹猫星座、About Expanded 与 Cursor Meteor 的样式接口已建立；运行时状态机、生产路由和真实数据链路仍属 Phase 5。
 - 依赖基线：✅ Astro 7.0.9 + `@astrojs/react` 6.0.1 + React 19.2.7 + Vite 8.1.4 已确认；Content Layer、Markdown、React islands 与现有 build 已验证；`.astro/` 已停止追踪。
-- Home Activity Signal：✅ 定向 Phase 2/3、返回 Phase 4.1 视觉重锁与 Phase 4.2 mock 原型验收已完成；ADR-007 锁定受控静态投影，真实投影接入仍不得在 Phase 4.3 之前越权实现。
+- Home Activity Signal：✅ 定向 Phase 2/3、返回 Phase 4.1 视觉重锁、Phase 4.2 mock 原型验收与 Phase 4.3 canonical 视觉接口落地均已完成；ADR-007 锁定受控静态投影，真实投影接入仍不得在 Phase 5 之前越权实现。
