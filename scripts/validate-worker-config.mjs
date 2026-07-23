@@ -4,7 +4,7 @@ const configs = [
   {
     path: 'workers/feed-api/wrangler.jsonc',
     expected: {
-      name: 'feed-api',
+      name: 'catstarry-feed-api-staging',
       database: 'catstarry-db',
       d1Binding: 'DB',
       kvBindings: ['VIEW_KV', 'AUTH_KV'],
@@ -36,6 +36,9 @@ function hasAccountIdentifier(value) {
 
 for (const { path, expected } of configs) {
   const config = JSON.parse(await readFile(path, 'utf8'));
+  if (config.name === 'feed-api') {
+    fail(`${path} must not use the legacy production Worker name feed-api`);
+  }
   if (config.name !== expected.name) fail(`${path} must name ${expected.name}`);
   if (config.compatibility_date !== '2026-07-22') {
     fail(`${path} must use the Phase 5 compatibility date`);

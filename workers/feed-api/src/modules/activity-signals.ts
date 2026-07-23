@@ -6,12 +6,12 @@ const RECENT_WINDOW_MS = 60 * 24 * 60 * 60 * 1000;
 
 function stateFor(timestamp: string | null | undefined, now: number): ActivityState {
   const activityTime = timestamp ? Date.parse(timestamp) : Number.NaN;
-  if (!Number.isFinite(activityTime)) return 'quiet';
+  if (!Number.isFinite(activityTime)) return 'dormant';
 
   const age = now - activityTime;
   if (age <= ACTIVE_WINDOW_MS) return 'active';
-  if (age <= RECENT_WINDOW_MS) return 'recent';
-  return 'quiet';
+  if (age <= RECENT_WINDOW_MS) return 'stable';
+  return 'dormant';
 }
 
 export async function refreshActivitySignals(

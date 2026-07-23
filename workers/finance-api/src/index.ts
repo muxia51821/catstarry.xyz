@@ -1,4 +1,8 @@
-import { handleCorsPreflight, withCors } from '../../../shared/cors';
+import {
+  handleCorsPreflight,
+  rejectUntrustedStateChange,
+  withCors,
+} from '../../../shared/cors';
 
 const cors = {
   allowedOrigins: ['https://f.catstarry.xyz'],
@@ -8,6 +12,9 @@ export default {
   async fetch(request): Promise<Response> {
     const preflight = handleCorsPreflight(request, cors);
     if (preflight) return preflight;
+
+    const originRejection = rejectUntrustedStateChange(request, cors);
+    if (originRejection) return originRejection;
 
     return withCors(new Response('Not found', { status: 404 }), request, cors);
   },

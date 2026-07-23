@@ -1,6 +1,6 @@
 {
   "$schema": "../../node_modules/wrangler/config-schema.json",
-  "name": "feed-api",
+  "name": "catstarry-feed-api-staging",
   "main": "src/index.ts",
   "compatibility_date": "2026-07-22",
   "observability": {

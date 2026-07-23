@@ -8,11 +8,11 @@
 
 | Worker | binding 变量名 | Cloudflare resource name | 账户专属 ID |
 | --- | --- | --- | --- |
-| `feed-api` | `DB` | `catstarry-db` D1 | `REPLACE_WITH_CATSTARRY_DB_ID` |
-| `feed-api` | `VIEW_KV` | 部署前必须在账户中核实 | `REPLACE_WITH_VIEW_KV_NAMESPACE_ID` |
-| `feed-api` | `AUTH_KV` | 部署前必须在账户中核实 | `REPLACE_WITH_AUTH_KV_NAMESPACE_ID` |
-| `feed-api` | `MEDIA_BUCKET` | `catstarry-media` R2 | R2 按 bucket name 绑定 |
-| `feed-api` | `HOME_PROJECTIONS` | `home-projections` R2 | R2 按 bucket name 绑定 |
+| `catstarry-feed-api-staging` | `DB` | `catstarry-db` D1 | `REPLACE_WITH_CATSTARRY_DB_ID` |
+| `catstarry-feed-api-staging` | `VIEW_KV` | 部署前必须在账户中核实 | `REPLACE_WITH_VIEW_KV_NAMESPACE_ID` |
+| `catstarry-feed-api-staging` | `AUTH_KV` | 部署前必须在账户中核实 | `REPLACE_WITH_AUTH_KV_NAMESPACE_ID` |
+| `catstarry-feed-api-staging` | `MEDIA_BUCKET` | `catstarry-media` R2 | R2 按 bucket name 绑定 |
+| `catstarry-feed-api-staging` | `HOME_PROJECTIONS` | `home-projections` R2 | R2 按 bucket name 绑定 |
 | `finance-api` | `DB` | `finance-db` D1 | `REPLACE_WITH_FINANCE_DB_ID` |
 | `finance-api` | `FINANCE_AUTH_KV` | 部署前必须在账户中核实 | `REPLACE_WITH_FINANCE_AUTH_KV_NAMESPACE_ID` |
 
@@ -30,29 +30,28 @@ token、password 或账户凭据写入仓库。
 忽略的 Miniflare state。仓库脚本始终传入 `--config`，因此不会回退到遗留 TOML。
 生产部署、资源创建、远程 migration 和 CI 凭据仍属于 Phase 7。
 
-## Legacy production feed-api
+## 遗留生产 `feed-api`
 
-As of Phase 5 infrastructure F, the Cloudflare account still contains a
-production Worker named `feed-api` with the following bindings:
+截至 Phase 5 基础设施 F，Cloudflare 账户仍有名为 `feed-api` 的生产 Worker，
+其 binding 为：
 
 - `DB` → D1 `feed-db`
 - `VIEW_KV` → KV namespace `VIEW_KV`
 
-The legacy D1 currently contains only:
+遗留 D1 当前仅有：
 
 - `blog_views`
   - `from-zero`: 2 views
 
-The existing frontend still calls:
+现有前端仍调用：
 
 `https://feed-api.catstarry.workers.dev/api`
 
-from `src/lib/useViewCount.ts`.
+调用位置是 `src/lib/useViewCount.ts`。
 
-Do not deploy the new Worker skeleton over the existing production `feed-api`
-until the Blog views route has been reimplemented and verified, or the frontend
-view-count feature has been explicitly retired.
+新 skeleton 必须保持 `catstarry-feed-api-staging`，不得覆盖现有生产
+`feed-api`。只有 Blog views API 已恢复并验证，或前端阅读量功能已明确退役，且
+数据切换已完成并通过独立 Review，才可把 Worker 名称改回 `feed-api`。
 
-The intended production database remains `catstarry-db`. Any cutover must
-decide whether to migrate the existing `blog_views` record before replacing
-the legacy binding.
+目标生产数据库仍为 `catstarry-db`。任何切换前必须决定是否迁移既有的
+`blog_views` 记录，再替换遗留 binding。

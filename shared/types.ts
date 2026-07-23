@@ -5,7 +5,7 @@ export type FootprintEventType =
   | 'blog_published'
   | 'learn_section_completed'
   | 'project_updated';
-export type ActivityState = 'active' | 'recent' | 'quiet';
+export type ActivityState = 'active' | 'stable' | 'dormant';
 
 export interface ActivitySignalsManifest {
   schema_version: 1;
@@ -15,7 +15,7 @@ export interface ActivitySignalsManifest {
 export interface FeedPost {
   id: string;
   type: PostType;
-  content: string;
+  content: string | null;
   media_json: string | null;
   link_url: string | null;
   link_title: string | null;
@@ -30,22 +30,25 @@ export interface PublicFootprint {
   id: string;
   source_module: FootprintSource;
   source_ref: string;
-  source_version: string | null;
+  source_version: string;
   event_type: FootprintEventType;
   snapshot_json: string;
   occurred_at: string;
   visibility: Visibility;
-  idempotency_key: string;
-  created_at: string;
 }
 
-export type TimelineEntry =
-  | ({ kind: 'feed_post' } & FeedPost)
-  | ({ kind: 'public_footprint' } & PublicFootprint);
+export interface TimelineEntry {
+  id: string;
+  kind: 'native_post' | 'system_footprint';
+  occurred_at: string;
+  visibility: Visibility;
+  payload: FeedPost | PublicFootprint;
+}
 
 export interface PaginatedResponse<T> {
   items: T[];
-  next_cursor: string | null;
+  cursor: string | null;
+  has_more: boolean;
 }
 
 export interface BlogViewCount {
@@ -59,12 +62,11 @@ export interface LoginRequest {
 }
 
 export interface LoginResponse {
-  username: string;
+  token: string;
   expires_at: string;
 }
 
 export interface SessionStatus {
   authenticated: boolean;
-  username?: string;
-  role?: 'admin' | 'viewer';
+  username: string | null;
 }

@@ -1,61 +1,81 @@
 import type { SessionStatus } from './types';
 
+export type FinanceRole = 'admin' | 'viewer';
+
 export interface SessionRecord {
   username: string;
   expires_at: string;
-  role?: 'admin' | 'viewer';
+  role?: FinanceRole;
 }
 
 export interface MainSiteAuthBindings {
   sessions: KVNamespace;
-  database?: D1Database;
+  database: D1Database;
 }
 
 export interface FinanceAuthBindings {
   sessions: KVNamespace;
 }
 
+export interface FinanceSessionStatus extends SessionStatus {
+  role?: FinanceRole;
+}
+
 function getSessionToken(request: Request): string | null {
   const cookies = request.headers.get('Cookie') ?? '';
-  const match = cookies.match(/(?:^|;\s*)session=([^;]+)/);
+  const match = cookies.match(/(?:^|;\s*)token=([^;]+)/);
   return match ? decodeURIComponent(match[1]) : null;
 }
 
-function isCurrentSession(record: SessionRecord): boolean {
-  return Number.isFinite(Date.parse(record.expires_at)) && Date.parse(record.expires_at) > Date.now();
+function isCurrentSession(record: Pick<SessionRecord, 'expires_at'>): boolean {
+  const expiresAt = Date.parse(record.expires_at);
+  return Number.isFinite(expiresAt) && expiresAt > Date.now();
 }
 
-async function readSession(
-  request: Request,
+function anonymousSession(): SessionStatus {
+  return { authenticated: false, username: null };
+}
+
+async function readKvSession(
+  token: string,
   sessions: KVNamespace,
 ): Promise<SessionRecord | null> {
-  const token = getSessionToken(request);
-  if (!token) return null;
-
-  const record = await sessions.get<SessionRecord>(`session:${token}`, 'json');
-  return record && isCurrentSession(record) ? record : null;
+  return sessions.get<SessionRecord>(`session:${token}`, 'json');
 }
 
 export async function getMainSiteSession(
   request: Request,
   bindings: MainSiteAuthBindings,
 ): Promise<SessionStatus> {
-  const record = await readSession(request, bindings.sessions);
-  if (!record) return { authenticated: false };
+  const token = getSessionToken(request);
+  if (!token) return anonymousSession();
 
-  return {
-    authenticated: true,
-    username: record.username,
-    role: record.role,
-  };
+  const cached = await readKvSession(token, bindings.sessions);
+  if (cached) {
+    return isCurrentSession(cached)
+      ? { authenticated: true, username: cached.username }
+      : anonymousSession();
+  }
+
+  const persisted = await bindings.database
+    .prepare('SELECT username, expires_at FROM auth_sessions WHERE token = ?')
+    .bind(token)
+    .first<Pick<SessionRecord, 'username' | 'expires_at'>>();
+
+  if (!persisted || !isCurrentSession(persisted)) return anonymousSession();
+
+  return { authenticated: true, username: persisted.username };
 }
 
 export async function getFinanceSession(
   request: Request,
   bindings: FinanceAuthBindings,
-): Promise<SessionStatus> {
-  const record = await readSession(request, bindings.sessions);
-  if (!record) return { authenticated: false };
+): Promise<FinanceSessionStatus> {
+  const token = getSessionToken(request);
+  if (!token) return anonymousSession();
+
+  const record = await readKvSession(token, bindings.sessions);
+  if (!record || !isCurrentSession(record)) return anonymousSession();
 
   return {
     authenticated: true,
@@ -65,8 +85,8 @@ export async function getFinanceSession(
 }
 
 export function hasRole(
-  session: SessionStatus,
-  allowedRoles: readonly NonNullable<SessionStatus['role']>[],
+  session: FinanceSessionStatus,
+  allowedRoles: readonly FinanceRole[],
 ): boolean {
   return session.authenticated && !!session.role && allowedRoles.includes(session.role);
 }

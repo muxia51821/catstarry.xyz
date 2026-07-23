@@ -36,6 +36,7 @@ __pycache__/
 wrangler.toml
 .dev.vars
 .dev.vars.*
+.worker-configuration.check.d.ts
 
 # Temporary / scratch files
 _archive/
