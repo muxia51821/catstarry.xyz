@@ -226,13 +226,15 @@ Phase 7: 部署上线 ──→ Phase 8: 运营维护 ──→ (循环回 Phase
 
 > Phase 5.0A 已完成：前端依赖维持现状，不启动独立依赖修复任务；Phase 5.0B 无阻塞。Cloudflare adapter 未安装是当前静态前端的正确状态，不应提前安装。
 
-**策略**：分两波执行。
+**当前执行策略**：Phase 5 默认按单一主线串行推进。共享基础设施 F 已完成后，不再机械并线；普通业务模块按 Home → Blog → Learn / Projects → Feed → Finance 的顺序逐个关闭。流程治理默认只在里程碑、Phase 切换、跨模块冲突、定向回流和架构 Gate 时介入。
+
+> 治理维护项：后续需对 Phase 5 流程做一次减重整理，把稳定规则留在本文件，把当前状态与历史执行细节留在 `DASHBOARD.md`、`CONTEXT.md` 和 Phase brief。该维护项不阻塞 Home 启动。
 
 ### 第一波：共享基础设施（开发-F，**必须先行**）
 
-D1 schema、类型定义、鉴权逻辑、CI/CD 配置必须先完成，其他线程才可独立开发。
+D1 schema、类型定义、鉴权逻辑、CI/CD 配置必须先完成，其他线程才可独立开发。当前 F 已完成；不得据此宣布任何业务模块已实现。
 
-F 的首个建置项：`workers/feed-api/wrangler.toml` 当前存在但被根 `.gitignore` 的 `wrangler.toml` 规则忽略且未跟踪，且其中 D1 名称与锁定架构不一致。F 必须先确定可跟踪的非机密 Worker 配置方案、核对真实 bindings、建立 Wrangler / type-generation 工具链，再执行 D1 / KV / R2 与 CI/CD。该事项属于 F 的共享基础设施范围，不是独立前端依赖迁移任务。
+F deferred：Cloudflare 真实资源 ID、远程 migration、路由与生产部署留到 Phase 7；旧生产 `feed-api` 继续保留，新 skeleton 已使用非生产名称机械隔离；Blog views API 兼容留到 Blog / API 模块；旧 `from-zero → 2` 数据在生产切换时处理；`Base.astro` / `global.css` 入口迁移留到首个正式前端模块；依赖安全告警另立维护事项。
 
 ……（后面不动）
 
@@ -240,7 +242,7 @@ F 的首个建置项：`workers/feed-api/wrangler.toml` 当前存在但被根 `.
 | ---- | ------------ | ------------------------------------- |
 | F    | 共享基础设施 | `implement`、`workers-best-practices` |
 
-### 第二波：业务模块（开发-F 完成后 fork 并行）
+### 第二波：业务模块（开发-F 完成后按单线串行推进）
 
 | 线程 | 负责模块                                     | skills                                                              |
 | ---- | -------------------------------------------- | ------------------------------------------------------------------- |

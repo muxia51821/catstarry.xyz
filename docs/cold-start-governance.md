@@ -96,13 +96,13 @@ DESIGN.md                           — Design 2.1 已锁定；Phase 4.3 已完�
 | 2 规格化   | fork 自 Phase 1        | ✅ 已完成          |
 | 3 架构设计 | fork 自 Phase 2        | ✅ 已完成          |
 | 4 UI/原型  | 独立（Phase 3 确认后） | ✅ 已闭合 |
-| 5 开发实现 | 单线串行推进           | 🟡 Phase 5.0A 已完成；等待 Phase 5.0B |
+| 5 开发实现 | 单线串行推进           | 🟡 Phase 5.0A、5.0B 与共享基础设施 F 已完成；下一模块 Home |
 | 6 测试/QA  | fork 自 Phase 5        | ✅ 需要报告        |
 | 7 部署上线 | 流程治理协调           | ✅ 需要报告        |
 | 8 运营维护 | 按需                   | 不需要报告         |
 
 ## 当前工作
 
-当前真实入口：Phase 5.0A 已完成，前端依赖维持现状，不启动独立依赖修复任务；Phase 5.0B 无阻塞。下一步是 Phase 5.0B 前端规则固化，随后进入共享基础设施 F。F 的首个建置项是确定可跟踪的非机密 Worker 配置方案、核对真实 bindings、建立 Wrangler / type-generation 工具链，再执行 D1 / KV / R2 与 CI/CD。不得重新裁决 Home / Feed 产品关系、HAS 架构、Phase 4.2 已验收交互或 Phase 4.3 已选资产身份。
+当前真实入口：Phase 5.0A、5.0B 与共享基础设施 F 已完成。下一步是 Home 模块生产实现；不并线，不先拆 Finance，不宣布任何业务模块已经实现。F deferred 包括 Cloudflare 真实资源 ID、远程 migration、路由与生产部署、Blog views API 兼容、旧 `from-zero → 2` 数据切换、`Base.astro` / `global.css` 入口迁移和依赖安全告警。Phase 5 流程减重已登记为独立治理维护项，不阻塞 Home 启动。
 
 先读取上述文件与当前 Git 状态，再告诉木下真实状态和唯一下一动作。不要假设，不要猜测。

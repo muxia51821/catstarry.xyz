@@ -1,6 +1,6 @@
 # catstarry.xyz 项目看板
 
-> 最后更新：2026-07-22
+> 最后更新：2026-07-23
 >
 > 一眼看全局。执行细节、定向回流规则见 `docs/workflow-orchestration.md`。
 
@@ -29,7 +29,7 @@
 | 2 | 规格化 | ✅ |
 | 3 | 架构设计 | ✅ |
 | 4 | UI/原型 | ✅ 已闭合；Phase 4.3 设计侧完成，canonical CSS、五颗星球三槽资产与 UI QA 已闭合 |
-| 5 | 开发实现 | 🟡 Phase 5.0A 已完成；下一步 Phase 5.0B 前端规则固化，然后进入共享基础设施 F |
+| 5 | 开发实现 | 🟡 Phase 5.0A、5.0B 与共享基础设施 F 已完成；下一单一执行模块：Home |
 | 6 | 测试/QA | 🔴 |
 | 7 | 部署上线 | 🔴 |
 | 8 | 运营维护 | 🔴 |
@@ -65,11 +65,35 @@ Phase 5.0A 复核结论：前端依赖维持现状，不启动独立依赖修复
 
 ---
 
+## Phase 5 执行状态
+
+| 环节 | 状态 | 说明 |
+| --- | --- | --- |
+| Phase 5.0A 依赖基线复核 | ✅ | 维持 Astro 7.0.9、@astrojs/react 6.0.1、React 19.2.7、Vite 8.1.4、Node 24.15.0；不启动独立依赖修复任务 |
+| Phase 5.0B 前端规则固化 | ✅ | `docs/agents/frontend-rules.md` 已创建；Phase 5 前端线程必须引用，不得重新裁决 Phase 4 设计事实 |
+| 共享基础设施 F | ✅ | 提交 `2ab3d83`、`51cd489`；独立 Code Review 已完成，P0/P1 已修复并增量复审通过 |
+| 下一个单一模块 | 🟡 | Home；不并线，不先拆 Finance |
+
+### F deferred
+
+- Cloudflare 真实资源 ID、远程 migration、路由与生产部署留到 Phase 7。
+- 旧生产 `feed-api` 继续保留，新 skeleton 已使用非生产名称机械隔离。
+- Blog views API 兼容留到 Blog / API 模块。
+- 旧 `from-zero → 2` 数据在生产切换时处理。
+- `Base.astro` / `global.css` 入口迁移留到首个正式前端模块。
+- 依赖安全告警另立维护事项。
+
+### 治理维护项（不阻塞 Home）
+
+- **Phase 5 流程减重**：登记为独立治理维护项，不阻塞 F 关闭或 Home 启动。
+- 最小修改范围：后续只精简 `docs/workflow-orchestration.md` 的 Phase 5 执行规则、`docs/cold-start-governance.md` 的硬编码当前状态，以及必要的 `DASHBOARD.md` / `CONTEXT.md` 状态表达。
+- 目标方向：Phase 5 默认单一执行主线；流程治理只在里程碑、Phase 切换、跨模块冲突、定向回流和架构 Gate 介入；普通业务切片不再机械返回流程治理；Code Review 按风险分级。
+
+---
+
 ## 当前待办
 
-1. 启动 Phase 5.0B：固化 `docs/agents/frontend-rules.md`，将 `DESIGN.md`、canonical CSS、CJK、三画布、Star Map / Planet / HAS / 豹猫星座边界写成开发线程必须引用的前端规则。
-2. Phase 5.0B 完成后启动共享基础设施 F；F 的首个建置项是确定可跟踪的非机密 Worker 配置方案、核对真实 bindings、建立 Wrangler / type-generation 工具链，再执行 D1 / KV / R2 与 CI/CD。
-3. 当前 `workers/feed-api/wrangler.toml` 存在但被根 `.gitignore` 的 `wrangler.toml` 规则忽略且未跟踪，且其中 D1 名称为 `feed-db`，与锁定架构的 `catstarry-db` 不一致；不得直接复用为部署配置。
-4. Phase 5 开发实现不得重新裁决 Home / Feed 产品关系、HAS 架构、Phase 4.2 已验收交互或 Phase 4.3 已选资产身份。
-5. 正式 Home、真实 HAS 投影、资源加载策略、路由与页面实现属于 Phase 5；Phase 4.3 只完成设计系统、资产身份和隔离原型 QA。
-6. blog 原型在 Phase 5 按已锁定需求重做；当前 Astro 7 迁移只保证旧原型能构建，不为其保留 Design 1.x 兼容层。
+1. 启动 Home 模块生产实现：读取 PRD / ADR / acceptance / DESIGN / frontend-rules，不重新设计 Home。
+2. Home 模块只能实现正式页面、路由、资源接入与已锁定交互；不得接入真实 HAS 投影，除非对应架构和数据投影任务明确进入范围。
+3. Phase 5 开发实现不得重新裁决 Home / Feed 产品关系、HAS 架构、Phase 4.2 已验收交互或 Phase 4.3 已选资产身份。
+4. blog 原型在 Phase 5 按已锁定需求重做；当前 Astro 7 迁移只保证旧原型能构建，不为其保留 Design 1.x 兼容层。
