@@ -1,0 +1,40 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "feed-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-07-22",
+  "observability": {
+    "enabled": true
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "catstarry-db",
+      "database_id": "REPLACE_WITH_CATSTARRY_DB_ID",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "VIEW_KV",
+      "id": "REPLACE_WITH_VIEW_KV_NAMESPACE_ID"
+    },
+    {
+      "binding": "AUTH_KV",
+      "id": "REPLACE_WITH_AUTH_KV_NAMESPACE_ID"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "MEDIA_BUCKET",
+      "bucket_name": "catstarry-media"
+    },
+    {
+      "binding": "HOME_PROJECTIONS",
+      "bucket_name": "home-projections"
+    }
+  ],
+  "triggers": {
+    "crons": ["0 * * * *"]
+  }
+}

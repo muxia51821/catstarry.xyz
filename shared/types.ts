@@ -1,0 +1,70 @@
+export type PostType = 'note' | 'clip';
+export type Visibility = 'public' | 'private';
+export type FootprintSource = 'blog' | 'learn' | 'projects';
+export type FootprintEventType =
+  | 'blog_published'
+  | 'learn_section_completed'
+  | 'project_updated';
+export type ActivityState = 'active' | 'recent' | 'quiet';
+
+export interface ActivitySignalsManifest {
+  schema_version: 1;
+  signals: Record<'blog' | 'feed' | 'learn' | 'projects', { state: ActivityState }>;
+}
+
+export interface FeedPost {
+  id: string;
+  type: PostType;
+  content: string;
+  media_json: string | null;
+  link_url: string | null;
+  link_title: string | null;
+  link_summary: string | null;
+  link_image: string | null;
+  visibility: Visibility;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PublicFootprint {
+  id: string;
+  source_module: FootprintSource;
+  source_ref: string;
+  source_version: string | null;
+  event_type: FootprintEventType;
+  snapshot_json: string;
+  occurred_at: string;
+  visibility: Visibility;
+  idempotency_key: string;
+  created_at: string;
+}
+
+export type TimelineEntry =
+  | ({ kind: 'feed_post' } & FeedPost)
+  | ({ kind: 'public_footprint' } & PublicFootprint);
+
+export interface PaginatedResponse<T> {
+  items: T[];
+  next_cursor: string | null;
+}
+
+export interface BlogViewCount {
+  slug: string;
+  count: number;
+}
+
+export interface LoginRequest {
+  username: string;
+  password: string;
+}
+
+export interface LoginResponse {
+  username: string;
+  expires_at: string;
+}
+
+export interface SessionStatus {
+  authenticated: boolean;
+  username?: string;
+  role?: 'admin' | 'viewer';
+}

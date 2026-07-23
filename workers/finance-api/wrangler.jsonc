@@ -1,0 +1,26 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "finance-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-07-22",
+  "observability": {
+    "enabled": true
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "finance-db",
+      "database_id": "REPLACE_WITH_FINANCE_DB_ID",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "FINANCE_AUTH_KV",
+      "id": "REPLACE_WITH_FINANCE_AUTH_KV_NAMESPACE_ID"
+    }
+  ],
+  "triggers": {
+    "crons": ["*/15 * * * *", "30 7 * * 1-5"]
+  }
+}
