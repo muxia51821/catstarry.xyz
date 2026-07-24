@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
+    "test:home": "node scripts/home-production-regression.mjs",
     "preview": "astro preview",
     "worker:config": "node scripts/validate-worker-config.mjs",
     "worker:types:feed": "wrangler types workers/feed-api/worker-configuration.d.ts --config workers/feed-api/wrangler.jsonc && node scripts/normalize-worker-types.mjs workers/feed-api/worker-configuration.d.ts",

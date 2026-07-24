@@ -45,7 +45,6 @@ function focusSnapshotExpression() {
       proxy: inspect(proxy),
       title: inspect(title),
       enter: inspect(enter),
-      trace: (window.__homeFocusEvents ?? []).slice(-12),
     };
   })()`;
 }
@@ -107,7 +106,7 @@ try {
   };
   const evaluate = async (expression) => (await send('Runtime.evaluate', { expression, returnByValue: true })).result.value;
   const load = async () => {
-    await send('Page.navigate', { url: `${baseUrl}/?focusTrace=1` });
+    await send('Page.navigate', { url: baseUrl });
     await delay(850);
     await evaluate(`scrollTo(0, (PROTOTYPE_VISUAL_PARAMETERS.camera.journeyVh.drift - 100) * innerHeight / 100 * 0.88)`);
     await delay(300);

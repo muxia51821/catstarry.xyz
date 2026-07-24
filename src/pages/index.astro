@@ -1,0 +1,15 @@
+---
+import Base from '../layouts/Base.astro';
+import HomeExperience from '../components/home/HomeExperience.astro';
+---
+
+<Base
+  title="宇宙入口"
+  description="catstarry 的宇宙入口：在星图中探索 Blog、Feed、Learn、Projects 与 About。"
+>
+  <link slot="head" rel="canonical" href="https://catstarry.xyz/" />
+  <meta slot="head" property="og:title" content="catstarry 宇宙入口" />
+  <meta slot="head" property="og:description" content="在 catstarry 的星图中继续探索。" />
+  <meta slot="head" property="og:type" content="website" />
+  <HomeExperience />
+</Base>

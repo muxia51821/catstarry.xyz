@@ -5,7 +5,7 @@ type Assets = Record<string, { overview: string; focus: string; mobile: string }
 type States = Record<'blog' | 'feed' | 'learn' | 'projects', ActivityState>;
 
 export function mountPhase42Runtime({ assets, satelliteAsset }: { assets: Assets; satelliteAsset: string }) {
-  const ACTIVITY_MOCKS = { production: { label: 'Production projection', projection: 'absent' } };
+  let activityProjection: States | null = null;
   const focusAsset = (key) => matchMedia('(max-width: 760px)').matches ? assets[key].mobile : assets[key].focus;
 
 // PROTOTYPE ONLY — centralized calibration surface.
@@ -366,7 +366,6 @@ const P = PROTOTYPE_VISUAL_PARAMETERS,
             new URLSearchParams(location.search).get("variant") === "orbit"
               ? "orbit"
               : "drift",
-          mockKey = "production",
           catState = "rest",
           activeFocus = null,
           focusTrigger = null,
@@ -861,7 +860,6 @@ const P = PROTOTYPE_VISUAL_PARAMETERS,
           catPhysicsFrame = 0;
           if (!catPhysics) return;
           catPhysics.mode = "rest";
-          window.__catPhysicsMode = "rest";
           root.style.setProperty("--cat-node-glow", `${P.aboutCompanion.nodes.restGlowPx}px`);
           catPhysics.entries.forEach((entry) => {
             entry.x = entry.originX; entry.y = entry.originY; entry.vx = 0; entry.vy = 0;
@@ -878,7 +876,6 @@ const P = PROTOTYPE_VISUAL_PARAMETERS,
         function beginCatPhysics(mode) {
           if (!catPhysics || reduce.matches) return;
           catPhysics.mode = mode;
-          window.__catPhysicsMode = mode;
           catPhysics.startedAt = performance.now();
           if (mode === "charged") root.style.setProperty("--cat-node-glow", `${P.aboutCompanion.nodes.chargedGlowPx}px`);
           if (mode === "burst") {
@@ -939,12 +936,12 @@ const P = PROTOTYPE_VISUAL_PARAMETERS,
               fragment.element.style.opacity = String(Math.max(0, .9 * (1 - elapsed / 360)));
             }
           });
-          if (mode === "burst" && elapsed >= P.transition.catBurstMs) { catPhysics.mode = "residue"; window.__catPhysicsMode = "residue"; catPhysics.startedAt = now; }
+          if (mode === "burst" && elapsed >= P.transition.catBurstMs) { catPhysics.mode = "residue"; catPhysics.startedAt = now; }
           if (mode === "recovering" && elapsed >= P.transition.catRecoverMs) { resetCatPhysics(); return; }
           catPhysicsFrame = requestAnimationFrame(tickCatPhysics);
         }
         function updateUrl() {
-          const q = new URLSearchParams({ variant, mock: mockKey });
+          const q = new URLSearchParams({ variant });
           history.replaceState(null, "", `?${q}`);
         }
         function clearSignalResponse(signal) {
@@ -1169,16 +1166,13 @@ const P = PROTOTYPE_VISUAL_PARAMETERS,
           });
           startSignalDepthSync(signal);
         }
-        function setMock(next) {
-          mockKey = next;
-          const mock = ACTIVITY_MOCKS[next];
+        function applyActivityProjection() {
           planets.forEach((planet) => {
             const key = planet.dataset.planet,
               signal = planet.querySelector(".signal-wrap"),
               status = document.getElementById(`${key}-signal-status`);
             if (!signal) return;
-            const state =
-              mock.projection === "available" ? mock.states[key] : null;
+            const state = activityProjection?.[key] ?? null;
             stopSignalDepthSync(signal);
             clearSignalAttention(signal);
             signal._ambientMotion?.cancel();
@@ -2573,19 +2567,19 @@ const P = PROTOTYPE_VISUAL_PARAMETERS,
           cancelManualAnimation();
           drawStarfield();
           setVariant(variant);
-          setMock(mockKey);
+          applyActivityProjection();
           document.getElementById("meteor-canvas").hidden =
             reduce.matches || !finePointer.matches;
           updateScene();
         });
-        finePointer.addEventListener("change", () => setMock(mockKey));
+        finePointer.addEventListener("change", applyActivityProjection);
         setupCatConstellation();
         applyParameters();
         drawStarfield();
         setVariant(variant);
-        setMock("production");
+        applyActivityProjection();
         setupMeteor();
         updateScene();
 
-  return (states: States) => { ACTIVITY_MOCKS.production = { label: 'Production projection', projection: 'available', states }; setMock('production'); };
+  return (states: States) => { activityProjection = states; applyActivityProjection(); };
 }

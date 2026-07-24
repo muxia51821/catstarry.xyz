@@ -1,0 +1,278 @@
+---
+import '../../styles/home.css';
+import aboutFocus from '../../../docs/design/assets/planets/selected/planet-about-focus.webp?url';
+import aboutMobile from '../../../docs/design/assets/planets/selected/planet-about-mobile.webp?url';
+import aboutOverview from '../../../docs/design/assets/planets/selected/planet-about-overview.webp?url';
+import blogFocus from '../../../docs/design/assets/planets/selected/planet-blog-focus.webp?url';
+import blogMobile from '../../../docs/design/assets/planets/selected/planet-blog-mobile.webp?url';
+import blogOverview from '../../../docs/design/assets/planets/selected/planet-blog-overview.webp?url';
+import feedFocus from '../../../docs/design/assets/planets/selected/planet-feed-focus.webp?url';
+import feedMobile from '../../../docs/design/assets/planets/selected/planet-feed-mobile.webp?url';
+import feedOverview from '../../../docs/design/assets/planets/selected/planet-feed-overview.webp?url';
+import learnFocus from '../../../docs/design/assets/planets/selected/planet-learn-focus.webp?url';
+import learnMobile from '../../../docs/design/assets/planets/selected/planet-learn-mobile.webp?url';
+import learnOverview from '../../../docs/design/assets/planets/selected/planet-learn-overview.webp?url';
+import projectsFocus from '../../../docs/design/assets/planets/selected/planet-projects-focus.webp?url';
+import projectsMobile from '../../../docs/design/assets/planets/selected/planet-projects-mobile.webp?url';
+import projectsOverview from '../../../docs/design/assets/planets/selected/planet-projects-overview.webp?url';
+const manifestUrl = import.meta.env.PUBLIC_ACTIVITY_SIGNALS_URL ?? '';
+---
+
+<main>
+      <section class="journey" id="entry" aria-label="Home 星图" data-home-manifest-url={manifestUrl}>
+        <div class="stage" id="stage">
+          <canvas
+            class="star-layer stars-far"
+            data-star-layer="far"
+            aria-hidden="true"
+          ></canvas>
+          <canvas
+            class="star-layer stars-mid"
+            data-star-layer="mid"
+            aria-hidden="true"
+          ></canvas>
+          <canvas
+            class="star-layer stars-near"
+            data-star-layer="near"
+            aria-hidden="true"
+          ></canvas>
+          <div class="entry-meteors" aria-hidden="true">
+            <i class="entry-meteor"></i><i class="entry-meteor"></i
+            ><i class="entry-meteor"></i>
+          </div>
+          <section class="entry-copy">
+            <p class="eyebrow">catstarry.xyz</p>
+            <h1>木下的星群漫游</h1>
+            <p class="note">
+              从这里进入各自独立生长的空间。
+            </p>
+            <button class="discover" id="discover" type="button">
+              <span>DISCOVER MORE</span><i aria-hidden="true"></i>
+            </button>
+          </section>
+          <p class="stage-readout">
+            <b id="stage-name">00 / ENTRY</b
+            ><span id="stage-copy"
+              >far field · distance before destination</span
+            >
+          </p>
+          <div class="map" id="map" aria-label="自由分布星图">
+            <button
+              class="planet about"
+              type="button"
+              data-planet="about" data-overview-asset={aboutOverview} data-focus-asset={aboutFocus} data-mobile-asset={aboutMobile}
+              aria-describedby="about-label"
+            >
+              <span class="planet-core"></span
+              ><span class="planet-label" id="about-label"
+                >ABOUT<small>personal orbit</small></span
+              >
+            </button>
+            <button
+              class="planet blog"
+              type="button"
+              data-planet="blog" data-overview-asset={blogOverview} data-focus-asset={blogFocus} data-mobile-asset={blogMobile}
+              aria-describedby="blog-label blog-signal-status"
+            >
+              <span class="planet-core"></span
+              ><span class="signal-wrap" aria-hidden="true"
+                ><span class="signal-layer signal-orbit-layer back"
+                  ><i class="signal-orbit"></i></span
+                ><span class="signal-layer signal-core-layer back"></span
+                ><span class="signal-layer signal-orbit-layer front"
+                  ><i class="signal-orbit"></i></span
+                ><span class="signal-layer signal-core-layer front"
+                  ><i class="signal-core"><i class="signal-band"></i></i></span
+                ><span class="signal-layer signal-dust-layer"
+                  ><i class="signal-particle"></i><i class="signal-particle"></i
+                  ><i class="signal-particle"></i></span></span
+              ><span class="planet-label" id="blog-label"
+                >BLOG<small>writing &amp; notes</small></span
+              ><span class="sr-only" id="blog-signal-status"></span>
+            </button>
+            <button
+              class="planet feed"
+              type="button"
+              data-planet="feed" data-overview-asset={feedOverview} data-focus-asset={feedFocus} data-mobile-asset={feedMobile}
+              aria-describedby="feed-label feed-signal-status"
+            >
+              <span class="planet-core"></span
+              ><span class="signal-wrap" aria-hidden="true"
+                ><span class="signal-layer signal-orbit-layer back"
+                  ><i class="signal-orbit"></i></span
+                ><span class="signal-layer signal-core-layer back"></span
+                ><span class="signal-layer signal-orbit-layer front"
+                  ><i class="signal-orbit"></i></span
+                ><span class="signal-layer signal-core-layer front"
+                  ><i class="signal-core"><i class="signal-band"></i></i></span
+                ><span class="signal-layer signal-dust-layer"
+                  ><i class="signal-particle"></i><i class="signal-particle"></i
+                  ><i class="signal-particle"></i></span></span
+              ><span class="planet-label" id="feed-label"
+                >FEED<small>public footprints</small></span
+              ><span class="sr-only" id="feed-signal-status"></span>
+            </button>
+            <button
+              class="planet learn"
+              type="button"
+              data-planet="learn" data-overview-asset={learnOverview} data-focus-asset={learnFocus} data-mobile-asset={learnMobile}
+              aria-describedby="learn-label learn-signal-status"
+            >
+              <span class="planet-core"></span
+              ><span class="signal-wrap" aria-hidden="true"
+                ><span class="signal-layer signal-orbit-layer back"
+                  ><i class="signal-orbit"></i></span
+                ><span class="signal-layer signal-core-layer back"></span
+                ><span class="signal-layer signal-orbit-layer front"
+                  ><i class="signal-orbit"></i></span
+                ><span class="signal-layer signal-core-layer front"
+                  ><i class="signal-core"><i class="signal-band"></i></i></span
+                ><span class="signal-layer signal-dust-layer"
+                  ><i class="signal-particle"></i><i class="signal-particle"></i
+                  ><i class="signal-particle"></i></span></span
+              ><span class="planet-label" id="learn-label"
+                >LEARN<small>learning tracks</small></span
+              ><span class="sr-only" id="learn-signal-status"></span>
+            </button>
+            <button
+              class="planet projects reverse"
+              type="button"
+              data-planet="projects" data-overview-asset={projectsOverview} data-focus-asset={projectsFocus} data-mobile-asset={projectsMobile}
+              aria-describedby="projects-label projects-signal-status"
+            >
+              <span class="planet-core"></span
+              ><span class="signal-wrap" aria-hidden="true"
+                ><span class="signal-layer signal-orbit-layer back"
+                  ><i class="signal-orbit"></i></span
+                ><span class="signal-layer signal-core-layer back"></span
+                ><span class="signal-layer signal-orbit-layer front"
+                  ><i class="signal-orbit"></i></span
+                ><span class="signal-layer signal-core-layer front"
+                  ><i class="signal-core"><i class="signal-band"></i></i></span
+                ><span class="signal-layer signal-dust-layer"
+                  ><i class="signal-particle"></i><i class="signal-particle"></i
+                  ><i class="signal-particle"></i></span></span
+              ><span class="planet-label" id="projects-label"
+                >PROJECTS<small>selected builds</small></span
+              ><span class="sr-only" id="projects-signal-status"></span>
+            </button>
+          </div>
+          <div class="about-zone" id="about-zone" aria-label="豹猫卫星彩蛋">
+            <button
+              class="cat"
+              id="cat"
+              type="button"
+              aria-describedby="cat-hint"
+            >
+              <svg
+                class="cat-svg"
+                viewBox="0 0 1202 528"
+                aria-hidden="true"
+              >
+                <defs>
+                  <path id="cat-silhouette-source" d="M45 148 L52 117 L86 87 L79 26 L123 65 L125 30 L131 24 L164 59 L179 95 L258 131 L433 138 L643 109 L701 111 L755 122 L796 137 L855 171 L972 284 L1033 327 L1073 342 L1110 345 L1170 321 L1180 330 L1180 342 L1160 364 L1126 377 L1086 379 L1040 369 L970 330 L849 220 L793 188 L799 228 L821 279 L851 314 L891 341 L932 462 L930 489 L921 502 L877 498 L879 486 L901 477 L903 467 L856 381 L832 366 L751 337 L693 303 L691 353 L700 408 L615 500 L566 502 L564 487 L598 475 L646 407 L603 310 L596 279 L425 311 L450 438 L439 488 L428 502 L383 499 L388 483 L415 475 L416 452 L405 420 L357 339 L332 317 L301 311 L150 476 L117 502 L78 503 L69 497 L73 484 L104 476 L123 456 L188 357 L217 298 L204 251 L158 213 L134 203 L59 225 L33 203 L24 179 Z" />
+                </defs>
+                <g class="cat-aura"><use href="#cat-silhouette-source" /></g>
+                <g class="cat-fragment cat-fragment--hint" data-burst-x="-0.82" data-burst-y="-0.56" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M45 148 L52 117 L86 87 L79 26 L123 65 L125 30 L131 24 L164 59 L179 95 L158 213 L134 203 L59 225 L33 203 L24 179 Z" stroke-width="8" stroke-dasharray="42 19"/><path d="M59 156 L113 132 L159 149" stroke-width="3.5" stroke-dasharray="13 16" opacity=".54"/><circle cx="79" cy="26" r="6.8" fill="currentColor"/><circle cx="131" cy="24" r="6.3" fill="currentColor"/><circle cx="164" cy="59" r="5.4" fill="currentColor"/><circle cx="45" cy="148" r="5.8" fill="currentColor"/><circle cx="179" cy="95" r="5.2" fill="currentColor"/>
+                </g>
+                <g class="cat-fragment cat-fragment--hint" data-burst-x="-0.16" data-burst-y="-0.66" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M179 95 L258 131 L433 138 L643 109 L701 111 L755 122 L796 137 L855 171" stroke-width="8" stroke-dasharray="58 22"/><path d="M216 137 L425 176 L643 153 L790 177" stroke-width="3.5" stroke-dasharray="12 18" opacity=".48"/><circle cx="258" cy="131" r="5.5" fill="currentColor"/><circle cx="433" cy="138" r="5.1" fill="currentColor"/><circle cx="643" cy="109" r="5.8" fill="currentColor"/><circle cx="755" cy="122" r="4.8" fill="currentColor"/><circle cx="855" cy="171" r="5.4" fill="currentColor"/>
+                </g>
+                <g class="cat-fragment cat-fragment--hint" data-burst-x="0.92" data-burst-y="-0.32" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M855 171 L972 284 L1033 327 L1073 342 L1110 345 L1170 321 L1180 330 L1180 342 L1160 364 L1126 377 L1086 379 L1040 369 L970 330 L849 220" stroke-width="8" stroke-dasharray="46 18"/><path d="M899 211 L1004 306 L1083 343 L1157 341" stroke-width="3.5" stroke-dasharray="11 17" opacity=".5"/><circle cx="972" cy="284" r="5.3" fill="currentColor"/><circle cx="1073" cy="342" r="5.1" fill="currentColor"/><circle cx="1170" cy="321" r="5.7" fill="currentColor"/><circle cx="1126" cy="377" r="5" fill="currentColor"/>
+                </g>
+                <g class="cat-fragment" data-burst-x="-0.72" data-burst-y="0.58" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M204 251 L217 298 L188 357 L123 456 L104 476 L73 484 L69 497 L78 503 L117 502 L150 476 L301 311 L332 317" stroke-width="8" stroke-dasharray="43 18"/><path d="M217 298 L264 315 L188 357" stroke-width="3.5" stroke-dasharray="10 15" opacity=".46"/><circle cx="204" cy="251" r="5.2" fill="currentColor"/><circle cx="188" cy="357" r="5.1" fill="currentColor"/><circle cx="123" cy="456" r="5.3" fill="currentColor"/><circle cx="78" cy="503" r="4.9" fill="currentColor"/>
+                </g>
+                <g class="cat-fragment" data-burst-x="-0.24" data-burst-y="0.82" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M332 317 L357 339 L405 420 L416 452 L415 475 L388 483 L383 499 L428 502 L439 488 L450 438 L425 311 L596 279" stroke-width="8" stroke-dasharray="42 18"/><path d="M357 339 L425 311 L405 420" stroke-width="3.5" stroke-dasharray="10 15" opacity=".46"/><circle cx="332" cy="317" r="5.1" fill="currentColor"/><circle cx="425" cy="311" r="5.4" fill="currentColor"/><circle cx="416" cy="452" r="5.1" fill="currentColor"/><circle cx="428" cy="502" r="4.9" fill="currentColor"/>
+                </g>
+                <g class="cat-fragment" data-burst-x="0.68" data-burst-y="0.66" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M596 279 L603 310 L646 407 L598 475 L564 487 L566 502 L615 500 L700 408 L691 353 L693 303 L751 337 L832 366 L856 381 L903 467 L901 477 L879 486 L877 498 L921 502 L930 489 L932 462 L891 341 L851 314 L821 279 L799 228 L793 188" stroke-width="8" stroke-dasharray="45 20"/><path d="M646 407 L693 303 L751 337 M821 279 L856 381 L903 467" stroke-width="3.5" stroke-dasharray="10 16" opacity=".48"/><circle cx="596" cy="279" r="5.5" fill="currentColor"/><circle cx="646" cy="407" r="5.2" fill="currentColor"/><circle cx="615" cy="500" r="5" fill="currentColor"/><circle cx="751" cy="337" r="5.1" fill="currentColor"/><circle cx="856" cy="381" r="5.2" fill="currentColor"/><circle cx="921" cy="502" r="4.9" fill="currentColor"/>
+                </g>
+              </svg></button
+            ><span class="cat-hint" id="cat-hint">豹猫卫星彩蛋</span
+            >
+          </div>
+          <section
+            class="planet-focus"
+            id="planet-focus"
+            aria-hidden="true"
+            aria-label="星球特写"
+          >
+            <article class="focus-shot" data-slot="primary" aria-hidden="true">
+              <div class="focus-planet-wrap" aria-hidden="true">
+                <div class="focus-planet-core"></div>
+              </div>
+              <div class="focus-copy">
+                <p class="focus-kicker">PLANET FOCUS</p>
+                <h2 class="focus-title">BLOG</h2>
+                <p class="focus-description">
+                  
+                </p>
+                <ul class="focus-notes"></ul>
+                <div class="focus-actions">
+                  <button class="focus-back" id="focus-back" type="button">
+                    返回星图</button
+                  ><button class="focus-enter" id="focus-enter" type="button">
+                    ENTER BLOG
+                  </button>
+                </div>
+              </div>
+            </article>
+            <article
+              class="focus-shot"
+              data-slot="secondary"
+              aria-hidden="true"
+            >
+              <div class="focus-planet-wrap" aria-hidden="true">
+                <div class="focus-planet-core"></div>
+              </div>
+              <div class="focus-copy">
+                <p class="focus-kicker">PLANET FOCUS</p>
+                <h2 class="focus-title">FEED</h2>
+                <p class="focus-description">
+                  
+                </p>
+                <ul class="focus-notes"></ul>
+              </div>
+            </article>
+          </section>
+          <div class="focus-proxy" id="focus-proxy" aria-hidden="true"></div>
+</div>
+      </section>
+      <footer class="footer">
+        <p>
+          星图在此自然收束为页脚；没有
+          Recently、列表、标题摘要或跨模块内容读取。
+        </p>
+      </footer>
+    </main>
+<nav class="flight-index" aria-label="Home 航行索引">
+      <button type="button" data-anchor="entry">
+        <i></i><span>ENTRY</span></button
+      ><button type="button" data-anchor="approach">
+        <i></i><span>APPROACH</span></button
+      ><button type="button" data-anchor="overview">
+        <i></i><span>STAR MAP</span></button
+      ><button type="button" data-focus="about">
+        <i></i><span>ABOUT</span></button
+      ><button type="button" data-focus="feed"><i></i><span>FEED</span></button
+      ><button type="button" data-focus="blog"><i></i><span>BLOG</span></button
+      ><button type="button" data-focus="projects">
+        <i></i><span>PROJECTS</span></button
+      ><button type="button" data-focus="learn">
+        <i></i><span>LEARN</span>
+      </button>
+    </nav>
+<canvas
+      class="meteor-canvas"
+      id="meteor-canvas"
+      aria-hidden="true"
+    ></canvas>
+
+<script>
+  import { mountHome } from './home-client';
+  mountHome();
+</script>
