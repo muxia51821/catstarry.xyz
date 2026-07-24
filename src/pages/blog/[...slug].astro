@@ -1,0 +1,82 @@
+---
+import { getCollection, render } from 'astro:content';
+import ArticleFooter from '../../components/ArticleFooter';
+import BlogArchive from '../../components/blog/BlogArchive.astro';
+import Base from '../../layouts/Base.astro';
+import '../../styles/blog.css';
+import { formatBlogDate, getPageCount, getPagePosts, getPostSlug, getPostUrl, sortPostsByDate, type BlogPost } from '../../lib/blog';
+import { getCategoryLabel } from '../../lib/category';
+
+type DetailProps = { kind: 'detail'; post: BlogPost };
+type ArchiveProps = { kind: 'archive'; posts: BlogPost[]; allPosts: BlogPost[]; currentPage: number; pageCount: number };
+
+export async function getStaticPaths() {
+  const posts = sortPostsByDate(await getCollection('blog', ({ data }) => !data.draft));
+  const detailPaths = posts.map((post) => ({ params: { slug: getPostSlug(post) }, props: { kind: 'detail', post } satisfies DetailProps }));
+  const pageCount = getPageCount(posts.length);
+  const archivePaths = Array.from({ length: Math.max(pageCount - 1, 0) }, (_, index) => {
+    const currentPage = index + 2;
+    return {
+      params: { slug: String(currentPage) },
+      props: { kind: 'archive', posts: getPagePosts(posts, currentPage), allPosts: posts, currentPage, pageCount } satisfies ArchiveProps,
+    };
+  });
+
+  return [...detailPaths, ...archivePaths];
+}
+
+const props = Astro.props as DetailProps | ArchiveProps;
+const isDetail = props.kind === 'detail';
+const post = isDetail ? props.post : undefined;
+const rendered = post ? await render(post) : undefined;
+const canonicalUrl = post ? new URL(getPostUrl(post), Astro.site).href : '';
+---
+
+{isDetail && post && rendered ? (
+  <Base title={post.data.title} description={post.data.description}>
+    <meta slot="head" property="og:title" content={post.data.title} />
+    <meta slot="head" property="og:description" content={post.data.description} />
+    <meta slot="head" property="og:type" content="article" />
+    <meta slot="head" property="og:url" content={canonicalUrl} />
+    <meta slot="head" property="og:site_name" content="catstarry.xyz" />
+    <meta slot="head" name="twitter:card" content="summary" />
+    <link slot="head" rel="canonical" href={canonicalUrl} />
+    <link slot="head" rel="alternate" type="application/rss+xml" title="catstarry.xyz · 博客 RSS" href="/blog/rss.xml" />
+    <main class="blog-page" data-canvas="content">
+      <article class="blog-article">
+        <header class="blog-article__header">
+          <p class="blog-eyebrow">{getCategoryLabel(post.data.category)}</p>
+          <h1>{post.data.title}</h1>
+          <div class="blog-article__meta">
+            <time datetime={post.data.date.toISOString().slice(0, 10)}>{formatBlogDate(post.data.date)}</time>
+            <span aria-hidden="true">·</span>
+            <a href={`/blog/category/${post.data.category}/`}>{getCategoryLabel(post.data.category)}</a>
+          </div>
+          {post.data.tags.length > 0 && (
+            <ul class="blog-tag-list blog-article__tags" aria-label="文章标签">
+              {post.data.tags.map((tag) => <li><a href={`/blog/tag/${encodeURIComponent(tag)}/`}>#{tag}</a></li>)}
+            </ul>
+          )}
+        </header>
+        <div class="blog-prose"><rendered.Content /></div>
+        <footer class="blog-article__footer">
+          <a class="blog-article__back" href="/blog/">← 返回博客列表</a>
+        </footer>
+        <ArticleFooter title={post.data.title} slug={getPostSlug(post)} url={canonicalUrl} client:load />
+      </article>
+    </main>
+  </Base>
+) : (
+  <Base title="博客" description="木下的个人博客，写技术、生活与观点。">
+    <BlogArchive
+      title="博客"
+      intro="技术、生活与观点：把正在形成的想法留在这里。"
+      posts={props.posts}
+      allPosts={props.allPosts}
+      currentPage={props.currentPage}
+      pageCount={props.pageCount}
+      basePath="/blog"
+      showTaxonomy={true}
+    />
+  </Base>
+)}

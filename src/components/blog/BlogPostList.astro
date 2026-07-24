@@ -1,0 +1,34 @@
+---
+import { formatBlogDate, getPostUrl, type BlogPost } from '../../lib/blog';
+import { getCategoryLabel } from '../../lib/category';
+
+interface Props {
+  posts: BlogPost[];
+  emptyMessage: string;
+}
+
+const { posts, emptyMessage } = Astro.props;
+---
+
+{posts.length === 0 ? (
+  <p class="blog-empty">{emptyMessage}</p>
+) : (
+  <div class="blog-post-list">
+    {posts.map((post) => (
+      <article class="blog-post-card">
+        <div class="blog-post-card__meta">
+          <time datetime={post.data.date.toISOString().slice(0, 10)}>{formatBlogDate(post.data.date)}</time>
+          <span aria-hidden="true">·</span>
+          <a href={`/blog/category/${post.data.category}/`}>{getCategoryLabel(post.data.category)}</a>
+        </div>
+        <h2><a href={getPostUrl(post)}>{post.data.title}</a></h2>
+        <p class="blog-post-card__description">{post.data.description}</p>
+        {post.data.tags.length > 0 && (
+          <ul class="blog-tag-list" aria-label={`${post.data.title}的标签`}>
+            {post.data.tags.map((tag) => <li><a href={`/blog/tag/${encodeURIComponent(tag)}/`}>#{tag}</a></li>)}
+          </ul>
+        )}
+      </article>
+    ))}
+  </div>
+)}

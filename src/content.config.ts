@@ -13,6 +13,7 @@ const blog = defineCollection({
     category: z.enum(['tech', 'life', 'opinion']),
     tags: z.array(z.string()).default([]),
     description: z.string(),
+    slug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).optional(),
     draft: z.boolean().default(false),
   }),
 });

@@ -1,0 +1,38 @@
+---
+import { CATEGORY_LABELS } from '../../lib/category';
+import type { BlogPost } from '../../lib/blog';
+
+interface Props {
+  posts: BlogPost[];
+}
+
+const { posts } = Astro.props;
+const categoryCounts = Object.fromEntries(Object.keys(CATEGORY_LABELS).map((category) => [category, 0])) as Record<string, number>;
+const tagCounts = new Map<string, number>();
+
+for (const post of posts) {
+  categoryCounts[post.data.category] = (categoryCounts[post.data.category] ?? 0) + 1;
+  for (const tag of post.data.tags) tagCounts.set(tag, (tagCounts.get(tag) ?? 0) + 1);
+}
+
+const tags = [...tagCounts.entries()].sort(([firstTag, firstCount], [secondTag, secondCount]) => secondCount - firstCount || firstTag.localeCompare(secondTag, 'zh-CN'));
+---
+
+<aside class="blog-taxonomy" aria-label="文章分类与标签">
+  <section>
+    <h2>分类</h2>
+    <ul class="blog-taxonomy__categories">
+      {Object.entries(CATEGORY_LABELS).map(([category, label]) => (
+        <li><a href={`/blog/category/${category}/`}>{label}<span>{categoryCounts[category]}</span></a></li>
+      ))}
+    </ul>
+  </section>
+  <section>
+    <h2>标签</h2>
+    {tags.length > 0 ? (
+      <ul class="blog-tag-list blog-tag-list--cloud">
+        {tags.map(([tag, count]) => <li><a href={`/blog/tag/${encodeURIComponent(tag)}/`}>#{tag}<span>{count}</span></a></li>)}
+      </ul>
+    ) : <p class="blog-taxonomy__empty">还没有标签。</p>}
+  </section>
+</aside>

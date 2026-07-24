@@ -1,0 +1,44 @@
+---
+import { getCollection } from 'astro:content';
+import BlogArchive from '../../../components/blog/BlogArchive.astro';
+import Base from '../../../layouts/Base.astro';
+import { CATEGORY_LABELS, getCategoryLabel, type Category } from '../../../lib/category';
+import { getPageCount, getPagePosts, sortPostsByDate, type BlogPost } from '../../../lib/blog';
+
+export async function getStaticPaths() {
+  const posts = sortPostsByDate(await getCollection('blog', ({ data }) => !data.draft));
+  const categories = Object.keys(CATEGORY_LABELS) as Category[];
+  return categories.flatMap((category) => {
+    const categoryPosts = posts.filter((post) => post.data.category === category);
+    const pageCount = getPageCount(categoryPosts.length);
+    return Array.from({ length: pageCount }, (_, index) => {
+      const currentPage = index + 1;
+      return {
+        params: { category: currentPage === 1 ? category : `${category}/${currentPage}` },
+        props: { category, categoryPosts, currentPage, pageCount },
+      };
+    });
+  });
+}
+
+const { category, categoryPosts, currentPage, pageCount } = Astro.props as {
+  category: Category;
+  categoryPosts: BlogPost[];
+  currentPage: number;
+  pageCount: number;
+};
+const label = getCategoryLabel(category);
+---
+
+<Base title={`分类：${label}`} description={`${label}分类下的已发布文章。`}>
+  <BlogArchive
+    title={`分类：${label}`}
+    intro={`${label}分类下的已发布文章。`}
+    posts={getPagePosts(categoryPosts, currentPage)}
+    allPosts={categoryPosts}
+    currentPage={currentPage}
+    pageCount={pageCount}
+    basePath={`/blog/category/${category}`}
+    showBackLink={true}
+  />
+</Base>

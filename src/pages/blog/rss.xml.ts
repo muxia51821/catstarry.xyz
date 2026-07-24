@@ -1,5 +1,6 @@
 ﻿import type { APIRoute } from 'astro';
 import { getCollection } from 'astro:content';
+import { getPostSlug } from '../../lib/blog';
 
 const SITE_URL = 'https://catstarry.xyz';
 const BLOG_TITLE = 'catstarry.xyz · 博客';
@@ -16,14 +17,11 @@ function escapeXml(s: string): string {
 
 function toRFC822(date: Date): string {
   const tz = '+0800';
+  const inChina = new Date(date.getTime() + 8 * 60 * 60 * 1000);
   const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const pad = (n: number) => String(n).padStart(2, '0');
-  return days[date.getUTCDay()] + ', ' + pad(date.getUTCDate()) + ' ' + months[date.getUTCMonth()] + ' ' + date.getUTCFullYear() + ' ' + pad(date.getUTCHours()) + ':' + pad(date.getUTCMinutes()) + ':' + pad(date.getUTCSeconds()) + ' ' + tz;
-}
-
-function getSlug(post: { id: string }): string {
-  return post.id;
+  return days[inChina.getUTCDay()] + ', ' + pad(inChina.getUTCDate()) + ' ' + months[inChina.getUTCMonth()] + ' ' + inChina.getUTCFullYear() + ' ' + pad(inChina.getUTCHours()) + ':' + pad(inChina.getUTCMinutes()) + ':' + pad(inChina.getUTCSeconds()) + ' ' + tz;
 }
 
 function truncateMd(text: string, maxLen: number): string {
@@ -52,7 +50,7 @@ export const GET: APIRoute = async () => {
   const lastBuildDate = posts.length > 0 ? toRFC822(posts[0].data.date) : toRFC822(new Date());
 
   const items = posts.map((post) => {
-    const slug = getSlug(post);
+    const slug = getPostSlug(post);
     const url = SITE_URL + '/blog/' + slug + '/';
     const description = post.data.description || truncateMd(post.body ?? '', 200);
 
@@ -70,7 +68,7 @@ export const GET: APIRoute = async () => {
     + '<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">\n'
     + '  <channel>\n'
     + '    <title>' + escapeXml(BLOG_TITLE) + '</title>\n'
-    + '    <link>' + escapeXml(SITE_URL) + '</link>\n'
+    + '    <link>' + escapeXml(SITE_URL + '/blog/') + '</link>\n'
     + '    <description>' + escapeXml(BLOG_DESC) + '</description>\n'
     + '    <lastBuildDate>' + lastBuildDate + '</lastBuildDate>\n'
     + '    <atom:link href="' + escapeXml(SITE_URL) + '/blog/rss.xml" rel="self" type="application/rss+xml"/>\n'
