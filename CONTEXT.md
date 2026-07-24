@@ -137,12 +137,12 @@ catstarry.xyz/
 
 ---
 
-## 开发状态 [快照 | 共享基础设施 F 已完成，Phase 5 协作减重已生效]
+## 开发状态 [快照 | Home 已完成，等待下一模块选择]
 
-> 全局 Phase 3、Home / Feed 定向 Phase 2/3、Astro 7 定向依赖基线、Home Activity Signal 定向 Phase 2/3 与 HAS 返回 Phase 4.1 均已完成。Phase 4 已正式闭合。Phase 5.0A 复核已完成：前端依赖维持现状，不启动独立依赖修复任务；Phase 5.0B 已完成 `docs/agents/frontend-rules.md`；共享基础设施 F 已完成并通过独立 Code Review。Phase 5 现在采用三常驻角色 + 模块级并行协作方式；普通模块内部保持单 Owner。生产 Home、真实 HAS 投影和正式资源加载策略尚未实现。
+> 全局 Phase 3、Home / Feed 定向 Phase 2/3、Astro 7 定向依赖基线、Home Activity Signal 定向 Phase 2/3 与 HAS 返回 Phase 4.1 均已完成。Phase 4 已正式闭合。Phase 5.0A 复核、Phase 5.0B 前端规则、共享基础设施 F 与 Home 模块均已完成。Home 提交为 `8dc447e`，木下人工验收、`npm run build` 与 `npm run test:home` 均通过。Phase 5 继续采用三常驻角色 + 模块级并行协作方式；普通模块内部保持单 Owner。当前不自动启动下一模块，等待木下选择。
 
 - /blog：🟡 原型已上线，Phase 5 重做
-- /：✅ 星图入口需求、SSG 无聚合架构与 Design 2.1 视觉边界已锁定；🔴 未开发
+- /：✅ 星图入口需求、SSG 无聚合架构与 Design 2.1 视觉边界已锁定；✅ Phase 5 已完成，提交 `8dc447e`
 - /feed：✅ 公开足迹需求、分存事件架构与 Design 2.1 视觉边界已锁定；🔴 未开发
 - /learn、/projects、f.catstarry.xyz：✅ 需求已锁定 + 架构已锁定，🔴 未开发
 - poker.catstarry.xyz：✅ 已上线（独立部署）

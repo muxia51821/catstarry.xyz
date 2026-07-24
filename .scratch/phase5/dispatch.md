@@ -1,16 +1,20 @@
 # Phase 5 Dispatch
 
-base commit: `09e3103 docs: close shared infrastructure F and set Home as next module`
+active module: Blog static core
 
-active module: Home production implementation
-
-owner: Phase 5 Home module Agent; Phase 5 main execution / integration thread owns shared files
+owner: temporary Blog Codex Agent
 
 allowed files:
 
-- Home module: `src/pages/index.astro`, `src/components/home/**`, `scripts/home-production-regression.mjs`, Home-only assets and tests
-- Shared files only by main execution / integration thread: `package.json`, `src/layouts/Base.astro`, shared contracts, migrations, auth / CORS, CI/CD, production deploy config
+- Blog content collection/config
+- src/pages/blog/**
+- src/components/blog/**
+- Blog-specific styles
+- Blog-specific tests
+- src/data/blog/**
 
-blocked by: none recorded in governance
+- Shared files remain owned only by Phase 5 main execution / integration thread
 
-next action: Home module thread continues implementation; main execution / integration thread must review and own any shared-file changes before merge
+blocked by: none
+
+next action: temporary Blog Agent implements the static Blog core

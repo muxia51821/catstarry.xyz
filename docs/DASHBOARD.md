@@ -1,6 +1,6 @@
 # catstarry.xyz 项目看板
 
-> 最后更新：2026-07-23
+> 最后更新：2026-07-24
 >
 > 一眼看全局。执行细节、定向回流规则见 `docs/workflow-orchestration.md`。
 
@@ -10,7 +10,7 @@
 
 | 路径 | 需求分析 | 实现 |
 | --- | --- | --- |
-| / Home | ✅ 定向回流需求已更新 | 🔴 未开发 |
+| / Home | ✅ 定向回流需求已更新 | ✅ Phase 5 已完成，提交 `8dc447e` |
 | /blog | ✅ | 🟡 原型已上线（Phase 5 重做） |
 | /feed | ✅ 定向回流需求已更新 | 🔴 未开发 |
 | /learn | ✅ | 🔴 未开发 |
@@ -29,7 +29,7 @@
 | 2 | 规格化 | ✅ |
 | 3 | 架构设计 | ✅ |
 | 4 | UI/原型 | ✅ 已闭合；Phase 4.3 设计侧完成，canonical CSS、五颗星球三槽资产与 UI QA 已闭合 |
-| 5 | 开发实现 | 🟡 Phase 5.0A、5.0B 与共享基础设施 F 已完成；进入三常驻角色 + 模块级并行协作方式 |
+| 5 | 开发实现 | 🟡 Phase 5.0A、5.0B、共享基础设施 F 与 Home 已完成；等待下一模块选择 |
 | 6 | 测试/QA | 🔴 |
 | 7 | 部署上线 | 🔴 |
 | 8 | 运营维护 | 🔴 |
@@ -72,6 +72,7 @@ Phase 5.0A 复核结论：前端依赖维持现状，不启动独立依赖修复
 | Phase 5.0A 依赖基线复核 | ✅ | 维持 Astro 7.0.9、@astrojs/react 6.0.1、React 19.2.7、Vite 8.1.4、Node 24.15.0；不启动独立依赖修复任务 |
 | Phase 5.0B 前端规则固化 | ✅ | `docs/agents/frontend-rules.md` 已创建；Phase 5 前端线程必须引用，不得重新裁决 Phase 4 设计事实 |
 | 共享基础设施 F | ✅ | 提交 `2ab3d83`、`51cd489`；独立 Code Review 已完成，P0/P1 已修复并增量复审通过 |
+| Home 模块 | ✅ | 提交 `8dc447e`；木下人工验收、`npm run build`、`npm run test:home` 均通过 |
 | 协作方式 | 🟡 | 三常驻角色：流程治理、Phase 5 主执行 / 集成线程、网页端桥梁；普通模块允许模块级并行，但模块内部单 Owner |
 | 当前分工记录 | 🟡 | `.scratch/phase5/dispatch.md`；只记录 base commit、active module、owner、allowed files、blocked by、next action |
 
@@ -96,7 +97,7 @@ Phase 5.0A 复核结论：前端依赖维持现状，不启动独立依赖修复
 
 ## 当前待办
 
-1. 维护 `.scratch/phase5/dispatch.md`，由主执行 / 集成线程记录当前活跃模块、Owner、允许修改路径与阻塞项。
-2. 启动或关闭普通模块时回到流程治理登记；普通修复不需要重复登记。
-3. Home 模块不得重新裁决 Home / Feed 产品关系、HAS 架构、Phase 4.2 已验收交互或 Phase 4.3 已选资产身份。
+1. 等待木下选择下一个 Phase 5 模块；暂不自动启动 Blog、Learn / Projects、Feed 或 Finance。
+2. 维护 `.scratch/phase5/dispatch.md`，由主执行 / 集成线程记录当前活跃模块、Owner、允许修改路径与阻塞项。
+3. 启动或关闭普通模块时回到流程治理登记；普通修复不需要重复登记。
 4. blog 原型在 Phase 5 按已锁定需求重做；当前 Astro 7 迁移只保证旧原型能构建，不为其保留 Design 1.x 兼容层。
