@@ -1,0 +1,24 @@
+---
+import type { TrackDefinition, LearnNote } from './learn-data';
+import { formatLearnDate } from './learn-data';
+
+interface Props {
+  track: TrackDefinition;
+  notes: LearnNote[];
+}
+
+const { track, notes } = Astro.props;
+const latest = [...notes].sort((a, b) => Date.parse(b.lastModified) - Date.parse(a.lastModified))[0];
+---
+
+<a class="learn-track-card" data-track={track.slug} href={`/learn/track/${track.slug}/#track-notes`}>
+  <span class="learn-track-card__index" aria-hidden="true">{String(notes.length).padStart(2, '0')}</span>
+  <div>
+    <h3>{track.name}</h3>
+    <p>{track.description}</p>
+  </div>
+  <footer>
+    <span>{notes.length} 篇笔记</span>
+    <time datetime={latest?.lastModified}>{latest ? formatLearnDate(latest.lastModified) : '暂无更新'}</time>
+  </footer>
+</a>

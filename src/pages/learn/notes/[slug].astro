@@ -1,0 +1,160 @@
+---
+import Base from '../../../layouts/Base.astro';
+import DirectoryTree from '../../../components/learn/DirectoryTree.astro';
+import LearnText from '../../../components/learn/LearnText.astro';
+import {
+  formatLearnDate,
+  getPublishedNotes,
+  getTrackDefinition,
+  getTrackNotes,
+  LEARN_NOTES,
+} from '../../../components/learn/learn-data';
+import '../../../components/learn/learn.css';
+
+export function getStaticPaths() {
+  return getPublishedNotes(LEARN_NOTES).map((note) => ({
+    params: { slug: note.slug },
+    props: { note },
+  }));
+}
+
+const { note } = Astro.props;
+const allPublishedNotes = getPublishedNotes(LEARN_NOTES);
+const track = getTrackDefinition(note.track);
+const treeNotes = getTrackNotes(allPublishedNotes, note.track);
+const linkedNotes = new Map(allPublishedNotes.map((item) => [item.slug, item]));
+const dateValue = formatLearnDate(note.publishDate);
+---
+
+<Base title={`${note.title} · Learn`} description={note.excerpt}>
+  <main class="learn-detail-page" data-canvas="content">
+    <div class="learn-detail-page__shell">
+      <a class="learn-detail-page__back" href={`/learn/track/${track.slug}/#track-notes`}>← 返回 {track.name}</a>
+
+      <header class="learn-detail-page__header">
+        <div class="learn-detail-page__meta">
+          <a href={`/learn/track/${track.slug}/`}>{track.name}</a>
+          <time datetime={note.publishDate}>{dateValue}</time>
+          <time datetime={note.lastModified}>更新于 {formatLearnDate(note.lastModified)}</time>
+          {note.sourceUrl && (
+            <a href={note.sourceUrl} target="_blank" rel="noreferrer">查看公开来源 ↗</a>
+          )}
+        </div>
+        <h1>{note.title}</h1>
+        <p>{note.excerpt}</p>
+        {note.tags.length > 0 && (
+          <ul class="learn-detail-page__tags" aria-label="笔记标签">
+            {note.tags.map((tag) => <li>{tag}</li>)}
+          </ul>
+        )}
+      </header>
+
+      <div class="learn-detail-layout">
+        <button class="learn-drawer-toggle" type="button" data-tree-open aria-expanded="false">
+          ☰ 打开目录
+        </button>
+        <aside class="learn-tree-drawer" data-tree-drawer>
+          <button class="learn-drawer-close" type="button" data-tree-close>← 关闭目录</button>
+          <DirectoryTree notes={treeNotes} currentSlug={note.slug} />
+        </aside>
+
+        <article class="learn-note-body" data-wikilinks>
+          {note.blocks.map((block) => (
+            block.kind === 'paragraph' ? (
+              <p><LearnText text={block.text} notes={linkedNotes} /></p>
+            ) : block.kind === 'heading' && block.level === 2 ? (
+              <h2>{block.text}</h2>
+            ) : block.kind === 'heading' ? (
+              <h3>{block.text}</h3>
+            ) : block.kind === 'code' ? (
+              <pre><code data-language={block.language}>{block.code}</code></pre>
+            ) : block.kind === 'table' ? (
+              <table>
+                <thead><tr>{block.headers.map((header) => <th>{header}</th>)}</tr></thead>
+                <tbody>
+                  {block.rows.map((row) => <tr>{row.map((cell) => <td>{cell}</td>)}</tr>)}
+                </tbody>
+              </table>
+            ) : block.kind === 'image' ? (
+              <img src={block.src} alt={block.alt} loading="lazy" />
+            ) : block.kind === 'link' ? (
+              <p><a href={block.href}>{block.text}</a></p>
+            ) : linkedNotes.has(block.slug) ? (
+              <span class="learn-wikilink">
+                <a
+                  class="learn-wikilink__link"
+                  href={`/learn/notes/${block.slug}/`}
+                  data-wikilink-trigger
+                  aria-expanded="false"
+                >
+                  {block.label ?? linkedNotes.get(block.slug)?.title}
+                </a>
+                <span class="learn-wikilink__preview" data-wikilink-preview hidden>
+                  <strong>{linkedNotes.get(block.slug)?.title}</strong>
+                  <p>{linkedNotes.get(block.slug)?.excerpt}</p>
+                  <a href={`/learn/notes/${block.slug}/`}>打开笔记 →</a>
+                </span>
+              </span>
+            ) : null
+          ))}
+        </article>
+      </div>
+    </div>
+  </main>
+</Base>
+
+<script>
+  const drawer = document.querySelector('[data-tree-drawer]');
+  const openButton = document.querySelector('[data-tree-open]');
+  const closeButtons = document.querySelectorAll('[data-tree-close]');
+
+  if (drawer instanceof HTMLElement && openButton instanceof HTMLButtonElement) {
+    const setDrawerOpen = (open) => {
+      drawer.dataset.open = String(open);
+      openButton.setAttribute('aria-expanded', String(open));
+      if (open) drawer.querySelector('[data-tree-close]')?.focus();
+      else openButton.focus();
+    };
+
+    openButton.addEventListener('click', () => setDrawerOpen(true));
+    closeButtons.forEach((button) => button.addEventListener('click', () => setDrawerOpen(false)));
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && drawer.dataset.open === 'true') setDrawerOpen(false);
+    });
+  }
+
+  const wikiRoot = document.querySelector('[data-wikilinks]');
+  if (wikiRoot instanceof HTMLElement) {
+    const closeAll = () => {
+      for (const preview of wikiRoot.querySelectorAll('[data-wikilink-preview]')) {
+        preview.hidden = true;
+      }
+      for (const trigger of wikiRoot.querySelectorAll('[data-wikilink-trigger]')) {
+        trigger.setAttribute('aria-expanded', 'false');
+      }
+    };
+
+    for (const trigger of wikiRoot.querySelectorAll('[data-wikilink-trigger]')) {
+      const wrapper = trigger.closest('.learn-wikilink');
+      const preview = wrapper?.querySelector('[data-wikilink-preview]');
+      if (!(trigger instanceof HTMLAnchorElement) || !(preview instanceof HTMLElement)) continue;
+
+      const show = () => {
+        closeAll();
+        preview.hidden = false;
+        trigger.setAttribute('aria-expanded', 'true');
+      };
+
+      trigger.addEventListener('mouseenter', show);
+      trigger.addEventListener('focus', show);
+      trigger.addEventListener('click', (event) => {
+        event.preventDefault();
+        show();
+      });
+    }
+
+    document.addEventListener('click', (event) => {
+      if (event.target instanceof Node && !wikiRoot.contains(event.target)) closeAll();
+    });
+  }
+</script>

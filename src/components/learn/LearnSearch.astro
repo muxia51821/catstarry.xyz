@@ -1,0 +1,111 @@
+---
+import type { LearnNote } from './learn-data';
+import NoteCard from './NoteCard.astro';
+
+interface Props {
+  notes: LearnNote[];
+}
+
+const { notes } = Astro.props;
+---
+
+<section class="learn-search" data-learn-search>
+  <form class="learn-search__form" role="search" onsubmit="return false">
+    <label for="learn-search-input">搜索学习笔记</label>
+    <div class="learn-search__field">
+      <input
+        id="learn-search-input"
+        class="input-text"
+        type="search"
+        placeholder="搜索标题、标签或轨道"
+        autocomplete="off"
+        aria-controls="learn-search-results"
+        aria-autocomplete="list"
+      />
+      <span aria-hidden="true">⌕</span>
+    </div>
+    <div class="learn-search__suggestions" data-search-suggestions role="listbox" hidden></div>
+  </form>
+
+  <div id="learn-search-results" class="learn-search-results" data-search-results aria-live="polite">
+    {notes.map((note) => <NoteCard note={note} compact searchItem />)}
+    <p class="learn-search__empty" data-search-empty hidden>没有找到相关笔记</p>
+  </div>
+</section>
+
+<script>
+  const searchRoot = document.querySelector('[data-learn-search]');
+
+  if (searchRoot instanceof HTMLElement) {
+    const page = searchRoot.closest('[data-learn-page]');
+    const input = searchRoot.querySelector('input');
+    const suggestions = searchRoot.querySelector('[data-search-suggestions]');
+    const empty = searchRoot.querySelector('[data-search-empty]');
+    const items = Array.from(searchRoot.querySelectorAll('[data-search-item]'));
+    let timer;
+
+    const normalize = (value) => value.trim().toLocaleLowerCase('zh-CN');
+    const matches = (item, query) => {
+      const title = normalize(item.dataset.title ?? '');
+      const track = normalize(item.dataset.track ?? '');
+      const trackName = normalize(item.dataset.trackName ?? '');
+      const tags = (item.dataset.tags ?? '').split('|').map(normalize);
+      return title.includes(query) || track === query || trackName === query || tags.includes(query);
+    };
+
+    const clearSuggestions = () => {
+      if (!suggestions) return;
+      suggestions.replaceChildren();
+      suggestions.hidden = true;
+    };
+
+    const showSuggestions = (query) => {
+      if (!suggestions || !query) {
+        clearSuggestions();
+        return;
+      }
+
+      const matched = items.filter((item) => matches(item, query)).slice(0, 5);
+      suggestions.replaceChildren();
+      for (const item of matched) {
+        const originalLink = item.querySelector('a');
+        if (!originalLink) continue;
+        const link = document.createElement('a');
+        link.href = originalLink.href;
+        link.setAttribute('role', 'option');
+        link.textContent = item.dataset.title ?? '';
+        suggestions.append(link);
+      }
+      suggestions.hidden = matched.length === 0;
+    };
+
+    const update = () => {
+      if (!(input instanceof HTMLInputElement)) return;
+      const query = normalize(input.value);
+      page?.setAttribute('data-search-active', query ? 'true' : 'false');
+      let visibleCount = 0;
+      for (const item of items) {
+        const visible = !query || matches(item, query);
+        item.hidden = !visible;
+        if (visible) visibleCount += 1;
+      }
+      if (empty instanceof HTMLElement) empty.hidden = !query || visibleCount > 0;
+      showSuggestions(query);
+    };
+
+    input?.addEventListener('input', () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(update, 300);
+    });
+    input?.addEventListener('focus', update);
+    input?.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        clearSuggestions();
+        input.blur();
+      }
+    });
+    document.addEventListener('click', (event) => {
+      if (event.target instanceof Node && !searchRoot.contains(event.target)) clearSuggestions();
+    });
+  }
+</script>

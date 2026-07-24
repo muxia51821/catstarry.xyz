@@ -1,0 +1,35 @@
+---
+import Base from '../../layouts/Base.astro';
+import ProjectCard from '../../components/projects/ProjectCard.astro';
+import { getVisibleProjects } from '../../components/projects/project-data';
+import '../../components/projects/projects.css';
+
+const projects = getVisibleProjects();
+---
+
+<Base title="Projects" description="木下的成品项目索引。">
+  <main class="projects-page" data-canvas="content">
+    <div class="projects-page__shell">
+      <header class="projects-page__header">
+        <a class="projects-page__back" href="/">← 返回首页</a>
+        <p class="projects-page__eyebrow">SELECTED WORKS</p>
+        <h1>Projects</h1>
+        <p class="projects-page__intro">
+          独立完成、独立部署的项目索引。每个项目保留自己的边界，卡片只提供必要的入口。
+        </p>
+      </header>
+
+      {projects.length > 0 ? (
+        <section class="projects-grid" aria-label="项目列表">
+          {projects.map((project) => <ProjectCard project={project} />)}
+        </section>
+      ) : (
+        <section class="projects-empty" aria-live="polite">
+          <p class="projects-page__eyebrow">INDEX READY</p>
+          <h2>项目索引等待下一次实质更新</h2>
+          <p>目前没有已提供的项目索引。项目截图、链接和技术标签由上架时一并补齐。</p>
+        </section>
+      )}
+    </div>
+  </main>
+</Base>

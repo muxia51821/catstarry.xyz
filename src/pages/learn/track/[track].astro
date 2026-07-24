@@ -1,0 +1,113 @@
+---
+import Base from '../../../layouts/Base.astro';
+import NoteCard from '../../../components/learn/NoteCard.astro';
+import {
+  getPublishedNotes,
+  getTrackDefinition,
+  getTrackNotes,
+  getTrackSections,
+  LEARN_NOTES,
+} from '../../../components/learn/learn-data';
+import '../../../components/learn/learn.css';
+
+export function getStaticPaths() {
+  const notes = getPublishedNotes(LEARN_NOTES);
+  const trackSlugs = [...new Set(notes.map((note) => note.track))];
+  return trackSlugs.map((track) => ({
+    params: { track },
+    props: { track },
+  }));
+}
+
+const { track: trackSlug } = Astro.props;
+const track = getTrackDefinition(trackSlug);
+const notes = getTrackNotes(getPublishedNotes(LEARN_NOTES), trackSlug);
+const sections = getTrackSections(notes);
+---
+
+<Base title={`${track.name} · Learn`} description={track.description}>
+  <main class="learn-page" data-canvas="content">
+    <div class="learn-page__shell">
+      <header class="learn-page__header">
+        <div>
+          <a class="learn-page__back" href="/learn/">← 返回 Learn</a>
+          <p class="learn-page__eyebrow">TRACK / {track.slug}</p>
+          <h1>{track.name}</h1>
+          <p class="learn-page__intro">{track.description}</p>
+        </div>
+        <span class="learn-page__count">{notes.length} NOTES</span>
+      </header>
+
+      <section class="learn-section" id="track-notes" aria-labelledby="track-notes-title">
+        <header class="learn-section__header">
+          <div>
+            <p class="learn-page__eyebrow">PUBLISHED NOTES</p>
+            <h2 id="track-notes-title">轨道笔记</h2>
+          </div>
+          <p>按最后更新时间倒序排列。</p>
+        </header>
+
+        {sections.length > 0 && (
+          <nav class="learn-section-tabs" aria-label="笔记分节">
+            {sections.map((section) => <a href={`#section-${section}`}>{section}</a>)}
+          </nav>
+        )}
+
+        {notes.length > 0 ? (
+          sections.length > 0 ? (
+            sections.map((section) => (
+              <section class="learn-track-section" id={`section-${section}`} aria-labelledby={`heading-${section}`}>
+                <h3 id={`heading-${section}`}>{section}</h3>
+                <div class="learn-note-list">
+                  {notes.filter((note) => note.section === section).map((note) => <NoteCard note={note} />)}
+                </div>
+              </section>
+            ))
+          ) : (
+            <div class="learn-note-list">
+              {notes.map((note) => <NoteCard note={note} />)}
+            </div>
+          )
+        ) : (
+          <p class="learn-empty">这个轨道还没有已发布的笔记。</p>
+        )}
+      </section>
+    </div>
+  </main>
+</Base>
+
+<style>
+  .learn-section-tabs {
+    display: flex;
+    gap: var(--space-sm);
+    overflow-x: auto;
+    padding-block-end: var(--space-md);
+    margin-block-end: var(--space-xl);
+  }
+
+  .learn-section-tabs a {
+    flex: 0 0 auto;
+    min-block-size: var(--interaction-hit-size);
+    padding: var(--space-sm) var(--space-md);
+    color: var(--content-text-secondary);
+    text-decoration: none;
+    border: 1px solid var(--content-hairline);
+    border-radius: var(--radius-full);
+  }
+
+  .learn-section-tabs a:hover,
+  .learn-section-tabs a:focus-visible {
+    color: var(--klein-500);
+    border-color: var(--klein-400);
+  }
+
+  .learn-track-section + .learn-track-section {
+    margin-block-start: var(--space-3xl);
+  }
+
+  .learn-track-section h3 {
+    margin-block-end: var(--space-lg);
+    font-size: var(--text-lg);
+    font-weight: 500;
+  }
+</style>
