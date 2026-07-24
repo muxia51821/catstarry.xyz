@@ -58,9 +58,9 @@
 
 .blog-post-card {
   padding: var(--blog-card-padding);
-  border: var(--blog-card-border);
+  border: 1px solid var(--border-default);
   border-radius: var(--blog-card-radius);
-  background: var(--blog-card-bg);
+  background: var(--bg-surface-card);
 }
 
 .blog-post-card__meta,
