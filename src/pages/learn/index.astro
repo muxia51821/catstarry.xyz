@@ -1,0 +1,75 @@
+---
+import Base from '../../layouts/Base.astro';
+import KnowledgeGraph from '../../components/learn/KnowledgeGraph.astro';
+import LearnSearch from '../../components/learn/LearnSearch.astro';
+import NoteCard from '../../components/learn/NoteCard.astro';
+import TrackCard from '../../components/learn/TrackCard.astro';
+import {
+  getActiveTracks,
+  getPublishedNotes,
+  getTrackNotes,
+  LEARN_NOTES,
+} from '../../components/learn/learn-data';
+import '../../components/learn/learn.css';
+
+const notes = getPublishedNotes(LEARN_NOTES);
+const tracks = getActiveTracks(notes);
+const recentNotes = notes.slice(0, 10);
+---
+
+<Base title="Learn" description="按轨道整理的公开学习笔记。">
+  <main class="learn-page" data-canvas="content" data-learn-page data-search-active="false">
+    <div class="learn-page__shell">
+      <header class="learn-page__header">
+        <div>
+          <a class="learn-page__back" href="/">← 返回首页</a>
+          <p class="learn-page__eyebrow">LEARNING RECORDS</p>
+          <h1>Learn</h1>
+          <p class="learn-page__intro">
+            把值得分享的学习过程整理成可回看的轨道。先从一个问题开始，再让关联慢慢长出来。
+          </p>
+        </div>
+        <span class="learn-page__count">{notes.length} NOTES</span>
+      </header>
+
+      <KnowledgeGraph tracks={tracks} notes={notes} />
+      <LearnSearch notes={notes} />
+
+      <div class="learn-home-content">
+        <section class="learn-section" aria-labelledby="learn-recent-title">
+          <header class="learn-section__header">
+            <div>
+              <p class="learn-page__eyebrow">RECENTLY REVISED</p>
+              <h2 id="learn-recent-title">最近更新</h2>
+            </div>
+            <p>只展示已发布内容，排序只由笔记的最后更新时间决定。</p>
+          </header>
+          {recentNotes.length > 0 ? (
+            <div class="learn-note-list">
+              {recentNotes.map((note) => <NoteCard note={note} />)}
+            </div>
+          ) : (
+            <p class="learn-empty">还没有已发布的学习笔记。</p>
+          )}
+        </section>
+
+        <section class="learn-section" aria-labelledby="learn-tracks-title">
+          <header class="learn-section__header">
+            <div>
+              <p class="learn-page__eyebrow">TRACKS</p>
+              <h2 id="learn-tracks-title">学习轨道</h2>
+            </div>
+            <p>空轨道不会占用公开首页，内容出现后会自动获得入口。</p>
+          </header>
+          {tracks.length > 0 ? (
+            <div class="learn-track-grid">
+              {tracks.map((track) => <TrackCard track={track} notes={getTrackNotes(notes, track.slug)} />)}
+            </div>
+          ) : (
+            <p class="learn-empty">发布第一篇笔记后，轨道入口会出现在这里。</p>
+          )}
+        </section>
+      </div>
+    </div>
+  </main>
+</Base>

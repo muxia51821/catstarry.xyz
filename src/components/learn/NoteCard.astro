@@ -1,0 +1,36 @@
+---
+import type { LearnNote } from './learn-data';
+import { formatLearnDate, getTrackDefinition } from './learn-data';
+
+interface Props {
+  note: LearnNote;
+  compact?: boolean;
+  searchItem?: boolean;
+}
+
+const { note, compact = false, searchItem = false } = Astro.props;
+const track = getTrackDefinition(note.track);
+---
+
+<article
+  class:list={['learn-note-card', { 'learn-note-card--compact': compact }]}
+  data-search-item={searchItem ? 'true' : undefined}
+  data-title={searchItem ? note.title : undefined}
+  data-track={searchItem ? note.track : undefined}
+  data-track-name={searchItem ? track.name : undefined}
+  data-tags={searchItem ? note.tags.join('|') : undefined}
+>
+  <a href={`/learn/notes/${note.slug}/`} class="learn-note-card__link">
+    <div class="learn-note-card__meta">
+      <span>{track.name}</span>
+      <time datetime={note.lastModified}>{formatLearnDate(note.lastModified)}</time>
+    </div>
+    <h3>{note.title}</h3>
+    <p>{note.excerpt}</p>
+    {note.tags.length > 0 && (
+      <ul class="learn-note-card__tags" aria-label="笔记标签">
+        {note.tags.map((tag) => <li>{tag}</li>)}
+      </ul>
+    )}
+  </a>
+</article>
