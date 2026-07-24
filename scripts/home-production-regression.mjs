@@ -67,6 +67,43 @@ function isVisible(snapshot, focus) {
     ));
 }
 
+function describeException(details, phase) {
+  const frames = details.stackTrace?.callFrames ?? [];
+  const exception = details.exception ?? {};
+  const firstFrame = frames[0];
+  return {
+    phase,
+    message: exception.description ?? exception.value ?? details.text,
+    stack: exception.description ?? (frames.map((frame) => (
+      `${frame.functionName || '<anonymous>'} (${frame.url}:${frame.lineNumber}:${frame.columnNumber})`
+    )).join('\n') || null),
+    sourceUrl: details.url ?? firstFrame?.url ?? null,
+    line: details.lineNumber ?? firstFrame?.lineNumber ?? null,
+    column: details.columnNumber ?? firstFrame?.columnNumber ?? null,
+    text: details.text,
+  };
+}
+
+function isKnownBrowserExtensionNoise(exception) {
+  return (
+    exception.text === 'Uncaught (in promise)'
+    && (
+      (
+        exception.sourceUrl === 'chrome-extension://gmgoamodcdcjnbaobigkjelfplakmdhh/vendor/@eyeo/webext-ad-filtering-solution/content.js'
+        && exception.line === 17
+        && exception.column === 80639
+        && exception.message.startsWith("TypeError: Cannot read properties of undefined (reading 'useCache')")
+      )
+      || (
+        exception.sourceUrl === 'chrome-extension://gmgoamodcdcjnbaobigkjelfplakmdhh/polyfill.js'
+        && exception.line === 244
+        && exception.column === 27
+        && exception.message.startsWith('Error: Could not establish connection. Receiving end does not exist.')
+      )
+    )
+  );
+}
+
 const baseUrl = process.env.HOME_TEST_URL ?? 'http://127.0.0.1:4321';
 const ownsServer = !process.env.HOME_TEST_URL;
 if (ownsServer) {
@@ -90,6 +127,8 @@ try {
   let commandId = 0;
   const pending = new Map();
   const errors = [];
+  const filteredErrors = [];
+  let phase = 'CDP initialization';
   socket.addEventListener('message', (event) => {
     const message = JSON.parse(event.data);
     if (message.id) {
@@ -97,7 +136,10 @@ try {
       pending.delete(message.id);
       resolve?.(message.result);
     }
-    if (message.method === 'Runtime.exceptionThrown') errors.push(message.params.exceptionDetails.text);
+    if (message.method === 'Runtime.exceptionThrown') {
+      const exception = describeException(message.params.exceptionDetails, phase);
+      (isKnownBrowserExtensionNoise(exception) ? filteredErrors : errors).push(exception);
+    }
   });
   const send = (method, params = {}) => {
     const id = ++commandId;
@@ -106,8 +148,10 @@ try {
   };
   const evaluate = async (expression) => (await send('Runtime.evaluate', { expression, returnByValue: true })).result.value;
   const load = async () => {
+    phase = 'page navigation';
     await send('Page.navigate', { url: baseUrl });
     await delay(850);
+    phase = 'Overview setup';
     await evaluate(`scrollTo(0, (PROTOTYPE_VISUAL_PARAMETERS.camera.journeyVh.drift - 100) * innerHeight / 100 * 0.88)`);
     await delay(300);
   };
@@ -125,14 +169,17 @@ try {
   await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
 
   await load();
+  phase = 'planet click';
   await evaluate(`document.querySelector('[data-planet="learn"]').click()`);
   const planetClick = await samples('learn');
 
   await load();
+  phase = 'index click';
   await evaluate(`document.querySelector('.flight-index [data-focus="learn"]').click()`);
   const indexClick = await samples('learn');
 
   await load();
+  phase = 'natural scroll';
   const journeyHeight = await evaluate(`document.querySelector('.journey').offsetHeight`);
   const naturalFocuses = new Map();
   const naturalFocusFrames = [];
@@ -179,6 +226,7 @@ try {
 
   const result = {
     errors,
+    filteredErrors,
     planetClick: { visible: planetClick.visible, samples: planetClick.results.map(({ afterMs, state }) => ({ afterMs, focus: state.focus, focusMode: state.focusMode, focusOpen: state.focusOpen, layerOpacity: state.layer?.opacity, planetOpacity: state.planet?.opacity, proxyOpacity: state.proxy?.opacity, titleOpacity: state.title?.opacity, enterOpacity: state.enter?.opacity })) },
     indexClick: { visible: indexClick.visible, samples: indexClick.results.map(({ afterMs, state }) => ({ afterMs, focus: state.focus, focusMode: state.focusMode, focusOpen: state.focusOpen, layerOpacity: state.layer?.opacity, planetOpacity: state.planet?.opacity, proxyOpacity: state.proxy?.opacity, titleOpacity: state.title?.opacity, enterOpacity: state.enter?.opacity })) },
     naturalScroll,
