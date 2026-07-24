@@ -96,13 +96,13 @@ DESIGN.md                           — Design 2.1 已锁定；Phase 4.3 已完�
 | 2 规格化   | fork 自 Phase 1        | ✅ 已完成          |
 | 3 架构设计 | fork 自 Phase 2        | ✅ 已完成          |
 | 4 UI/原型  | 独立（Phase 3 确认后） | ✅ 已闭合 |
-| 5 开发实现 | 单线串行推进           | 🟡 Phase 5.0A、5.0B 与共享基础设施 F 已完成；下一模块 Home |
+| 5 开发实现 | 三常驻角色 + 模块级并行 | 🟡 Phase 5.0A、5.0B 与共享基础设施 F 已完成；普通模块可并行但模块内部单 Owner |
 | 6 测试/QA  | fork 自 Phase 5        | ✅ 需要报告        |
 | 7 部署上线 | 流程治理协调           | ✅ 需要报告        |
 | 8 运营维护 | 按需                   | 不需要报告         |
 
 ## 当前工作
 
-当前真实入口：Phase 5.0A、5.0B 与共享基础设施 F 已完成。下一步是 Home 模块生产实现；不并线，不先拆 Finance，不宣布任何业务模块已经实现。F deferred 包括 Cloudflare 真实资源 ID、远程 migration、路由与生产部署、Blog views API 兼容、旧 `from-zero → 2` 数据切换、`Base.astro` / `global.css` 入口迁移和依赖安全告警。Phase 5 流程减重已登记为独立治理维护项，不阻塞 Home 启动。
+当前真实入口：Phase 5.0A、5.0B 与共享基础设施 F 已完成。Phase 5 采用三常驻角色：流程治理、Phase 5 主执行 / 集成线程、网页端桥梁。普通模块允许模块级并行，但模块内部保持单 Owner；临时 Codex Agent 只读取模块任务包和直接相关真源，完成并合并后结束 session。共享文件只能由主执行 / 集成线程修改。当前分工记录见 `.scratch/phase5/dispatch.md`。F deferred 包括 Cloudflare 真实资源 ID、远程 migration、路由与生产部署、Blog views API 兼容、旧 `from-zero → 2` 数据切换、`Base.astro` / `global.css` 入口迁移和依赖安全告警。
 
-先读取上述文件与当前 Git 状态，再告诉木下真实状态和唯一下一动作。不要假设，不要猜测。
+先读取上述文件、`.scratch/phase5/dispatch.md` 与当前 Git 状态，再告诉木下真实状态和下一动作。不要假设，不要猜测。

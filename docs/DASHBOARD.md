@@ -29,7 +29,7 @@
 | 2 | 规格化 | ✅ |
 | 3 | 架构设计 | ✅ |
 | 4 | UI/原型 | ✅ 已闭合；Phase 4.3 设计侧完成，canonical CSS、五颗星球三槽资产与 UI QA 已闭合 |
-| 5 | 开发实现 | 🟡 Phase 5.0A、5.0B 与共享基础设施 F 已完成；下一单一执行模块：Home |
+| 5 | 开发实现 | 🟡 Phase 5.0A、5.0B 与共享基础设施 F 已完成；进入三常驻角色 + 模块级并行协作方式 |
 | 6 | 测试/QA | 🔴 |
 | 7 | 部署上线 | 🔴 |
 | 8 | 运营维护 | 🔴 |
@@ -72,7 +72,8 @@ Phase 5.0A 复核结论：前端依赖维持现状，不启动独立依赖修复
 | Phase 5.0A 依赖基线复核 | ✅ | 维持 Astro 7.0.9、@astrojs/react 6.0.1、React 19.2.7、Vite 8.1.4、Node 24.15.0；不启动独立依赖修复任务 |
 | Phase 5.0B 前端规则固化 | ✅ | `docs/agents/frontend-rules.md` 已创建；Phase 5 前端线程必须引用，不得重新裁决 Phase 4 设计事实 |
 | 共享基础设施 F | ✅ | 提交 `2ab3d83`、`51cd489`；独立 Code Review 已完成，P0/P1 已修复并增量复审通过 |
-| 下一个单一模块 | 🟡 | Home；不并线，不先拆 Finance |
+| 协作方式 | 🟡 | 三常驻角色：流程治理、Phase 5 主执行 / 集成线程、网页端桥梁；普通模块允许模块级并行，但模块内部单 Owner |
+| 当前分工记录 | 🟡 | `.scratch/phase5/dispatch.md`；只记录 base commit、active module、owner、allowed files、blocked by、next action |
 
 ### F deferred
 
@@ -83,17 +84,19 @@ Phase 5.0A 复核结论：前端依赖维持现状，不启动独立依赖修复
 - `Base.astro` / `global.css` 入口迁移留到首个正式前端模块。
 - 依赖安全告警另立维护事项。
 
-### 治理维护项（不阻塞 Home）
+### Phase 5 协作减重规则
 
-- **Phase 5 流程减重**：登记为独立治理维护项，不阻塞 F 关闭或 Home 启动。
-- 最小修改范围：后续只精简 `docs/workflow-orchestration.md` 的 Phase 5 执行规则、`docs/cold-start-governance.md` 的硬编码当前状态，以及必要的 `DASHBOARD.md` / `CONTEXT.md` 状态表达。
-- 目标方向：Phase 5 默认单一执行主线；流程治理只在里程碑、Phase 切换、跨模块冲突、定向回流和架构 Gate 介入；普通业务切片不再机械返回流程治理；Code Review 按风险分级。
+- 普通模块由临时 Codex Agent 执行；完成并合并后结束 session。
+- 模块 Agent 只读取模块任务包和直接相关真源，不默认重读完整 `CONTEXT.md`、完整 workflow、全部 ADR 或其他模块文档。
+- 共享文件只能由 Phase 5 主执行 / 集成线程修改：package 与全局配置、Base layout、shared contracts、migrations、auth / CORS、CI/CD 与生产部署。
+- 流程治理只在模块启动、关闭、跨模块冲突、定向回流、依赖 / 架构 Gate 和 Phase 切换时介入。
+- Code Review 按风险分级：低风险自检 + build + 木下验收；普通风险测试 + 主集成检查；高风险独立 Review。
 
 ---
 
 ## 当前待办
 
-1. 启动 Home 模块生产实现：读取 PRD / ADR / acceptance / DESIGN / frontend-rules，不重新设计 Home。
-2. Home 模块只能实现正式页面、路由、资源接入与已锁定交互；不得接入真实 HAS 投影，除非对应架构和数据投影任务明确进入范围。
-3. Phase 5 开发实现不得重新裁决 Home / Feed 产品关系、HAS 架构、Phase 4.2 已验收交互或 Phase 4.3 已选资产身份。
+1. 维护 `.scratch/phase5/dispatch.md`，由主执行 / 集成线程记录当前活跃模块、Owner、允许修改路径与阻塞项。
+2. 启动或关闭普通模块时回到流程治理登记；普通修复不需要重复登记。
+3. Home 模块不得重新裁决 Home / Feed 产品关系、HAS 架构、Phase 4.2 已验收交互或 Phase 4.3 已选资产身份。
 4. blog 原型在 Phase 5 按已锁定需求重做；当前 Astro 7 迁移只保证旧原型能构建，不为其保留 Design 1.x 兼容层。

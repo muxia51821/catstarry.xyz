@@ -137,9 +137,9 @@ catstarry.xyz/
 
 ---
 
-## 开发状态 [快照 | 共享基础设施 F 已完成，等待 Home]
+## 开发状态 [快照 | 共享基础设施 F 已完成，Phase 5 协作减重已生效]
 
-> 全局 Phase 3、Home / Feed 定向 Phase 2/3、Astro 7 定向依赖基线、Home Activity Signal 定向 Phase 2/3 与 HAS 返回 Phase 4.1 均已完成。Phase 4 已正式闭合。Phase 5.0A 复核已完成：前端依赖维持现状，不启动独立依赖修复任务；Phase 5.0B 已完成 `docs/agents/frontend-rules.md`；共享基础设施 F 已完成并通过独立 Code Review。当前唯一正确入口是 Home 模块生产实现；生产 Home、真实 HAS 投影和正式资源加载策略尚未实现。
+> 全局 Phase 3、Home / Feed 定向 Phase 2/3、Astro 7 定向依赖基线、Home Activity Signal 定向 Phase 2/3 与 HAS 返回 Phase 4.1 均已完成。Phase 4 已正式闭合。Phase 5.0A 复核已完成：前端依赖维持现状，不启动独立依赖修复任务；Phase 5.0B 已完成 `docs/agents/frontend-rules.md`；共享基础设施 F 已完成并通过独立 Code Review。Phase 5 现在采用三常驻角色 + 模块级并行协作方式；普通模块内部保持单 Owner。生产 Home、真实 HAS 投影和正式资源加载策略尚未实现。
 
 - /blog：🟡 原型已上线，Phase 5 重做
 - /：✅ 星图入口需求、SSG 无聚合架构与 Design 2.1 视觉边界已锁定；🔴 未开发
@@ -152,4 +152,6 @@ catstarry.xyz/
 - Home Activity Signal：✅ 定向 Phase 2/3、返回 Phase 4.1 视觉重锁、Phase 4.2 mock 原型验收与 Phase 4.3 canonical 视觉接口落地均已完成；ADR-007 锁定受控静态投影，真实投影接入仍不得在 Phase 5 之前越权实现。
 - 共享基础设施 F：✅ 提交 `2ab3d83`、`51cd489` 已完成；独立 Code Review 已完成，P0/P1 已修复并增量复审通过。不得据此宣布任何业务模块已实现。
 - F deferred：Cloudflare 真实资源 ID、远程 migration、路由与生产部署留到 Phase 7；旧生产 `feed-api` 继续保留，新 skeleton 已使用非生产名称机械隔离；Blog views API 兼容留到 Blog / API 模块；旧 `from-zero → 2` 数据在生产切换时处理；`Base.astro` / `global.css` 入口迁移留到首个正式前端模块；依赖安全告警另立维护事项。
-- 治理维护项：Phase 5 流程减重已登记为独立治理维护项，不阻塞 Home 启动；目标是减少机械 fork、机械回流和重复文档同步，保留里程碑、Phase 切换、跨模块冲突、定向回流和架构 Gate 的流程治理介入。
+- Phase 5 协作：✅ 流程减重已生效。保留三个常驻角色：流程治理、Phase 5 主执行 / 集成线程、网页端桥梁。普通模块可并行启动，但每个模块内部必须单 Owner；临时 Codex Agent 只读取模块任务包和直接相关真源，完成并合并后结束 session。
+- 共享文件 Owner：package 与全局配置、Base layout、shared contracts、migrations、auth / CORS、CI/CD 与生产部署只能由 Phase 5 主执行 / 集成线程修改。
+- 流程治理介入点：模块启动、模块关闭、跨模块冲突、定向回流、依赖 / 架构 Gate 与 Phase 切换。普通修复不重复登记。
