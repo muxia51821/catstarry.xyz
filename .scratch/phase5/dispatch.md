@@ -1,20 +1,19 @@
-# Phase 5 Dispatch
+base commit: b8292d0
 
-active module: Blog static core
+active module: none
 
-owner: temporary Blog Codex Agent
+completed:
 
-allowed files:
+- Home
+- Blog static core
+- Projects / Learn functional core
+- Astro 7.1.3 integration baseline
 
-- Blog content collection/config
-- src/pages/blog/**
-- src/components/blog/**
-- Blog-specific styles
-- Blog-specific tests
-- src/data/blog/**
+deferred:
 
-- Shared files remain owned only by Phase 5 main execution / integration thread
+- Blog view count
+- Blog publication footprint
+- Projects / Learn production content integration
+- Cross-module visual calibration
 
-blocked by: none
-
-next action: temporary Blog Agent implements the static Blog core
+next action: prepare Phase 5 Feed read-only slice
