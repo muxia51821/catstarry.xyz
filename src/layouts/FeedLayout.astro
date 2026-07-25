@@ -1,0 +1,12 @@
+---
+import Base from './Base.astro';
+import '../styles/feed.css';
+
+export interface Props { title: string; description: string; canonicalPath: string; }
+const { title, description, canonicalPath } = Astro.props;
+---
+
+<Base title={title} description={description}>
+  <link slot="head" rel="canonical" href={new URL(canonicalPath, Astro.site).toString()} />
+  <main class="feed-page" data-canvas="content"><div class="feed-shell"><slot /></div></main>
+</Base>

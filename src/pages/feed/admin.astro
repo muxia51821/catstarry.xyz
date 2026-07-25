@@ -1,0 +1,24 @@
+---
+export const prerender = false;
+
+import FeedAdmin from '../../components/feed/FeedAdmin';
+import FeedLayout from '../../layouts/FeedLayout.astro';
+import { feedApiBase, publicFeedApiBase } from '../../lib/feed-api';
+import type { PaginatedResponse, SessionStatus, TimelineEntry } from '../../../shared/types';
+
+const apiBase = feedApiBase(Astro.url.origin);
+const cookie = Astro.request.headers.get('cookie') ?? '';
+const sessionResponse = await fetch(`${apiBase}/api/auth/session`, { headers: { Cookie: cookie, Accept: 'application/json' }, cache: 'no-store' });
+const session = sessionResponse.ok ? await sessionResponse.json() as SessionStatus : { authenticated: false, username: null };
+if (!session.authenticated) return Astro.redirect('/feed');
+Astro.response.headers.set('Cache-Control', 'private, no-store');
+Astro.response.headers.set('Pragma', 'no-cache');
+Astro.response.headers.set('X-Robots-Tag', 'noindex, nofollow');
+const listResponse = await fetch(`${apiBase}/api/feed/admin?limit=20`, { headers: { Cookie: cookie, Accept: 'application/json' }, cache: 'no-store' });
+const initial: PaginatedResponse<TimelineEntry> = listResponse.ok ? await listResponse.json() as PaginatedResponse<TimelineEntry> : { items: [], cursor: null, has_more: false };
+---
+
+<FeedLayout title="Feed 管理" description="管理公开 Feed 内容。" canonicalPath="/feed/admin/">
+  <header class="feed-header"><a class="feed-admin-back" href="/feed/">← 返回 Feed</a><p class="feed-eyebrow">PRIVATE MANAGEMENT</p><h1>Feed 管理</h1><p>隐藏、恢复或删除属于原生发布内容的记录。</p></header>
+  <FeedAdmin client:load apiBase={publicFeedApiBase()} initial={initial} />
+</FeedLayout>

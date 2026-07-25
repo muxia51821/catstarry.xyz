@@ -1,0 +1,17 @@
+---
+export const prerender = false;
+
+import FeedApp from '../../components/feed/FeedApp';
+import FeedLayout from '../../layouts/FeedLayout.astro';
+import { loadPublicTimeline, publicFeedApiBase } from '../../lib/feed-api';
+import type { PaginatedResponse, TimelineEntry } from '../../../shared/types';
+
+let initial: PaginatedResponse<TimelineEntry> = { items: [], cursor: null, has_more: false };
+let initialError = '';
+try { initial = await loadPublicTimeline(Astro.url.origin); } catch (error) { initialError = error instanceof Error ? error.message : 'Feed 时间线暂时不可用'; }
+---
+
+<FeedLayout title="Feed" description="木下的公开足迹与来时路。" canonicalPath="/feed/">
+  <header class="feed-header"><p class="feed-eyebrow">PUBLIC FOOTPRINTS</p><h1>Feed</h1><p>碎碎念、剪藏，以及值得留下的创作足迹。</p></header>
+  <FeedApp client:load apiBase={publicFeedApiBase()} initial={initial} initialError={initialError} />
+</FeedLayout>

@@ -1,0 +1,39 @@
+.feed-page[data-canvas="content"] {
+  min-height: 100vh;
+  padding: var(--space-4xl) max(var(--space-md), env(safe-area-inset-left));
+  color: var(--text-primary);
+  background: var(--bg-base);
+}
+
+.feed-shell { width: min(100%, 44rem); margin: 0 auto; }
+.feed-page { font-size: max(1rem, 16px); line-height: 1.85; }
+.feed-content, .feed-clip-summary, .feed-card > p { line-height: 1.85; }
+.feed-header { margin-block-end: var(--space-3xl); border-block-end: 1px solid var(--border-default); }
+.feed-header h1 { margin-block-end: var(--space-sm); font: 500 clamp(2rem, 5vw, 4.5rem)/1.15 var(--font-display); }
+.feed-header p { max-width: 36rem; color: var(--text-secondary); }
+.feed-timeline, .feed-admin-list { display: grid; gap: var(--card-gap); }
+.feed-card { padding: var(--feed-card-padding); background: var(--feed-card-bg); border: var(--feed-card-border); border-radius: var(--feed-card-radius); }
+.feed-footprint { background: var(--footprint-surface); border-color: var(--footprint-border); }
+.feed-eyebrow { margin: 0 0 var(--space-sm); color: var(--footprint-source); font: 500 .75rem/1.4 var(--font-mono); letter-spacing: .06em; }
+.feed-card h2 { margin-block-end: var(--space-sm); font: 500 clamp(1.2rem, 3vw, 1.7rem)/1.35 var(--font-display); }
+.feed-card h2 a, .feed-footprint a { color: inherit; }
+.feed-card a { color: var(--link-default, var(--klein-600)); text-decoration-thickness: .08em; text-underline-offset: .18em; }
+.feed-card a:hover { text-decoration: underline; }
+.feed-content { white-space: pre-wrap; color: var(--text-primary); }
+.feed-clip-summary, .feed-card time, .feed-admin-row time { color: var(--text-secondary); }
+.feed-media-grid { display: grid; gap: var(--space-sm); margin-block: var(--space-md); }
+.feed-media-grid--2, .feed-media-grid--3, .feed-media-grid--4, .feed-media-grid--5, .feed-media-grid--6 { grid-template-columns: repeat(2, 1fr); }
+.feed-media-grid img, .feed-media-grid video, .feed-link-image { width: 100%; max-height: 32rem; object-fit: cover; border-radius: var(--img-radius); }
+.feed-button, .feed-admin-link, .feed-tabs button, .feed-admin-row button { min-height: var(--interaction-hit-size); padding: var(--field-padding-block) var(--button-padding-inline); color: var(--text-primary); cursor: pointer; background: transparent; border: 1px solid var(--border-default); border-radius: var(--button-radius); }
+.feed-button:hover, .feed-admin-link:hover, .feed-tabs button:hover, .feed-admin-row button:hover { border-color: var(--klein-500); }
+.feed-button:disabled { cursor: not-allowed; opacity: .55; }
+.feed-state { margin-block: var(--space-lg); color: var(--text-secondary); }.feed-state--error { color: #a13232; }
+.feed-fab-wrap { position: fixed; right: max(var(--space-lg), env(safe-area-inset-right)); bottom: max(var(--space-lg), env(safe-area-inset-bottom)); z-index: 4; display: flex; gap: var(--space-sm); align-items: center; }
+.feed-fab { width: 3.5rem; height: 3.5rem; color: #fff; font-size: 2rem; cursor: pointer; background: var(--klein-500); border: 0; border-radius: 50%; box-shadow: 0 10px 24px rgba(0, 47, 167, .25); }.feed-fab--login { width: auto; padding-inline: var(--space-lg); font-size: 1rem; border-radius: var(--radius-full); }.feed-admin-link { background: var(--bg-surface-card); text-decoration: none; }
+.feed-dialog { position: fixed; inset: 0; z-index: 8; display: grid; place-items: center; padding: var(--space-lg); background: rgba(41, 31, 20, .38); }.feed-panel { position: relative; display: grid; gap: var(--space-md); width: min(100%, 34rem); max-height: calc(100vh - 2 * var(--space-lg)); padding: var(--space-xl); overflow: auto; background: var(--bg-base); border: 1px solid var(--border-default); border-radius: var(--radius-md); }.feed-panel label { display: grid; gap: var(--space-xs); color: var(--text-secondary); }.feed-panel input, .feed-panel textarea { width: 100%; padding: var(--field-padding-block) var(--field-padding-inline); font: inherit; color: var(--text-primary); background: var(--bg-surface-card); border: 1px solid var(--border-default); border-radius: var(--field-radius); }.feed-panel textarea { min-height: 7rem; resize: vertical; }.feed-close { position: absolute; top: var(--space-sm); right: var(--space-sm); width: var(--interaction-hit-size); border: 0; background: transparent; font-size: 1.5rem; }.feed-tabs { display: flex; gap: var(--space-sm); }.feed-tabs [aria-pressed="true"] { color: #fff; background: var(--klein-500); }
+.feed-toast { position: fixed; inset-inline: 0; bottom: var(--space-lg); z-index: 10; width: max-content; max-width: calc(100% - 2 * var(--space-lg)); margin: 0 auto; padding: var(--space-sm) var(--space-md); background: var(--bg-surface-card); border: 1px solid var(--border-default); border-radius: var(--radius-full); }
+.feed-admin-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: var(--space-sm); margin-block-end: var(--space-lg); }.feed-admin-filters label { display: grid; gap: var(--space-xs); font-size: .85rem; color: var(--text-secondary); }.feed-admin-filters select, .feed-admin-filters input { padding: var(--field-padding-block); color: var(--text-primary); background: var(--bg-surface-card); border: 1px solid var(--border-default); border-radius: var(--field-radius); }.feed-admin-actions { display: flex; flex-wrap: wrap; gap: var(--space-sm); margin-block-end: var(--space-lg); }.feed-admin-row { display: grid; gap: var(--space-sm); padding-block: var(--space-lg); border-block-end: 1px solid var(--border-default); }.feed-admin-row p { margin: 0; }.feed-admin-row div { display: flex; gap: var(--space-sm); }
+.feed-admin-back { display: inline-flex; margin-block-end: var(--space-lg); color: var(--text-primary); text-decoration: none; }.feed-admin-back:focus-visible, .feed-button:focus-visible, .feed-admin-link:focus-visible, .feed-tabs button:focus-visible, .feed-admin-row button:focus-visible { outline: 2px solid var(--klein-500); outline-offset: 3px; }
+.feed-panel input:focus-visible, .feed-panel textarea:focus-visible, .feed-admin-filters select:focus-visible, .feed-admin-filters input:focus-visible { outline: 2px solid var(--klein-500); outline-offset: 2px; }
+@media (max-width: 520px) { .feed-page[data-canvas="content"] { padding-block: var(--space-2xl); }.feed-panel { align-self: end; width: 100%; border-radius: var(--radius-md) var(--radius-md) 0 0; }.feed-media-grid { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { .feed-dialog, .feed-fab, .feed-card { transition: none; } }

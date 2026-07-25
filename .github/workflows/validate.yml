@@ -26,5 +26,7 @@ jobs:
       - run: npm run worker:config
       - run: npm run worker:types:check
       - run: npm run worker:typecheck
+      - run: npm run test:feed:password
+      - run: npm run test:feed:worker
       - run: npm run worker:dry-run
       - run: npm run worker:migrate:local

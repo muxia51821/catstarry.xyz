@@ -70,3 +70,36 @@ export interface SessionStatus {
   authenticated: boolean;
   username: string | null;
 }
+
+export interface FeedPostInput {
+  type: PostType;
+  content?: string | null;
+  media_keys?: string[];
+  link_url?: string | null;
+  link_title?: string | null;
+  link_summary?: string | null;
+  link_image?: string | null;
+}
+
+export interface FeedMediaUploadResponse {
+  key: string;
+  content_type: string;
+  size: number;
+}
+
+export interface ClipPreview {
+  link_url: string;
+  link_title: string | null;
+  link_summary: string | null;
+  link_image: string | null;
+}
+
+export interface PublicFootprintCandidate {
+  source_module: FootprintSource;
+  source_ref: string;
+  source_version: string;
+  event_type: FootprintEventType;
+  snapshot_json: string;
+  occurred_at: string;
+  idempotency_key: string;
+}
