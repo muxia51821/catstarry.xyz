@@ -1,17 +1,17 @@
 ---
 import Base from '../../../layouts/Base.astro';
+import { getCollection } from 'astro:content';
 import NoteCard from '../../../components/learn/NoteCard.astro';
 import {
   getPublishedNotes,
   getTrackDefinition,
   getTrackNotes,
   getTrackSections,
-  LEARN_NOTES,
 } from '../../../components/learn/learn-data';
 import '../../../components/learn/learn.css';
 
-export function getStaticPaths() {
-  const notes = getPublishedNotes(LEARN_NOTES);
+export async function getStaticPaths() {
+  const notes = getPublishedNotes(await getCollection('learn'));
   const trackSlugs = [...new Set(notes.map((note) => note.track))];
   return trackSlugs.map((track) => ({
     params: { track },
@@ -21,7 +21,7 @@ export function getStaticPaths() {
 
 const { track: trackSlug } = Astro.props;
 const track = getTrackDefinition(trackSlug);
-const notes = getTrackNotes(getPublishedNotes(LEARN_NOTES), trackSlug);
+const notes = getTrackNotes(getPublishedNotes(await getCollection('learn')), trackSlug);
 const sections = getTrackSections(notes);
 ---
 

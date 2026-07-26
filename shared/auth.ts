@@ -21,10 +21,16 @@ export interface FinanceSessionStatus extends SessionStatus {
   role?: FinanceRole;
 }
 
-function getSessionToken(request: Request): string | null {
+export function getSessionToken(request: Request): string | null {
   const cookies = request.headers.get('Cookie') ?? '';
   const match = cookies.match(/(?:^|;\s*)token=([^;]+)/);
-  return match ? decodeURIComponent(match[1]) : null;
+  if (!match) return null;
+  try {
+    const token = decodeURIComponent(match[1]);
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(token) ? token : null;
+  } catch {
+    return null;
+  }
 }
 
 function isCurrentSession(record: Pick<SessionRecord, 'expires_at'>): boolean {

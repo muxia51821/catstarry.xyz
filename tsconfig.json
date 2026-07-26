@@ -1,11 +1,12 @@
 ﻿{
+  "extends": "astro/tsconfigs/strict",
   "compilerOptions": {
-    "strict": true,
-    "module": "ESNext",
-    "moduleResolution": "bundler",
-    "target": "ESNext",
-    "jsx": "preserve",
-    "baseUrl": "."
+    "types": ["astro/client"]
   },
-  "include": ["src/**/*.ts", "src/**/*.astro"]
+  "include": [
+    "src/**/*",
+    "shared/**/*.ts",
+    "workers/feed-api/worker-configuration.d.ts"
+  ],
+  "exclude": ["dist"]
 }

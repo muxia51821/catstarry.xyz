@@ -1,6 +1,7 @@
 ---
 import { formatBlogDate, getPostUrl, type BlogPost } from '../../lib/blog';
 import { getCategoryLabel } from '../../lib/category';
+import BatchViewHydrator from './BatchViewHydrator';
 
 interface Props {
   posts: BlogPost[];
@@ -8,6 +9,7 @@ interface Props {
 }
 
 const { posts, emptyMessage } = Astro.props;
+const slugs = posts.map(getPostUrl).map((url) => url.split('/').filter(Boolean).at(-1) ?? '');
 ---
 
 {posts.length === 0 ? (
@@ -20,15 +22,19 @@ const { posts, emptyMessage } = Astro.props;
           <time datetime={post.data.date.toISOString().slice(0, 10)}>{formatBlogDate(post.data.date)}</time>
           <span aria-hidden="true">·</span>
           <a href={`/blog/category/${post.data.category}/`}>{getCategoryLabel(post.data.category)}</a>
+          {post.data.tags.map((tag) => (
+            <>
+              <span aria-hidden="true">·</span>
+              <a href={`/blog/tag/${encodeURIComponent(tag)}/`}>#{tag}</a>
+            </>
+          ))}
+          <span aria-hidden="true">·</span>
+          <span class="post-views" data-blog-view-count={getPostUrl(post).split('/').filter(Boolean).at(-1)} hidden></span>
         </div>
         <h2><a href={getPostUrl(post)}>{post.data.title}</a></h2>
         <p class="blog-post-card__description">{post.data.description}</p>
-        {post.data.tags.length > 0 && (
-          <ul class="blog-tag-list" aria-label={`${post.data.title}的标签`}>
-            {post.data.tags.map((tag) => <li><a href={`/blog/tag/${encodeURIComponent(tag)}/`}>#{tag}</a></li>)}
-          </ul>
-        )}
       </article>
     ))}
+    <BatchViewHydrator slugs={slugs} client:load />
   </div>
 )}

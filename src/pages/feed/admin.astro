@@ -8,17 +8,44 @@ import type { PaginatedResponse, SessionStatus, TimelineEntry } from '../../../s
 
 const apiBase = feedApiBase(Astro.url.origin);
 const cookie = Astro.request.headers.get('cookie') ?? '';
-const sessionResponse = await fetch(`${apiBase}/api/auth/session`, { headers: { Cookie: cookie, Accept: 'application/json' }, cache: 'no-store' });
-const session = sessionResponse.ok ? await sessionResponse.json() as SessionStatus : { authenticated: false, username: null };
-if (!session.authenticated) return Astro.redirect('/feed');
 Astro.response.headers.set('Cache-Control', 'private, no-store');
 Astro.response.headers.set('Pragma', 'no-cache');
 Astro.response.headers.set('X-Robots-Tag', 'noindex, nofollow');
-const listResponse = await fetch(`${apiBase}/api/feed/admin?limit=20`, { headers: { Cookie: cookie, Accept: 'application/json' }, cache: 'no-store' });
-const initial: PaginatedResponse<TimelineEntry> = listResponse.ok ? await listResponse.json() as PaginatedResponse<TimelineEntry> : { items: [], cursor: null, has_more: false };
+
+let unavailable = '';
+let session: SessionStatus = { authenticated: false, username: null };
+try {
+  const sessionResponse = await fetch(`${apiBase}/api/auth/session`, {
+    headers: { Cookie: cookie, Accept: 'application/json' },
+    cache: 'no-store',
+  });
+  if (sessionResponse.ok) session = await sessionResponse.json() as SessionStatus;
+  else if (sessionResponse.status >= 500) unavailable = '管理服务暂时不可用，请稍后重试。';
+} catch {
+  unavailable = '管理服务暂时不可用，请稍后重试。';
+}
+if (!unavailable && !session.authenticated) return Astro.redirect('/feed');
+
+let initial: PaginatedResponse<TimelineEntry> = { items: [], cursor: null, has_more: false };
+let initialError = '';
+if (!unavailable) {
+  try {
+    const listResponse = await fetch(`${apiBase}/api/feed/admin?limit=20`, {
+      headers: { Cookie: cookie, Accept: 'application/json' },
+      cache: 'no-store',
+    });
+    if (listResponse.ok) initial = await listResponse.json() as PaginatedResponse<TimelineEntry>;
+    else initialError = '管理列表暂时无法读取，请重试。';
+  } catch {
+    initialError = '管理列表暂时无法读取，请重试。';
+  }
+}
+if (unavailable) Astro.response.status = 503;
 ---
 
 <FeedLayout title="Feed 管理" description="管理公开 Feed 内容。" canonicalPath="/feed/admin/">
   <header class="feed-header"><a class="feed-admin-back" href="/feed/">← 返回 Feed</a><p class="feed-eyebrow">PRIVATE MANAGEMENT</p><h1>Feed 管理</h1><p>隐藏、恢复或删除属于原生发布内容的记录。</p></header>
-  <FeedAdmin client:load apiBase={publicFeedApiBase()} initial={initial} />
+  {unavailable
+    ? <p class="feed-state--error" role="alert">{unavailable}</p>
+    : <FeedAdmin client:load apiBase={publicFeedApiBase()} initial={initial} initialError={initialError} />}
 </FeedLayout>

@@ -15,7 +15,7 @@ const configs = [
   {
     path: 'workers/finance-api/wrangler.jsonc',
     expected: {
-      name: 'finance-api',
+      name: 'catstarry-finance-api-staging',
       database: 'finance-db',
       d1Binding: 'DB',
       kvBindings: ['FINANCE_AUTH_KV'],
@@ -75,7 +75,7 @@ for (const { path, expected } of configs) {
   if (JSON.stringify(r2Bindings) !== JSON.stringify([...expected.r2Bindings].sort())) {
     fail(`${path} has an unexpected R2 binding set`);
   }
-  if (expected.name === 'feed-api') {
+  if (path.includes('feed-api')) {
     const buckets = new Map((config.r2_buckets ?? []).map(({ binding, bucket_name }) => [binding, bucket_name]));
     if (buckets.get('MEDIA_BUCKET') !== 'catstarry-media') fail(`${path} must use catstarry-media`);
     if (buckets.get('HOME_PROJECTIONS') !== 'home-projections') fail(`${path} must use home-projections`);
@@ -86,5 +86,16 @@ for (const { path, expected } of configs) {
     fail(`${path} has an unexpected cron schedule`);
   }
 }
+
+const financeSite = JSON.parse(await readFile('finance-site/wrangler.jsonc', 'utf8'));
+if (financeSite.name !== 'catstarry-finance-staging') fail('finance-site must use its staging Pages project name');
+if (financeSite.compatibility_date !== '2026-07-22') fail('finance-site compatibility date is out of baseline');
+if (financeSite.pages_build_output_dir !== '.') fail('finance-site must deploy only its own directory');
+
+const site = JSON.parse(await readFile('wrangler.jsonc', 'utf8'));
+if (site.name !== 'catstarry-site-staging') fail('root site config must use the staging Worker name');
+if (site.compatibility_date !== '2026-07-22') fail('root site compatibility date is out of baseline');
+if (site.observability?.enabled !== true) fail('root site must enable observability');
+if ('vars' in site || 'secrets' in site) fail('root site config must not store variables or secrets');
 
 console.log('Worker configuration contracts are valid.');

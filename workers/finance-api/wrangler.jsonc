@@ -1,6 +1,6 @@
 {
   "$schema": "../../node_modules/wrangler/config-schema.json",
-  "name": "finance-api",
+  "name": "catstarry-finance-api-staging",
   "main": "src/index.ts",
   "compatibility_date": "2026-07-22",
   "observability": {

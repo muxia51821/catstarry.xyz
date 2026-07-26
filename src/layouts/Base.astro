@@ -5,9 +5,11 @@ import '../styles/main.css';
 export interface Props {
   title: string;
   description?: string;
+  canonicalPath?: string;
 }
 
-const { title, description } = Astro.props;
+const { title, description, canonicalPath = Astro.url.pathname } = Astro.props;
+const canonicalUrl = new URL(canonicalPath, Astro.site).href;
 ---
 
 <!DOCTYPE html>
@@ -17,6 +19,11 @@ const { title, description } = Astro.props;
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{title} — catstarry.xyz</title>
   {description && <meta name="description" content={description} />}
+  <link rel="canonical" href={canonicalUrl} />
+  <meta property="og:title" content={title} />
+  {description && <meta property="og:description" content={description} />}
+  <meta property="og:url" content={canonicalUrl} />
+  <meta property="og:site_name" content="catstarry.xyz" />
   <slot name="head" />
 </head>
 <body>

@@ -1,22 +1,49 @@
 import { createServer } from 'node:http';
+import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
+import path from 'node:path';
+import { connectCdp, delay } from './lib/cdp-session.mjs';
+import { launchIsolatedBrowser } from './lib/isolated-browser.mjs';
 
+const distRoot = existsSync('dist/client/index.html') ? 'dist/client' : 'dist';
 const server = createServer(async (request, response) => {
   try {
     const pathname = new URL(request.url, 'http://local.test').pathname;
-    const file = pathname === '/' ? '/index.html' : pathname;
-    const type = file.endsWith('.js') ? 'text/javascript' : file.endsWith('.css') ? 'text/css' : file.endsWith('.webp') ? 'image/webp' : 'text/html';
+    if (pathname === '/activity-signals.json') {
+      response.setHeader('content-type', 'application/json; charset=utf-8');
+      response.end(JSON.stringify({
+        schema_version: 1,
+        signals: {
+          blog: { state: 'active' },
+          feed: { state: 'stable' },
+          learn: { state: 'dormant' },
+          projects: { state: 'active' },
+        },
+      }));
+      return;
+    }
+    if (pathname === '/favicon.ico') {
+      response.statusCode = 204;
+      response.end();
+      return;
+    }
+    const relative = decodeURIComponent(pathname === '/' ? 'index.html' : pathname.slice(1));
+    const file = path.resolve(distRoot, relative);
+    if (!file.startsWith(path.resolve(distRoot) + path.sep)) throw new Error('Invalid static path');
+    const type = file.endsWith('.js') ? 'text/javascript'
+      : file.endsWith('.css') ? 'text/css'
+        : file.endsWith('.webp') ? 'image/webp'
+          : file.endsWith('.png') ? 'image/png'
+            : file.endsWith('.svg') ? 'image/svg+xml'
+              : file.endsWith('.woff2') ? 'font/woff2'
+                : 'text/html';
     response.setHeader('content-type', type);
-    response.end(await readFile(`dist${file}`));
+    response.end(await readFile(file));
   } catch {
     response.statusCode = 404;
     response.end();
   }
 });
-
-function delay(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
 
 function focusSnapshotExpression() {
   return `(() => {
@@ -84,75 +111,83 @@ function describeException(details, phase) {
   };
 }
 
-function isKnownBrowserExtensionNoise(exception) {
-  return (
-    exception.text === 'Uncaught (in promise)'
-    && (
-      (
-        exception.sourceUrl === 'chrome-extension://gmgoamodcdcjnbaobigkjelfplakmdhh/vendor/@eyeo/webext-ad-filtering-solution/content.js'
-        && exception.line === 17
-        && exception.column === 80639
-        && exception.message.startsWith("TypeError: Cannot read properties of undefined (reading 'useCache')")
-      )
-      || (
-        exception.sourceUrl === 'chrome-extension://gmgoamodcdcjnbaobigkjelfplakmdhh/polyfill.js'
-        && exception.line === 244
-        && exception.column === 27
-        && exception.message.startsWith('Error: Could not establish connection. Receiving end does not exist.')
-      )
-    )
-  );
-}
-
-const baseUrl = process.env.HOME_TEST_URL ?? 'http://127.0.0.1:4321';
+let baseUrl = process.env.HOME_TEST_URL ?? '';
 const ownsServer = !process.env.HOME_TEST_URL;
+const fixtureActivitySignals = {
+  blog: 'active',
+  feed: 'stable',
+  learn: 'dormant',
+  projects: 'active',
+};
 if (ownsServer) {
   await new Promise((resolve, reject) => {
     server.once('error', reject);
-    server.listen(4321, '127.0.0.1', resolve);
+    server.listen(0, '127.0.0.1', resolve);
   });
+  const address = server.address();
+  if (!address || typeof address === 'string') throw new Error('Home fixture server did not expose a TCP port');
+  baseUrl = `http://127.0.0.1:${address.port}`;
+} else {
+  const target = new URL(baseUrl);
+  if (!['127.0.0.1', 'localhost', '::1'].includes(target.hostname) && process.env.HOME_TEST_ALLOW_REMOTE !== '1') {
+    throw new Error('Home regression is restricted to localhost unless HOME_TEST_ALLOW_REMOTE=1 is explicitly set.');
+  }
 }
 
+let browser;
+let cdp;
 try {
-  const targets = await fetch('http://127.0.0.1:9227/json').then((response) => response.json());
-  const target = targets.find((candidate) => candidate.type === 'page');
-  if (!target) throw new Error('No CDP page target at port 9227');
-
-  const socket = new WebSocket(target.webSocketDebuggerUrl);
-  await new Promise((resolve, reject) => {
-    socket.addEventListener('open', resolve, { once: true });
-    socket.addEventListener('error', reject, { once: true });
-  });
-
-  let commandId = 0;
-  const pending = new Map();
+  browser = await launchIsolatedBrowser();
   const errors = [];
-  const filteredErrors = [];
   let phase = 'CDP initialization';
-  socket.addEventListener('message', (event) => {
-    const message = JSON.parse(event.data);
-    if (message.id) {
-      const resolve = pending.get(message.id);
-      pending.delete(message.id);
-      resolve?.(message.result);
-    }
+  cdp = await connectCdp(browser.target, (message) => {
     if (message.method === 'Runtime.exceptionThrown') {
-      const exception = describeException(message.params.exceptionDetails, phase);
-      (isKnownBrowserExtensionNoise(exception) ? filteredErrors : errors).push(exception);
+      errors.push({ kind: 'exception', ...describeException(message.params.exceptionDetails, phase) });
+    }
+    if (message.method === 'Runtime.consoleAPICalled' && ['warning', 'error'].includes(message.params.type)) {
+      errors.push({
+        kind: `console-${message.params.type}`,
+        phase,
+        message: message.params.args.map((value) => value.value ?? value.description).join(' '),
+      });
+    }
+    if (message.method === 'Log.entryAdded' && ['warning', 'error'].includes(message.params.entry.level)) {
+      errors.push({
+        kind: `log-${message.params.entry.level}`,
+        phase,
+        message: message.params.entry.text,
+        url: message.params.entry.url,
+      });
     }
   });
-  const send = (method, params = {}) => {
-    const id = ++commandId;
-    socket.send(JSON.stringify({ id, method, params }));
-    return new Promise((resolve) => pending.set(id, resolve));
-  };
-  const evaluate = async (expression) => (await send('Runtime.evaluate', { expression, returnByValue: true })).result.value;
+  const { send, evaluate, waitFor } = cdp;
   const load = async () => {
     phase = 'page navigation';
     await send('Page.navigate', { url: baseUrl });
-    await delay(850);
+    try {
+      await waitFor(
+        `document.readyState === 'complete' && document.body.dataset.variant === 'drift'`,
+        'Home runtime',
+        10_000,
+      );
+    } catch (error) {
+      throw new Error(`${error instanceof Error ? error.message : 'Home runtime did not start'}\n${JSON.stringify(errors, null, 2)}`);
+    }
+    const activityReady = ownsServer
+      ? `${JSON.stringify(Object.entries(fixtureActivitySignals))}.every(([key, state]) =>
+          document.querySelector('[data-planet="' + key + '"] .signal-wrap')?.dataset.state === state
+        )`
+      : `['blog', 'feed', 'learn', 'projects'].every((key) =>
+          ['active', 'stable', 'dormant'].includes(
+            document.querySelector('[data-planet="' + key + '"] .signal-wrap')?.dataset.state
+          )
+        )`;
+    await waitFor(activityReady, 'Home Activity Signal projection', 5_000);
     phase = 'Overview setup';
-    await evaluate(`scrollTo(0, (PROTOTYPE_VISUAL_PARAMETERS.camera.journeyVh.drift - 100) * innerHeight / 100 * 0.88)`);
+    await evaluate(`(() => {
+      const journey = document.querySelector('.journey');
+      scrollTo(0, Math.max(0, journey.offsetHeight - innerHeight) * 0.88);
+    })()`);
     await delay(300);
   };
   const samples = async (focus) => {
@@ -166,9 +201,16 @@ try {
 
   await send('Runtime.enable');
   await send('Page.enable');
+  await send('Log.enable');
   await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
 
   await load();
+  const activitySignals = await evaluate(`Object.fromEntries(
+    ['blog', 'feed', 'learn', 'projects'].map((key) => [
+      key,
+      document.querySelector('[data-planet="' + key + '"] .signal-wrap')?.dataset.state ?? null,
+    ]),
+  )`);
   phase = 'planet click';
   await evaluate(`document.querySelector('[data-planet="learn"]').click()`);
   const planetClick = await samples('learn');
@@ -224,16 +266,102 @@ try {
     ),
   };
 
+  phase = 'reverse scroll';
+  const reverseOrder = [];
+  let previousReverseFocus = null;
+  for (let top = journeyHeight; top >= 0; top -= 120) {
+    await evaluate(`scrollTo(0, ${top})`);
+    await delay(24);
+    const state = await evaluate(focusSnapshotExpression());
+    if (state.focusOpen && state.focus && state.focus !== previousReverseFocus) {
+      reverseOrder.push(state.focus);
+      previousReverseFocus = state.focus;
+    }
+  }
+  const reverseScroll = {
+    observed: reverseOrder,
+    visible: ['learn', 'projects', 'blog', 'feed', 'about'].every((focus, index) => {
+      const position = reverseOrder.indexOf(focus);
+      const previous = index === 0 ? -1 : reverseOrder.indexOf(['learn', 'projects', 'blog', 'feed', 'about'][index - 1]);
+      return position > previous;
+    }),
+  };
+
+  phase = 'footer release';
+  await evaluate('scrollTo(0, document.documentElement.scrollHeight)');
+  await delay(120);
+  const footerRelease = await evaluate(`({
+    focusOpen: document.body.classList.contains('focus-open'),
+    footerVisible: Boolean(document.querySelector('footer')),
+  })`);
+
+  phase = 'viewport matrix';
+  const viewports = [];
+  for (const { width, height } of [
+    { width: 1440, height: 900 },
+    { width: 1366, height: 768 },
+    { width: 1024, height: 768 },
+    { width: 768, height: 1024 },
+    { width: 430, height: 932 },
+    { width: 390, height: 844 },
+    { width: 360, height: 800 },
+  ]) {
+    await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: width < 768 });
+    await load();
+    viewports.push(await evaluate(`({
+      width: ${width},
+      height: ${height},
+      noHorizontalOverflow: document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+      hasJourney: Boolean(document.querySelector('.journey')),
+      hasFivePlanets: document.querySelectorAll('[data-planet]').length === 5,
+    })`));
+  }
+
+  phase = 'reduced motion';
+  await send('Emulation.setEmulatedMedia', {
+    media: '',
+    features: [{ name: 'prefers-reduced-motion', value: 'reduce' }],
+  });
+  await load();
+  const reducedMotion = await evaluate(`({
+    preferred: matchMedia('(prefers-reduced-motion: reduce)').matches,
+    cursorMeteorHidden: document.getElementById('meteor-canvas')?.hidden === true
+      || getComputedStyle(document.getElementById('meteor-canvas')).display === 'none',
+    entryMeteorsHidden: getComputedStyle(document.querySelector('.entry-meteors')).display === 'none',
+  })`);
+
   const result = {
     errors,
-    filteredErrors,
+    activitySignals,
     planetClick: { visible: planetClick.visible, samples: planetClick.results.map(({ afterMs, state }) => ({ afterMs, focus: state.focus, focusMode: state.focusMode, focusOpen: state.focusOpen, layerOpacity: state.layer?.opacity, planetOpacity: state.planet?.opacity, proxyOpacity: state.proxy?.opacity, titleOpacity: state.title?.opacity, enterOpacity: state.enter?.opacity })) },
     indexClick: { visible: indexClick.visible, samples: indexClick.results.map(({ afterMs, state }) => ({ afterMs, focus: state.focus, focusMode: state.focusMode, focusOpen: state.focusOpen, layerOpacity: state.layer?.opacity, planetOpacity: state.planet?.opacity, proxyOpacity: state.proxy?.opacity, titleOpacity: state.title?.opacity, enterOpacity: state.enter?.opacity })) },
     naturalScroll,
+    reverseScroll,
+    footerRelease,
+    viewports,
+    reducedMotion,
   };
   console.log(JSON.stringify(result, null, 2));
-  socket.close();
-  if (errors.length || !planetClick.visible || !indexClick.visible || !naturalScroll.visible || !naturalScroll.layerVisibleThroughout || !naturalScroll.overviewEntry.readable) process.exitCode = 1;
+  if (
+    errors.length
+    || (ownsServer
+      ? JSON.stringify(activitySignals) !== JSON.stringify(fixtureActivitySignals)
+      : Object.values(activitySignals).some((state) => !['active', 'stable', 'dormant'].includes(state)))
+    || !planetClick.visible
+    || !indexClick.visible
+    || !naturalScroll.visible
+    || !naturalScroll.layerVisibleThroughout
+    || !naturalScroll.overviewEntry.readable
+    || !reverseScroll.visible
+    || footerRelease.focusOpen
+    || !footerRelease.footerVisible
+    || viewports.some((viewport) => !viewport.noHorizontalOverflow || !viewport.hasJourney || !viewport.hasFivePlanets)
+    || !reducedMotion.preferred
+    || !reducedMotion.cursorMeteorHidden
+    || !reducedMotion.entryMeteorsHidden
+  ) process.exitCode = 1;
 } finally {
+  cdp?.close();
+  await browser?.close();
   if (ownsServer) await new Promise((resolve) => server.close(resolve));
 }

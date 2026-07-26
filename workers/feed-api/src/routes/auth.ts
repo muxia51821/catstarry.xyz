@@ -1,6 +1,6 @@
-import { getMainSiteSession } from '../../../../shared/auth';
+import { getMainSiteSession, getSessionToken } from '../../../../shared/auth';
 import type { LoginRequest, LoginResponse, SessionStatus } from '../../../../shared/types';
-import { apiError, json, requestIp } from '../lib/http';
+import { apiError, json, readJson, requestIp } from '../lib/http';
 import { comparePassword, hasValidBcryptPasswordLength } from '../modules/passwords';
 
 const SESSION_SECONDS = 12 * 60 * 60;
@@ -34,12 +34,8 @@ export async function requireMainSession(request: Request, env: MainAuthEnv): Pr
 }
 
 async function handleLogin(request: Request, env: MainAuthEnv): Promise<Response> {
-  let body: LoginRequest;
-  try {
-    body = (await request.json()) as LoginRequest;
-  } catch {
-    return apiError(400, 'invalid_request', 'Request body must be valid JSON');
-  }
+  const body = await readJson<LoginRequest>(request, 4_096);
+  if (body instanceof Response) return body;
   if (!isCredential(body.username) || !isCredential(body.password) || !hasValidBcryptPasswordLength(body.password)) {
     return apiError(400, 'invalid_credentials', 'Username or password is invalid');
   }
@@ -79,7 +75,7 @@ async function handleLogin(request: Request, env: MainAuthEnv): Promise<Response
 }
 
 async function handleLogout(request: Request, env: MainAuthEnv): Promise<Response> {
-  const token = readToken(request);
+  const token = getSessionToken(request);
   if (token) {
     await Promise.all([
       env.AUTH_KV.delete(`session:${token}`),
@@ -89,11 +85,6 @@ async function handleLogout(request: Request, env: MainAuthEnv): Promise<Respons
   const headers = new Headers();
   headers.set('Set-Cookie', sessionCookie('', 0, env.COOKIE_DOMAIN));
   return json({ authenticated: false }, 200, headers);
-}
-
-function readToken(request: Request): string | null {
-  const match = (request.headers.get('Cookie') ?? '').match(/(?:^|;\s*)token=([^;]+)/);
-  return match ? decodeURIComponent(match[1]) : null;
 }
 
 function sessionCookie(token: string, maxAge: number, domain?: string): string {

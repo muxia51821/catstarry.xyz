@@ -1,0 +1,30 @@
+[
+  {
+    "projectId": "underwoods-table-agent",
+    "name": "Underwood's table agent",
+    "description": "独立子域名上的 Poker PWA 应用，已上线。",
+    "url": "https://poker.catstarry.xyz/",
+    "screenshot": "/assets/projects/underwoods-table-agent.png",
+    "tags": [
+      "Poker",
+      "PWA",
+      "独立部署"
+    ],
+    "date": "2026-07-24",
+    "visibility": "public"
+  },
+  {
+    "projectId": "catstarry-xyz",
+    "name": "catstarry.xyz",
+    "description": "以 Astro hybrid、React 与 Cloudflare 为基础的个人网站。",
+    "url": "https://github.com/muxia51821/catstarry.xyz",
+    "screenshot": "/assets/projects/catstarry-xyz.png",
+    "tags": [
+      "Astro",
+      "React",
+      "Cloudflare"
+    ],
+    "date": "2026-07-23",
+    "visibility": "public"
+  }
+]

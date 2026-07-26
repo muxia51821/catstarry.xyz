@@ -1,5 +1,6 @@
 ---
 import Base from '../../layouts/Base.astro';
+import { getCollection } from 'astro:content';
 import KnowledgeGraph from '../../components/learn/KnowledgeGraph.astro';
 import LearnSearch from '../../components/learn/LearnSearch.astro';
 import NoteCard from '../../components/learn/NoteCard.astro';
@@ -8,11 +9,10 @@ import {
   getActiveTracks,
   getPublishedNotes,
   getTrackNotes,
-  LEARN_NOTES,
 } from '../../components/learn/learn-data';
 import '../../components/learn/learn.css';
 
-const notes = getPublishedNotes(LEARN_NOTES);
+const notes = getPublishedNotes(await getCollection('learn'));
 const tracks = getActiveTracks(notes);
 const recentNotes = notes.slice(0, 10);
 ---

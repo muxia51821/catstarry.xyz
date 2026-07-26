@@ -1,0 +1,45 @@
+name: Sync production publication manifests
+
+on:
+  repository_dispatch:
+    types:
+      - catstarry-production-deployment-succeeded
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    if: >-
+      github.event.client_payload.environment == 'production' &&
+      github.event.client_payload.status == 'success' &&
+      github.event.client_payload.sha != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production
+    env:
+      DEPLOYMENT_ENVIRONMENT: production
+      DEPLOYMENT_STATUS: success
+      DEPLOYED_SHA: ${{ github.event.client_payload.sha }}
+      FEED_API_URL: ${{ vars.FEED_API_URL }}
+      FOOTPRINT_INGEST_TOKEN: ${{ secrets.FOOTPRINT_INGEST_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Verify deployed commit
+        shell: bash
+        run: |
+          [[ "$DEPLOYED_SHA" =~ ^[0-9a-f]{40}$ ]]
+          git cat-file -e "$DEPLOYED_SHA^{commit}"
+          git merge-base --is-ancestor "$DEPLOYED_SHA" origin/main
+          git checkout --detach "$DEPLOYED_SHA"
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run test:blog:publications
+      - run: npm run blog:sync-publications
+      - run: npm run learn:sync-publications
