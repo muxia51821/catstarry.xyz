@@ -1,19 +1,16 @@
-base commit: b8292d0
+base commit: a524b0d
 
 active module: none
 
 completed:
 
-- Home
-- Blog static core
-- Projects / Learn functional core
-- Astro 7.1.3 integration baseline
+- Phase 5 implementation
+- Phase 6 automated technical acceptance
+- RC1 merge to main
 
 deferred:
 
-- Blog view count
-- Blog publication footprint
-- Projects / Learn production content integration
-- Cross-module visual calibration
+- final manual acceptance
+- production release decision
 
-next action: prepare Phase 5 Feed read-only slice
+next action: staging deployment gate

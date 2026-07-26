@@ -96,13 +96,13 @@ DESIGN.md                           — Design 2.1 已锁定；Phase 4.3 已完�
 | 2 规格化   | fork 自 Phase 1        | ✅ 已完成          |
 | 3 架构设计 | fork 自 Phase 2        | ✅ 已完成          |
 | 4 UI/原型  | 独立（Phase 3 确认后） | ✅ 已闭合 |
-| 5 开发实现 | 三常驻角色 + 模块级并行 | 🟡 Phase 5.0A、5.0B、共享基础设施 F 与 Home 已完成；等待下一模块选择 |
-| 6 测试/QA  | fork 自 Phase 5        | ✅ 需要报告        |
-| 7 部署上线 | 流程治理协调           | ✅ 需要报告        |
+| 5 开发实现 | 三常驻角色 + 模块级并行 | ✅ RC1 已 merge 到 main |
+| 6 测试/QA  | fork 自 Phase 5        | 🟡 自动化技术验收已完成；final manual acceptance 待 staging 后执行 |
+| 7 部署上线 | 流程治理协调           | 🟡 下一 gate：staging deployment |
 | 8 运营维护 | 按需                   | 不需要报告         |
 
 ## 当前工作
 
-当前真实入口：Phase 5.0A、5.0B、共享基础设施 F 与 Home 模块已完成。Home 提交为 `8dc447e`，木下人工验收、`npm run build` 与 `npm run test:home` 均通过。Phase 5 采用三常驻角色：流程治理、Phase 5 主执行 / 集成线程、网页端桥梁。普通模块允许模块级并行，但模块内部保持单 Owner；临时 Codex Agent 只读取模块任务包和直接相关真源，完成并合并后结束 session。共享文件只能由主执行 / 集成线程修改。当前分工记录见 `.scratch/phase5/dispatch.md`。暂不自动启动下一模块，等待木下选择。
+当前真实入口：Phase 5 implementation 已完成，RC1 已 merge 到 main（`a524b0d`）。Phase 6 automated technical acceptance 已完成。下一 gate 是 staging deployment，然后执行 final manual acceptance。不要重新审查 Phase 5 实现；不要把自动化技术验收误写为最终人工验收已完成。当前分工记录见 `.scratch/phase5/dispatch.md`。
 
 先读取上述文件、`.scratch/phase5/dispatch.md` 与当前 Git 状态，再告诉木下真实状态和下一动作。不要假设，不要猜测。

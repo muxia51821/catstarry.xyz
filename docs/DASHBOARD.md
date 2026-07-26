@@ -1,6 +1,6 @@
 # catstarry.xyz 项目看板
 
-> 最后更新：2026-07-24
+> 最后更新：2026-07-26
 >
 > 一眼看全局。执行细节、定向回流规则见 `docs/workflow-orchestration.md`。
 
@@ -10,12 +10,12 @@
 
 | 路径 | 需求分析 | 实现 |
 | --- | --- | --- |
-| / Home | ✅ 定向回流需求已更新 | ✅ Phase 5 已完成，提交 `8dc447e` |
-| /blog | ✅ | 🟡 原型已上线（Phase 5 重做） |
-| /feed | ✅ 定向回流需求已更新 | 🔴 未开发 |
-| /learn | ✅ | 🔴 未开发 |
-| /projects | ✅ | 🔴 未开发 |
-| f.catstarry.xyz | ✅ | 🔴 未开发 |
+| / Home | ✅ 定向回流需求已更新 | ✅ RC1 已实现，待 staging / final manual acceptance |
+| /blog | ✅ | ✅ RC1 已实现，待 staging / final manual acceptance |
+| /feed | ✅ 定向回流需求已更新 | ✅ RC1 已实现，待 staging / final manual acceptance |
+| /learn | ✅ | ✅ RC1 已实现，待 staging / final manual acceptance |
+| /projects | ✅ | ✅ RC1 已实现，待 staging / final manual acceptance |
+| f.catstarry.xyz | ✅ | ✅ RC1 已实现，待 staging / final manual acceptance |
 | poker.catstarry.xyz | N/A | ✅ |
 
 ---
@@ -29,9 +29,9 @@
 | 2 | 规格化 | ✅ |
 | 3 | 架构设计 | ✅ |
 | 4 | UI/原型 | ✅ 已闭合；Phase 4.3 设计侧完成，canonical CSS、五颗星球三槽资产与 UI QA 已闭合 |
-| 5 | 开发实现 | 🟡 Phase 5.0A、5.0B、共享基础设施 F 与 Home 已完成；等待下一模块选择 |
-| 6 | 测试/QA | 🔴 |
-| 7 | 部署上线 | 🔴 |
+| 5 | 开发实现 | ✅ RC1 已 merge 到 main，提交 `a524b0d` |
+| 6 | 测试/QA | 🟡 自动化技术验收已完成；final manual acceptance 等待 staging 后执行 |
+| 7 | 部署上线 | 🟡 下一 gate：staging deployment |
 | 8 | 运营维护 | 🔴 |
 
 ---
@@ -45,7 +45,7 @@
 | 定向 Phase 2 | ✅ | Home / Feed PRD、HF-01～HF-05、triage、验收清单已完成 |
 | 定向 Phase 3 | ✅ | ADR-005 锁定 Public Footprint 分存；ADR-006 退役 `/api/home` 与 blog-metadata KV bridge |
 | Design 2.0 返回 Phase 4.1 | ✅ | `DESIGN.md` v2.0 与 canonical CSS 已对齐；旧 Home / About Card / Timeline 语义已退役 |
-| Astro 7 依赖基线迁移 | ✅ | Astro 7.0.9、@astrojs/react 6.0.1、React 19.2.7、Vite 8.1.4 已确认；build 通过；`.astro/` 已停止追踪 |
+| Astro 7 依赖基线迁移 | ✅ | 当前锁定基线为 Astro 7.1.3、@astrojs/react 6.0.1、@astrojs/cloudflare 14.1.4、React 19.2.7、Wrangler 4.113.0；RC1 build / automated technical acceptance 已通过 |
 | Home Activity Signal 定向 Phase 2 | ✅ | PRD、HAS-01～HAS-03、triage 已完成；三态为 active / stable / dormant，阈值为 7 / 60 天 |
 | Home Activity Signal 定向 Phase 3 | ✅ | ADR-007 锁定受控静态投影；不恢复 `/api/home`、Home 聚合或 Public Timeline 给 Home 的读取关系 |
 | HAS 返回 Phase 4.1 | ✅ | 三态信号卫星视觉和 token 接口已在 `DESIGN.md` 与 canonical CSS 中重锁；不得重新裁决 HAS 产品/架构 |
@@ -59,9 +59,9 @@
 
 Astro hybrid + React + shadcn/ui + CF Workers + D1 + KV + R2。
 
-当前本地基线为 Astro 7.0.9 + `@astrojs/react` 6.0.1 + React 19.2.7 + Vite 8.1.4。依赖基线迁移已完成并经流程治理确认。
+当前本地基线为 Astro 7.1.3 + `@astrojs/react` 6.0.1 + `@astrojs/cloudflare` 14.1.4 + React 19.2.7 + Wrangler 4.113.0。依赖基线迁移与 RC1 集成已完成并经流程治理确认。
 
-Phase 5.0A 复核结论：前端依赖维持现状，不启动独立依赖修复任务；Phase 5.0B 无阻塞。当前公开版本虽有 Astro 7.1.3、Vite 8.1.5 等同主线更新，但没有发现构建失败、兼容破坏或锁定架构无法满足的证据。Cloudflare adapter 未安装是正确状态，只有真正启用按需渲染时才应安装。
+Phase 5.0A 复核结论已被 RC1 集成基线 supersede：当前以 `package.json` 锁定版本为准，不在 staging gate 中静默升级依赖。
 
 ---
 
@@ -69,10 +69,12 @@ Phase 5.0A 复核结论：前端依赖维持现状，不启动独立依赖修复
 
 | 环节 | 状态 | 说明 |
 | --- | --- | --- |
-| Phase 5.0A 依赖基线复核 | ✅ | 维持 Astro 7.0.9、@astrojs/react 6.0.1、React 19.2.7、Vite 8.1.4、Node 24.15.0；不启动独立依赖修复任务 |
+| Phase 5.0A 依赖基线复核 | ✅ | RC1 当前基线：Astro 7.1.3、@astrojs/react 6.0.1、@astrojs/cloudflare 14.1.4、React 19.2.7、Wrangler 4.113.0；staging gate 不静默升级 |
 | Phase 5.0B 前端规则固化 | ✅ | `docs/agents/frontend-rules.md` 已创建；Phase 5 前端线程必须引用，不得重新裁决 Phase 4 设计事实 |
 | 共享基础设施 F | ✅ | 提交 `2ab3d83`、`51cd489`；独立 Code Review 已完成，P0/P1 已修复并增量复审通过 |
 | Home 模块 | ✅ | 提交 `8dc447e`；木下人工验收、`npm run build`、`npm run test:home` 均通过 |
+| RC1 实现 | ✅ | `a524b0d` 已 merge 到 main；Phase 5 implementation complete |
+| Phase 6 自动化技术验收 | ✅ | 已完成；不等同于 staging 后 final manual acceptance |
 | 协作方式 | 🟡 | 三常驻角色：流程治理、Phase 5 主执行 / 集成线程、网页端桥梁；普通模块允许模块级并行，但模块内部单 Owner |
 | 当前分工记录 | 🟡 | `.scratch/phase5/dispatch.md`；只记录 base commit、active module、owner、allowed files、blocked by、next action |
 
@@ -97,7 +99,6 @@ Phase 5.0A 复核结论：前端依赖维持现状，不启动独立依赖修复
 
 ## 当前待办
 
-1. 等待木下选择下一个 Phase 5 模块；暂不自动启动 Blog、Learn / Projects、Feed 或 Finance。
-2. 维护 `.scratch/phase5/dispatch.md`，由主执行 / 集成线程记录当前活跃模块、Owner、允许修改路径与阻塞项。
-3. 启动或关闭普通模块时回到流程治理登记；普通修复不需要重复登记。
-4. blog 原型在 Phase 5 按已锁定需求重做；当前 Astro 7 迁移只保证旧原型能构建，不为其保留 Design 1.x 兼容层。
+1. 启动 staging deployment gate。
+2. staging 部署完成后执行 final manual acceptance。
+3. final manual acceptance 通过后，回到流程治理关闭 Phase 6 / Phase 7 对应状态。

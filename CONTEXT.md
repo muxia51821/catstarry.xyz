@@ -137,17 +137,17 @@ catstarry.xyz/
 
 ---
 
-## 开发状态 [快照 | Home 已完成，等待下一模块选择]
+## 开发状态 [快照 | RC1 已 merge，等待 staging deployment]
 
-> 全局 Phase 3、Home / Feed 定向 Phase 2/3、Astro 7 定向依赖基线、Home Activity Signal 定向 Phase 2/3 与 HAS 返回 Phase 4.1 均已完成。Phase 4 已正式闭合。Phase 5.0A 复核、Phase 5.0B 前端规则、共享基础设施 F 与 Home 模块均已完成。Home 提交为 `8dc447e`，木下人工验收、`npm run build` 与 `npm run test:home` 均通过。Phase 5 继续采用三常驻角色 + 模块级并行协作方式；普通模块内部保持单 Owner。当前不自动启动下一模块，等待木下选择。
+> 全局 Phase 3、Home / Feed 定向 Phase 2/3、Astro 7 定向依赖基线、Home Activity Signal 定向 Phase 2/3 与 HAS 返回 Phase 4.1 均已完成。Phase 4 已正式闭合。Phase 5 implementation 已完成，RC1 已 merge 到 main（`a524b0d`）。Phase 6 automated technical acceptance 已完成。下一 gate 是 staging deployment 与 final manual acceptance；不得把自动化验收误写为最终人工验收已完成。
 
-- /blog：🟡 原型已上线，Phase 5 重做
-- /：✅ 星图入口需求、SSG 无聚合架构与 Design 2.1 视觉边界已锁定；✅ Phase 5 已完成，提交 `8dc447e`
-- /feed：✅ 公开足迹需求、分存事件架构与 Design 2.1 视觉边界已锁定；🔴 未开发
-- /learn、/projects、f.catstarry.xyz：✅ 需求已锁定 + 架构已锁定，🔴 未开发
+- /blog：✅ RC1 已实现，待 staging / final manual acceptance
+- /：✅ 星图入口需求、SSG 无聚合架构与 Design 2.1 视觉边界已锁定；✅ RC1 已实现，待 staging / final manual acceptance
+- /feed：✅ 公开足迹需求、分存事件架构与 Design 2.1 视觉边界已锁定；✅ RC1 已实现，待 staging / final manual acceptance
+- /learn、/projects、f.catstarry.xyz：✅ 需求已锁定 + 架构已锁定；✅ RC1 已实现，待 staging / final manual acceptance
 - poker.catstarry.xyz：✅ 已上线（独立部署）
 - 设计系统 CSS：✅ `variables.css` / `components.css` / `typography.css` / `main.css` 已完成 Phase 4.3 canonical 对齐；Star Map、Planet、Focus、HAS、豹猫星座、About Expanded 与 Cursor Meteor 的样式接口已建立；运行时状态机、生产路由和真实数据链路仍属 Phase 5。
-- 依赖基线：✅ Phase 5.0A 复核完成。Astro 7.0.9 + `@astrojs/react` 6.0.1 + React 19.2.7 + Vite 8.1.4 + Node 24.15.0 维持现状；Content Layer、Markdown、React islands 与现有 build 已验证；`.astro/` 已停止追踪。Cloudflare adapter 未安装是当前静态前端的正确状态，不应提前安装。
+- 依赖基线：✅ RC1 当前基线为 Astro 7.1.3 + `@astrojs/react` 6.0.1 + `@astrojs/cloudflare` 14.1.4 + React 19.2.7 + Wrangler 4.113.0；staging gate 不静默升级依赖。
 - 前端施工规则：✅ Phase 5.0B 完成，`docs/agents/frontend-rules.md` 已创建；Phase 5 前端开发线程必须引用。
 - Home Activity Signal：✅ 定向 Phase 2/3、返回 Phase 4.1 视觉重锁、Phase 4.2 mock 原型验收与 Phase 4.3 canonical 视觉接口落地均已完成；ADR-007 锁定受控静态投影，真实投影接入仍不得在 Phase 5 之前越权实现。
 - 共享基础设施 F：✅ 提交 `2ab3d83`、`51cd489` 已完成；独立 Code Review 已完成，P0/P1 已修复并增量复审通过。不得据此宣布任何业务模块已实现。
@@ -155,3 +155,4 @@ catstarry.xyz/
 - Phase 5 协作：✅ 流程减重已生效。保留三个常驻角色：流程治理、Phase 5 主执行 / 集成线程、网页端桥梁。普通模块可并行启动，但每个模块内部必须单 Owner；临时 Codex Agent 只读取模块任务包和直接相关真源，完成并合并后结束 session。
 - 共享文件 Owner：package 与全局配置、Base layout、shared contracts、migrations、auth / CORS、CI/CD 与生产部署只能由 Phase 5 主执行 / 集成线程修改。
 - 流程治理介入点：模块启动、模块关闭、跨模块冲突、定向回流、依赖 / 架构 Gate 与 Phase 切换。普通修复不重复登记。
+- RC1 状态：✅ Phase 5 implementation complete；✅ Phase 6 automated technical acceptance complete；🟡 next gate is staging deployment and final manual acceptance.
