@@ -1,6 +1,6 @@
 import type { FeedPostInput, PublicFootprintCandidate, Visibility } from '../../../../shared/types';
 import { FeedStore, decodeCursor } from '../adapters/feed-store';
-import { apiError, json, parseBoundedLimit } from '../lib/http';
+import { apiError, json, parseBoundedLimit, readJson } from '../lib/http';
 import { recordPublicFootprint, parseFootprintCandidate } from '../modules/footprints';
 import { refreshActivitySignals } from '../modules/activity-signals';
 import { requireMainSession } from './auth';
@@ -63,6 +63,10 @@ async function listAdmin(request: Request, env: FeedEnv, store: FeedStore): Prom
   if (visibility !== null && visibility !== 'public' && visibility !== 'private') {
     return apiError(400, 'invalid_visibility', 'visibility must be public or private');
   }
+  const type = url.searchParams.get('type');
+  if (type !== null && !['note', 'clip', 'system_footprint', 'blog', 'learn', 'projects'].includes(type)) {
+    return apiError(400, 'invalid_type', 'type is not a supported admin filter');
+  }
   const rawCursor = url.searchParams.get('cursor');
   const cursor = rawCursor ? decodeCursor(rawCursor) ?? undefined : undefined;
   if (rawCursor && !cursor) return apiError(400, 'invalid_cursor', 'cursor is invalid');
@@ -73,7 +77,7 @@ async function listAdmin(request: Request, env: FeedEnv, store: FeedStore): Prom
   }
   return json(await store.listAdmin({
     visibility: visibility ?? undefined,
-    type: url.searchParams.get('type') ?? undefined,
+    type: type ?? undefined,
     from: from ?? undefined,
     to: to ?? undefined,
     cursor,
@@ -89,12 +93,8 @@ async function createPost(
 ): Promise<Response> {
   const session = await requireMainSession(request, env);
   if (session instanceof Response) return session;
-  let input: FeedPostInput;
-  try {
-    input = (await request.json()) as FeedPostInput;
-  } catch {
-    return apiError(400, 'invalid_request', 'Request body must be valid JSON');
-  }
+  const input = await readJson<FeedPostInput>(request, 64 * 1_024);
+  if (input instanceof Response) return input;
   const normalizedInput = normalizePost(input);
   const problem = await validatePost(normalizedInput, env);
   if (problem) return apiError(400, 'invalid_post', problem);
@@ -135,12 +135,8 @@ async function mutatePost(
     return new Response(null, { status: 204 });
   }
   if (request.method !== 'PATCH') return apiError(405, 'method_not_allowed', 'Method is not allowed');
-  let body: { kind?: string; visibility?: Visibility };
-  try {
-    body = await request.json() as { kind?: string; visibility?: Visibility };
-  } catch {
-    return apiError(400, 'invalid_request', 'Request body must be valid JSON');
-  }
+  const body = await readJson<{ kind?: string; visibility?: Visibility }>(request, 4_096);
+  if (body instanceof Response) return body;
   if ((body.visibility !== 'public' && body.visibility !== 'private') || !body.kind) {
     return apiError(400, 'invalid_request', 'kind and visibility are required');
   }
@@ -159,12 +155,8 @@ async function previewClip(request: Request, env: FeedEnv): Promise<Response> {
   if (session instanceof Response) return session;
   const previewRate = await limitPreview(env, session.username ?? 'unknown');
   if (!previewRate) return apiError(429, 'rate_limited', 'Too many preview requests; try again later');
-  let input: { link_url?: string };
-  try {
-    input = await request.json() as { link_url?: string };
-  } catch {
-    return apiError(400, 'invalid_request', 'Request body must be valid JSON');
-  }
+  const input = await readJson<{ link_url?: string }>(request, 4_096);
+  if (input instanceof Response) return input;
   const url = safeExternalUrl(input.link_url);
   if (!url) return apiError(400, 'invalid_url', 'link_url must be a public http(s) URL');
   const allowedHosts = new Set((env.CLIP_PREVIEW_ALLOWED_HOSTS ?? '').split(',').map((host) => host.trim().toLowerCase()).filter(Boolean));
@@ -206,12 +198,8 @@ async function ingestFootprint(request: Request, env: FeedEnv, ctx: ExecutionCon
   if (!secret || authorization !== `Bearer ${secret}`) {
     return apiError(secret ? 401 : 503, secret ? 'unauthorized' : 'not_configured', 'Footprint ingestion is not available');
   }
-  let value: unknown;
-  try {
-    value = await request.json();
-  } catch {
-    return apiError(400, 'invalid_request', 'Request body must be valid JSON');
-  }
+  const value = await readJson<Record<string, unknown>>(request, 40 * 1_024);
+  if (value instanceof Response) return value;
   const candidate = parseFootprintCandidate(value);
   if (!candidate) return apiError(400, 'invalid_footprint', 'Footprint candidate is invalid');
   const result = await recordPublicFootprint(env.DB, candidate);
@@ -221,7 +209,12 @@ async function ingestFootprint(request: Request, env: FeedEnv, ctx: ExecutionCon
 
 async function handleMedia(request: Request, env: FeedEnv, pathname: string): Promise<Response> {
   const rawKey = pathname.slice('/api/feed/media/'.length);
-  const key = decodeURIComponent(rawKey);
+  let key: string;
+  try {
+    key = decodeURIComponent(rawKey);
+  } catch {
+    return apiError(404, 'not_found', 'Media object not found');
+  }
   if (!MEDIA_KEY_PATTERN.test(key)) return apiError(404, 'not_found', 'Media object not found');
   if (request.method === 'GET') {
     const object = await env.MEDIA_BUCKET.get(key);
@@ -337,6 +330,7 @@ function safeExternalUrl(value: unknown): URL | null {
     const url = new URL(value);
     const host = url.hostname.toLowerCase();
     if (url.protocol !== 'https:' && url.protocol !== 'http:') return null;
+    if (url.username || url.password) return null;
     if (isPrivateHost(host)) return null;
     return url;
   } catch {
@@ -345,8 +339,11 @@ function safeExternalUrl(value: unknown): URL | null {
 }
 
 function isPrivateHost(host: string): boolean {
-  if (host === 'localhost' || host.endsWith('.localhost') || host === '::1' || host === '0.0.0.0') return true;
-  const octets = host.split('.').map((part) => Number(part));
+  const normalized = host.replace(/^\[|\]$/g, '');
+  if (normalized === 'localhost' || normalized.endsWith('.localhost') || normalized === '::' || normalized === '::1' || normalized === '0.0.0.0') return true;
+  if (/^(?:fc|fd)[0-9a-f]{2}:/i.test(normalized) || /^fe[89ab][0-9a-f]:/i.test(normalized) || normalized.startsWith('::ffff:')) return true;
+  const mappedIpv4 = normalized.match(/^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/i)?.[1];
+  const octets = (mappedIpv4 ?? normalized).split('.').map((part) => Number(part));
   if (octets.length !== 4 || octets.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) return false;
   const [first, second] = octets;
   return first === 10

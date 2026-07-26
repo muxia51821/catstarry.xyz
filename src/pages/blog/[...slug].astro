@@ -1,6 +1,7 @@
 ---
 import { getCollection, render } from 'astro:content';
 import ArticleFooter from '../../components/ArticleFooter';
+import ViewCounter from '../../components/ViewCounter';
 import BlogArchive from '../../components/blog/BlogArchive.astro';
 import Base from '../../layouts/Base.astro';
 import '../../styles/blog.css';
@@ -34,13 +35,8 @@ const canonicalUrl = post ? new URL(getPostUrl(post), Astro.site).href : '';
 
 {isDetail && post && rendered ? (
   <Base title={post.data.title} description={post.data.description}>
-    <meta slot="head" property="og:title" content={post.data.title} />
-    <meta slot="head" property="og:description" content={post.data.description} />
     <meta slot="head" property="og:type" content="article" />
-    <meta slot="head" property="og:url" content={canonicalUrl} />
-    <meta slot="head" property="og:site_name" content="catstarry.xyz" />
     <meta slot="head" name="twitter:card" content="summary" />
-    <link slot="head" rel="canonical" href={canonicalUrl} />
     <link slot="head" rel="alternate" type="application/rss+xml" title="catstarry.xyz · 博客 RSS" href="/blog/rss.xml" />
     <main class="blog-page" data-canvas="content">
       <article class="blog-article">
@@ -52,12 +48,15 @@ const canonicalUrl = post ? new URL(getPostUrl(post), Astro.site).href : '';
             <time datetime={post.data.date.toISOString().slice(0, 10)}>{formatBlogDate(post.data.date)}</time>
             <span aria-hidden="true">·</span>
             <a href={`/blog/category/${post.data.category}/`}>{getCategoryLabel(post.data.category)}</a>
+            {post.data.tags.map((tag) => (
+              <>
+                <span aria-hidden="true">·</span>
+                <a href={`/blog/tag/${encodeURIComponent(tag)}/`}>#{tag}</a>
+              </>
+            ))}
+            <span aria-hidden="true">·</span>
+            <ViewCounter slug={getPostSlug(post)} client:load />
           </div>
-          {post.data.tags.length > 0 && (
-            <ul class="blog-tag-list blog-article__tags" aria-label="文章标签">
-              {post.data.tags.map((tag) => <li><a href={`/blog/tag/${encodeURIComponent(tag)}/`}>#{tag}</a></li>)}
-            </ul>
-          )}
         </header>
         <div class="blog-prose"><rendered.Content /></div>
         <footer class="blog-article__footer">

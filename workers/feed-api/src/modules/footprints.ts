@@ -42,6 +42,8 @@ export function parseFootprintCandidate(value: unknown): PublicFootprintCandidat
     if (snapshot.summary !== undefined && (typeof snapshot.summary !== 'string' || snapshot.summary.length > 2_000)) return null;
     if (typeof snapshot.link !== 'string' || !isInternalSnapshotLink(snapshot.link)) return null;
     if (!isValidIsoTimestamp(candidate.occurred_at)) return null;
+    const occurredAt = new Date(candidate.occurred_at);
+    if (occurredAt.getTime() > Date.now() + 5 * 60 * 1_000) return null;
     return {
       source_module: candidate.source_module as PublicFootprintCandidate['source_module'],
       source_ref: candidate.source_ref.trim(),
@@ -52,7 +54,7 @@ export function parseFootprintCandidate(value: unknown): PublicFootprintCandidat
         ...(snapshot.summary !== undefined ? { summary: snapshot.summary.trim() } : {}),
         link: snapshot.link,
       }),
-      occurred_at: new Date(candidate.occurred_at).toISOString(),
+      occurred_at: occurredAt.toISOString(),
       idempotency_key: candidate.idempotency_key.trim(),
     };
   } catch {

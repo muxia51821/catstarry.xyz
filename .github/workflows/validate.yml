@@ -12,21 +12,25 @@ permissions:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     env:
       ASTRO_TELEMETRY_DISABLED: "1"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version-file: .node-version
           cache: npm
       - run: npm ci
-      - run: npm run build
+      - run: npm run test:contracts
       - run: npm run worker:config
       - run: npm run worker:types:check
       - run: npm run worker:typecheck
-      - run: npm run test:feed:password
+      - run: npm run site:typecheck
+      - run: npm run build
+      - run: npm run test:site-output
+      - run: npm run test:browser:ci
       - run: npm run test:feed:worker
+      - run: npm run worker:migrate:local:repeat
       - run: npm run worker:dry-run
-      - run: npm run worker:migrate:local
+      - run: git diff --check

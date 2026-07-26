@@ -1,0 +1,48 @@
+---
+import Base from '../layouts/Base.astro';
+---
+
+<Base
+  title="页面不存在"
+  description="这个坐标没有对应的页面。返回 Home 或继续浏览公开内容。"
+  canonicalPath="/404/"
+>
+  <main class="not-found" data-canvas="content">
+    <p class="not-found__eyebrow">404 · LOST COORDINATE</p>
+    <h1>这里没有找到页面</h1>
+    <p>链接可能已经变化，也可能从未存在。你可以回到星图，或直接进入一个公开区域。</p>
+    <nav aria-label="404 页面去向">
+      <a class="btn-primary" href="/">返回 Home</a>
+      <a class="btn-secondary" href="/blog/">浏览 Blog</a>
+      <a class="btn-secondary" href="/learn/">进入 Learn</a>
+    </nav>
+  </main>
+</Base>
+
+<style>
+  .not-found {
+    display: grid;
+    min-block-size: 100svh;
+    place-content: center;
+    width: min(100% - 2 * max(var(--space-lg), 6vw), 720px);
+    margin-inline: auto;
+    text-align: center;
+  }
+
+  .not-found__eyebrow {
+    color: var(--content-text-secondary);
+    letter-spacing: 0.14em;
+  }
+
+  .not-found h1 {
+    margin-block: var(--space-sm) var(--space-md);
+  }
+
+  .not-found nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+    justify-content: center;
+    margin-block-start: var(--space-xl);
+  }
+</style>

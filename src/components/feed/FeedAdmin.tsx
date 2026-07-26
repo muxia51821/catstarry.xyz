@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react';
 import type { PaginatedResponse, TimelineEntry } from '../../../shared/types';
+import { summarizeBatchResults } from '../../lib/batch-results';
 
 interface Props {
   apiBase: string;
   initial: PaginatedResponse<TimelineEntry>;
+  initialError?: string;
 }
 
 function label(entry: TimelineEntry): string {
@@ -23,10 +25,10 @@ function summary(entry: TimelineEntry): string {
   }
 }
 
-export default function FeedAdmin({ apiBase, initial }: Props) {
+export default function FeedAdmin({ apiBase, initial, initialError = '' }: Props) {
   const [page, setPage] = useState(initial);
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [error, setError] = useState('');
+  const [error, setError] = useState(initialError);
   const [loadingMore, setLoadingMore] = useState(false);
   const [visibility, setVisibility] = useState('');
   const [type, setType] = useState('');
@@ -84,8 +86,8 @@ export default function FeedAdmin({ apiBase, initial }: Props) {
         if (!response.ok) throw new Error('更新失败');
       }));
       await reload();
-      const failed = results.filter((result) => result.status === 'rejected').length;
-      if (failed) setError(`部分操作失败：成功 ${results.length - failed} 项，失败 ${failed} 项`);
+      const summary = summarizeBatchResults(results);
+      if (summary) setError(summary);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : '更新失败');
     }
@@ -112,8 +114,8 @@ export default function FeedAdmin({ apiBase, initial }: Props) {
         if (!response.ok) throw new Error('删除失败');
       }));
       await reload();
-      const failed = results.filter((result) => result.status === 'rejected').length;
-      if (failed) setError(`部分操作失败：成功 ${results.length - failed} 项，失败 ${failed} 项`);
+      const summary = summarizeBatchResults(results);
+      if (summary) setError(summary);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : '批量删除失败');
     }

@@ -1,10 +1,11 @@
 ﻿import type { APIRoute } from 'astro';
 import { getCollection } from 'astro:content';
-import { getPostSlug } from '../../lib/blog';
+import { getPostSlug, type BlogPost } from '../../lib/blog';
+import { noteFromEntry, type LearnEntry } from '../../components/learn/learn-data';
 
 const SITE_URL = 'https://catstarry.xyz';
-const BLOG_TITLE = 'catstarry.xyz · 博客';
-const BLOG_DESC = '木下的个人博客，写技术、生活和观点。';
+const BLOG_TITLE = 'catstarry.xyz · Blog + Learn';
+const BLOG_DESC = '木下的博客文章与公开学习笔记。';
 
 function escapeXml(s: string): string {
   return s
@@ -44,23 +45,36 @@ function truncateMd(text: string, maxLen: number): string {
 }
 
 export const GET: APIRoute = async () => {
-  const posts = await getCollection('blog', ({ data }) => !data.draft);
-  posts.sort((a, b) => b.data.date.getTime() - a.data.date.getTime());
+  const posts: BlogPost[] = await getCollection('blog', ({ data }: BlogPost) => !data.draft);
+  const learnEntries: LearnEntry[] = await getCollection('learn', ({ data }: LearnEntry) => !data.draft);
+  const entries = [
+    ...posts.map((post) => ({
+      title: post.data.title,
+      description: post.data.description || truncateMd(post.body ?? '', 200),
+      date: post.data.date,
+      url: `${SITE_URL}/blog/${getPostSlug(post)}/`,
+    })),
+    ...learnEntries.map((entry) => {
+      const note = noteFromEntry(entry);
+      return {
+        title: note.title,
+        description: note.excerpt,
+        date: new Date(note.publishDate),
+        url: `${SITE_URL}/learn/notes/${note.slug}/`,
+      };
+    }),
+  ].sort((a, b) => b.date.getTime() - a.date.getTime());
 
-  const lastBuildDate = posts.length > 0 ? toRFC822(posts[0].data.date) : toRFC822(new Date());
+  const lastBuildDate = entries.length > 0 ? toRFC822(entries[0].date) : toRFC822(new Date());
 
-  const items = posts.map((post) => {
-    const slug = getPostSlug(post);
-    const url = SITE_URL + '/blog/' + slug + '/';
-    const description = post.data.description || truncateMd(post.body ?? '', 200);
-
+  const items = entries.map((entry) => {
     return ''
       + '    <item>\n'
-      + '      <title>' + escapeXml(post.data.title) + '</title>\n'
-      + '      <link>' + escapeXml(url) + '</link>\n'
-      + '      <description>' + escapeXml(description) + '</description>\n'
-      + '      <pubDate>' + toRFC822(post.data.date) + '</pubDate>\n'
-      + '      <guid isPermaLink="true">' + escapeXml(url) + '</guid>\n'
+      + '      <title>' + escapeXml(entry.title) + '</title>\n'
+      + '      <link>' + escapeXml(entry.url) + '</link>\n'
+      + '      <description>' + escapeXml(entry.description) + '</description>\n'
+      + '      <pubDate>' + toRFC822(entry.date) + '</pubDate>\n'
+      + '      <guid isPermaLink="true">' + escapeXml(entry.url) + '</guid>\n'
       + '    </item>';
   }).join('');
 

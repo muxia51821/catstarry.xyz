@@ -1,0 +1,10 @@
+{
+  "projectId": "stable-ascii-project-id",
+  "name": "Project name",
+  "description": "一句话说明项目解决的问题。",
+  "url": "https://example.com/",
+  "screenshot": "/assets/projects/stable-ascii-project-id.webp",
+  "tags": ["Astro", "Cloudflare"],
+  "date": "2026-07-25",
+  "visibility": "draft"
+}

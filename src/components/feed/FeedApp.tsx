@@ -14,7 +14,7 @@ function formatDate(value: string): string {
 }
 
 function footprintCopy(entry: TimelineEntry): { label: string; title: string; summary: string | null; link: string | null } {
-  const data = entry.payload as Record<string, unknown>;
+  const data = entry.payload as unknown as Record<string, unknown>;
   let snapshot: Record<string, unknown> = {};
   try { snapshot = JSON.parse(String(data.snapshot_json ?? '{}')) as Record<string, unknown>; } catch { /* immutable snapshot may be legacy */ }
   const labels: Record<string, string> = {
@@ -118,7 +118,13 @@ function FeedAuthAndPublish(props: {
         <button className="feed-admin-link" type="button" onClick={() => void fetch(`${apiBase}/api/auth/logout`, { method: 'POST', credentials: 'include' }).then(() => { setSession({ authenticated: false, username: null }); setShowPublish(false); })}>退出</button>
         <a className="feed-admin-link" href="/feed/admin">管理</a>
         <button className="feed-fab" type="button" onClick={() => setShowPublish(true)} aria-label="发布 Feed">+</button>
-      </> : <button className="feed-fab feed-fab--login" type="button" onClick={() => setShowLogin(true)}>登录</button>}
+      </> : <button
+        className="feed-fab feed-fab--login"
+        type="button"
+        disabled={!checked}
+        data-session-ready={checked ? 'true' : 'false'}
+        onClick={() => setShowLogin(true)}
+      >登录</button>}
     </div>
     {showLogin && <LoginDialog apiBase={apiBase} onClose={() => setShowLogin(false)} onLoggedIn={(next) => { setSession(next); setShowLogin(false); setShowPublish(true); }} />}
     {showPublish && <PublishDialog apiBase={apiBase} onClose={() => setShowPublish(false)} onCreated={(entry) => { onCreated(entry); setShowPublish(false); setMessage('已发布'); }} />}
@@ -135,6 +141,21 @@ function useModalDialog(onClose: () => void) {
     document.body.style.overflow = 'hidden';
 
     const panel = panelRef.current;
+    const dialog = panel?.closest<HTMLElement>('.feed-dialog');
+    const background = dialog?.parentElement
+      ? Array.from(dialog.parentElement.children).filter((element): element is HTMLElement => (
+        element instanceof HTMLElement && element !== dialog
+      ))
+      : [];
+    const backgroundState = background.map((element) => ({
+      element,
+      inert: element.inert,
+      ariaHidden: element.getAttribute('aria-hidden'),
+    }));
+    for (const element of background) {
+      element.inert = true;
+      element.setAttribute('aria-hidden', 'true');
+    }
     const focusables = () => Array.from(
       panel?.querySelectorAll<HTMLElement>(
         'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), a[href]'
@@ -171,6 +192,11 @@ function useModalDialog(onClose: () => void) {
     return () => {
       document.removeEventListener('keydown', onKeyDown);
       document.body.style.overflow = previousOverflow;
+      for (const state of backgroundState) {
+        state.element.inert = state.inert;
+        if (state.ariaHidden === null) state.element.removeAttribute('aria-hidden');
+        else state.element.setAttribute('aria-hidden', state.ariaHidden);
+      }
       previous?.focus();
     };
   }, [onClose]);

@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFile, spawn } from 'node:child_process';
+import { createServer } from 'node:net';
 import { mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -11,10 +12,12 @@ const cwd = process.cwd();
 const wrangler = path.join(cwd, 'node_modules', 'wrangler', 'bin', 'wrangler.js');
 const config = path.join(cwd, 'workers', 'feed-api', 'wrangler.jsonc');
 const persist = await mkdtemp(path.join(os.tmpdir(), 'catstarry-feed-contract-'));
-const port = 8791;
+const port = await availablePort();
 const base = `http://127.0.0.1:${port}`;
 const childEnv = { ...process.env, XDG_CONFIG_HOME: path.join(persist, 'xdg') };
 const validPng = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
+const password = `contract-${crypto.randomUUID()}`;
+const footprintToken = `footprint-${crypto.randomUUID()}`;
 
 async function command(...args) { await run(process.execPath, [wrangler, ...args], { cwd, windowsHide: true, env: childEnv }); }
 async function waitForWorker() {
@@ -32,6 +35,9 @@ async function waitForWorker() {
 }
 async function request(pathname, init = {}) {
   return fetch(`${base}${pathname}`, { ...init, headers: { Origin: 'https://catstarry.xyz', ...(init.headers ?? {}) } });
+}
+async function rawRequest(pathname, init = {}) {
+  return fetch(`${base}${pathname}`, init);
 }
 async function upload(cookie, bytes, name = 'pixel.png', type = 'image/png') {
   const form = new FormData();
@@ -55,11 +61,12 @@ let server;
 let serverOutput = '';
 try {
   await command('d1', 'migrations', 'apply', 'catstarry-db', '--local', '--persist-to', persist, '--config', config);
-  const passwordHash = await hash('contract-password', 10);
+  await command('d1', 'migrations', 'apply', 'catstarry-db', '--local', '--persist-to', persist, '--config', config);
+  const passwordHash = await hash(password, 10);
   const boundaryHash = await hash('密'.repeat(24), 10);
   await command('kv', 'key', 'put', '--local', '--persist-to', persist, '--binding', 'AUTH_KV', 'user:contract', JSON.stringify({ password_hash: passwordHash, role: 'admin' }), '--config', config);
   await command('kv', 'key', 'put', '--local', '--persist-to', persist, '--binding', 'AUTH_KV', 'user:boundary', JSON.stringify({ password_hash: boundaryHash, role: 'admin' }), '--config', config);
-  server = spawn(process.execPath, [wrangler, 'dev', '--local', '--persist-to', persist, '--config', config, '--port', String(port), '--var', 'FOOTPRINT_INGEST_TOKEN:contract-secret', '--var', 'CLIP_PREVIEW_ALLOWED_HOSTS:developer.mozilla.org'], { cwd, windowsHide: true, stdio: 'pipe', env: childEnv });
+  server = spawn(process.execPath, [wrangler, 'dev', '--local', '--persist-to', persist, '--config', config, '--port', String(port), '--var', `FOOTPRINT_INGEST_TOKEN:${footprintToken}`, '--var', 'CLIP_PREVIEW_ALLOWED_HOSTS:developer.mozilla.org'], { cwd, windowsHide: true, stdio: 'pipe', env: childEnv });
   server.stdout?.on('data', (chunk) => { serverOutput += chunk.toString(); });
   server.stderr?.on('data', (chunk) => { serverOutput += chunk.toString(); });
   try { await waitForWorker(); } catch (error) { throw new Error(`${error instanceof Error ? error.message : 'Feed Worker did not start'}\n${serverOutput}`); }
@@ -69,7 +76,7 @@ try {
   assert.equal(boundary.status, 200, '72-byte login must pass the password length gate');
   assert.equal((await login('boundary', '密'.repeat(25))).status, 400, 'overlong login must be rejected before bcrypt');
 
-  const loginResponse = await login('contract', 'contract-password');
+  const loginResponse = await login('contract', password);
   assert.equal(loginResponse.status, 200);
   assert.match(loginResponse.headers.get('set-cookie') ?? '', /HttpOnly; Secure; SameSite=Lax/);
   const cookie = (loginResponse.headers.get('set-cookie') ?? '').split(';')[0];
@@ -92,14 +99,14 @@ try {
   assert.equal(retry.status, 200);
   assert.equal((await retry.json()).post.id, first.post.id);
 
-  const footprint = await request('/api/feed/internal/footprints', { method: 'POST', headers: { Authorization: 'Bearer contract-secret', 'Content-Type': 'application/json' }, body: JSON.stringify(footprintBody()) });
+  const footprint = await rawRequest('/api/feed/internal/footprints', { method: 'POST', headers: { Authorization: `Bearer ${footprintToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify(footprintBody()) });
   assert.equal(footprint.status, 201);
   const firstFootprint = await footprint.json();
   assert.equal(firstFootprint.created, true);
-  const duplicateFootprint = await request('/api/feed/internal/footprints', { method: 'POST', headers: { Authorization: 'Bearer contract-secret', 'Content-Type': 'application/json' }, body: JSON.stringify(footprintBody()) });
+  const duplicateFootprint = await rawRequest('/api/feed/internal/footprints', { method: 'POST', headers: { Authorization: `Bearer ${footprintToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify(footprintBody()) });
   assert.equal(duplicateFootprint.status, 200);
   assert.equal((await duplicateFootprint.json()).created, false);
-  const dangerous = await request('/api/feed/internal/footprints', { method: 'POST', headers: { Authorization: 'Bearer contract-secret', 'Content-Type': 'application/json' }, body: JSON.stringify(footprintBody({ idempotency_key: 'blog:danger:v1', snapshot_json: JSON.stringify({ title: 'Bad', link: 'javascript:alert(1)' }) })) });
+  const dangerous = await rawRequest('/api/feed/internal/footprints', { method: 'POST', headers: { Authorization: `Bearer ${footprintToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify(footprintBody({ idempotency_key: 'blog:danger:v1', snapshot_json: JSON.stringify({ title: 'Bad', link: 'javascript:alert(1)' }) })) });
   assert.equal(dangerous.status, 400);
 
   const dateFiltered = await request('/api/feed/admin?from=2026-07-25&to=2026-07-25', { headers: { Cookie: cookie } });
@@ -129,6 +136,18 @@ try {
   assert.equal(invalidMedia.status, 400);
   assert.equal((await request('/api/feed/clip-preview', { method: 'POST', headers: { Cookie: cookie, 'Content-Type': 'application/json' }, body: JSON.stringify({ link_url: 'https://example.com/' }) })).status, 422);
   assert.equal((await request('/api/feed/clip-preview', { method: 'POST', headers: { Cookie: cookie, 'Content-Type': 'application/json' }, body: JSON.stringify({ link_url: 'http://172.16.0.1/' }) })).status, 400);
+  assert.equal((await request('/api/feed/clip-preview', { method: 'POST', headers: { Cookie: cookie, 'Content-Type': 'application/json' }, body: JSON.stringify({ link_url: 'http://[::1]/' }) })).status, 400);
+  assert.equal((await request('/api/feed/clip-preview', { method: 'POST', headers: { Cookie: cookie, 'Content-Type': 'application/json' }, body: JSON.stringify({ link_url: 'http://[fc00::1]/' }) })).status, 400);
+  assert.equal((await request('/api/feed/clip-preview', { method: 'POST', headers: { Cookie: cookie, 'Content-Type': 'application/json' }, body: JSON.stringify({ link_url: 'https://user:secret@developer.mozilla.org/' }) })).status, 400);
+
+  const firstView = await request('/api/views', { method: 'POST', headers: { 'Content-Type': 'application/json', 'CF-Connecting-IP': '198.51.100.10' }, body: JSON.stringify({ slug: 'contract' }) });
+  assert.deepEqual(await firstView.json(), { slug: 'contract', count: 1 });
+  const duplicateView = await request('/api/views', { method: 'POST', headers: { 'Content-Type': 'application/json', 'CF-Connecting-IP': '198.51.100.10' }, body: JSON.stringify({ slug: 'contract' }) });
+  assert.deepEqual(await duplicateView.json(), { slug: 'contract', count: 1 });
+  const nextView = await request('/api/views', { method: 'POST', headers: { 'Content-Type': 'application/json', 'CF-Connecting-IP': '198.51.100.11' }, body: JSON.stringify({ slug: 'contract' }) });
+  assert.deepEqual(await nextView.json(), { slug: 'contract', count: 2 });
+  const batchViews = await request('/api/views?slugs=contract,missing');
+  assert.deepEqual(await batchViews.json(), { views: [{ slug: 'contract', count: 2 }, { slug: 'missing', count: 0 }] });
 
   assert.equal((await request(`/api/feed/${firstFootprint.footprint.id}`, { method: 'DELETE', headers: { Cookie: cookie } })).status, 404);
   assert.equal((await request('/api/auth/logout', { method: 'POST', headers: { Cookie: cookie } })).status, 200);
@@ -147,4 +166,16 @@ try {
   await rm(persist, { recursive: true, force: true, maxRetries: 8, retryDelay: 250 }).catch((error) => {
     console.warn(`Local Feed contract state retained at ${persist}: ${error.code ?? error.message}`);
   });
+}
+
+async function availablePort() {
+  const probe = createServer();
+  await new Promise((resolve, reject) => {
+    probe.once('error', reject);
+    probe.listen(0, '127.0.0.1', resolve);
+  });
+  const address = probe.address();
+  if (!address || typeof address === 'string') throw new Error('Could not reserve a local Feed test port');
+  await new Promise((resolve) => probe.close(resolve));
+  return address.port;
 }

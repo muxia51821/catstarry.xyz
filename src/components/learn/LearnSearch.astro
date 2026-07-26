@@ -19,12 +19,15 @@ const { notes } = Astro.props;
         type="search"
         placeholder="搜索标题、标签或轨道"
         autocomplete="off"
-        aria-controls="learn-search-results"
+        aria-controls="learn-search-suggestions"
         aria-autocomplete="list"
+        aria-expanded="false"
+        aria-haspopup="listbox"
+        role="combobox"
       />
       <span aria-hidden="true">⌕</span>
     </div>
-    <div class="learn-search__suggestions" data-search-suggestions role="listbox" hidden></div>
+    <div id="learn-search-suggestions" class="learn-search__suggestions" data-search-suggestions role="listbox" hidden></div>
   </form>
 
   <div id="learn-search-results" class="learn-search-results" data-search-results aria-live="polite">
@@ -43,20 +46,30 @@ const { notes } = Astro.props;
     const empty = searchRoot.querySelector('[data-search-empty]');
     const items = Array.from(searchRoot.querySelectorAll('[data-search-item]'));
     let timer;
+    let activeSuggestion = -1;
 
     const normalize = (value) => value.trim().toLocaleLowerCase('zh-CN');
+    const fuzzyIncludes = (value, query) => {
+      if (value.includes(query)) return true;
+      let cursor = 0;
+      for (const character of value) if (character === query[cursor]) cursor += 1;
+      return cursor === query.length;
+    };
     const matches = (item, query) => {
       const title = normalize(item.dataset.title ?? '');
       const track = normalize(item.dataset.track ?? '');
       const trackName = normalize(item.dataset.trackName ?? '');
       const tags = (item.dataset.tags ?? '').split('|').map(normalize);
-      return title.includes(query) || track === query || trackName === query || tags.includes(query);
+      return fuzzyIncludes(title, query) || track === query || trackName === query || tags.includes(query);
     };
 
     const clearSuggestions = () => {
       if (!suggestions) return;
       suggestions.replaceChildren();
       suggestions.hidden = true;
+      activeSuggestion = -1;
+      input?.removeAttribute('aria-activedescendant');
+      input?.setAttribute('aria-expanded', 'false');
     };
 
     const showSuggestions = (query) => {
@@ -67,16 +80,19 @@ const { notes } = Astro.props;
 
       const matched = items.filter((item) => matches(item, query)).slice(0, 5);
       suggestions.replaceChildren();
-      for (const item of matched) {
+      for (const [index, item] of matched.entries()) {
         const originalLink = item.querySelector('a');
         if (!originalLink) continue;
         const link = document.createElement('a');
         link.href = originalLink.href;
         link.setAttribute('role', 'option');
+        link.id = `learn-suggestion-${index}`;
         link.textContent = item.dataset.title ?? '';
         suggestions.append(link);
       }
+      activeSuggestion = -1;
       suggestions.hidden = matched.length === 0;
+      input?.setAttribute('aria-expanded', String(matched.length > 0));
     };
 
     const update = () => {
@@ -99,6 +115,21 @@ const { notes } = Astro.props;
     });
     input?.addEventListener('focus', update);
     input?.addEventListener('keydown', (event) => {
+      const options = Array.from(suggestions?.querySelectorAll('[role="option"]') ?? []);
+      if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && options.length > 0) {
+        event.preventDefault();
+        activeSuggestion = event.key === 'ArrowDown'
+          ? (activeSuggestion + 1) % options.length
+          : (activeSuggestion - 1 + options.length) % options.length;
+        options.forEach((option, index) => option.setAttribute('aria-selected', String(index === activeSuggestion)));
+        input.setAttribute('aria-activedescendant', options[activeSuggestion].id);
+        return;
+      }
+      if (event.key === 'Enter' && activeSuggestion >= 0 && options[activeSuggestion] instanceof HTMLAnchorElement) {
+        event.preventDefault();
+        options[activeSuggestion].click();
+        return;
+      }
       if (event.key === 'Escape') {
         clearSuggestions();
         input.blur();

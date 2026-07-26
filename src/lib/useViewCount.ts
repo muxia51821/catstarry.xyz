@@ -1,6 +1,10 @@
 import { useState, useEffect } from 'react';
 
-const API_BASE = 'https://feed-api.catstarry.workers.dev/api';
+const API_BASE = (import.meta.env.PUBLIC_FEED_API_URL ?? '').replace(/\/$/, '');
+
+function viewsUrl(query = ''): string {
+  return `${API_BASE}/api/views${query}`;
+}
 
 interface ViewResponse {
   slug: string;
@@ -13,7 +17,7 @@ interface ViewResponse {
  */
 async function recordView(slug: string): Promise<number | null> {
   try {
-    const res = await fetch(`${API_BASE}/views`, {
+    const res = await fetch(viewsUrl(), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ slug }),
@@ -29,10 +33,11 @@ async function recordView(slug: string): Promise<number | null> {
 /**
  * Fetch view counts for multiple slugs at once.
  */
-async function fetchBatchViews(slugs: string[]): Promise<Record<string, number>> {
+async function fetchBatchViews(slugs: string[]): Promise<Record<string, number> | null> {
   try {
-    const res = await fetch(`${API_BASE}/views?slugs=${slugs.join(',')}`);
-    if (!res.ok) return {};
+    const query = slugs.map(encodeURIComponent).join(',');
+    const res = await fetch(viewsUrl(`?slugs=${query}`));
+    if (!res.ok) return null;
     const data = (await res.json()) as { views: ViewResponse[] };
     const map: Record<string, number> = {};
     for (const v of data.views) {
@@ -40,7 +45,7 @@ async function fetchBatchViews(slugs: string[]): Promise<Record<string, number>>
     }
     return map;
   } catch {
-    return {};
+    return null;
   }
 }
 
@@ -66,7 +71,7 @@ export function useViewCount(slug: string) {
  * Hook: batch view counts for a list of slugs.
  */
 export function useBatchViewCount(slugs: string[]) {
-  const [counts, setCounts] = useState<Record<string, number>>({});
+  const [counts, setCounts] = useState<Record<string, number> | null>(null);
 
   useEffect(() => {
     let cancelled = false;

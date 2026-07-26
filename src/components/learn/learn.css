@@ -724,11 +724,13 @@
     background: var(--content-gallery);
     box-shadow: var(--shadow-webflow-featured);
     transform: translateX(-105%);
+    visibility: hidden;
     transition: transform var(--duration-base) var(--ease-emphasis);
   }
 
   .learn-tree-drawer[data-open='true'] {
     transform: translateX(0);
+    visibility: visible;
   }
 
   .learn-tree-drawer::after {

@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="zh-CN" data-canvas="finance">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="robots" content="noindex,nofollow,noarchive">
+    <meta name="finance-api-base" content="">
+    <title>Finance · catstarry.xyz</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <section class="login-shell" data-login>
+      <form class="login-card" data-login-form>
+        <p class="eyebrow">PRIVATE FINANCE SPACE</p>
+        <h1>投资记录</h1>
+        <p class="lede">这里只读取真实的交易、持仓与行情快照。未配置的数据保持空白。</p>
+        <label>用户名<input name="username" autocomplete="username" required maxlength="64"></label>
+        <label>密码<input name="password" type="password" autocomplete="current-password" required minlength="12" maxlength="72"></label>
+        <button type="submit">进入面板</button>
+        <p class="form-status" data-login-status role="status"></p>
+      </form>
+    </section>
+
+    <div class="app-shell" data-app hidden>
+      <header class="app-header">
+        <div>
+          <p class="eyebrow">f.catstarry.xyz</p>
+          <h1>Portfolio Ledger</h1>
+        </div>
+        <div class="session-tools">
+          <span class="role-chip" data-role></span>
+          <button class="button-secondary" type="button" data-refresh>刷新</button>
+          <button class="button-secondary" type="button" data-logout>退出</button>
+        </div>
+      </header>
+
+      <section class="circuit-banner" data-circuit-banner role="alert" hidden>
+        <div><strong data-circuit-banner-title></strong><p data-circuit-banner-copy></p></div>
+        <button class="button-secondary" type="button" data-resolve-circuit hidden>解除熔断</button>
+      </section>
+
+      <main class="dashboard" data-dashboard>
+        <section class="summary-grid" aria-label="账户摘要">
+          <article class="metric metric--wide">
+            <span>当前总市值</span>
+            <strong data-total-value>—</strong>
+            <small data-market-freshness>等待行情快照</small>
+          </article>
+          <article class="metric">
+            <span>持仓标的</span>
+            <strong data-holding-count>—</strong>
+            <small>只计数量大于零</small>
+          </article>
+          <article class="metric">
+            <span>风险状态</span>
+            <strong data-circuit-level>—</strong>
+            <small data-circuit-action>尚未读取</small>
+          </article>
+        </section>
+
+        <div class="dashboard-grid">
+          <section class="panel panel--span-2" aria-labelledby="holdings-title">
+            <header class="panel-header">
+              <div><p class="eyebrow">HOLDINGS</p><h2 id="holdings-title">持仓</h2></div>
+              <button type="button" data-open-trade hidden>录入交易</button>
+            </header>
+            <div class="table-scroll">
+              <table>
+                <thead><tr><th>标的</th><th>数量</th><th>均价</th><th>现价</th><th>市值</th><th>盈亏</th></tr></thead>
+                <tbody data-holdings-body></tbody>
+              </table>
+            </div>
+            <p class="empty-state" data-holdings-empty hidden>还没有可展示的持仓快照。</p>
+          </section>
+
+          <section class="panel" aria-labelledby="pe-title">
+            <header class="panel-header"><div><p class="eyebrow">VALUATION</p><h2 id="pe-title">PE 温度</h2></div></header>
+            <div class="pe-list" data-pe-list></div>
+            <p class="empty-state" data-pe-empty hidden>行情供应商尚未写入 PE-TTM。</p>
+          </section>
+
+          <section class="panel" aria-labelledby="positions-title">
+            <header class="panel-header"><div><p class="eyebrow">ALLOCATION</p><h2 id="positions-title">仓位偏离</h2></div></header>
+            <div class="position-list" data-position-list></div>
+            <p class="empty-state" data-position-empty hidden>尚未配置仓位目标或有效市值。</p>
+          </section>
+
+          <section class="panel panel--span-2" aria-labelledby="trades-title">
+            <header class="panel-header"><div><p class="eyebrow">LEDGER</p><h2 id="trades-title">最近交易</h2></div></header>
+            <div class="table-scroll">
+              <table>
+                <thead><tr><th>日期</th><th>标的</th><th>方向</th><th>数量</th><th>价格</th><th>类别</th><th>原因</th></tr></thead>
+                <tbody data-trades-body></tbody>
+              </table>
+            </div>
+            <p class="empty-state" data-trades-empty hidden>还没有交易记录。</p>
+          </section>
+
+          <section class="panel" aria-labelledby="review-title">
+            <header class="panel-header"><div><p class="eyebrow">ANNUAL REVIEW</p><h2 id="review-title">年度复盘</h2></div><div class="panel-actions"><button type="button" data-open-review hidden>计算复盘</button><button class="button-secondary" type="button" data-export-archive hidden>导出 Excel</button></div></header>
+            <div class="review-list" data-review-list></div>
+            <p class="empty-state" data-review-empty hidden>还没有已计算的年度复盘。</p>
+          </section>
+
+          <section class="panel panel--action" aria-labelledby="confirm-title">
+            <p class="eyebrow">SHARED CONFIRMATION</p>
+            <h2 id="confirm-title">共同确认</h2>
+            <p>只读账户可确认月度查阅；对投资方向有根本异议时可触发黑色熔断。</p>
+            <div class="action-stack">
+              <button type="button" data-confirm-month hidden>确认上月记录</button>
+              <button class="button-danger" type="button" data-objection>提出重大异议</button>
+              <button class="button-secondary" type="button" data-open-risk hidden>评估回撤</button>
+            </div>
+          </section>
+
+          <section class="panel panel--span-2" aria-labelledby="access-title" data-access-panel hidden>
+            <header class="panel-header"><div><p class="eyebrow">ACCESS LOG</p><h2 id="access-title">访问记录</h2></div></header>
+            <div class="access-list" data-access-list></div>
+            <p class="empty-state" data-access-empty hidden>还没有访问记录。</p>
+          </section>
+
+          <section class="panel panel--span-2" aria-labelledby="import-review-title" data-import-review-panel hidden>
+            <header class="panel-header"><div><p class="eyebrow">IMPORT REVIEW</p><h2 id="import-review-title">导入异常审阅</h2></div></header>
+            <p class="panel-copy">异常行不会静默覆盖正式数据。请先在正式录入流程中完成修正，再用结案说明记录处理依据。</p>
+            <div class="import-review-list" data-import-review-list></div>
+            <p class="empty-state" data-import-review-empty hidden>没有待处理的导入异常。</p>
+          </section>
+        </div>
+        <p class="dashboard-status" data-dashboard-status role="status"></p>
+      </main>
+    </div>
+
+    <dialog class="trade-dialog" data-trade-dialog>
+      <form method="dialog" class="dialog-card" data-trade-form>
+        <header><div><p class="eyebrow">CONTINUOUS ENTRY</p><h2>录入交易</h2></div><button class="icon-button" type="button" data-close-dialog aria-label="关闭">×</button></header>
+        <div class="form-grid">
+          <label>日期<input name="trade_date" type="date" required></label>
+          <label>标的代码<input name="ticker" required maxlength="24" autocapitalize="characters"></label>
+          <label>标的名称<input name="ticker_name" maxlength="100"></label>
+          <label>方向<select name="direction"><option value="buy">买入</option><option value="sell">卖出</option></select></label>
+          <label>数量<input name="quantity" type="number" min="0.000001" step="any" required></label>
+          <label>价格<input name="price" type="number" min="0.000001" step="any" required></label>
+          <label>仓位类别<input name="position_category" required maxlength="64"></label>
+          <label class="form-span">原因<textarea name="reason" maxlength="2000"></textarea></label>
+        </div>
+        <div class="trade-total"><span>成交额</span><strong data-trade-total>—</strong></div>
+        <footer><p class="form-status" data-trade-status role="status"></p><button type="submit" value="default">保存并继续</button></footer>
+      </form>
+    </dialog>
+
+    <dialog class="review-dialog" data-review-dialog>
+      <form method="dialog" class="dialog-card" data-review-form>
+        <header><div><p class="eyebrow">MODIFIED DIETZ</p><h2>计算年度复盘</h2></div><button class="icon-button" type="button" data-close-dialog aria-label="关闭">×</button></header>
+        <div class="form-grid">
+          <label>年度<input name="year" type="number" min="2000" max="2200" required></label>
+          <label>周期天数<input name="periodDays" type="number" min="1" max="366" required value="365"></label>
+          <label>期初市值<input name="beginningValue" type="number" min="0" step="any" required></label>
+          <label>期末市值<input name="endingValue" type="number" min="0" step="any" required></label>
+          <label>当前总资产<input name="currentValue" type="number" min="0" step="any" required></label>
+          <label>历史最高点<input name="historicalMaximumValue" type="number" min="0" step="any" required></label>
+          <label class="form-span">资金流（每行：金额,发生天数）<textarea name="cashFlows" placeholder="10000,120&#10;-5000,240"></textarea></label>
+          <label class="form-span">年度总结<textarea name="summary" maxlength="20000"></textarea></label>
+        </div>
+        <footer><p class="form-status" data-review-status role="status"></p><button type="submit" value="default">计算并保存</button></footer>
+      </form>
+    </dialog>
+
+    <dialog class="risk-dialog" data-risk-dialog>
+      <form method="dialog" class="dialog-card" data-risk-form>
+        <header><div><p class="eyebrow">CIRCUIT EVALUATION</p><h2>评估回撤</h2></div><button class="icon-button" type="button" data-close-dialog aria-label="关闭">×</button></header>
+        <div class="form-grid">
+          <label>年度回撤<input name="annualDrawdown" type="number" min="0" max="1" step="0.001" required></label>
+          <label>月度回撤<input name="monthlyDrawdown" type="number" min="0" max="1" step="0.001" required></label>
+          <label>单标的最大亏损<input name="maximumPositionLoss" type="number" min="0" max="1" step="0.001" required></label>
+        </div>
+        <footer><p class="form-status" data-risk-status role="status"></p><button type="submit" value="default">运行评估</button></footer>
+      </form>
+    </dialog>
+
+    <dialog class="notification-dialog" data-notification-dialog>
+      <form method="dialog" class="dialog-card">
+        <header><div><p class="eyebrow">MONTHLY CONFIRMATION</p><h2>月度查阅确认</h2></div></header>
+        <p data-notification-copy></p>
+        <footer><p class="form-status" data-notification-status role="status"></p><button type="button" data-confirm-notification>确认已查阅</button></footer>
+      </form>
+    </dialog>
+
+    <dialog class="objection-dialog" data-objection-dialog>
+      <form method="dialog" class="dialog-card" data-objection-form>
+        <header><div><p class="eyebrow">BLACK CIRCUIT</p><h2>提出重大异议</h2></div><button class="icon-button" type="button" data-close-dialog aria-label="关闭">×</button></header>
+        <p>提交后所有操作应立即暂停，直到双方确认新的计划参数。</p>
+        <label>异议说明<textarea name="reason" required maxlength="2000"></textarea></label>
+        <footer><p class="form-status" data-objection-status role="status"></p><button class="button-danger" type="submit" value="default">确认并触发</button></footer>
+      </form>
+    </dialog>
+
+    <script src="/app.js" defer></script>
+  </body>
+</html>

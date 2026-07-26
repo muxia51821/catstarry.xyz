@@ -201,16 +201,25 @@ export class FeedStore {
   }
 
   async isMediaReferenced(key: string): Promise<boolean> {
-    const result = await this.database
-      .prepare('SELECT media_json FROM feed_posts WHERE media_json IS NOT NULL')
-      .all<{ media_json: string }>();
-    return result.results.some((row) => {
-      try {
-        return (JSON.parse(row.media_json) as string[]).includes(key);
-      } catch {
-        return false;
-      }
-    });
+    return (await this.findReferencedMedia([key])).has(key);
+  }
+
+  async findReferencedMedia(keys: string[]): Promise<Set<string>> {
+    const referenced = new Set<string>();
+    for (let offset = 0; offset < keys.length; offset += 50) {
+      const chunk = keys.slice(offset, offset + 50);
+      if (chunk.length === 0) continue;
+      const placeholders = chunk.map(() => '?').join(', ');
+      const result = await this.database
+        .prepare(`SELECT DISTINCT media.value AS media_key
+          FROM feed_posts
+          JOIN json_each(CASE WHEN json_valid(feed_posts.media_json) THEN feed_posts.media_json ELSE '[]' END) AS media
+          WHERE media.value IN (${placeholders})`)
+        .bind(...chunk)
+        .all<{ media_key: string }>();
+      for (const row of result.results) referenced.add(row.media_key);
+    }
+    return referenced;
   }
 
   private async listTimeline(filters: AdminFilters): Promise<PaginatedResponse<TimelineEntry>> {
@@ -264,10 +273,14 @@ export function encodeCursor(cursor: Cursor): string {
 
 export function decodeCursor(value: string): Cursor | null {
   try {
+    if (value.length < 8 || value.length > 1_024 || !/^[A-Za-z0-9_-]+$/.test(value)) return null;
     const normalized = value.replaceAll('-', '+').replaceAll('_', '/');
     const padding = '='.repeat((4 - (normalized.length % 4)) % 4);
     const parsed = JSON.parse(atob(`${normalized}${padding}`)) as Partial<Cursor>;
-    return typeof parsed.occurred_at === 'string' && typeof parsed.id === 'string'
+    return typeof parsed.occurred_at === 'string'
+      && Number.isFinite(Date.parse(parsed.occurred_at))
+      && typeof parsed.id === 'string'
+      && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(parsed.id)
       ? { occurred_at: parsed.occurred_at, id: parsed.id }
       : null;
   } catch {
