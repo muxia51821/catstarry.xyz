@@ -1,6 +1,6 @@
 # catstarry.xyz 项目看板
 
-> 最后更新：2026-07-26
+> 最后更新：2026-07-29
 >
 > 一眼看全局。执行细节、定向回流规则见 `docs/workflow-orchestration.md`。
 
@@ -10,12 +10,12 @@
 
 | 路径 | 需求分析 | 实现 |
 | --- | --- | --- |
-| / Home | ✅ 定向回流需求已更新 | ✅ RC1 已实现，待 staging / final manual acceptance |
-| /blog | ✅ | ✅ RC1 已实现，待 staging / final manual acceptance |
-| /feed | ✅ 定向回流需求已更新 | ✅ RC1 已实现，待 staging / final manual acceptance |
-| /learn | ✅ | ✅ RC1 已实现，待 staging / final manual acceptance |
-| /projects | ✅ | ✅ RC1 已实现，待 staging / final manual acceptance |
-| f.catstarry.xyz | ✅ | ✅ RC1 已实现，待 staging / final manual acceptance |
+| / Home | ✅ 定向回流需求已更新 | 🟡 RC1 已部署到 staging；final manual acceptance 未完成 |
+| /blog | ✅ | 🟡 RC1 已部署到 staging；final manual acceptance 未完成 |
+| /feed | ✅ 定向回流需求已更新 | 🟡 RC1 已部署到 staging；`/api/feed` staging HTTP 200 已验证 |
+| /learn | ✅ | 🟡 RC1 已部署到 staging；final manual acceptance 未完成 |
+| /projects | ✅ | 🟡 RC1 已部署到 staging；final manual acceptance 未完成 |
+| f.catstarry.xyz | ✅ | 🟡 Finance staging 已部署；`f-staging.catstarry.xyz` 仍在 DNS 验证 |
 | poker.catstarry.xyz | N/A | ✅ |
 
 ---
@@ -31,7 +31,7 @@
 | 4 | UI/原型 | ✅ 已闭合；Phase 4.3 设计侧完成，canonical CSS、五颗星球三槽资产与 UI QA 已闭合 |
 | 5 | 开发实现 | ✅ RC1 已 merge 到 main，提交 `a524b0d` |
 | 6 | 测试/QA | 🟡 自动化技术验收已完成；final manual acceptance 等待 staging 后执行 |
-| 7 | 部署上线 | 🟡 下一 gate：staging deployment |
+| 7 | 部署上线 | 🟡 staging deployment in progress；production release 未启动 |
 | 8 | 运营维护 | 🔴 |
 
 ---
@@ -75,8 +75,25 @@ Phase 5.0A 复核结论已被 RC1 集成基线 supersede：当前以 `package.js
 | Home 模块 | ✅ | 提交 `8dc447e`；木下人工验收、`npm run build`、`npm run test:home` 均通过 |
 | RC1 实现 | ✅ | `a524b0d` 已 merge 到 main；Phase 5 implementation complete |
 | Phase 6 自动化技术验收 | ✅ | 已完成；不等同于 staging 后 final manual acceptance |
+| Phase 7 staging deployment gate | 🟡 | staging 主站、Feed API、Finance API、主站 Astro Worker、Finance Pages、隔离 D1 / KV / R2 已部署或创建；production 未部署 |
 | 协作方式 | 🟡 | 三常驻角色：流程治理、Phase 5 主执行 / 集成线程、网页端桥梁；普通模块允许模块级并行，但模块内部单 Owner |
 | 当前分工记录 | 🟡 | `.scratch/phase5/dispatch.md`；只记录 base commit、active module、owner、allowed files、blocked by、next action |
+
+### Phase 7 staging deployment gate
+
+已完成：
+
+- 隔离 staging D1、KV、R2 已创建。
+- Feed、Finance API、主站 Astro Worker、Finance Pages 已部署。
+- staging migrations 已应用并复核。
+- `staging.catstarry.xyz` 已绑定；主站、`/api/feed`、`/activity-signals.json` 均已验证 HTTP 200。
+- 未修改生产资源，未部署 production。
+
+待完成：
+
+- `f-staging.catstarry.xyz` 仍在 DNS 验证。
+- Finance 同域 `/api/*` 路由、staging 测试账号 / 密钥配置、跨站最终验证与人工验收尚未完成。
+- Wrangler 4.113.0 对含 trigger migration 的远程批量执行存在已确认限制；staging 已用等价导入完成，production 前需独立处理升级 / 验证任务。
 
 ### F deferred
 
@@ -99,6 +116,7 @@ Phase 5.0A 复核结论已被 RC1 集成基线 supersede：当前以 `package.js
 
 ## 当前待办
 
-1. 启动 staging deployment gate。
-2. staging 部署完成后执行 final manual acceptance。
-3. final manual acceptance 通过后，回到流程治理关闭 Phase 6 / Phase 7 对应状态。
+1. 完成 `f-staging.catstarry.xyz` DNS 验证。
+2. 完成 Finance 同域 `/api/*` 路由、staging 测试账号 / 密钥配置与跨站最终验证。
+3. staging 全链路通过后执行 final manual acceptance。
+4. final manual acceptance 通过后，回到流程治理关闭 Phase 6 / Phase 7 对应状态；在此之前不得推进 production release。

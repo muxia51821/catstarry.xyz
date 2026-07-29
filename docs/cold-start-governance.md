@@ -97,12 +97,12 @@ DESIGN.md                           — Design 2.1 已锁定；Phase 4.3 已完�
 | 3 架构设计 | fork 自 Phase 2        | ✅ 已完成          |
 | 4 UI/原型  | 独立（Phase 3 确认后） | ✅ 已闭合 |
 | 5 开发实现 | 三常驻角色 + 模块级并行 | ✅ RC1 已 merge 到 main |
-| 6 测试/QA  | fork 自 Phase 5        | 🟡 自动化技术验收已完成；final manual acceptance 待 staging 后执行 |
-| 7 部署上线 | 流程治理协调           | 🟡 下一 gate：staging deployment |
+| 6 测试/QA  | fork 自 Phase 5        | 🟡 自动化技术验收已完成；final manual acceptance 待 staging 全链路后执行 |
+| 7 部署上线 | 流程治理协调           | 🟡 staging deployment in progress；production release 未启动 |
 | 8 运营维护 | 按需                   | 不需要报告         |
 
 ## 当前工作
 
-当前真实入口：Phase 5 implementation 已完成，RC1 已 merge 到 main（`a524b0d`）。Phase 6 automated technical acceptance 已完成。下一 gate 是 staging deployment，然后执行 final manual acceptance。不要重新审查 Phase 5 实现；不要把自动化技术验收误写为最终人工验收已完成。当前分工记录见 `.scratch/phase5/dispatch.md`。
+当前真实入口：Phase 5 implementation 已完成，RC1 已 merge 到 main（`a524b0d`）。Phase 6 automated technical acceptance 已完成。Phase 7 staging deployment gate 正在进行：`staging.catstarry.xyz` 主站、`/api/feed`、`/activity-signals.json` 已 HTTP 200；`f-staging.catstarry.xyz` DNS、Finance 同域 `/api/*`、staging 测试账号 / 密钥、跨站最终验证和 final manual acceptance 未完成。不要重新审查 Phase 5 实现；不要把 staging 部分完成误写为最终人工验收或 production release 已完成。当前分工记录见 `.scratch/phase5/dispatch.md`。
 
 先读取上述文件、`.scratch/phase5/dispatch.md` 与当前 Git 状态，再告诉木下真实状态和下一动作。不要假设，不要猜测。
