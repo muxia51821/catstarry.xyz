@@ -1,10 +1,12 @@
-current main HEAD / staging candidate: 4b41e4a
+current main HEAD: 4841b4f
+
+staging candidate: 4b41e4a
 
 historical RC1 merge point: a524b0d
 
-active module: Phase 6 final manual acceptance gate
+active module: production release decision / preflight gate
 
-owner: 木下 + Phase 6 final manual acceptance session
+owner: 木下 + production release session (not started)
 
 completed:
 
@@ -29,18 +31,22 @@ completed:
 - main site to Finance and Finance to main navigation verified
 - main site DOM does not include Finance domain
 - direct cross-origin main site call to Finance API is rejected by CORS as designed
+- Phase 6 final manual acceptance completed: Home, Blog, Feed, Learn, Projects, Finance login page / dashboard empty-data display, main site and Finance paths, desktop and mobile visuals are acceptable
+- Cloudflare VPN / challenge only affects automated screenshots and is not a product acceptance failure
+- Phase 7 staging gate closed; staging is ready for production release decision
 
 blocked by:
 
-- final manual acceptance
+- production release decision
+- production preflight
+- Wrangler 4.113.0 trigger migration remote batch limitation requires separate upgrade / verification handling before production
 
 deferred:
 
-- final manual acceptance
 - production release decision
 - Wrangler 4.113.0 trigger migration remote batch limitation; production preflight needs separate upgrade / verification handling
-- staging Finance holdings / market data is currently empty; real business data display remains a final manual acceptance risk
-- PowerShell / headless clients may be blocked by Cloudflare challenge; normal non-headless browser verification passed
-- staging-only test account expires after 7 days and must be refreshed if final manual acceptance slips past TTL
+- selected planet assets replacement and visual tuning after launch
+- Finance historical real-data migration, real market provider, full dual-role business experience, and annual workflow
+- other real-data-driven business differences
 
-next action: run Phase 6 final manual acceptance before staging test account TTL expires
+next action: decide whether to start production release; if yes, run production preflight before touching production resources

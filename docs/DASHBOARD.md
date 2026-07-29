@@ -10,12 +10,12 @@
 
 | 路径 | 需求分析 | 实现 |
 | --- | --- | --- |
-| / Home | ✅ 定向回流需求已更新 | 🟡 RC1 已部署到 staging；final manual acceptance 未完成 |
-| /blog | ✅ | 🟡 RC1 已部署到 staging；final manual acceptance 未完成 |
-| /feed | ✅ 定向回流需求已更新 | 🟡 RC1 已部署到 staging；`/api/feed` staging HTTP 200 已验证 |
-| /learn | ✅ | 🟡 RC1 已部署到 staging；final manual acceptance 未完成 |
-| /projects | ✅ | 🟡 RC1 已部署到 staging；final manual acceptance 未完成 |
-| f.catstarry.xyz | ✅ | 🟡 Finance staging auth、protected API、same-origin `/api/*` 与 cross-site smoke 已通过；待 final manual acceptance |
+| / Home | ✅ 定向回流需求已更新 | ✅ RC1 已部署到 staging；final manual acceptance 人工目测通过；production 未启动 |
+| /blog | ✅ | ✅ RC1 已部署到 staging；final manual acceptance 人工目测通过；production 未启动 |
+| /feed | ✅ 定向回流需求已更新 | ✅ RC1 已部署到 staging；`/api/feed` staging HTTP 200 与人工目测通过；production 未启动 |
+| /learn | ✅ | ✅ RC1 已部署到 staging；final manual acceptance 人工目测通过；production 未启动 |
+| /projects | ✅ | ✅ RC1 已部署到 staging；final manual acceptance 人工目测通过；production 未启动 |
+| f.catstarry.xyz | ✅ | ✅ Finance staging auth、protected API、same-origin `/api/*`、cross-site smoke 与登录页 / dashboard 空数据展示人工目测通过；production 未启动 |
 | poker.catstarry.xyz | N/A | ✅ |
 
 ---
@@ -30,8 +30,8 @@
 | 3 | 架构设计 | ✅ |
 | 4 | UI/原型 | ✅ 已闭合；Phase 4.3 设计侧完成，canonical CSS、五颗星球三槽资产与 UI QA 已闭合 |
 | 5 | 开发实现 | ✅ RC1 已 merge 到 main，提交 `a524b0d` |
-| 6 | 测试/QA | 🟡 自动化技术验收已完成；下一步 final manual acceptance |
-| 7 | 部署上线 | 🟡 staging gate ready for final manual acceptance；production release 未启动 |
+| 6 | 测试/QA | ✅ 自动化技术验收 + final manual acceptance 已完成 |
+| 7 | 部署上线 | 🟡 staging gate 已闭合，具备进入 production release 决策前状态；production release 未启动 |
 | 8 | 运营维护 | 🔴 |
 
 ---
@@ -74,8 +74,9 @@ Phase 5.0A 复核结论已被 RC1 集成基线 supersede：当前以 `package.js
 | 共享基础设施 F | ✅ | 提交 `2ab3d83`、`51cd489`；独立 Code Review 已完成，P0/P1 已修复并增量复审通过 |
 | Home 模块 | ✅ | 提交 `8dc447e`；木下人工验收、`npm run build`、`npm run test:home` 均通过 |
 | RC1 实现 | ✅ | `a524b0d` 已 merge 到 main；Phase 5 implementation complete |
-| Phase 6 自动化技术验收 | ✅ | 已完成；不等同于 staging 后 final manual acceptance |
-| Phase 7 staging deployment gate | 🟡 | 当前 staging candidate：`4b41e4a`；historical RC1 merge point：`a524b0d`；staging gate ready for final manual acceptance，production 未部署 |
+| Phase 6 自动化技术验收 | ✅ | 已完成 |
+| Phase 6 final manual acceptance | ✅ | Home、Blog、Feed、Learn、Projects、Finance 登录页 / dashboard 空数据展示、主站与 Finance 路径，桌面与移动视觉均可接受 |
+| Phase 7 staging deployment gate | ✅ | 当前 main HEAD：`4841b4f`；staging candidate：`4b41e4a`；historical RC1 merge point：`a524b0d`；staging gate 已闭合，production 未部署 |
 | 协作方式 | 🟡 | 三常驻角色：流程治理、Phase 5 主执行 / 集成线程、网页端桥梁；普通模块允许模块级并行，但模块内部单 Owner |
 | 当前分工记录 | 🟡 | `.scratch/phase5/dispatch.md`；只记录 base commit、active module、owner、allowed files、blocked by、next action |
 
@@ -100,16 +101,21 @@ Phase 5.0A 复核结论已被 RC1 集成基线 supersede：当前以 `package.js
 - 主站直接跨域调用 Finance API 被 CORS 拒绝，符合 same-origin 设计。
 - 未修改生产资源，未部署 production。
 
-待完成：
+已闭合：
 
-- 执行 final manual acceptance。
+- final manual acceptance 已完成：Home、Blog、Feed、Learn、Projects、Finance 登录页 / dashboard 空数据展示、主站与 Finance 路径，桌面与移动视觉均可接受。
+- Cloudflare VPN / challenge 只影响自动截图，不视为产品不通过项。
+
+Production 前置：
+
+- production release 决策尚未启动。
 - Wrangler 4.113.0 对含 trigger migration 的远程批量执行存在已确认限制；staging 已用等价导入完成，production 前需独立处理升级 / 验证任务。
 
-剩余风险：
+上线后迭代 / 后续业务验收：
 
-- PowerShell / headless 客户端会被 Cloudflare challenge 拦截；正常非 headless 浏览器验证通过。
-- staging Finance 当前 holdings / market 数据为空；API / auth 链路通过，但真实业务数据展示仍需最终人工确认。
-- staging-only 测试账号 7 天后过期；final manual acceptance 应在 TTL 内完成或重新配置 staging 账号。
+- 星球 selected assets 后续替换与视觉微调。
+- Finance 历史真实数据迁移、真实行情 provider、双角色完整业务体验及年度流程。
+- 其他真实数据驱动的业务差异。
 
 ### F deferred
 
@@ -132,7 +138,7 @@ Phase 5.0A 复核结论已被 RC1 集成基线 supersede：当前以 `package.js
 
 ## 当前待办
 
-1. 启动 Phase 6 final manual acceptance。
-2. 在 staging-only 测试账号 TTL 内完成人工验收，或先重新配置 staging 账号。
-3. final manual acceptance 通过后，回到流程治理关闭 Phase 6 / Phase 7 对应状态。
-4. 在 Phase 6 / 7 关闭前，不得推进 production release。
+1. 进入 production release 决策前流程。
+2. production 前独立处理 Wrangler 4.113.0 trigger migration remote batch 限制的升级 / 验证工作。
+3. 确认 production 资源、secrets、migration 策略、rollback plan 与最终发布窗口。
+4. 未经木下明确授权，不得启动 production release、不得部署 production、不得触碰生产资源。
