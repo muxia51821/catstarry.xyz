@@ -31,6 +31,13 @@ class MemoryD1 {
     resolved_at: null,
   }];
   monthlyConfirmations = new Set();
+  monthlyRecords = [];
+  annualReviews = [];
+  activeBlackCircuit = false;
+  ruleAudits = [];
+  plan = { id: 1, initial_capital: 0, monthly_invest: 0, months_year1: 7, months_year2plus: 12, rate_low: .03, rate_base: .06, rate_high: .1, bonus1: 50000, bonus2to4: 35000, start_year: 2026, end_year: 2030 };
+  rules = new Map([['contributions', JSON.stringify({ muxia_monthly_invest: 2500, cati_monthly_invest: 2500, muxia_bonus_year1: 50000, muxia_bonus_later: 65000, cati_bonus_year1: 50000, cati_bonus_later: 65000 })]]);
+  accounts = [];
   prepare(sql) { return new MemoryStatement(this, sql); }
   async batch(statements) {
     const results = [];
@@ -60,10 +67,65 @@ class MemoryStatement {
       return { meta: { changes: 1 } };
     }
     if (this.sql.startsWith('INSERT INTO trades')) {
-      const [trade_date, ticker, ticker_name, direction, quantity, price, position_category, reason] = this.values;
-      const trade = { id: this.database.trades.length + 1, trade_date, ticker, ticker_name, direction, quantity, price, position_category, reason, needs_review: 0 };
+      const [trade_date, ticker, ticker_name, direction, quantity, price, position_category, reason, , created_at, created_by] = this.values;
+      const trade = { id: this.database.trades.length + 1, trade_date, ticker, ticker_name, direction, quantity, price, position_category, reason, needs_review: 0, created_at, created_by, deleted_at: null };
       this.database.trades.push(trade);
       return { meta: { changes: 1, last_row_id: trade.id } };
+    }
+    if (this.sql.startsWith('INSERT INTO finance_trade_audit')) return { meta: { changes: 1 } };
+    if (this.sql.startsWith('UPDATE trades SET ticker_name')) {
+      const [ticker_name, direction, quantity, price, position_category, reason, updated_at, updated_by, id] = this.values;
+      const row = this.database.trades.find((trade) => trade.id === id && !trade.deleted_at);
+      if (!row) return { meta: { changes: 0 } };
+      Object.assign(row, { ticker_name, direction, quantity, price, position_category, reason, updated_at, updated_by });
+      return { meta: { changes: 1 } };
+    }
+    if (this.sql.startsWith('UPDATE trades SET deleted_at')) {
+      const [deleted_at, deleted_by, id] = this.values;
+      const row = this.database.trades.find((trade) => trade.id === id && !trade.deleted_at);
+      if (!row) return { meta: { changes: 0 } };
+      Object.assign(row, { deleted_at, deleted_by });
+      return { meta: { changes: 1 } };
+    }
+    if (this.sql.startsWith('UPDATE holdings_snapshots SET quantity')) {
+      const [quantity, avg_cost, position_category, ticker] = this.values;
+      const holding = this.database.holdings.get(ticker);
+      if (holding) Object.assign(holding, { quantity, avg_cost, position_category });
+      return { meta: { changes: holding ? 1 : 0 } };
+    }
+    if (this.sql.startsWith('INSERT INTO monthly_records')) {
+      const [year_month, muxia_invest, cati_invest, end_total, sse300_pe, sse500_pe, sse1000_pe, blue_chip_temp, summary, remark, created_at, created_by, updated_at, updated_by] = this.values;
+      const existing = this.database.monthlyRecords.find((record) => record.year_month === year_month);
+      const record = { id: existing?.id ?? this.database.monthlyRecords.length + 1, year_month, muxia_invest, cati_invest, end_total, sse300_pe, sse500_pe, sse1000_pe, blue_chip_temp, summary, remark, created_at, created_by, updated_at, updated_by, deleted_at: null };
+      if (existing) Object.assign(existing, record); else this.database.monthlyRecords.push(record);
+      return { meta: { changes: 1 } };
+    }
+    if (this.sql.startsWith('INSERT INTO plan_params')) {
+      const values = this.values;
+      Object.assign(this.database.plan, Object.fromEntries(['initial_capital', 'monthly_invest', 'months_year1', 'months_year2plus', 'rate_low', 'rate_base', 'rate_high', 'bonus1', 'bonus2to4', 'start_year', 'end_year'].map((key, index) => [key, values[index]])), { updated_at: values.at(-2), updated_by: values.at(-1) });
+      return { meta: { changes: 1 } };
+    }
+    if (this.sql.startsWith('INSERT INTO finance_plan_audit')) return { meta: { changes: 1 } };
+    if (this.sql.startsWith('INSERT INTO finance_investment_rules')) {
+      this.database.rules.set(this.values[0], this.values[1]);
+      return { meta: { changes: 1 } };
+    }
+    if (this.sql.startsWith('INSERT INTO finance_rule_audit')) {
+      this.database.ruleAudits.push({ rule_key: this.values[0], actor: this.values[1], before_json: this.values[3], after_json: this.values[4] });
+      return { meta: { changes: 1 } };
+    }
+    if (this.sql.startsWith('INSERT INTO annual_reviews')) {
+      const [year, calculation_json, summary, calculated_at] = this.values;
+      const existing = this.database.annualReviews.find((review) => review.year === year);
+      const review = { year, calculation_json, summary, calculated_at, confirmed_by: null, confirmed_at: null };
+      if (existing) Object.assign(existing, review); else this.database.annualReviews.push(review);
+      return { meta: { changes: 1 } };
+    }
+    if (this.sql.startsWith('INSERT INTO finance_accounts')) {
+      const [name, account_type, owner, note, created_at, created_by, updated_at, updated_by] = this.values;
+      const account = { id: this.database.accounts.length + 1, name, account_type, owner, note, created_at, created_by, updated_at, updated_by, archived_at: null };
+      this.database.accounts.push(account);
+      return { meta: { changes: 1, last_row_id: account.id } };
     }
     if (this.sql.startsWith('UPDATE finance_import_review')) {
       const [resolution_note, resolved_at, id] = this.values;
@@ -82,13 +144,33 @@ class MemoryStatement {
     throw new Error(`Unhandled D1 run: ${this.sql}`);
   }
   async first() {
+    if (this.sql.startsWith('SELECT id FROM trades WHERE ticker = ? AND trade_date')) return this.database.trades.find((trade) => trade.ticker === this.values[0] && trade.trade_date === this.values[1] && !trade.deleted_at) ?? null;
+    if (this.sql.startsWith('SELECT * FROM trades WHERE id')) return this.database.trades.find((trade) => trade.id === this.values[0] && !trade.deleted_at) ?? null;
+    if (this.sql.startsWith('SELECT id FROM trades WHERE ticker = ?')) return [...this.database.trades].filter((trade) => trade.ticker === this.values[0] && !trade.deleted_at).sort((a, b) => b.trade_date.localeCompare(a.trade_date) || b.id - a.id)[0] ?? null;
+    if (this.sql.startsWith('SELECT COUNT(*) AS count FROM trades')) return { count: this.database.trades.filter((trade) => trade.ticker === this.values[0] && trade.trade_date === this.values[1] && !trade.deleted_at).length };
+    if (this.sql.startsWith('SELECT * FROM monthly_records')) return this.database.monthlyRecords.find((record) => record.year_month === this.values[0]) ?? null;
+    if (this.sql.startsWith('SELECT end_total FROM monthly_records')) return this.database.monthlyRecords.find((record) => record.year_month === this.values[0] && record.end_total !== null && !record.deleted_at) ?? null;
+    if (this.sql.startsWith('SELECT start_year, initial_capital FROM plan_params') || this.sql.startsWith('SELECT * FROM plan_params')) return this.database.plan;
+    if (this.sql.startsWith('SELECT value_json FROM finance_investment_rules')) return { value_json: this.database.rules.get(this.values[0] ?? 'contributions') };
+    if (this.sql.startsWith('SELECT * FROM finance_accounts WHERE id')) return this.database.accounts.find((account) => account.id === this.values[0]) ?? null;
+    if (this.sql.includes('FROM holdings_snapshots') && this.sql.includes('snapshot_date < ?')) {
+      const holding = this.database.holdings.get(this.values[0]);
+      return holding && holding.snapshot_date < this.values[1] ? holding : null;
+    }
     if (this.sql.includes('FROM holdings_snapshots') && this.sql.includes('WHERE ticker = ?')) return this.database.holdings.get(this.values[0]) ?? null;
-    if (this.sql.includes('FROM circuit_breaker_log')) return null;
+    if (this.sql.includes('FROM circuit_breaker_log')) return this.database.activeBlackCircuit ? { id: 99, level: 'black' } : null;
     if (this.sql.includes('FROM monthly_confirmations')) return null;
     throw new Error(`Unhandled D1 first: ${this.sql}`);
   }
   async all() {
-    if (this.sql.startsWith('SELECT * FROM trades')) return { results: [...this.database.trades].reverse() };
+    if (this.sql.startsWith('SELECT year_month, muxia_invest, cati_invest, end_total FROM monthly_records')) {
+      return { results: this.database.monthlyRecords.filter((record) => record.year_month >= this.values[0] && record.year_month < this.values[1] && !record.deleted_at) };
+    }
+    if (this.sql.startsWith('SELECT calculation_json FROM annual_reviews')) return { results: this.database.annualReviews.filter((review) => review.year < this.values[0]) };
+    if (this.sql.startsWith('SELECT * FROM annual_reviews')) return { results: [...this.database.annualReviews].reverse() };
+    if (this.sql.startsWith('SELECT * FROM trades')) return { results: [...this.database.trades].filter((trade) => !trade.deleted_at).reverse() };
+    if (this.sql.startsWith('SELECT * FROM monthly_records')) return { results: [...this.database.monthlyRecords].filter((record) => !record.deleted_at).reverse() };
+    if (this.sql.startsWith('SELECT * FROM finance_accounts')) return { results: [...this.database.accounts].filter((account) => !account.archived_at) };
     if (this.sql.startsWith('SELECT username, action, occurred_at FROM finance_access_log')) return { results: [...this.database.accessLog].reverse() };
     if (this.sql.startsWith('SELECT username FROM monthly_confirmations')) return { results: [] };
     if (this.sql.startsWith('SELECT trade_date, ticker, ticker_name')) return { results: [...this.database.trades] };
@@ -175,11 +257,11 @@ assert.equal((await fetchWorker('/api/circuit/evaluate', {
   headers: { ...trusted, Cookie: adminCookie },
   body: '{}',
 })).status, 400, 'incomplete circuit metrics must not be accepted');
-assert.equal((await fetchWorker('/api/circuit/999999999999999999999/resolve', {
+assert.equal((await fetchWorker('/api/circuit/999999999999999999999/confirm-resolve', {
   method: 'PATCH',
   headers: { ...trusted, Cookie: adminCookie },
   body: '{}',
-})).status, 400);
+})).status, 404, 'direct circuit resolution is retired in favour of two-role confirmation');
 assert.equal((await fetchWorker('/api/import-review/999999999999999999999', {
   method: 'PATCH',
   headers: { ...trusted, Cookie: adminCookie },
@@ -200,6 +282,17 @@ const created = await fetchWorker('/api/trades', {
   }),
 });
 assert.equal(created.status, 201, await created.text());
+env.DB.activeBlackCircuit = true;
+for (const [method, pathname, body] of [
+  ['POST', '/api/trades', { trade_date: '2026-07-26', ticker: '510500', direction: 'buy', quantity: 1, price: 5, position_category: 'broad-index' }],
+  ['PATCH', '/api/trades/1', { trade_date: '2026-07-25', ticker: '510300', direction: 'buy', quantity: 120, price: 4.3, position_category: 'broad-index' }],
+  ['DELETE', '/api/trades/1', {}],
+]) {
+  const response = await fetchWorker(pathname, { method, headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify(body) });
+  assert.equal(response.status, 409, `active black circuit must block ${method} ${pathname}`);
+  assert.equal((await response.json()).error.code, 'black_circuit_active');
+}
+env.DB.activeBlackCircuit = false;
 assert.equal((await fetchWorker('/api/trades', {
   method: 'POST', headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify({
     trade_date: '2026-07-24', ticker: '510300', direction: 'buy', quantity: 1, price: 4.2, position_category: 'broad-index',
@@ -211,6 +304,15 @@ assert.equal((await fetchWorker('/api/trades', {
   }),
 })).status, 400, 'calendar-invalid trade dates must be rejected');
 assert.equal((await fetchWorker('/api/trades', { headers: { Cookie: adminCookie } }).then((response) => response.json())).trades.length, 1);
+assert.equal((await fetchWorker('/api/trades/1', {
+  method: 'PATCH', headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify({
+    trade_date: '2026-07-25', ticker: '510300', ticker_name: '沪深300ETF', direction: 'buy', quantity: 120, price: 4.3, position_category: 'broad-index', reason: 'corrected contract',
+  }),
+})).status, 200, 'the latest standalone online trade can be edited');
+assert.equal((await fetchWorker('/api/trades/1', {
+  method: 'DELETE', headers: { ...trusted, Cookie: adminCookie }, body: '{}',
+})).status, 200, 'the latest standalone online trade can be soft-deleted');
+assert.equal((await fetchWorker('/api/trades', { headers: { Cookie: adminCookie } }).then((response) => response.json())).trades.length, 0);
 const archive = await fetchWorker('/api/archive?year=2026', { headers: { Cookie: adminCookie } });
 assert.equal(archive.status, 200);
 assert.match(archive.headers.get('content-type') ?? '', /spreadsheetml/);
@@ -236,5 +338,60 @@ assert.equal((await fetchWorker('/api/import-review/1', {
   body: JSON.stringify({ resolution_note: 'duplicate resolution' }),
 })).status, 409);
 assert.equal((await fetchWorker('/api/import-review?status=pending', { headers: { Cookie: adminCookie } }).then((response) => response.json())).review.length, 0);
+
+assert.equal((await fetchWorker('/api/monthly', { headers: { Cookie: viewerCookie } })).status, 200);
+assert.equal((await fetchWorker('/api/plan', { headers: { Cookie: viewerCookie } })).status, 200);
+assert.equal((await fetchWorker('/api/accounts', { headers: { Cookie: viewerCookie } })).status, 404, 'Account structure is outside the joint-investment product');
+assert.equal((await fetchWorker('/api/monthly', {
+  method: 'PUT', headers: { ...trusted, Cookie: viewerCookie }, body: JSON.stringify({ year_month: '2026-07' }),
+})).status, 403);
+assert.equal((await fetchWorker('/api/monthly', {
+  method: 'PUT', headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify({
+    year_month: '2026-07', muxia_invest: 5000, cati_invest: 0, end_total: 12600, sse300_pe: 12.5, summary: 'contract monthly record',
+  }),
+})).status, 200);
+assert.equal((await fetchWorker('/api/monthly', { headers: { Cookie: adminCookie } }).then((response) => response.json())).records.length, 1);
+assert.equal((await fetchWorker('/api/plan', {
+  method: 'PUT', headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify({
+    initial_capital: 100000, monthly_invest: 5000, months_year1: 7, months_year2plus: 12,
+    rate_low: .03, rate_base: .06, rate_high: .1, bonus1: 50000, bonus2to4: 35000, start_year: 2026, end_year: 2030,
+  }),
+})).status, 200);
+assert.equal((await fetchWorker('/api/plan', { headers: { Cookie: adminCookie } }).then((response) => response.json())).plan.monthly_invest, 5000);
+assert.equal((await fetchWorker('/api/risk-rules', {
+  method: 'PUT', headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify({ rule_key: 'temperature', value: { freeze: 8, low: 12, normal: 18, high: 24 } }),
+})).status, 200);
+assert.equal(env.DB.rules.get('temperature'), JSON.stringify({ freeze: 8, low: 12, normal: 18, high: 24 }));
+assert.equal(env.DB.ruleAudits.at(-1)?.rule_key, 'temperature');
+assert.equal((await fetchWorker('/api/risk-rules', {
+  method: 'PUT', headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify({ rule_key: 'temperature', value: { freeze: 12, low: 10, normal: 18, high: 24 } }),
+})).status, 400, 'PE temperature boundaries must be strictly increasing');
+assert.equal((await fetchWorker('/api/monthly', {
+  method: 'PUT', headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify({
+    year_month: '2026-12', muxia_invest: 1000, cati_invest: 500, end_total: 120000, summary: 'year-end record',
+  }),
+})).status, 200);
+const annual = await fetchWorker('/api/review/calculate', {
+  method: 'POST', headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify({
+    year: 2026,
+    summary: 'derived annual review',
+    modifiedDietz: { beginningValue: 1, endingValue: 2, periodDays: 1, cashFlows: [{ amount: 9_999_999, day: 0 }] },
+    currentValue: 2,
+    historicalMaximumValue: 3,
+  }),
+});
+assert.equal(annual.status, 200);
+const annualPayload = await annual.json();
+assert.equal(annualPayload.calculation.dietz.beginningValue, 100000, 'annual review must derive beginning value from the Finance plan');
+assert.equal(annualPayload.calculation.dietz.endingValue, 120000, 'annual review must derive ending value from the December record');
+assert.equal(annualPayload.calculation.dietz.netCashFlow, 6500, 'annual review must ignore browser-provided cash flows');
+const incompleteAnnual = await fetchWorker('/api/review/calculate', {
+  method: 'POST', headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify({ year: 2027, summary: 'must not calculate' }),
+});
+assert.equal(incompleteAnnual.status, 409);
+assert.equal((await incompleteAnnual.json()).error.code, 'missing_annual_data');
+assert.equal((await fetchWorker('/api/accounts', {
+  method: 'POST', headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify({ name: 'forbidden' }),
+})).status, 404);
 
 console.log('Finance HTTP contract passed.');

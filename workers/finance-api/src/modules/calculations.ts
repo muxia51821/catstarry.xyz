@@ -36,12 +36,29 @@ export function calculateModifiedDietz(input: ModifiedDietzInput) {
   };
 }
 
-export function peTemperature(peTtm: number) {
+export interface PeTemperatureBoundaries {
+  freeze: number;
+  low: number;
+  normal: number;
+  high: number;
+}
+
+export const DEFAULT_PE_TEMPERATURE_BOUNDARIES: PeTemperatureBoundaries = {
+  freeze: 10,
+  low: 12,
+  normal: 16,
+  high: 20,
+};
+
+export function peTemperature(peTtm: number, boundaries: PeTemperatureBoundaries = DEFAULT_PE_TEMPERATURE_BOUNDARIES) {
   if (!Number.isFinite(peTtm) || peTtm < 0) throw new Error('PE-TTM must be a non-negative number');
-  if (peTtm < 10) return { zone: 'freeze', suggestion: 'aggressively_add' } as const;
-  if (peTtm < 12) return { zone: 'low', suggestion: 'moderately_add' } as const;
-  if (peTtm < 16) return { zone: 'normal', suggestion: 'normal_dca' } as const;
-  if (peTtm <= 20) return { zone: 'high', suggestion: 'reduce_investment' } as const;
+  const { freeze, low, normal, high } = boundaries;
+  if (![freeze, low, normal, high].every((value) => Number.isFinite(value) && value >= 0)
+    || !(freeze < low && low < normal && normal < high)) throw new Error('PE temperature boundaries must be strictly increasing');
+  if (peTtm < freeze) return { zone: 'freeze', suggestion: 'aggressively_add' } as const;
+  if (peTtm < low) return { zone: 'low', suggestion: 'moderately_add' } as const;
+  if (peTtm < normal) return { zone: 'normal', suggestion: 'normal_dca' } as const;
+  if (peTtm <= high) return { zone: 'high', suggestion: 'reduce_investment' } as const;
   return { zone: 'overheat', suggestion: 'pause_or_reduce' } as const;
 }
 
@@ -98,6 +115,7 @@ export interface ExcessSplitInput {
   portfolioReturn: number;
   benchmarkRate?: number;
   managerShareRate?: number;
+  managerBonusCap?: number;
 }
 
 export function calculateExcessSplit(input: ExcessSplitInput) {
@@ -107,7 +125,8 @@ export function calculateExcessSplit(input: ExcessSplitInput) {
   }
   const benchmarkRate = input.benchmarkRate ?? 0.03;
   const managerShareRate = input.managerShareRate ?? 0.5;
-  if (benchmarkRate < 0 || managerShareRate < 0 || managerShareRate > 1) throw new Error('Invalid split parameters');
+  const managerBonusCap = input.managerBonusCap ?? Number.POSITIVE_INFINITY;
+  if (benchmarkRate < 0 || managerShareRate < 0 || managerShareRate > 1 || managerBonusCap < 0) throw new Error('Invalid split parameters');
   const highWaterMark = round(input.historicalMaximumValue * 1.03);
   const eligible = input.currentValue > highWaterMark && input.portfolioReturn > benchmarkRate;
   const excessReturn = eligible ? round(input.portfolioReturn - benchmarkRate, 12) : 0;
@@ -119,7 +138,7 @@ export function calculateExcessSplit(input: ExcessSplitInput) {
     excessReturn,
     excessValue,
     managerShareRate,
-    managerShare: round(excessValue * managerShareRate),
+    managerShare: round(Math.min(excessValue * managerShareRate, managerBonusCap)),
   };
 }
 

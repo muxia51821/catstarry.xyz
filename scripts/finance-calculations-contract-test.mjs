@@ -25,6 +25,8 @@ assert.deepEqual(peTemperature(15.99), { zone: 'normal', suggestion: 'normal_dca
 assert.deepEqual(peTemperature(16), { zone: 'high', suggestion: 'reduce_investment' });
 assert.deepEqual(peTemperature(20), { zone: 'high', suggestion: 'reduce_investment' });
 assert.deepEqual(peTemperature(20.01), { zone: 'overheat', suggestion: 'pause_or_reduce' });
+assert.deepEqual(peTemperature(11, { freeze: 8, low: 12, normal: 18, high: 24 }), { zone: 'low', suggestion: 'moderately_add' });
+assert.throws(() => peTemperature(11, { freeze: 12, low: 10, normal: 18, high: 24 }), /strictly increasing/);
 
 assert.deepEqual(circuitBreakerState({ annualDrawdown: 0.21, monthlyDrawdown: 0, maximumPositionLoss: 0, catiObjection: false }), { level: 'red', action: 'route_dca_to_cash' });
 assert.deepEqual(circuitBreakerState({ annualDrawdown: 0, monthlyDrawdown: 0.11, maximumPositionLoss: 0, catiObjection: false }).level, 'yellow');
@@ -61,5 +63,12 @@ assert.equal(calculateExcessSplit({
   weightedCapital: 1_000,
   portfolioReturn: 0.15,
 }).managerShare, 0);
+assert.equal(calculateExcessSplit({
+  currentValue: 1_250,
+  historicalMaximumValue: 1_100,
+  weightedCapital: 1_000,
+  portfolioReturn: 0.15,
+  managerBonusCap: 35,
+}).managerShare, 35, 'annual manager share must not exceed the manager bonus contribution cap');
 
 console.log('Finance calculation contract passed.');

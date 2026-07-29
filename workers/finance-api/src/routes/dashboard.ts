@@ -5,7 +5,7 @@ import {
   peTemperature,
   positionDeviation,
   type CircuitInput,
-  type ModifiedDietzInput,
+  type PeTemperatureBoundaries,
 } from '../modules/calculations';
 import { apiError, json, readJson } from '../lib/http';
 import { buildXlsx, type WorkbookCell } from '../modules/xlsx';
@@ -39,12 +39,6 @@ export async function handleDashboard(
   if (pathname === '/api/circuit' && request.method === 'GET') return circuit(request, env);
   if (pathname === '/api/circuit/evaluate' && request.method === 'POST') return evaluateCircuit(request, env);
   if (pathname === '/api/circuit/objection' && request.method === 'POST') return recordObjection(request, env);
-  if (/^\/api\/circuit\/\d+\/resolve$/.test(pathname) && request.method === 'PATCH') {
-    const id = Number(pathname.split('/')[3]);
-    return Number.isSafeInteger(id) && id > 0
-      ? resolveCircuit(request, env, id)
-      : apiError(400, 'invalid_id', 'Circuit id is invalid');
-  }
   if (pathname === '/api/review/calculate' && request.method === 'POST') return calculateReview(request, env);
   if (pathname === '/api/review/confirm' && request.method === 'POST') return confirmReview(request, env);
   if (pathname === '/api/review' && request.method === 'GET') return listReviews(request, env);
@@ -162,15 +156,19 @@ async function pe(request: Request, env: FinanceEnv): Promise<Response> {
   const session = await requireFinanceRole(request, env);
   if (session instanceof Response) return session;
   const indexes = ['SSE300_PE', 'SSE500_PE', 'SSE1000_PE'];
-  const result = await env.DB.prepare(`SELECT ticker, pe_ttm, fetched_at FROM market_data m
+  const [result, temperatureRule] = await Promise.all([
+    env.DB.prepare(`SELECT ticker, pe_ttm, fetched_at FROM market_data m
     WHERE ticker IN (?, ?, ?) AND NOT EXISTS (
       SELECT 1 FROM market_data newer WHERE newer.ticker = m.ticker
       AND (newer.fetched_at > m.fetched_at OR (newer.fetched_at = m.fetched_at AND newer.id > m.id))
-    ) ORDER BY ticker`).bind(...indexes).all<{ ticker: string; pe_ttm: number | null; fetched_at: string }>();
+    ) ORDER BY ticker`).bind(...indexes).all<{ ticker: string; pe_ttm: number | null; fetched_at: string }>(),
+    env.DB.prepare(`SELECT value_json FROM finance_investment_rules WHERE rule_key = 'temperature'`).first<{ value_json: string }>(),
+  ]);
+  const boundaries = storedTemperatureBoundaries(temperatureRule?.value_json);
   return json({ indexes: result.results.map((row) => ({
     ...row,
     stale: !row.fetched_at || Date.now() - Date.parse(row.fetched_at) > 36 * 60 * 60 * 1_000,
-    temperature: row.pe_ttm === null ? null : peTemperature(Number(row.pe_ttm)),
+    temperature: row.pe_ttm === null ? null : peTemperature(Number(row.pe_ttm), boundaries),
   })) });
 }
 
@@ -203,40 +201,35 @@ async function recordObjection(request: Request, env: FinanceEnv): Promise<Respo
   return recordCircuit(env.DB, 'black', 'pause_all', JSON.stringify({ objection_by: session.username, reason }));
 }
 
-async function resolveCircuit(request: Request, env: FinanceEnv, id: number): Promise<Response> {
-  const session = await requireFinanceRole(request, env, ['admin']);
-  if (session instanceof Response) return session;
-  const result = await env.DB.prepare('UPDATE circuit_breaker_log SET resolved_at = ? WHERE id = ? AND resolved_at IS NULL')
-    .bind(new Date().toISOString(), id).run();
-  return (result.meta.changes ?? 0) > 0 ? json({ resolved: true }) : apiError(404, 'not_found', 'Active circuit state not found');
-}
-
 async function calculateReview(request: Request, env: FinanceEnv): Promise<Response> {
   const session = await requireFinanceRole(request, env, ['admin']);
   if (session instanceof Response) return session;
   const body = await readJson<{
     year?: unknown;
-    modifiedDietz?: ModifiedDietzInput;
-    currentValue?: unknown;
-    historicalMaximumValue?: unknown;
     summary?: unknown;
   }>(request);
   if (body instanceof Response) return body;
   const year = Number(body.year);
   const summary = typeof body.summary === 'string' ? body.summary.trim() : '';
-  if (!Number.isInteger(year) || year < 2000 || year > 2200 || !body.modifiedDietz || summary.length > 20_000) {
+  if (!Number.isInteger(year) || year < 2000 || year > 2200 || summary.length > 20_000) {
     return apiError(400, 'invalid_review', 'Review input is invalid');
   }
   try {
-    const dietz = calculateModifiedDietz(body.modifiedDietz);
+    const derived = await deriveAnnualReview(env, year);
+    if ('missing' in derived) return apiError(409, 'missing_annual_data', derived.missing);
+    const { dietz, currentValue, historicalMaximumValue, plan } = derived;
+    const contributionRule = await env.DB.prepare(`SELECT value_json FROM finance_investment_rules WHERE rule_key = 'contributions'`).first<{ value_json: string }>();
+    const contribution = parseStoredJson(contributionRule?.value_json) as { muxia_bonus_year1?: number; muxia_bonus_later?: number } | null;
+    const managerBonusCap = plan && contribution ? Number(year === Number(plan.start_year) ? contribution.muxia_bonus_year1 : contribution.muxia_bonus_later) : 0;
     const split = calculateExcessSplit({
-      currentValue: Number(body.currentValue),
-      historicalMaximumValue: Number(body.historicalMaximumValue),
+       currentValue,
+       historicalMaximumValue,
       weightedCapital: dietz.weightedCapital,
       portfolioReturn: dietz.returnRate,
+      managerBonusCap,
     });
     const calculatedAt = new Date().toISOString();
-    const calculation = { method: 'modified_dietz', dietz, split };
+    const calculation = { method: 'modified_dietz', source: 'monthly_records', dietz, split };
     await env.DB.prepare(`INSERT INTO annual_reviews (year, calculation_json, summary, calculated_at)
       VALUES (?, ?, ?, ?) ON CONFLICT(year) DO UPDATE SET
       calculation_json = excluded.calculation_json, summary = excluded.summary,
@@ -247,6 +240,35 @@ async function calculateReview(request: Request, env: FinanceEnv): Promise<Respo
     return apiError(400, 'invalid_review', 'Review calculation input is invalid');
   }
 }
+
+async function deriveAnnualReview(env: FinanceEnv, year: number): Promise<
+  | { missing: string }
+  | { dietz: ReturnType<typeof calculateModifiedDietz>; currentValue: number; historicalMaximumValue: number; plan: { start_year: number } }
+> {
+  const plan = await env.DB.prepare('SELECT start_year, initial_capital FROM plan_params WHERE id = 1').first<{ start_year: number; initial_capital: number }>();
+  if (!plan) return { missing: 'The Finance plan baseline is missing' };
+  const records = await env.DB.prepare(`SELECT year_month, muxia_invest, cati_invest, end_total FROM monthly_records
+    WHERE year_month >= ? AND year_month < ? AND deleted_at IS NULL ORDER BY year_month`).bind(`${year}-01`, `${year + 1}-01`).all<{ year_month: string; muxia_invest: number; cati_invest: number; end_total: number | null }>();
+  const ending = records.results.find((row) => row.year_month === `${year}-12` && row.end_total !== null);
+  if (!ending) return { missing: `Missing ${year}-12 month-end value` };
+  const prior = await env.DB.prepare('SELECT end_total FROM monthly_records WHERE year_month = ? AND deleted_at IS NULL AND end_total IS NOT NULL').bind(`${year - 1}-12`).first<{ end_total: number }>();
+  const beginningValue = prior ? Number(prior.end_total) : year === Number(plan.start_year) ? Number(plan.initial_capital) : null;
+  if (beginningValue === null || !Number.isFinite(beginningValue)) return { missing: `Missing beginning net value for ${year}` };
+  const periodDays = isLeapYear(year) ? 366 : 365;
+  const cashFlows = records.results.map((row) => {
+    const amount = Number(row.muxia_invest ?? 0) + Number(row.cati_invest ?? 0);
+    const month = Number(row.year_month.slice(5, 7));
+    return { amount, day: Math.max(0, Math.min(periodDays, Math.floor((Date.UTC(year, month - 1, 20) - Date.UTC(year, 0, 1)) / 86_400_000))) };
+  }).filter((flow) => Number.isFinite(flow.amount) && flow.amount !== 0);
+  const history = await env.DB.prepare('SELECT calculation_json FROM annual_reviews WHERE year < ? ORDER BY year').bind(year).all<{ calculation_json: string }>();
+  const historicalMaximumValue = history.results.reduce((maximum, row) => {
+    const calculation = parseStoredJson(row.calculation_json) as { dietz?: { endingValue?: number } } | null;
+    return Math.max(maximum, Number(calculation?.dietz?.endingValue) || 0);
+  }, beginningValue);
+  return { dietz: calculateModifiedDietz({ beginningValue, endingValue: Number(ending.end_total), periodDays, cashFlows }), currentValue: Number(ending.end_total), historicalMaximumValue, plan };
+}
+
+function isLeapYear(year: number) { return year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0); }
 
 async function confirmReview(request: Request, env: FinanceEnv): Promise<Response> {
   const session = await requireFinanceRole(request, env, ['viewer']);
@@ -446,6 +468,17 @@ function parseStoredJson(value: unknown): unknown {
   } catch {
     return null;
   }
+}
+
+function storedTemperatureBoundaries(value: unknown): PeTemperatureBoundaries | undefined {
+  const parsed = parseStoredJson(value);
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return undefined;
+  const record = parsed as Record<string, unknown>;
+  const boundaries = { freeze: Number(record.freeze), low: Number(record.low), normal: Number(record.normal), high: Number(record.high) };
+  return Object.values(boundaries).every((number) => Number.isFinite(number) && number >= 0)
+    && boundaries.freeze < boundaries.low && boundaries.low < boundaries.normal && boundaries.normal < boundaries.high
+    ? boundaries
+    : undefined;
 }
 
 async function recordCircuit(database: D1Database, level: 'yellow' | 'red' | 'black', action: string, reason: string) {

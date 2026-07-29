@@ -6,6 +6,8 @@ import {
 import { apiError } from './lib/http';
 import { handleFinanceAuth, type FinanceEnv } from './routes/auth';
 import { handleDashboard } from './routes/dashboard';
+import { handleRecords } from './routes/records';
+import { handleStewardship } from './routes/stewardship';
 import { handleTrades } from './routes/trades';
 import { refreshMarketData } from './tasks/refresh-market-data';
 
@@ -29,7 +31,13 @@ export default {
     try {
       let response: Response;
       if (pathname.startsWith('/api/auth/')) response = await handleFinanceAuth(request, env, pathname);
-      else if (pathname === '/api/trades') response = await handleTrades(request, env);
+      else if (pathname === '/api/trades' || /^\/api\/trades\/\d+$/.test(pathname)) response = await handleTrades(request, env);
+      else if (pathname.startsWith('/api/monthly') || pathname === '/api/plan') {
+        response = await handleRecords(request, env, pathname);
+      }
+      else if (pathname === '/api/risk-rules' || pathname.startsWith('/api/memos') || pathname.startsWith('/api/rebalances') || pathname.startsWith('/api/workbook-review') || /^\/api\/circuit\/\d+\/confirm-resolve$/.test(pathname)) {
+        response = await handleStewardship(request, env, pathname);
+      }
       else if (pathname.startsWith('/api/')) response = await handleDashboard(request, env, pathname);
       else response = apiError(404, 'not_found', 'Route not found');
       return withCors(response, request, cors);

@@ -12,14 +12,14 @@ for (const file of (await readdir('workers/finance-api/migrations')).filter((nam
 
 const upsertHolding = database.prepare(HOLDING_UPSERT_SQL);
 const insertTrade = database.prepare(`INSERT INTO trades (
-  trade_date, ticker, ticker_name, direction, quantity, price, position_category, reason, needs_review
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)`);
+  trade_date, ticker, ticker_name, direction, quantity, price, position_category, reason, needs_review, created_at, created_by
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`);
 
 function trade(direction, quantity, price) {
   database.exec('BEGIN');
   try {
     upsertHolding.run('2026-07-26', '510300', direction, quantity, price, 'A股宽基指数底仓');
-    insertTrade.run('2026-07-26', '510300', '沪深300ETF', direction, quantity, price, 'A股宽基指数底仓', 'contract');
+    insertTrade.run('2026-07-26', '510300', '沪深300ETF', direction, quantity, price, 'A股宽基指数底仓', 'contract', '2026-07-26T00:00:00.000Z', 'contract-admin');
     database.exec('COMMIT');
   } catch (error) {
     database.exec('ROLLBACK');
