@@ -7,12 +7,12 @@
 
 本文档中的每节标注了性质标签：
 
-| 标签       | 含义                     |
-| ---------- | ------------------------ | ------------------------------------------------------------------ |
-| `[已锁定]` | Phase 0 确定的，尽量不改 |
-| `[原型约定 | Phase X 重新裁决]`       | blog 原型阶段的临时约定，进入标注的 Phase 时必须重新审查，有权推翻 |
-| `[定向回流中 | Phase X]` | 已确认的上游变更正在复核受影响契约；在标注 Phase 闭合前，不得作为最终实现依据 |
-| `[快照     | Phase X 更新]`           | 随项目推进需同步更新                                               |
+| 标签         | 含义                     |
+| ------------ | ------------------------ | ----------------------------------------------------------------------------- |
+| `[已锁定]`   | Phase 0 确定的，尽量不改 |
+| `[原型约定   | Phase X 重新裁决]`       | blog 原型阶段的临时约定，进入标注的 Phase 时必须重新审查，有权推翻            |
+| `[定向回流中 | Phase X]`                | 已确认的上游变更正在复核受影响契约；在标注 Phase 闭合前，不得作为最终实现依据 |
+| `[快照       | Phase X 更新]`           | 随项目推进需同步更新                                                          |
 
 ---
 
@@ -103,9 +103,9 @@ catstarry.xyz/
 
 ---
 
-## 前端约定 [原型约定 | Phase 5 重新裁决]
+## 前端约定 [实现约定 | RC1 已实现，Phase 7 验证中]
 
-> ⚠️ 以下是 blog 原型阶段的前端实践。Phase 5（开发实现）时由各模块开发线程重新决定，可保留、调整或推翻。
+> 以下为 Phase 5 RC1 已采用的前端实现约定，当前处于 Phase 7 staging / final manual acceptance 验证中。若最终验收发现偏差，应以实际代码、测试与验收结果为准再更新本文档。
 
 - 所有页面使用 `Base` layout（`src/layouts/Base.astro`）
 - 颜色使用 CSS 变量（`var(--color-xxx)`），不硬编码
@@ -115,9 +115,9 @@ catstarry.xyz/
 
 ---
 
-## 后端约定 [原型约定 | Phase 5 重新裁决]
+## 后端约定 [实现约定 | RC1 已实现，Phase 7 验证中]
 
-> ⚠️ 以下是 blog 原型阶段的后端实践。Phase 5（开发实现）时由开发线程重新决定，可保留、调整或推翻。
+> 以下为 Phase 5 RC1 已采用的后端实现约定，当前处于 Phase 7 staging / final manual acceptance 验证中。若最终验收发现偏差，应以实际代码、测试与验收结果为准再更新本文档。
 
 - Workers 响应必须包含 CORS 头
 - 鉴权方案见 `docs/architecture/auth.md`：统一 `/login` 入口 + bcrypt + KV session + TTL 24h
@@ -127,38 +127,44 @@ catstarry.xyz/
 
 ---
 
-## 部署 [快照 | Phase 7 staging deployment in progress]
+## 部署 [快照 | Phase 7 staging gate ready for final manual acceptance]
 
-> ⚠️ 当前处于 Phase 7 staging deployment gate。staging 已部分完成，production release 未启动。
+> ⚠️ 当前 Phase 7 staging gate 已 ready for final manual acceptance。production release 未启动。
 
 - **Staging 资源**：隔离 staging D1、KV、R2 已创建。
 - **Staging 部署**：Feed、Finance API、主站 Astro Worker、Finance Pages 已部署。
 - **Staging migrations**：已应用并复核。
 - **主站 staging 域名**：`staging.catstarry.xyz` 已绑定；主站、`/api/feed`、`/activity-signals.json` 均已验证 HTTP 200。
-- **Finance staging 域名**：`f-staging.catstarry.xyz` 仍在 DNS 验证。
-- **待完成**：Finance 同域 `/api/*` 路由、staging 测试账号 / 密钥配置、跨站最终验证和 final manual acceptance。
+- **Finance staging 域名**：`f-staging.catstarry.xyz` DNS 已完成验证；A / AAAA 解析正常，HTTPS 正常，Finance staging 首页返回 HTTP 200。
+- **Finance 同源 API 基础路由**：`f-staging.catstarry.xyz/api/health` 返回 Finance API 的 JSON `not_found` error envelope，证明 same-origin `/api/*` 已到达 Finance API router；`/api/health` 本身不是现有业务路由，不视为 routing failure。
+- **Finance auth / API smoke**：`npm run test:finance:site` 与 `npm run test:finance:http` 通过；staging-only 测试账号已写入 `FINANCE_AUTH_KV_STAGING`，7 天 TTL；凭据值不写入仓库文档。
+- **浏览器 staging smoke**：匿名 session、未认证 protected API 401、login、session、`/api/holdings`、`/api/market`、logout、logout 后 protected API 401 均已验证；Cookie 为 host-only、`HttpOnly`、`Secure`、`SameSite=Strict`。
+- **Finance frontend same-origin**：所有 API 请求均为 `https://f-staging.catstarry.xyz/api/*`；主站直接跨域调用 Finance API 被 CORS 拒绝，符合 same-origin 设计。
+- **主站 ↔ Finance**：双向导航成功；主站 DOM 未包含 Finance 域名。
+- **待完成**：执行 final manual acceptance。
 - **Production**：未修改生产资源，未部署 production。
 - **Wrangler 限制**：Wrangler 4.113.0 对含 trigger migration 的远程批量执行存在已确认限制；staging 已用等价导入完成，production 前需独立处理升级 / 验证任务。
+- **剩余风险**：PowerShell / headless 客户端会被 Cloudflare challenge 拦截；正常非 headless 浏览器验证通过。staging Finance 当前 holdings / market 数据为空，真实业务数据展示仍需最终人工确认。staging-only 测试账号 7 天后过期，final manual acceptance 应在 TTL 内完成或重新配置 staging 账号。
 
 ---
 
-## 开发状态 [快照 | Phase 7 staging deployment in progress]
+## 开发状态 [快照 | Phase 7 staging gate ready for final manual acceptance]
 
-> 全局 Phase 3、Home / Feed 定向 Phase 2/3、Astro 7 定向依赖基线、Home Activity Signal 定向 Phase 2/3 与 HAS 返回 Phase 4.1 均已完成。Phase 4 已正式闭合。Phase 5 implementation 已完成，RC1 已 merge 到 main（`a524b0d`）。Phase 6 automated technical acceptance 已完成。Phase 7 staging deployment gate 正在进行；不得把 staging 部分完成误写为 final manual acceptance 或 production release 已完成。
+> 全局 Phase 3、Home / Feed 定向 Phase 2/3、Astro 7 定向依赖基线、Home Activity Signal 定向 Phase 2/3 与 HAS 返回 Phase 4.1 均已完成。Phase 4 已正式闭合。Phase 5 implementation 已完成，historical RC1 merge point 为 `a524b0d`。当前 main HEAD / staging candidate 为 `4b41e4a`。Phase 6 automated technical acceptance 已完成。Phase 7 staging gate 已 ready for final manual acceptance；不得把 staging ready 误写为 final manual acceptance 或 production release 已完成。
 
 - /blog：🟡 RC1 已部署到 staging，final manual acceptance 未完成
 - /：✅ 星图入口需求、SSG 无聚合架构与 Design 2.1 视觉边界已锁定；🟡 RC1 已部署到 staging，final manual acceptance 未完成
 - /feed：✅ 公开足迹需求、分存事件架构与 Design 2.1 视觉边界已锁定；🟡 RC1 已部署到 staging；`/api/feed` staging HTTP 200 已验证
 - /learn、/projects：🟡 RC1 已部署到 staging，final manual acceptance 未完成
-- f.catstarry.xyz：🟡 Finance staging 已部署；`f-staging.catstarry.xyz` 仍在 DNS 验证，Finance 同域 `/api/*` 路由与跨站验证未完成
+- f.catstarry.xyz：🟡 Finance staging DNS、HTTPS、首页、same-origin `/api/*`、auth/session/logout、protected API、frontend same-origin 使用与 cross-site smoke 已通过；待 final manual acceptance
 - poker.catstarry.xyz：✅ 已上线（独立部署）
 - 设计系统 CSS：✅ `variables.css` / `components.css` / `typography.css` / `main.css` 已完成 Phase 4.3 canonical 对齐；Star Map、Planet、Focus、HAS、豹猫星座、About Expanded 与 Cursor Meteor 的样式接口已建立；运行时状态机、生产路由和真实数据链路仍属 Phase 5。
 - 依赖基线：✅ RC1 当前基线为 Astro 7.1.3 + `@astrojs/react` 6.0.1 + `@astrojs/cloudflare` 14.1.4 + React 19.2.7 + Wrangler 4.113.0；staging gate 不静默升级依赖。
 - 前端施工规则：✅ Phase 5.0B 完成，`docs/agents/frontend-rules.md` 已创建；Phase 5 前端开发线程必须引用。
 - Home Activity Signal：✅ 定向 Phase 2/3、返回 Phase 4.1 视觉重锁、Phase 4.2 mock 原型验收与 Phase 4.3 canonical 视觉接口落地均已完成；ADR-007 锁定受控静态投影，真实投影接入仍不得在 Phase 5 之前越权实现。
 - 共享基础设施 F：✅ 提交 `2ab3d83`、`51cd489` 已完成；独立 Code Review 已完成，P0/P1 已修复并增量复审通过。不得据此宣布任何业务模块已实现。
-- Phase 7 staging：🟡 隔离 staging D1 / KV / R2、Feed、Finance API、主站 Astro Worker、Finance Pages、staging migrations 与 `staging.catstarry.xyz` 主站 / `/api/feed` / `/activity-signals.json` HTTP 200 已完成；`f-staging.catstarry.xyz` DNS、Finance 同域 `/api/*`、staging 测试账号 / 密钥配置、跨站最终验证和 final manual acceptance 未完成。production release 未启动。
+- Phase 7 staging：🟡 隔离 staging D1 / KV / R2、Feed、Finance API、主站 Astro Worker、Finance Pages、staging migrations、`staging.catstarry.xyz` 主站 / `/api/feed` / `/activity-signals.json` HTTP 200、`f-staging.catstarry.xyz` DNS / HTTPS / 首页与 same-origin `/api/*`、Finance auth/session/logout、protected API、Finance frontend same-origin `/api/*` 使用、主站 ↔ Finance cross-site smoke 均已完成。staging gate ready for final manual acceptance；production release 未启动。
 - Phase 5 协作：✅ 流程减重已生效。保留三个常驻角色：流程治理、Phase 5 主执行 / 集成线程、网页端桥梁。普通模块可并行启动，但每个模块内部必须单 Owner；临时 Codex Agent 只读取模块任务包和直接相关真源，完成并合并后结束 session。
 - 共享文件 Owner：package 与全局配置、Base layout、shared contracts、migrations、auth / CORS、CI/CD 与生产部署只能由 Phase 5 主执行 / 集成线程修改。
 - 流程治理介入点：模块启动、模块关闭、跨模块冲突、定向回流、依赖 / 架构 Gate 与 Phase 切换。普通修复不重复登记。
-- RC1 状态：✅ Phase 5 implementation complete；✅ Phase 6 automated technical acceptance complete；🟡 Phase 7 staging deployment in progress；final manual acceptance 与 production release 未完成。
+- RC1 / staging 状态：✅ Phase 5 implementation complete；✅ Phase 6 automated technical acceptance complete；🟡 current staging candidate `4b41e4a`；🟡 staging gate ready for final manual acceptance；final manual acceptance 与 production release 未完成。
