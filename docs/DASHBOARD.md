@@ -10,12 +10,12 @@
 
 | 路径 | 需求分析 | 实现 |
 | --- | --- | --- |
-| / Home | ✅ 定向回流需求已更新 | ✅ RC1 已部署到 staging；final manual acceptance 人工目测通过；production 未启动 |
-| /blog | ✅ | ✅ RC1 已部署到 staging；final manual acceptance 人工目测通过；production 未启动 |
-| /feed | ✅ 定向回流需求已更新 | ✅ RC1 已部署到 staging；`/api/feed` staging HTTP 200 与人工目测通过；production 未启动 |
-| /learn | ✅ | ✅ RC1 已部署到 staging；final manual acceptance 人工目测通过；production 未启动 |
-| /projects | ✅ | ✅ RC1 已部署到 staging；final manual acceptance 人工目测通过；production 未启动 |
-| f.catstarry.xyz | ✅ | ✅ Finance staging auth、protected API、same-origin `/api/*`、cross-site smoke 与登录页 / dashboard 空数据展示人工目测通过；production 未启动 |
+| / Home | ✅ 定向回流需求已更新 | ✅ production release 已完成；manual smoke passed |
+| /blog | ✅ | ✅ production release 已完成；manual smoke passed |
+| /feed | ✅ 定向回流需求已更新 | ✅ production release 已完成；manual smoke passed |
+| /learn | ✅ | ✅ production release 已完成；manual smoke passed |
+| /projects | ✅ | ✅ production release 已完成；manual smoke passed |
+| f.catstarry.xyz | ✅ | ✅ production release 已完成；manual smoke passed |
 | poker.catstarry.xyz | N/A | ✅ |
 
 ---
@@ -31,8 +31,8 @@
 | 4 | UI/原型 | ✅ 已闭合；Phase 4.3 设计侧完成，canonical CSS、五颗星球三槽资产与 UI QA 已闭合 |
 | 5 | 开发实现 | ✅ RC1 已 merge 到 main，提交 `a524b0d` |
 | 6 | 测试/QA | ✅ 自动化技术验收 + final manual acceptance 已完成 |
-| 7 | 部署上线 | 🟡 staging gate 已闭合，具备进入 production release 决策前状态；production release 未启动 |
-| 8 | 运营维护 | 🔴 |
+| 7 | 部署上线 | ✅ production release 已完成；Release SHA：`665fbb3c3f01eb7fa84fb55997def210f47fe1a3`；Production manual smoke：passed |
+| 8 | 运营维护 | 🟡 运营维护已启动 |
 
 ---
 
@@ -76,40 +76,19 @@ Phase 5.0A 复核结论已被 RC1 集成基线 supersede：当前以 `package.js
 | RC1 实现 | ✅ | `a524b0d` 已 merge 到 main；Phase 5 implementation complete |
 | Phase 6 自动化技术验收 | ✅ | 已完成 |
 | Phase 6 final manual acceptance | ✅ | Home、Blog、Feed、Learn、Projects、Finance 登录页 / dashboard 空数据展示、主站与 Finance 路径，桌面与移动视觉均可接受 |
-| Phase 7 staging deployment gate | ✅ | 当前 main HEAD：`4841b4f`；staging candidate：`4b41e4a`；historical RC1 merge point：`a524b0d`；staging gate 已闭合，production 未部署 |
+| Phase 7 production release | ✅ | Release SHA：`665fbb3c3f01eb7fa84fb55997def210f47fe1a3`；Production manual smoke：passed |
 | 协作方式 | 🟡 | 三常驻角色：流程治理、Phase 5 主执行 / 集成线程、网页端桥梁；普通模块允许模块级并行，但模块内部单 Owner |
 | 当前分工记录 | 🟡 | `.scratch/phase5/dispatch.md`；只记录 base commit、active module、owner、allowed files、blocked by、next action |
 
-### Phase 7 staging deployment gate
+### Phase 7 release closure
 
 已完成：
 
-- 隔离 staging D1、KV、R2 已创建。
-- Feed、Finance API、主站 Astro Worker、Finance Pages 已部署。
-- staging migrations 已应用并复核。
-- `staging.catstarry.xyz` 已绑定；主站、`/api/feed`、`/activity-signals.json` 均已验证 HTTP 200。
-- `f-staging.catstarry.xyz` DNS 已完成验证；A / AAAA 解析正常，HTTPS 正常，Finance staging 首页返回 HTTP 200。
-- `f-staging.catstarry.xyz/api/health` 返回 Finance API 的 JSON `not_found` error envelope，证明同源 `/api/*` 已到达 Finance API router；`/api/health` 本身不是现有业务路由，不视为 routing failure。
-- `npm run test:finance:site` 通过。
-- `npm run test:finance:http` 通过。
-- staging-only 测试账号已写入 `FINANCE_AUTH_KV_STAGING`，7 天 TTL；凭据值不写入仓库文档。
-- 浏览器 staging smoke 已验证：匿名 session、未认证 protected API 401、login、session、`/api/holdings`、`/api/market`、logout、logout 后 protected API 401。
-- Cookie 属性已验证：host-only、`HttpOnly`、`Secure`、`SameSite=Strict`。
-- Finance frontend 所有 API 请求均为 `https://f-staging.catstarry.xyz/api/*`。
-- UI 登录后 dashboard 可见，登出后回到登录页；无 console error / exception。
-- 主站 ↔ Finance 双向导航成功；主站 DOM 未包含 Finance 域名。
-- 主站直接跨域调用 Finance API 被 CORS 拒绝，符合 same-origin 设计。
-- 未修改生产资源，未部署 production。
-
-已闭合：
-
-- final manual acceptance 已完成：Home、Blog、Feed、Learn、Projects、Finance 登录页 / dashboard 空数据展示、主站与 Finance 路径，桌面与移动视觉均可接受。
-- Cloudflare VPN / challenge 只影响自动截图，不视为产品不通过项。
-
-Production 前置：
-
-- production release 决策尚未启动。
-- Wrangler 4.113.0 对含 trigger migration 的远程批量执行存在已确认限制；staging 已用等价导入完成，production 前需独立处理升级 / 验证任务。
+- Phase 7 staging gate：complete。
+- Phase 7 production release：complete。
+- Release SHA：`665fbb3c3f01eb7fa84fb55997def210f47fe1a3`。
+- Production manual smoke：passed。
+- Phase 8 operations and maintenance：started。
 
 上线后迭代 / 后续业务验收：
 
@@ -138,7 +117,6 @@ Production 前置：
 
 ## 当前待办
 
-1. 进入 production release 决策前流程。
-2. production 前独立处理 Wrangler 4.113.0 trigger migration remote batch 限制的升级 / 验证工作。
-3. 确认 production 资源、secrets、migration 策略、rollback plan 与最终发布窗口。
-4. 未经木下明确授权，不得启动 production release、不得部署 production、不得触碰生产资源。
+1. 进入 Phase 8 运营维护。
+2. 新问题按 bug、维护、体验微调或新需求分类处理。
+3. Phase 8 独立维护事项按优先级逐项处理，不回写为 Phase 7 blocker。

@@ -1,7 +1,7 @@
 # catstarry.xyz 开发流程编排方案
 
 > 执行手册。进度追踪见 `docs/DASHBOARD.md`。
-> 最后更新：2026-07-16 08:29
+> 最后更新：2026-07-29
 
 ---
 
@@ -297,6 +297,8 @@ tdd → implement → code-review → 木下按 acceptance 验收 → 通过/回
 
 **目标**：推送到生产环境。
 
+**当前状态**：✅ production release 已完成。Release SHA：`665fbb3c3f01eb7fa84fb55997def210f47fe1a3`。Production manual smoke：passed。
+
 | #   | 动作                                    | skill                     |
 | --- | --------------------------------------- | ------------------------- |
 | 7.1 | D1 schema、KV namespace、R2 bucket 创建 | `wrangler`                |
@@ -308,6 +310,8 @@ tdd → implement → code-review → 木下按 acceptance 验收 → 通过/回
 ## Phase 8：运营维护（持续）
 
 **目标**：保持可用，持续改进。
+
+**当前状态**：🟡 运营维护已启动。Phase 8 事项不再作为 Phase 7 blocker。
 
 ### 木下的日常操作（上线后）
 
@@ -330,6 +334,14 @@ tdd → implement → code-review → 木下按 acceptance 验收 → 通过/回
 | 新功能   | 回到 Phase 1            | `grill-me` → …                                 |
 
 **周期维护**：每季度 D1 备份（`wrangler d1 backup`）。
+
+### 当前独立维护事项
+
+- Bot Fight Mode 与 GitHub publication challenge。
+- Wrangler trigger migration limitation。
+- npm audit 5 个 high findings。
+- Feed staging Cron 配额。
+- Finance 真实数据、行情 provider 和双角色业务流程。
 
 ---
 

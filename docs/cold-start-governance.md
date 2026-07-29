@@ -97,12 +97,15 @@ DESIGN.md                           — Design 2.1 已锁定；Phase 4.3 已完�
 | 3 架构设计 | fork 自 Phase 2        | ✅ 已完成          |
 | 4 UI/原型  | 独立（Phase 3 确认后） | ✅ 已闭合 |
 | 5 开发实现 | 三常驻角色 + 模块级并行 | ✅ RC1 已 merge 到 main |
-| 6 测试/QA  | fork 自 Phase 5        | 🟡 自动化技术验收已完成；下一步 final manual acceptance |
-| 7 部署上线 | 流程治理协调           | 🟡 staging gate ready for final manual acceptance；production release 未启动 |
-| 8 运营维护 | 按需                   | 不需要报告         |
+| 6 测试/QA  | fork 自 Phase 5        | ✅ 已完成 |
+| 7 部署上线 | 流程治理协调           | ✅ production release 已完成 |
+| 8 运营维护 | 按需                   | 🟡 已启动 |
 
 ## 当前工作
 
-当前真实入口：Phase 5 implementation 已完成，historical RC1 merge point 为 `a524b0d`，current main HEAD / staging candidate 为 `4b41e4a`。Phase 6 automated technical acceptance 已完成。Phase 7 staging gate 已 ready for final manual acceptance：`staging.catstarry.xyz` 主站、`/api/feed`、`/activity-signals.json`、`f-staging.catstarry.xyz` DNS / HTTPS / 首页、same-origin `/api/*`、Finance auth/session/logout、protected API、Finance frontend same-origin 使用与主站 ↔ Finance cross-site smoke 均已验证。下一步是 Phase 6 final manual acceptance。不要重新审查 Phase 5 / 6；不要把 staging ready 误写为最终人工验收或 production release 已完成。当前分工记录见 `.scratch/phase5/dispatch.md`。
+Phase 7 production release 已完成。
+当前进入 Phase 8 运营维护。
+新问题按 bug、维护、体验微调或新需求分类处理。
+当前分工记录见 `.scratch/phase5/dispatch.md`。
 
 先读取上述文件、`.scratch/phase5/dispatch.md` 与当前 Git 状态，再告诉木下真实状态和下一动作。不要假设，不要猜测。
