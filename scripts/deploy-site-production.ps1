@@ -60,9 +60,9 @@ Invoke-RequiredCommand npm ci
 Invoke-RequiredCommand npm run test:planets
 Invoke-RequiredCommand npm run test:home-copy
 Invoke-RequiredCommand npm run site:typecheck
+Invoke-RequiredCommand npm run build
 Invoke-RequiredCommand npm run test:home
 Invoke-RequiredCommand npm run test:site-output
-Invoke-RequiredCommand npm run build
 
 $workerConfig = Join-Path $repoRoot 'dist/server/wrangler.json'
 if (-not (Test-Path -LiteralPath $workerConfig -PathType Leaf)) {
