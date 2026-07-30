@@ -1,6 +1,6 @@
 # Phase 4.3 Planet Asset Manifest
 
-> 状态：五颗星球的设计身份与 `Overview / Focus / Mobile` 同源资产槽已闭合。
+> 状态：五颗星球的 `Overview / Focus / Mobile` 同源资产槽已闭合；当前生产母版位于 `source/`，三档 WebP 由同一母版可复现导出。
 >
 > 边界：这是 Phase 4.3 设计资产选择，不代表 `src/pages` 已接入，也不代表 Phase 5 的最终 2x / CDN 交付规格已经完成。
 
@@ -22,23 +22,23 @@
 
 | Planet | Role | Source | Selected file | Dimensions | Bytes |
 | --- | --- | --- | --- | ---: | ---: |
-| About | Overview | Generated series master | `selected/planet-about-overview.webp` | 1254×1254 | 159,146 |
-| About | Focus | About Overview master crop | `selected/planet-about-focus.webp` | 1120×840 | 186,972 |
-| About | Mobile | About Overview master resize | `selected/planet-about-mobile.webp` | 640×640 | 55,122 |
-| Blog | Overview | Generated series master | `selected/planet-blog-overview.webp` | 1254×1254 | 215,736 |
-| Blog | Focus | Blog Overview master crop | `selected/planet-blog-focus.webp` | 1120×840 | 217,128 |
-| Blog | Mobile | Blog Overview master resize | `selected/planet-blog-mobile.webp` | 640×640 | 78,166 |
-| Feed | Overview | Generated series master | `selected/planet-feed-overview.webp` | 1254×1254 | 237,066 |
-| Feed | Focus | Feed Overview master crop | `selected/planet-feed-focus.webp` | 1120×840 | 301,764 |
-| Feed | Mobile | Feed Overview master resize | `selected/planet-feed-mobile.webp` | 640×640 | 83,550 |
-| Learn | Overview | Generated series master | `selected/planet-learn-overview.webp` | 1254×1254 | 258,102 |
-| Learn | Focus | Learn Overview master crop | `selected/planet-learn-focus.webp` | 1120×840 | 262,070 |
-| Learn | Mobile | Learn Overview master resize | `selected/planet-learn-mobile.webp` | 640×640 | 88,328 |
-| Projects | Overview | Generated series master | `selected/planet-projects-overview.webp` | 1254×1254 | 216,224 |
-| Projects | Focus | Projects Overview master crop | `selected/planet-projects-focus.webp` | 1120×840 | 269,764 |
-| Projects | Mobile | Projects Overview master resize | `selected/planet-projects-mobile.webp` | 640×640 | 72,586 |
+| About | Overview | `source/about-overview.png` | `selected/planet-about-overview.webp` | 1254×1254 | 389,518 |
+| About | Focus | About Overview master crop | `selected/planet-about-focus.webp` | 1120×840 | 354,312 |
+| About | Mobile | About Overview master resize | `selected/planet-about-mobile.webp` | 640×640 | 104,614 |
+| Blog | Overview | `source/blog-overview.png` | `selected/planet-blog-overview.webp` | 1254×1254 | 405,690 |
+| Blog | Focus | Blog Overview master crop | `selected/planet-blog-focus.webp` | 1120×840 | 344,894 |
+| Blog | Mobile | Blog Overview master resize | `selected/planet-blog-mobile.webp` | 640×640 | 108,006 |
+| Feed | Overview | `source/feed-overview.png` | `selected/planet-feed-overview.webp` | 1254×1254 | 270,350 |
+| Feed | Focus | Feed Overview master crop | `selected/planet-feed-focus.webp` | 1120×840 | 235,054 |
+| Feed | Mobile | Feed Overview master resize | `selected/planet-feed-mobile.webp` | 640×640 | 75,890 |
+| Learn | Overview | `source/learn-overview.png` | `selected/planet-learn-overview.webp` | 1254×1254 | 421,768 |
+| Learn | Focus | Learn Overview master crop | `selected/planet-learn-focus.webp` | 1120×840 | 373,052 |
+| Learn | Mobile | Learn Overview master resize | `selected/planet-learn-mobile.webp` | 640×640 | 109,956 |
+| Projects | Overview | `source/projects-overview.png` | `selected/planet-projects-overview.webp` | 1254×1254 | 375,382 |
+| Projects | Focus | Projects Overview master crop | `selected/planet-projects-focus.webp` | 1120×840 | 340,166 |
+| Projects | Mobile | Projects Overview master resize | `selected/planet-projects-mobile.webp` | 640×640 | 104,030 |
 
-合计 15 个 selected assets，2,701,724 bytes：Overview 1,086,274 bytes、Focus 1,237,698 bytes、Mobile 377,752 bytes。移动端不需要加载 1254px Overview 或 Focus。
+合计 15 个 selected assets，4,012,682 bytes：Overview 1,862,708 bytes、Focus 1,647,478 bytes、Mobile 502,496 bytes。移动端不需要加载 1254px Overview 或 Focus。
 
 ## 3. 十四项验收矩阵
 
@@ -78,7 +78,7 @@ Phase 4.2 的 `docs/design/prototypes/phase4-2/assets/planets/*.webp` 保留为�
 ## 6. 来源与处理
 
 - 视觉规范：`docs/design/prototypes/phase4-2/planet-asset-prompt-kit-v2.md`。
-- 生成方式：OpenAI image generation；先生成 About 系列母版，后四颗均以同一系列参考保持光照、渲染和校色一致。
-- 抠图：统一平面 chroma 背景后执行 soft matte、despill 和 1px edge contraction。
-- 资产派生：不重新绘制 Focus / Mobile，不从 `docs/design/reference-design/` 复制未确认素材。
+- 当前母版：`source/*.png`；以完整 RGBA 画布保留用户提供的构图和 alpha。
+- 资产导出：`scripts/export-planet-webp.mjs` 使用 Sharp，将母版受控放大至 1254px，再以既定裁切框派生 Focus、以 Lanczos 缩小派生 Mobile。
+- 资产派生：Focus / Mobile 均从对应的新 Overview 母版导出，不从 `docs/design/reference-design/` 复制未确认素材。
 - 接入边界：selected assets 位于设计资产目录，不写入 `src/assets/`；正式页面与加载策略属于 Phase 5。
