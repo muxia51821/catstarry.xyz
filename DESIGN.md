@@ -19,7 +19,7 @@ description: catstarry.xyz 视觉与交互设计系统。Home 是从远处接近
 - Phase 4.1 已完成：Design 2.0、HAS 视觉重锁以及本次 Design 2.1 极小交互重锁均已闭合；本次未修改 canonical CSS。
 - Phase 4.2 已完成木下目测验收：隔离原型验证了滚动距离、Focus 浏览路径、Drift 构图、mock HAS、About / 豹猫 companion、触控与 reduced-motion。
 - Phase 4.3 已完成设计侧落地：获选组件样式与经验证参数已进入 canonical CSS，五颗星球的 Overview / Focus / Mobile 身份已闭环，并形成 UI QA 证据；这不等于 `src/pages` 生产 Home 已实现。
-- Phase 5 尚未开始：本文件不授权生产组件、页面或数据实现。
+- Phase 5 已完成：本文件不授权生产组件、页面或数据实现。
 
 ### 0.2 上游边界
 
@@ -57,11 +57,11 @@ catstarry.xyz 是木下持续生长的数字生活空间。宇宙是全站共享
 
 ### 1.1 三画布系统
 
-| 画布 | 页面 | 气质 | 核心职责 |
-| --- | --- | --- | --- |
-| Home / Deep Space | / | 克制、深邃、具有真实纵深的暖性地质宇宙 | 进入 catstarry、理解板块、直接导航、原地展开 About |
-| Content / Cream Gallery | /blog、/feed、/learn、/projects | 温暖、安静、艺术出版物质感 | 阅读、时间流、学习节奏与项目展示 |
-| Finance / Cyber Arena | f.catstarry.xyz | 精确、冷静、数据优先 | 私密财务数据与操作 |
+| 画布                    | 页面                            | 气质                                   | 核心职责                                           |
+| ----------------------- | ------------------------------- | -------------------------------------- | -------------------------------------------------- |
+| Home / Deep Space       | /                               | 克制、深邃、具有真实纵深的暖性地质宇宙 | 进入 catstarry、理解板块、直接导航、原地展开 About |
+| Content / Cream Gallery | /blog、/feed、/learn、/projects | 温暖、安静、艺术出版物质感             | 阅读、时间流、学习节奏与项目展示                   |
+| Finance / Cyber Arena   | f.catstarry.xyz                 | 精确、冷静、数据优先                   | 私密财务数据与操作                                 |
 
 统一关系：
 
@@ -89,13 +89,13 @@ Home 不是多个独立 section 拼接出的作品集，也不是游戏地图。
 
 远处可以是抽象星点，但靠近后必须逐步成为具有体积、光照、大气或地表细节的星球。
 
-| 观看尺度 | 必须看到 | 禁止退化为 |
-| --- | --- | --- |
-| Entry / 远景 | 星点、微光、极少量星尘 | 五个带文字的圆形按钮 |
-| Approach / 接近 | 星点分化为完整的小型球体，开始出现不同轮廓和材质 | 永久抽象节点、发光圆环 |
-| Overview / 总览 | 五颗完整星球全貌，自由分布，可区分地貌、环、气层或切面 | 五张等大的产品卡片 |
-| Focus / 聚焦 | 高细节弧面、地表、阴影、大气与微观材料；可只露出局部 | 简单放大低清总览图 |
-| Push / 点击推进 | 目标星球快速占据视野并把材质色调带入页面转场 | 长时间不可跳过的影片 |
+| 观看尺度        | 必须看到                                               | 禁止退化为             |
+| --------------- | ------------------------------------------------------ | ---------------------- |
+| Entry / 远景    | 星点、微光、极少量星尘                                 | 五个带文字的圆形按钮   |
+| Approach / 接近 | 星点分化为完整的小型球体，开始出现不同轮廓和材质       | 永久抽象节点、发光圆环 |
+| Overview / 总览 | 五颗完整星球全貌，自由分布，可区分地貌、环、气层或切面 | 五张等大的产品卡片     |
+| Focus / 聚焦    | 高细节弧面、地表、阴影、大气与微观材料；可只露出局部   | 简单放大低清总览图     |
+| Push / 点击推进 | 目标星球快速占据视野并把材质色调带入页面转场           | 长时间不可跳过的影片   |
 
 首选视觉方案是高质量预渲染星球图与 2.5D 演出。真实感来自一致的光照、体积、阴影和材质，不要求实时 WebGL 自转或可拖拽 3D。
 
@@ -115,13 +115,13 @@ Home 不是多个独立 section 拼接出的作品集，也不是游戏地图。
 
 ### 1.5 五颗星球材质矩阵
 
-| 星球 | 总览主地貌 | 聚焦后的微观质感 | 应避免 |
-| --- | --- | --- | --- |
-| About | 安静、低修辞的浅色岩质星体 | 细微毛发般矿物纹理或柔和尘埃层 | 猫头星、猫形星球、强人格 mascot |
-| Blog | 风化层状岩、沉积地层 | 纸浆纤维、墨迹般矿脉、颜料沉积 | 书本、羽毛笔等直白文学符号 |
-| Feed | 有流向感的低洼地表、沉积河谷 | 脚印、细小闪屑、被时间冲刷的纹理 | 社交 App 图标、信息流屏幕、水球直译 |
-| Learn | 地质断层、逐步显露的矿脉 | 刻线、石墨、微晶结构 | “知识水晶”、大脑等常见 AI 隐喻 |
-| Projects | 自然地表上的人工切割、台地或嵌入式结构 | 陶釉、金属嵌线、几何构造 | 全机械星球、赛博工厂、飞船基地 |
+| 星球     | 总览主地貌                             | 聚焦后的微观质感                 | 应避免                              |
+| -------- | -------------------------------------- | -------------------------------- | ----------------------------------- |
+| About    | 安静、低修辞的浅色岩质星体             | 细微毛发般矿物纹理或柔和尘埃层   | 猫头星、猫形星球、强人格 mascot     |
+| Blog     | 风化层状岩、沉积地层                   | 纸浆纤维、墨迹般矿脉、颜料沉积   | 书本、羽毛笔等直白文学符号          |
+| Feed     | 有流向感的低洼地表、沉积河谷           | 脚印、细小闪屑、被时间冲刷的纹理 | 社交 App 图标、信息流屏幕、水球直译 |
+| Learn    | 地质断层、逐步显露的矿脉               | 刻线、石墨、微晶结构             | “知识水晶”、大脑等常见 AI 隐喻      |
+| Projects | 自然地表上的人工切割、台地或嵌入式结构 | 陶釉、金属嵌线、几何构造         | 全机械星球、赛博工厂、飞船基地      |
 
 ### 1.6 Content：借用材质，不搬运星球
 
@@ -142,11 +142,11 @@ Blog、Feed、Learn、Projects 继续使用 Cream Gallery 的现有功能布局�
 
 设计 token 分三层：
 
-| 层级 | 职责 | 示例 |
-| --- | --- | --- |
-| Layer 1 / Primitives | 原始色值、尺寸、时长、曲线、材质值 | Klein Blue 色阶、地质色、基础透明度 |
-| Layer 2 / Semantic | 画布和语义角色 | bg-base、text-primary、space-star-near、planet-rim |
-| Layer 3 / Component | 组件状态映射 | star-map-label、has-beacon、leopardcat-node、cursor-meteor、feed-footprint |
+| 层级                 | 职责                               | 示例                                                                       |
+| -------------------- | ---------------------------------- | -------------------------------------------------------------------------- |
+| Layer 1 / Primitives | 原始色值、尺寸、时长、曲线、材质值 | Klein Blue 色阶、地质色、基础透明度                                        |
+| Layer 2 / Semantic   | 画布和语义角色                     | bg-base、text-primary、space-star-near、planet-rim                         |
+| Layer 3 / Component  | 组件状态映射                       | star-map-label、has-beacon、leopardcat-node、cursor-meteor、feed-footprint |
 
 组件只能消费 Layer 2 或 Layer 3，不直接跨层绑定 Layer 1 原始值。Phase 4.1 锁定 token 的职责和命名家族；Phase 4.2 校准视觉数值；Phase 4.3 只将适合 CSS 的值落回 canonical contract。滚动阶段、轨道相位、随机星场和豹猫物理仍由运行时负责。
 
@@ -154,37 +154,37 @@ Blog、Feed、Learn、Projects 继续使用 Cream Gallery 的现有功能布局�
 
 ### 2.2 Klein Blue 色阶
 
-| Token | 值 | 用途 |
-| --- | --- | --- |
-| --klein-600 | #001F70 | 亮底 Hover / Active |
+| Token       | 值      | 用途                      |
+| ----------- | ------- | ------------------------- |
+| --klein-600 | #001F70 | 亮底 Hover / Active       |
 | --klein-500 | #002FA7 | 品牌基准、亮底 CTA 与重点 |
-| --klein-400 | #335CFF | 暗底可交互元素与可见边缘 |
-| --klein-300 | #6685FF | 暗底辅助图标、次级信号 |
-| --klein-100 | #E6ECFF | 亮底选中背景与淡提示 |
+| --klein-400 | #335CFF | 暗底可交互元素与可见边缘  |
+| --klein-300 | #6685FF | 暗底辅助图标、次级信号    |
+| --klein-100 | #E6ECFF | 亮底选中背景与淡提示      |
 
 Klein Blue 的艺术纯度由 --klein-500 定义；暗底交互必须根据对比度使用更亮阶，不能为了品牌纯度牺牲可见性。
 
 ### 2.3 画布基础色
 
-| 画布 | 基底 | 表面 | 主文字 | 主 CTA |
-| --- | --- | --- | --- | --- |
-| Home | --home-void: #0A0A0C | --home-surface-soft: #121722 | --home-text-primary: #E5E7EB | --klein-400 |
-| Content | --content-gallery: #FAF9F5 | --content-surface-card: #EFE9DE | --content-text-primary: #141413 | --klein-500 |
-| Finance | --finance-dark: #0B0E11 | --finance-surface: #1E2329 | --finance-text-primary: #EAECEF | --finance-cta-green: #5EAF9E |
+| 画布    | 基底                       | 表面                            | 主文字                          | 主 CTA                       |
+| ------- | -------------------------- | ------------------------------- | ------------------------------- | ---------------------------- |
+| Home    | --home-void: #0A0A0C       | --home-surface-soft: #121722    | --home-text-primary: #E5E7EB    | --klein-400                  |
+| Content | --content-gallery: #FAF9F5 | --content-surface-card: #EFE9DE | --content-text-primary: #141413 | --klein-500                  |
+| Finance | --finance-dark: #0B0E11    | --finance-surface: #1E2329      | --finance-text-primary: #EAECEF | --finance-cta-green: #5EAF9E |
 
 继续保留现有暖墨正文、Content 发丝线、Finance 涨跌色与 WCAG 对比度要求。
 
 #### 暖性地质基线
 
-| Token | 值 | 角色 |
-| --- | --- | --- |
-| --geo-cream | #E8DFD0 | 浅岩、纸浆、盐地 |
-| --geo-sand | #CBB184 | 沉积层、河谷、风化地貌 |
-| --geo-clay | #A8755B | 陶土、切面、较深地层 |
-| --geo-mineral | #BBB8AE | 中性矿物、断层与结晶基底 |
+| Token          | 值      | 角色                     |
+| -------------- | ------- | ------------------------ |
+| --geo-cream    | #E8DFD0 | 浅岩、纸浆、盐地         |
+| --geo-sand     | #CBB184 | 沉积层、河谷、风化地貌   |
+| --geo-clay     | #A8755B | 陶土、切面、较深地层     |
+| --geo-mineral  | #BBB8AE | 中性矿物、断层与结晶基底 |
 | --geo-graphite | #4B4E55 | 刻线、冷暗细节与学习矿脉 |
-| --geo-pigment | #7A5C48 | 墨迹与颜料沉积 |
-| --geo-metal | #9DA2A8 | Projects 的人工嵌线 |
+| --geo-pigment  | #7A5C48 | 墨迹与颜料沉积           |
+| --geo-metal    | #9DA2A8 | Projects 的人工嵌线      |
 
 五颗星球通过共用材质组合形成差异，不建立独立品牌色：About 使用 cream + mineral；Blog 使用 sand + clay + graphite / pigment；Feed 使用 sand + clay + pigment；Learn 使用 cream + mineral + graphite；Projects 使用 clay + mineral + metal。星球贴图决定真实地貌，CSS 色负责统一调色、光学叠加与资源降级。
 
@@ -192,26 +192,26 @@ Klein Blue 的艺术纯度由 --klein-500 定义；暗底交互必须根据对�
 
 以下是 v2 必须提供的语义接口。Phase 4.3 canonical CSS 已吸收 Phase 4.2 验证过的透明度、尺度与光学强度；星团坐标、暗区、随机 seed 与密度生成仍不属于 CSS token：
 
-| 家族 | 建议 Token | 职责 |
-| --- | --- | --- |
-| Deep Space | --space-bg、--space-haze、--space-dust | 深空、远雾、微尘 |
+| 家族        | 建议 Token                                            | 职责                             |
+| ----------- | ----------------------------------------------------- | -------------------------------- |
+| Deep Space  | --space-bg、--space-haze、--space-dust                | 深空、远雾、微尘                 |
 | Depth Stars | --space-star-far、--space-star-mid、--space-star-near | 三档景深星点的颜色、透明度和尺度 |
-| Depth State | --space-depth-muted、--space-depth-active | 非焦点与当前焦点的光学差异 |
-| Route | --space-route、--space-route-active | 低音量航线与交互增强 |
+| Depth State | --space-depth-muted、--space-depth-active             | 非焦点与当前焦点的光学差异       |
+| Route       | --space-route、--space-route-active                   | 低音量航线与交互增强             |
 
 ### 2.5 星球光学、材质与状态 Token
 
 星球可能需要较多 token，但必须按职责分组，不能为每张贴图建立一套无规律变量。
 
-| 家族 | 建议 Token | 职责 |
-| --- | --- | --- |
-| Optical | --planet-light-main、--planet-shadow-cold、--planet-rim、--planet-atmosphere | 统一主光、冷阴影、边缘光与大气 |
-| Surface | --planet-surface-cream、--planet-surface-sand、--planet-surface-clay、--planet-surface-mineral | 暖性地质基础 |
-| Detail | --planet-detail-graphite、--planet-detail-pigment、--planet-detail-metal、--planet-grain | 近看微观材料 |
-| Contrast | --planet-surface-contrast、--planet-surface-saturation、--planet-detail-opacity | 总览与聚焦的材质强度 |
-| Scale | --planet-scale-entry、--planet-scale-overview、--planet-scale-focus | 三档观看尺度 |
-| Focus | --planet-focus-rim、--planet-focus-glow、--planet-focus-label | hover / focus 状态 |
-| Transition | --planet-push-scale、--planet-push-fade、--planet-push-duration | 点击短推进的语义接口 |
+| 家族       | 建议 Token                                                                                     | 职责                           |
+| ---------- | ---------------------------------------------------------------------------------------------- | ------------------------------ |
+| Optical    | --planet-light-main、--planet-shadow-cold、--planet-rim、--planet-atmosphere                   | 统一主光、冷阴影、边缘光与大气 |
+| Surface    | --planet-surface-cream、--planet-surface-sand、--planet-surface-clay、--planet-surface-mineral | 暖性地质基础                   |
+| Detail     | --planet-detail-graphite、--planet-detail-pigment、--planet-detail-metal、--planet-grain       | 近看微观材料                   |
+| Contrast   | --planet-surface-contrast、--planet-surface-saturation、--planet-detail-opacity                | 总览与聚焦的材质强度           |
+| Scale      | --planet-scale-entry、--planet-scale-overview、--planet-scale-focus                            | 三档观看尺度                   |
+| Focus      | --planet-focus-rim、--planet-focus-glow、--planet-focus-label                                  | hover / focus 状态             |
+| Transition | --planet-push-scale、--planet-push-fade、--planet-push-duration                                | 点击短推进的语义接口           |
 
 五颗星球通过 Layer 3 别名映射这些共用值，例如 planet-blog-surface、planet-feed-detail。禁止建立五套互相无关的品牌色。
 
@@ -228,11 +228,11 @@ ADR-007 已授权 Home 读取一份最小、静态的活动状态投影。Klein 
 - 状态通过天体材质、轨道残留、受限运动和可访问文字共同表达，不能只靠颜色、亮度或运动；
 - 若 Home 没有有效的活动状态投影，四颗功能星球都隐藏活动卫星；绝不能把数据不可用伪装成 `dormant`。
 
-| 状态 | 总览视觉 | 局部运动与反馈 |
-| --- | --- | --- |
-| `active` | 最清晰但仍低音量的信标：深冷珍珠灰本体、Klein Blue 信号带、细边缘辉光与可读轨道 | 按 active 周期低频公转；hover / keyboard focus 时平滑减速并维持较弱同步光学响应 |
-| `stable` | 同一枚信标逐级冷却，尺寸、明度与轨道弱于 active | 按 stable 周期低频公转；hover / focus 时按自身周期同比减速并作更弱回应 |
-| `dormant` | 可辨认的冷却卫星与极弱轨道残片；不能消失，以免与投影缺失混淆 | 默认静止；hover 或 focus 只强化标签和轮廓，不发出辉光脉冲 |
+| 状态      | 总览视觉                                                                        | 局部运动与反馈                                                                  |
+| --------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `active`  | 最清晰但仍低音量的信标：深冷珍珠灰本体、Klein Blue 信号带、细边缘辉光与可读轨道 | 按 active 周期低频公转；hover / keyboard focus 时平滑减速并维持较弱同步光学响应 |
+| `stable`  | 同一枚信标逐级冷却，尺寸、明度与轨道弱于 active                                 | 按 stable 周期低频公转；hover / focus 时按自身周期同比减速并作更弱回应          |
+| `dormant` | 可辨认的冷却卫星与极弱轨道残片；不能消失，以免与投影缺失混淆                    | 默认静止；hover 或 focus 只强化标签和轮廓，不发出辉光脉冲                       |
 
 Phase 4.2 已将同一母版信标的核心直径基线校准为主星的约 `6.375%`，再通过 active `1`、stable `.88`、dormant `.76` 的状态尺度逐级冷却。该值是 canonical 视觉接口，不授权 CSS 控制实际轨道相位、周期或随机 pulse 调度。
 
@@ -301,27 +301,27 @@ Feed 仍可保留现有内容类别色，但颜色只作冗余标记，不能成
 
 ### 3.1 字体角色
 
-| 角色 | 字体 | 用途 |
-| --- | --- | --- |
-| Display | IBM Plex Sans + HarmonyOS Sans | Home 入口、画廊标题、品牌骨架 |
-| UI / Body | Geist + HarmonyOS Sans | 导航、正文、卡片与操作 |
-| Data / Mono | JetBrains Mono | Finance 数值、时间戳、低音量坐标 |
-| CJK Fallback | HarmonyOS Sans SC、PingFang SC、Microsoft YaHei | 中文兜底 |
+| 角色         | 字体                                            | 用途                             |
+| ------------ | ----------------------------------------------- | -------------------------------- |
+| Display      | IBM Plex Sans + HarmonyOS Sans                  | Home 入口、画廊标题、品牌骨架    |
+| UI / Body    | Geist + HarmonyOS Sans                          | 导航、正文、卡片与操作           |
+| Data / Mono  | JetBrains Mono                                  | Finance 数值、时间戳、低音量坐标 |
+| CJK Fallback | HarmonyOS Sans SC、PingFang SC、Microsoft YaHei | 中文兜底                         |
 
 Home 的原“Hero Display”角色更名为 **Entry Display**。它服务宇宙入口的世界观短句，不承担产品 landing page 的大促销标题。
 
 ### 3.2 字号层级
 
-| 角色 | EN | CN | 字重 | 行高原则 |
-| --- | --- | --- | --- | --- |
+| 角色          | EN        | CN        | 字重            | 行高原则           |
+| ------------- | --------- | --------- | --------------- | ------------------ |
 | Entry Display | 最大 94px | 最大 84px | EN 300 / CN 400 | EN 0.9；CJK ≥ 1.25 |
-| Heading LG | 最大 78px | 最大 70px | EN 300 / CN 400 | CJK ≥ 1.30 |
-| Heading | 最大 54px | 最大 48px | 400 | CJK ≥ 1.35 |
-| Subheading | 最大 39px | 最大 35px | 400 | CJK ≥ 1.40 |
-| Body LG | 18px | 16px | EN 300 / CN 400 | CJK ≥ 1.85 |
-| Body | 16px | 16px | 400 | CJK ≥ 1.85 |
-| Nav | 14px | 14px | EN 600 / CN 500 | 1.20 |
-| Caption | 12px | 12px | 400 | 1.50 |
+| Heading LG    | 最大 78px | 最大 70px | EN 300 / CN 400 | CJK ≥ 1.30         |
+| Heading       | 最大 54px | 最大 48px | 400             | CJK ≥ 1.35         |
+| Subheading    | 最大 39px | 最大 35px | 400             | CJK ≥ 1.40         |
+| Body LG       | 18px      | 16px      | EN 300 / CN 400 | CJK ≥ 1.85         |
+| Body          | 16px      | 16px      | 400             | CJK ≥ 1.85         |
+| Nav           | 14px      | 14px      | EN 600 / CN 500 | 1.20               |
+| Caption       | 12px      | 12px      | 400             | 1.50               |
 
 Display 至 Heading 必须流式缩放。中文显示字号约为英文的 0.9 倍，不使用负字距。
 
@@ -383,12 +383,12 @@ Drift 已通过 Phase 4.2 目测验收并成为唯一主构图方向；当前坐
 
 ### 4.3 Planet Label
 
-| 状态 | 表现 |
-| --- | --- |
-| 默认总览 | 名称低对比、小字号、常驻且可发现；可贴近星体或使用极细引线 |
-| Hover / Focus | 名称和可点击性清晰；可增加一行极短板块说明 |
-| Touch | 不依赖 hover；点按必须能获得同等名称与进入提示 |
-| Push | 标签与星球共同向前，进入页面前淡出 |
+| 状态          | 表现                                                       |
+| ------------- | ---------------------------------------------------------- |
+| 默认总览      | 名称低对比、小字号、常驻且可发现；可贴近星体或使用极细引线 |
+| Hover / Focus | 名称和可点击性清晰；可增加一行极短板块说明                 |
+| Touch         | 不依赖 hover；点按必须能获得同等名称与进入提示             |
+| Push          | 标签与星球共同向前，进入页面前淡出                         |
 
 名称不能完全隐藏，否则星图会退化为猜谜式艺术海报。所有星球还必须在全站导航中有普通文字入口。
 
@@ -458,13 +458,13 @@ About 必须有两条通往同一展开态的路径：
 
 Feed 是木下的公开足迹／来时路，保持单列连续时间流：
 
-| 类型 | 视觉形式 | 核心内容 |
-| --- | --- | --- |
-| Note / 碎碎念 | 原生内容卡片 | 文字、图片或视频 |
-| Clip / 剪藏 | 原生剪藏卡片 | 标题、摘要、封面与木下点评 |
-| Blog Published | 克制的系统足迹行或轻卡片 | 来源、发布动作、快照标题、摘要、时间、链接 |
-| Learn Section Completed | 克制的系统足迹行或轻卡片 | 来源、完成动作、小节快照、时间、链接 |
-| Project Materially Updated | 克制的系统足迹行或轻卡片 | 来源、实质更新动作、项目快照、时间、链接 |
+| 类型                       | 视觉形式                 | 核心内容                                   |
+| -------------------------- | ------------------------ | ------------------------------------------ |
+| Note / 碎碎念              | 原生内容卡片             | 文字、图片或视频                           |
+| Clip / 剪藏                | 原生剪藏卡片             | 标题、摘要、封面与木下点评                 |
+| Blog Published             | 克制的系统足迹行或轻卡片 | 来源、发布动作、快照标题、摘要、时间、链接 |
+| Learn Section Completed    | 克制的系统足迹行或轻卡片 | 来源、完成动作、小节快照、时间、链接       |
+| Project Materially Updated | 克制的系统足迹行或轻卡片 | 来源、实质更新动作、项目快照、时间、链接   |
 
 系统足迹：
 
@@ -558,11 +558,11 @@ Finance 保留高密度数据布局、精确网格和暗色操作面，不使用
 
 ### 8.1 断点行为
 
-| 断点 | Home | Content / Feed |
-| --- | --- | --- |
-| Mobile < 640px | 保留星图而非改成卡片列表；减少粒子和景深层；只为焦点星球加载高细节；标签默认更清楚 | 单列、触控区不小于 44px |
-| Tablet 640–1023px | 调整星球位置和标签引线，降低视差，不采用两列 Feed | Feed 仍单列；阅读版心扩展 |
-| Desktop ≥ 1024px | 完整三层景深、自由星图、侧边航行索引、鼠标流星尾 | 完整 Cream Gallery 布局 |
+| 断点              | Home                                                                               | Content / Feed            |
+| ----------------- | ---------------------------------------------------------------------------------- | ------------------------- |
+| Mobile < 640px    | 保留星图而非改成卡片列表；减少粒子和景深层；只为焦点星球加载高细节；标签默认更清楚 | 单列、触控区不小于 44px   |
+| Tablet 640–1023px | 调整星球位置和标签引线，降低视差，不采用两列 Feed                                  | Feed 仍单列；阅读版心扩展 |
+| Desktop ≥ 1024px  | 完整三层景深、自由星图、侧边航行索引、鼠标流星尾                                   | 完整 Cream Gallery 布局   |
 
 ### 8.2 可访问性
 
@@ -585,14 +585,14 @@ Finance 保留高密度数据布局、精确网格和暗色操作面，不使用
 
 ### 9.1 页面到画布映射
 
-| 页面 | 画布 | 主色 | 艺术元素 |
-| --- | --- | --- | --- |
-| Home / | Deep Space | Klein Blue | 暖性地质星球、三层星域、豹猫星座、鼠标流星尾 |
-| Blog | Cream Gallery | Klein Blue | 层状沉积与纸浆残响 |
-| Feed | Cream Gallery | Klein Blue | 单列时间流、河谷时间方向、系统足迹 |
-| Learn | Cream Gallery | Klein Blue | 断层、刻线、矿脉残响 |
-| Projects | Cream Gallery | Klein Blue | 台地、切面、金属嵌线残响 |
-| Finance | Cyber Arena | Turquoise | 数据网格、涨跌双重编码；无星图与鼠标尾迹 |
+| 页面     | 画布          | 主色       | 艺术元素                                     |
+| -------- | ------------- | ---------- | -------------------------------------------- |
+| Home /   | Deep Space    | Klein Blue | 暖性地质星球、三层星域、豹猫星座、鼠标流星尾 |
+| Blog     | Cream Gallery | Klein Blue | 层状沉积与纸浆残响                           |
+| Feed     | Cream Gallery | Klein Blue | 单列时间流、河谷时间方向、系统足迹           |
+| Learn    | Cream Gallery | Klein Blue | 断层、刻线、矿脉残响                         |
+| Projects | Cream Gallery | Klein Blue | 台地、切面、金属嵌线残响                     |
+| Finance  | Cyber Arena   | Turquoise  | 数据网格、涨跌双重编码；无星图与鼠标尾迹     |
 
 ### 9.2 Phase 4.2 / 4.3 原型验收基线
 
@@ -618,17 +618,17 @@ Finance 保留高密度数据布局、精确网格和暗色操作面，不使用
 
 本节授权 Phase 4.1 对齐 token 契约、CJK 基线与通用工具类，并清理已失效的旧页面语义；不授权实现 Star Map、Planet、About Expanded、Leopard Cat 或 Cursor Meteor 页面组件。一次性原型 CSS 只能在 Phase 4.2 隔离验证，选定后于 Phase 4.3 落回 canonical styles。
 
-| Design 1.4 / 现有 CSS 概念 | v2 处理 |
-| --- | --- |
-| Home two-column / Home Card | canonical CSS 已退役；由 Home Entry + Star Map Stage 取代 |
-| About Card | canonical CSS 已退役；由 About Planet + About Expanded 取代 |
-| Home Timeline / Timeline Card / Type Filter | canonical CSS 已退役；不提供替代 Home 组件 |
-| Tablet two-column Feed | 废弃，Feed 全断点单列 |
-| 粒子只属于 About Card | 已改为 Space / Leopard Cat / Cursor Meteor 三种明确语义 |
-| --cat-warm、--cat-dark、--cat-eye-glow | 已废弃；迁移为 Klein Blue 豹猫光学 token |
-| --cat-blog 等 category token | 已改名为 --category-blog 等；只作冗余标记，不再服务 Home 卡片 |
-| prefers-color-scheme 决定画布 | 已废弃；Canvas 身份优先，由 data-canvas 明确映射 |
-| 既有 CJK、Finance、三画布基础 token | 保留 |
+| Design 1.4 / 现有 CSS 概念                  | v2 处理                                                       |
+| ------------------------------------------- | ------------------------------------------------------------- |
+| Home two-column / Home Card                 | canonical CSS 已退役；由 Home Entry + Star Map Stage 取代     |
+| About Card                                  | canonical CSS 已退役；由 About Planet + About Expanded 取代   |
+| Home Timeline / Timeline Card / Type Filter | canonical CSS 已退役；不提供替代 Home 组件                    |
+| Tablet two-column Feed                      | 废弃，Feed 全断点单列                                         |
+| 粒子只属于 About Card                       | 已改为 Space / Leopard Cat / Cursor Meteor 三种明确语义       |
+| --cat-warm、--cat-dark、--cat-eye-glow      | 已废弃；迁移为 Klein Blue 豹猫光学 token                      |
+| --cat-blog 等 category token                | 已改名为 --category-blog 等；只作冗余标记，不再服务 Home 卡片 |
+| prefers-color-scheme 决定画布               | 已废弃；Canvas 身份优先，由 data-canvas 明确映射              |
+| 既有 CJK、Finance、三画布基础 token         | 保留                                                          |
 
 ---
 
@@ -638,15 +638,15 @@ Finance 保留高密度数据布局、精确网格和暗色操作面，不使用
 
 ### 10.1 动效职责
 
-| 类型 | 职责 | 允许 |
-| --- | --- | --- |
-| Scroll-driven | 推进同一星域的远近关系 | 星点显影、星球尺度变化、阶段切换 |
-| Parallax | 辅助纵深 | 远景慢、中景适中、前景稍快 |
-| Hover / Focus | 表达可进入性 | 标签清晰、边缘光、一次短脉冲 |
-| Planet Push | 完成导航转场 | 短暂锁定目标、放大、进入页面 |
+| 类型               | 职责                       | 允许                                                                           |
+| ------------------ | -------------------------- | ------------------------------------------------------------------------------ |
+| Scroll-driven      | 推进同一星域的远近关系     | 星点显影、星球尺度变化、阶段切换                                               |
+| Parallax           | 辅助纵深                   | 远景慢、中景适中、前景稍快                                                     |
+| Hover / Focus      | 表达可进入性               | 标签清晰、边缘光、一次短脉冲                                                   |
+| Planet Push        | 完成导航转场               | 短暂锁定目标、放大、进入页面                                                   |
 | Activity Satellite | 表达最低限度的板块活动状态 | `active` / `stable` 低频公转、异步低频 pulse 与 attention 减速；`dormant` 静态 |
-| About Cat | 可发现彩蛋 | 节点蓄能、分层解体、Focus 残粒、弹簧回收 |
-| Cursor Meteor | 个人鼠标签名 | 短尾跟随、快速衰减 |
+| About Cat          | 可发现彩蛋                 | 节点蓄能、分层解体、Focus 残粒、弹簧回收                                       |
+| Cursor Meteor      | 个人鼠标签名               | 短尾跟随、快速衰减                                                             |
 
 ### 10.2 缓动语义
 
@@ -674,11 +674,11 @@ Finance 保留高密度数据布局、精确网格和暗色操作面，不使用
 
 每颗星球至少准备同一材质与同一光照下的三种资产用途：
 
-| 资产槽 | 用途 | 要求 |
-| --- | --- | --- |
-| Overview Full Sphere | 星图总览 | 完整球体、透明或深空友好边缘、总览尺寸可辨地貌 |
-| Focus High Detail | 聚焦与点击推进 | 高分辨率地表、大气、阴影和局部弧面；与总览无换图感 |
-| Mobile Optimized | 移动端 | 保留轮廓和主地貌，降低尺寸、粒度和透明叠层成本 |
+| 资产槽               | 用途           | 要求                                               |
+| -------------------- | -------------- | -------------------------------------------------- |
+| Overview Full Sphere | 星图总览       | 完整球体、透明或深空友好边缘、总览尺寸可辨地貌     |
+| Focus High Detail    | 聚焦与点击推进 | 高分辨率地表、大气、阴影和局部弧面；与总览无换图感 |
+| Mobile Optimized     | 移动端         | 保留轮廓和主地貌，降低尺寸、粒度和透明叠层成本     |
 
 Phase 4.2 的资产 Gate 已调整为“可替换占位 + 接口连续性”，不要求五颗星球最终身份定稿。Phase 4.3 已完成下游身份闭环：
 

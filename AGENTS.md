@@ -2,102 +2,108 @@
 
 ## Behavioral Principles
 
-These rules apply only in coding / implementation tasks and may override general behavior when in conflict.
+These rules apply to coding, implementation, testing, and repository tasks.
 
 ### 1. Think Before Coding
 
-- Do not assume ambiguous requirements; ask clarifying questions
-- Surface trade-offs explicitly before implementation
-- If unsure, pause and articulate uncertainty
+* Prefer existing code and project documents over assumptions.
+* Ask only when missing information materially changes implementation, risk, or acceptance.
+* For safe and reversible ambiguity, state the assumption and continue.
+* Do not invent unrequested product requirements.
 
 ### 2. Simplicity First
 
-- Do not introduce unrequested abstractions or configurability
-- Prefer minimal implementation over extensible design
-- If simpler solution exists, refactor toward it
+* Prefer the smallest implementation that satisfies the requirement.
+* Do not introduce unrequested abstractions, configuration, or extensibility.
+* Do not refactor unrelated code in pursuit of a cleaner design.
 
 ### 3. Surgical Changes
 
-- Only modify code relevant to the request
-- Do not refactor unrelated code, even if improved
-- Ensure every change is traceable to requirement
+* Modify only files directly relevant to the current task.
+* Do not format, fix, delete, or reorganize unrelated content.
+* Every change must be traceable to a stated requirement.
 
-### 4. Goal-Driven Execution
+### 4. Verify the Result
 
-- Convert tasks into verifiable steps when necessary
-- For bugs: reproduce -> fix -> verify
-- For refactors: ensure behavioral equivalence before/after
+* Bugs: reproduce -> fix -> verify.
+* Refactors: verify behavioral equivalence.
+* Run relevant tests, builds, or static checks.
+* Report unperformed verification explicitly; never claim it passed.
 
 ## Agent Operating Context
 
-### Issue tracker
+* Issue tracker：`.scratch/<feature>/`，见 `docs/agents/issue-tracker.md`。
+* Triage labels：见 `docs/agents/triage-labels.md`。
+* 当前产品事实：`CONTEXT.md`。
+* 架构决策：`docs/adr/`。
+* 项目术语：`GLOSSARY.md`。
+* 技术架构：`docs/architecture.md`。
 
-Local markdown — issues live as files under `.scratch/<feature>/`. See `docs/agents/issue-tracker.md`.
+## 项目与流程
 
-### Triage labels
+* 所有项目文档和与木下的对话使用中文。
+* 代码标识符、文件名和 Git commit message 使用英文 ASCII。
+* 木下是非程序员用户；说明改动时应使用可理解的语言，并提供精确命令。
+* `AGENTS.md` 负责 Agent 行为、权限和仓库安全。
+* `docs/workflow-orchestration.md` 负责执行调度和高风险任务流程。
+* `CONTEXT.md` 记录当前产品事实和已确认决策。
+* Triage labels 只表示 Issue 状态，不具备执行调度权。
+* 执行前明确当前任务、模块和允许修改的范围。
+* 不得修改未经授权的模块。
+* 生产发布、架构变更和依赖主版本升级必须单独立项。
 
-Five canonical labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+## Production 安全
 
-### Domain docs
+* 未经木下明确授权，不得部署或修改 production 资源。
+* Production 资源包括 Workers、Pages、D1、KV、R2、DNS、routes、Cron、secrets 和 GitHub production environment。
+* 不得在代码、日志、文档或回复中暴露密码、Token、Secret、哈希或认证记录。
+* 执行 production 操作前，必须说明影响范围、验证步骤和回滚条件。
 
-Single-context — one `CONTEXT.md` at repo root, ADRs in `docs/adr/`. See `docs/agents/domain.md`.
+## Git 约束
 
-## 文件写入方式
-
-### 首选（长内容、中文、特殊字符）
-
-使用 PowerShell Here-String + .NET WriteAllText，一次写入完整文件。
-**适用条件**：文件内容不包含 `@'` 或行中 `'@` 序列。
+* 所有 `git commit` 和 `git push` 均由木下执行。
+* 修改文件前必须运行：
 
 ```powershell
-$content = @'
-（在此处原样粘贴完整文件内容。单引号 ' 、双引号 " 、反斜杠 \ 、$ 符号均无需转义）
-'@
-[System.IO.File]::WriteAllText("D:\catstarry.xyz\目标文件.md", $content,[System.Text.UTF8Encoding]::new($false))
+git status --short
+git log -1 --oneline
 ```
 
-**约束**：  
+* 不得修改或暂存与当前任务无关的 tracked 或 untracked 文件。
+* 未经明确授权，不得使用 `git add .` 或 `git add -A`。
+* 完成后列出实际改动文件，并提供按路径限定的 `git add` 和 `git commit` 命令。
+* 如需快照，提供精确命令并等待木下执行后再继续。
 
-- Here-String 用单引号：`@'` 开头，`'@` 结尾
-- `'@` 必须顶格写在行首，单独占一行
-- `[System.Text.UTF8Encoding]::new($false)` 确保无 BOM 的 UTF-8
-- 如果内容含 `'@` 或行中 `@'`（如本文档本节自身），回退到备选方案。
+## 依赖基线
 
-### 备选（内容含 @' / 短内容 / 无复杂字符）
+* 默认使用 `package.json` 和 lockfile 已锁定的版本。
+* 不得在功能、设计、修复或原型任务中静默升级依赖。
+* 主版本升级必须作为独立的依赖审计和迁移任务执行。
 
-`python -c` + `pathlib.write_text`。仅限：单引号字符串、无反斜杠、无美元符、无三重引号。
+## 文件写入
 
-### 禁止
+* 使用 PowerShell 7（`pwsh`），不得使用 Windows PowerShell 5.1（`powershell.exe`）。
+* 修改已有文件时优先使用 patch/edit 工具。
+* 避免整文件重写和无关换行符变化。
+* 新建或完整覆盖文件时使用 UTF-8 无 BOM。
+* 写入后检查 `git diff`，不得产生与当前任务无关的变更。
 
-- `Set-Content`（GBK 编码，中文乱码）
-- `Out-File`（同上）
-- `>` 重定向写中文文件（同上）
-- `python -c` 内含三重引号或反斜杠转义
-- 含美元符的 `python -c` 字符串（PowerShell 变量展开）
+## 治理上报
 
-## 项目术语
+仅在以下情况提醒木下更新 `docs/DASHBOARD.md`：
 
-见 `GLOSSARY.md`.
+* production release；
+* 重要里程碑完成；
+* 模块状态发生变化；
+* 新增或关闭重大 blocker；
+* 架构、依赖或运营治理基线发生变化。
 
-## 技术栈
+普通维护修复无需单独更新治理状态。
 
-Astro hybrid + React (shadcn/ui) + CF Workers + D1 + KV + R2。详见 `docs/architecture.md`.
+## 冲突处理
 
-## 项目与流程约束
-
-- 所有文档和用户对话用中文
-- 代码标识符、文件名、Git commit 用英文 ASCII
-- 非程序员用户（Vibe Coding），AI agent 负责编码
-- **执行权限**：docs/workflow-orchestration.md 是唯一执行调度系统（single source of execution truth）。triage labels 和 CONTEXT.md 仅提供信息，不具备流程控制权。
-- **流程约束**：所有开发工作必须遵循 `docs/workflow-orchestration.md` 定义的 Phase 顺序。对话开始时必须明确声明当前负责的 Phase，不得越权处理其他 Phase 的事项。Phase 顺序不可跳。
-- **CONTEXT.md 约定性质**：`[原型约定]` 标记的内容是 blog 原型阶段的临时产物，对应的 Phase 到达时必须重新审查，有权推翻；`[已锁定]` 标记的内容不可改。
-- **进度上报**：当前 Phase 完成后，提醒木下回到「流程治理」对话更新 DASHBOARD.md。
-- **Git 权限**：所有 `git commit` 与 `git push` 均由木下本人执行。Agent 只提供命令，不得自行提交或推送。
-- **Git 修改前检查**：Agent 修改前必须只读检查 `git status --short` 与 `git log -1 --oneline`。如需快照，给出精确命令并等待木下执行确认后再修改。
-- **Git 交接**：Agent 完成工作后必须列出实际改动文件，并提供按路径限定的 `git add <path...>` 与 `git commit -m "..."` 命令。除非木下明确授权，不得使用 `git add -A` 或 `git add .`。
-- **未追踪素材**：Agent 不得擅自暂存未追踪目录或素材；`.codex/` 与 `docs/design/reference-design/深水/` 默认忽略，除非木下另行明确授权。
-- **依赖基线**：正式开发以当前最新稳定主版本为目标。主版本升级必须作为独立的依赖基线审计／迁移任务执行并验证，不得在功能、设计或原型任务中静默升级。
-
-## Rule Precedence
-
-AGENTS.md > Workflow-orchestration > CONTEXT.md > labels > local heuristics
+* Agent 行为、权限和仓库安全：以 `AGENTS.md` 为准。
+* 执行调度和高风险流程：以 `docs/workflow-orchestration.md` 为准。
+* 产品事实和已确认决策：以 `CONTEXT.md` 和对应 ADR 为准。
+* Issue 状态：以 triage labels 为准。
+* 无法判断时，说明冲突来源，不得自行覆盖已有决策。
