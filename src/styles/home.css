@@ -62,6 +62,7 @@
           "Segoe UI",
           sans-serif;
       }
+
       * {
         box-sizing: border-box;
       }
@@ -463,23 +464,7 @@
         background-position: center;
         background-repeat: no-repeat;
         background-size: contain;
-        box-shadow:
-          0 0 calc(
-              var(--planet-passive-rim-blur) +
-                12px * var(--target-halo, 0)
-            )
-            rgb(
-              111 139 230 /
-                calc(
-                  var(--planet-passive-rim-opacity) +
-                    var(--target-halo, 0) * 0.08
-                )
-            ),
-          0 21px var(--planet-shadow-blur)
-            rgb(
-              0 0 0 /
-                calc(var(--planet-shadow-opacity) * var(--sphere-visible, 0))
-            );
+        box-shadow: none;
         filter: contrast(var(--planet-contrast, 1))
           saturate(var(--planet-saturation, 0.82));
         transform: scale(
@@ -492,7 +477,7 @@
       .planet-core::before {
         content: "";
         position: absolute;
-        inset: 3.2%;
+        inset: var(--planet-material-inset, 3.2%);
         border-radius: 50%;
         pointer-events: none;
         opacity: calc(var(--terminator-opacity) * var(--sphere-visible, 0));
@@ -507,7 +492,7 @@
       .planet-core::after {
         content: "";
         position: absolute;
-        inset: 3.15%;
+        inset: var(--planet-material-inset, 3.15%);
         border-radius: 50%;
         pointer-events: none;
         opacity: var(--sphere-visible, 0);
@@ -547,6 +532,7 @@
           0 0 22px rgb(0 47 167 / 0.34);
       }
       .planet.about {
+        --planet-material-inset: 8.25%;
         --planet-fallback: radial-gradient(
           circle at 36% 32%,
           #f3e8d5,
@@ -555,6 +541,7 @@
         );
       }
       .planet.blog {
+        --planet-material-inset: 5.5%;
         --planet-fallback: linear-gradient(
           135deg,
           #f3dec0,
@@ -563,6 +550,7 @@
         );
       }
       .planet.feed {
+        --planet-material-inset: 5.5%;
         --planet-fallback: radial-gradient(
           ellipse at 35% 36%,
           #d8ba91,
@@ -571,6 +559,7 @@
         );
       }
       .planet.learn {
+        --planet-material-inset: 8.3%;
         --planet-fallback: linear-gradient(
           145deg,
           #e7d9bf,
@@ -579,6 +568,7 @@
         );
       }
       .planet.projects {
+        --planet-material-inset: 8.15%;
         --planet-fallback: linear-gradient(
           120deg,
           #e0c7a3,
@@ -1352,7 +1342,7 @@
         background-position: var(--focus-crop, center);
         background-repeat: no-repeat;
         background-size: contain;
-        box-shadow: 0 7vmin 12vmin rgb(0 0 0 / 0.52);
+        box-shadow: none;
         filter: contrast(var(--focus-planet-contrast, 1.06))
           saturate(var(--focus-planet-saturation, 0.82));
         transform: scale(var(--focus-material-scale, 1.05));
@@ -1372,7 +1362,7 @@
         mix-blend-mode: multiply;
       }
       .focus-planet-core::after {
-        content: "";
+        content: none;
         position: absolute;
         inset: 3.15%;
         border-radius: 50%;
@@ -1664,4 +1654,3 @@
           transition-duration: 1ms !important;
         }
       }
-    

@@ -26,7 +26,7 @@ const canonicalUrl = new URL(canonicalPath, Astro.site).href;
   <meta property="og:site_name" content="catstarry.xyz" />
   <slot name="head" />
 </head>
-<body>
+<body data-variant={canonicalPath === '/' ? 'drift' : undefined}>
   <slot />
 </body>
 </html>

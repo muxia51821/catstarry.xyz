@@ -91,7 +91,119 @@ function isVisible(snapshot, focus) {
       snapshot.enter?.opacity > 0
       && snapshot.enter?.width > 0
       && snapshot.enter?.height > 0
+  ));
+}
+
+const planetKeys = ['about', 'blog', 'feed', 'projects', 'learn'];
+const planetAssetContracts = {
+  overview: { attribute: 'overviewAsset', width: 1254, height: 1254 },
+  focus: { attribute: 'focusAsset', width: 1120, height: 840 },
+  mobile: { attribute: 'mobileAsset', width: 640, height: 640 },
+};
+
+function planetAssetProbeExpression(kind) {
+  const contract = planetAssetContracts[kind];
+  return `(async () => {
+    const keys = ${JSON.stringify(planetKeys)};
+    const loadImage = (source) => new Promise((resolve) => {
+      const image = new Image();
+      const finish = (loaded) => resolve({
+        loaded,
+        naturalWidth: image.naturalWidth,
+        naturalHeight: image.naturalHeight,
+      });
+      image.addEventListener('load', () => finish(true), { once: true });
+      image.addEventListener('error', () => finish(false), { once: true });
+      image.src = source;
+    });
+    return Promise.all(keys.map(async (planetKey) => {
+      const planet = document.querySelector('[data-planet="' + planetKey + '"]');
+      const source = planet?.dataset.${contract.attribute} ?? null;
+      const absoluteUrl = source ? new URL(source, location.href).href : null;
+      const image = source
+        ? await loadImage(source)
+        : { loaded: false, naturalWidth: 0, naturalHeight: 0 };
+      let renderedUrl = null;
+      if (${JSON.stringify(kind)} === 'overview' && planet) {
+        const backgroundImage = getComputedStyle(planet.querySelector('.planet-core')).backgroundImage;
+        const match = backgroundImage.match(/^url\\(["']?(.*?)["']?\\)$/);
+        renderedUrl = match ? new URL(match[1], location.href).href : null;
+      }
+      return {
+        planet: planetKey,
+        source,
+        absoluteUrl,
+        renderedUrl,
+        rendered: ${JSON.stringify(kind)} !== 'overview' || renderedUrl === absoluteUrl,
+        expectedWidth: ${contract.width},
+        expectedHeight: ${contract.height},
+        ...image,
+      };
+    }));
+  })()`;
+}
+
+function addNetworkStatus(entries, responses) {
+  return entries.map((entry) => {
+    const response = responses.get(entry.absoluteUrl);
+    return {
+      ...entry,
+      httpStatus: response?.status ?? null,
+      mimeType: response?.mimeType ?? null,
+      fromDiskCache: response?.fromDiskCache ?? false,
+    };
+  });
+}
+
+function assetsPass(entries) {
+  return entries.length === planetKeys.length
+    && planetKeys.every((key) => entries.some((entry) => entry.planet === key))
+    && entries.every((entry) => (
+      entry.loaded
+      && entry.rendered
+      && entry.naturalWidth === entry.expectedWidth
+      && entry.naturalHeight === entry.expectedHeight
+      && entry.httpStatus >= 200
+      && entry.httpStatus < 400
+      && entry.mimeType === 'image/webp'
     ));
+}
+
+function activitySignalSnapshotExpression() {
+  return `(() => Object.fromEntries(['blog', 'feed', 'learn', 'projects'].map((key) => {
+    const signal = document.querySelector('[data-planet="' + key + '"] .signal-wrap');
+    const layers = [...(signal?.querySelectorAll('.signal-layer') ?? [])];
+    const core = signal?.querySelector('.signal-core');
+    const coreRect = core?.getBoundingClientRect();
+    return [key, {
+      state: signal?.dataset.state ?? null,
+      reveal: signal ? getComputedStyle(signal).getPropertyValue('--signal-reveal').trim() : null,
+      layerOpacities: layers.map((layer) => Number(getComputedStyle(layer).opacity)),
+      coreOpacity: core ? Number(getComputedStyle(core).opacity) : null,
+      coreWidth: coreRect?.width ?? 0,
+      coreHeight: coreRect?.height ?? 0,
+    }];
+  })))()`;
+}
+
+function visibleSignalsPass(signals) {
+  return Object.values(signals).every((signal) => (
+    ['active', 'stable', 'dormant'].includes(signal.state)
+    && Number(signal.reveal) > 0
+    && signal.layerOpacities.length > 0
+    && signal.layerOpacities.every((opacity) => opacity > 0)
+    && signal.coreOpacity > 0
+    && signal.coreWidth > 0
+    && signal.coreHeight > 0
+  ));
+}
+
+function unavailableSignalsPass(signals) {
+  return Object.values(signals).every((signal) => (
+    signal.state === null
+    && signal.layerOpacities.length > 0
+    && signal.layerOpacities.every((opacity) => opacity === 0)
+  ));
 }
 
 function describeException(details, phase) {
@@ -137,9 +249,20 @@ if (ownsServer) {
 let browser;
 let cdp;
 try {
+  const firstPaintHtml = await readFile(path.join(distRoot, 'index.html'), 'utf8');
+  const firstPaintDrift = /<body\s+data-variant="drift">/.test(firstPaintHtml);
   browser = await launchIsolatedBrowser();
   const errors = [];
+  const networkRequests = new Map();
+  const networkResponses = new Map();
+  const networkErrorKeys = new Set();
   let phase = 'CDP initialization';
+  const recordNetworkError = (error) => {
+    const key = JSON.stringify([error.kind, error.url, error.status, error.message]);
+    if (networkErrorKeys.has(key)) return;
+    networkErrorKeys.add(key);
+    errors.push(error);
+  };
   cdp = await connectCdp(browser.target, (message) => {
     if (message.method === 'Runtime.exceptionThrown') {
       errors.push({ kind: 'exception', ...describeException(message.params.exceptionDetails, phase) });
@@ -158,6 +281,46 @@ try {
         message: message.params.entry.text,
         url: message.params.entry.url,
       });
+    }
+    if (message.method === 'Network.requestWillBeSent') {
+      networkRequests.set(message.params.requestId, {
+        url: message.params.request.url,
+        type: message.params.type,
+      });
+    }
+    if (message.method === 'Network.responseReceived') {
+      const response = message.params.response;
+      networkResponses.set(response.url, {
+        status: response.status,
+        mimeType: response.mimeType,
+        fromDiskCache: response.fromDiskCache === true,
+      });
+      if (response.status >= 400) {
+        recordNetworkError({
+          kind: 'http-error',
+          phase,
+          message: `HTTP ${response.status} ${response.statusText}`.trim(),
+          status: response.status,
+          url: response.url,
+          resourceType: message.params.type,
+        });
+      }
+    }
+    if (message.method === 'Network.loadingFailed') {
+      const request = networkRequests.get(message.params.requestId);
+      const expectedNavigationAbort = message.params.canceled
+        && message.params.errorText === 'net::ERR_ABORTED'
+        && request?.type === 'Document';
+      if (!expectedNavigationAbort) {
+        recordNetworkError({
+          kind: 'resource-failed',
+          phase,
+          message: message.params.errorText,
+          url: request?.url ?? null,
+          resourceType: request?.type ?? message.params.type,
+          canceled: message.params.canceled === true,
+        });
+      }
     }
   });
   const { send, evaluate, waitFor } = cdp;
@@ -186,9 +349,9 @@ try {
     phase = 'Overview setup';
     await evaluate(`(() => {
       const journey = document.querySelector('.journey');
-      scrollTo(0, Math.max(0, journey.offsetHeight - innerHeight) * 0.88);
+      scrollTo(0, Math.max(0, journey.offsetHeight - innerHeight) * 0.27);
     })()`);
-    await delay(300);
+    await delay(1_000);
   };
   const samples = async (focus) => {
     const results = [];
@@ -202,15 +365,37 @@ try {
   await send('Runtime.enable');
   await send('Page.enable');
   await send('Log.enable');
+  await send('Network.enable');
+  await send('Network.setCacheDisabled', { cacheDisabled: true });
   await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
 
   await load();
+  phase = 'desktop Overview assets';
+  const overviewAssetsRaw = await evaluate(planetAssetProbeExpression('overview'));
+  await delay(50);
+  const overviewAssets = addNetworkStatus(overviewAssetsRaw, networkResponses);
+  phase = 'desktop Focus assets';
+  const focusAssetsRaw = await evaluate(planetAssetProbeExpression('focus'));
+  await delay(50);
+  const focusAssets = addNetworkStatus(focusAssetsRaw, networkResponses);
   const activitySignals = await evaluate(`Object.fromEntries(
     ['blog', 'feed', 'learn', 'projects'].map((key) => [
       key,
       document.querySelector('[data-planet="' + key + '"] .signal-wrap')?.dataset.state ?? null,
     ]),
   )`);
+  const visibleSignals = await evaluate(activitySignalSnapshotExpression());
+  const unavailableSignalStates = await evaluate(`(() => {
+    const signals = [...document.querySelectorAll('.signal-wrap')];
+    const states = signals.map((signal) => signal.dataset.state);
+    signals.forEach((signal) => { delete signal.dataset.state; });
+    return states;
+  })()`);
+  await delay(1_000);
+  const unavailableSignals = await evaluate(activitySignalSnapshotExpression());
+  await evaluate(`document.querySelectorAll('.signal-wrap').forEach((signal, index) => {
+    signal.dataset.state = ${JSON.stringify(unavailableSignalStates)}[index];
+  })`);
   phase = 'planet click';
   await evaluate(`document.querySelector('[data-planet="learn"]').click()`);
   const planetClick = await samples('learn');
@@ -297,6 +482,7 @@ try {
 
   phase = 'viewport matrix';
   const viewports = [];
+  let mobileAssets = [];
   for (const { width, height } of [
     { width: 1440, height: 900 },
     { width: 1366, height: 768 },
@@ -308,6 +494,12 @@ try {
   ]) {
     await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: width < 768 });
     await load();
+    if (width === 390 && height === 844) {
+      phase = '390x844 Mobile assets';
+      const mobileAssetsRaw = await evaluate(planetAssetProbeExpression('mobile'));
+      await delay(50);
+      mobileAssets = addNetworkStatus(mobileAssetsRaw, networkResponses);
+    }
     viewports.push(await evaluate(`({
       width: ${width},
       height: ${height},
@@ -332,7 +524,15 @@ try {
 
   const result = {
     errors,
+    assets: {
+      overview: overviewAssets,
+      focus: focusAssets,
+      mobile: mobileAssets,
+    },
     activitySignals,
+    firstPaintDrift,
+    visibleSignals,
+    unavailableSignals,
     planetClick: { visible: planetClick.visible, samples: planetClick.results.map(({ afterMs, state }) => ({ afterMs, focus: state.focus, focusMode: state.focusMode, focusOpen: state.focusOpen, layerOpacity: state.layer?.opacity, planetOpacity: state.planet?.opacity, proxyOpacity: state.proxy?.opacity, titleOpacity: state.title?.opacity, enterOpacity: state.enter?.opacity })) },
     indexClick: { visible: indexClick.visible, samples: indexClick.results.map(({ afterMs, state }) => ({ afterMs, focus: state.focus, focusMode: state.focusMode, focusOpen: state.focusOpen, layerOpacity: state.layer?.opacity, planetOpacity: state.planet?.opacity, proxyOpacity: state.proxy?.opacity, titleOpacity: state.title?.opacity, enterOpacity: state.enter?.opacity })) },
     naturalScroll,
@@ -344,9 +544,15 @@ try {
   console.log(JSON.stringify(result, null, 2));
   if (
     errors.length
+    || !assetsPass(overviewAssets)
+    || !assetsPass(focusAssets)
+    || !assetsPass(mobileAssets)
     || (ownsServer
       ? JSON.stringify(activitySignals) !== JSON.stringify(fixtureActivitySignals)
       : Object.values(activitySignals).some((state) => !['active', 'stable', 'dormant'].includes(state)))
+    || !firstPaintDrift
+    || !visibleSignalsPass(visibleSignals)
+    || !unavailableSignalsPass(unavailableSignals)
     || !planetClick.visible
     || !indexClick.visible
     || !naturalScroll.visible

@@ -362,10 +362,7 @@ const P = PROTOTYPE_VISUAL_PARAMETERS,
             action: "ENTER LEARN",
           },
         };
-        let variant =
-            new URLSearchParams(location.search).get("variant") === "orbit"
-              ? "orbit"
-              : "drift",
+        let variant = "drift",
           catState = "rest",
           activeFocus = null,
           focusTrigger = null,
@@ -940,10 +937,7 @@ const P = PROTOTYPE_VISUAL_PARAMETERS,
           if (mode === "recovering" && elapsed >= P.transition.catRecoverMs) { resetCatPhysics(); return; }
           catPhysicsFrame = requestAnimationFrame(tickCatPhysics);
         }
-        function updateUrl() {
-          const q = new URLSearchParams({ variant });
-          history.replaceState(null, "", `?${q}`);
-        }
+        function updateUrl() {}
         function clearSignalResponse(signal) {
           if (!signal) return;
           cancelAnimationFrame(signal._responseFrame);
