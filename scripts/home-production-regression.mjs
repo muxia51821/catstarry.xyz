@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { connectCdp, delay } from './lib/cdp-session.mjs';
 import { launchIsolatedBrowser } from './lib/isolated-browser.mjs';
+import { homeCopy } from '../src/content/copy/home.ts';
 
 const distRoot = existsSync('dist/client/index.html') ? 'dist/client' : 'dist';
 const server = createServer(async (request, response) => {
@@ -251,6 +252,19 @@ let cdp;
 try {
   const firstPaintHtml = await readFile(path.join(distRoot, 'index.html'), 'utf8');
   const firstPaintDrift = /<body\s+data-variant="drift">/.test(firstPaintHtml);
+  const copyOutputPass = [
+    homeCopy.entry.eyebrow,
+    homeCopy.entry.title,
+    homeCopy.entry.description,
+    homeCopy.entry.action,
+    homeCopy.focus.placeholderKicker,
+    homeCopy.footer,
+    homeCopy.planets.about.label,
+    homeCopy.planets.feed.label,
+    homeCopy.planets.blog.label,
+    homeCopy.planets.projects.label,
+    homeCopy.planets.learn.label,
+  ].every((text) => firstPaintHtml.includes(text));
   browser = await launchIsolatedBrowser();
   const errors = [];
   const networkRequests = new Map();
@@ -531,6 +545,7 @@ try {
     },
     activitySignals,
     firstPaintDrift,
+    copyOutputPass,
     visibleSignals,
     unavailableSignals,
     planetClick: { visible: planetClick.visible, samples: planetClick.results.map(({ afterMs, state }) => ({ afterMs, focus: state.focus, focusMode: state.focusMode, focusOpen: state.focusOpen, layerOpacity: state.layer?.opacity, planetOpacity: state.planet?.opacity, proxyOpacity: state.proxy?.opacity, titleOpacity: state.title?.opacity, enterOpacity: state.enter?.opacity })) },
@@ -551,6 +566,7 @@ try {
       ? JSON.stringify(activitySignals) !== JSON.stringify(fixtureActivitySignals)
       : Object.values(activitySignals).some((state) => !['active', 'stable', 'dormant'].includes(state)))
     || !firstPaintDrift
+    || !copyOutputPass
     || !visibleSignalsPass(visibleSignals)
     || !unavailableSignalsPass(unavailableSignals)
     || !planetClick.visible

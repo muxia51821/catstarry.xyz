@@ -1,5 +1,7 @@
 // @ts-nocheck
 
+import { homeCopy } from '../../content/copy/home';
+
 export type ActivityState = 'active' | 'stable' | 'dormant';
 type Assets = Record<string, { overview: string; focus: string; mobile: string }>;
 type States = Record<'blog' | 'feed' | 'learn' | 'projects', ActivityState>;
@@ -321,47 +323,7 @@ const P = PROTOTYPE_VISUAL_PARAMETERS,
           learn: "/learn/",
           projects: "/projects/",
         };
-        const focusMeta = {
-          about: {
-            title: "ABOUT",
-            kicker: "PERSONAL ORBIT",
-            description: "一个安静、偏远、只在 Home 原地展开的私人世界。",
-            notes: [
-              "浅色岩质与柔和尘埃只是镜头占位。",
-              "直接展开与豹猫彩蛋通往同一状态。",
-            ],
-            action: "",
-          },
-          feed: {
-            title: "FEED",
-            kicker: "PUBLIC FOOTPRINTS",
-            description: "公开来时路的入口；此处只验证阅读区和推进动作。",
-            notes: ["沉积河谷表达时间方向。", "原型不读取任何真实动态。"],
-            action: "ENTER FEED",
-          },
-          blog: {
-            title: "BLOG",
-            kicker: "WRITING & NOTES",
-            description:
-              "层状地貌作为写作世界的空间窗口，文字仍是主要阅读对象。",
-            notes: ["近景材质仍是可替换占位。", "原型不加载文章标题或列表。"],
-            action: "ENTER BLOG",
-          },
-          projects: {
-            title: "PROJECTS",
-            kicker: "SELECTED BUILDS",
-            description: "人工切面从自然地表中显露，但不在 Home 展开项目内容。",
-            notes: ["下部弧面用于验证不同镜头。", "原型不加载项目卡片。"],
-            action: "ENTER PROJECTS",
-          },
-          learn: {
-            title: "LEARN",
-            kicker: "LEARNING TRACKS",
-            description: "断层与矿脉提供纵深，稳定文字区承担进入前的说明。",
-            notes: ["只验证 Focus 的阅读节奏。", "原型不加载章节或学习进度。"],
-            action: "ENTER LEARN",
-          },
-        };
+        const focusMeta = homeCopy.planets;
         let variant = "drift",
           catState = "rest",
           activeFocus = null,
@@ -382,12 +344,7 @@ const P = PROTOTYPE_VISUAL_PARAMETERS,
             return n * n * (3 - 2 * n);
           },
           lerp = (a, b, t) => a + (b - a) * t;
-        const signalStateText = {
-          active: "活动状态：活跃",
-          stable: "活动状态：稳定",
-          dormant: "活动状态：休眠",
-          unavailable: "活动状态：当前不可用",
-        };
+        const signalStateText = homeCopy.activityStatus;
         function applyParameters() {
           root.style.setProperty(
             "--background-bloom",
@@ -1343,19 +1300,11 @@ const P = PROTOTYPE_VISUAL_PARAMETERS,
           slot.dataset.identity = key;
           const meta = focusMeta[key],
             material = P.planet.materials[key],
-            isAbout = key === "about";
-          slot.querySelector(".focus-title").textContent = isAbout
-            ? "木下"
-            : meta.title;
-          slot.querySelector(".focus-kicker").textContent = isAbout
-            ? "PERSONAL ORBIT"
-            : meta.kicker;
-          slot.querySelector(".focus-description").textContent = isAbout
-            ? "一个安静、偏远、只在 Home 原地展开的私人世界。"
-            : meta.description;
-          const notes = isAbout
-            ? ["直接展开与豹猫彩蛋通往同一状态。", "返回星图后可继续自然滚动。"]
-            : meta.notes;
+            copy = meta.focus;
+          slot.querySelector(".focus-title").textContent = copy.title;
+          slot.querySelector(".focus-kicker").textContent = copy.kicker;
+          slot.querySelector(".focus-description").textContent = copy.description;
+          const notes = copy.notes;
           slot.querySelector(".focus-notes").replaceChildren(
             ...notes.map((text) => {
               const li = document.createElement("li");
@@ -1380,8 +1329,8 @@ const P = PROTOTYPE_VISUAL_PARAMETERS,
             material.saturation,
           );
           if (slot === primarySlot) {
-            focusEnter.textContent = meta.action;
-            focusBack.textContent = "返回星图";
+            focusEnter.textContent = copy.action;
+            focusBack.textContent = homeCopy.focus.backAction;
           }
         }
         function setSlotGeometry(slot, key, state) {
@@ -1688,30 +1637,22 @@ const P = PROTOTYPE_VISUAL_PARAMETERS,
             renderScrollFocus(frame);
           const stageText = activeFocus
             ? [
-                `03 / ${activeFocus.toUpperCase()} FOCUS`,
-                "content first · planet as spatial window",
-                `FOCUS / ${activeFocus.toUpperCase()}`,
-                "NEAR",
+                `${homeCopy.stage.focus.namePrefix} ${homeCopy.planets[activeFocus].label} ${homeCopy.stage.focus.nameSuffix}`,
+                homeCopy.stage.focus.description,
               ]
             : p < P.camera.entryEnd
               ? [
-                  "00 / ENTRY",
-                  "five distant targets · one living starfield",
-                  "ENTRY",
-                  "FAR",
+                  homeCopy.stage.entry.name,
+                  homeCopy.stage.entry.description,
                 ]
               : p < overviewInteractiveStart
                 ? [
-                    "01 / APPROACH",
-                    "target stars become small worlds in place",
-                    "APPROACH",
-                    "MID",
+                    homeCopy.stage.approach.name,
+                    homeCopy.stage.approach.description,
                   ]
                 : [
-                    "02 / STAR MAP",
-                    "five stable regions · full warm geologies",
-                    "STAR MAP",
-                    "OVERVIEW",
+                    homeCopy.stage.overview.name,
+                    homeCopy.stage.overview.description,
                   ];
           document.getElementById("stage-name").textContent = stageText[0];
           document.getElementById("stage-copy").textContent = stageText[1];
@@ -1928,7 +1869,7 @@ const P = PROTOTYPE_VISUAL_PARAMETERS,
           resetCatPhysics();
           body.classList.remove("cat-residue-visible");
           catZone.classList.remove("charged", "burst", "recovering");
-          document.getElementById("cat-hint").textContent = "豹猫卫星彩蛋";
+          document.getElementById("cat-hint").textContent = homeCopy.cat.hint;
         }
         function recoverCatCompanion(restoreFocus = false, force = false) {
           if (!force && catState !== "burst" && focusTrigger !== cat) return;
@@ -1949,7 +1890,7 @@ const P = PROTOTYPE_VISUAL_PARAMETERS,
             () => {
               catState = "rest";
               catZone.classList.remove("recovering");
-              document.getElementById("cat-hint").textContent = "豹猫卫星彩蛋";
+              document.getElementById("cat-hint").textContent = homeCopy.cat.hint;
               if (restoreFocus) cat.focus();
             },
             reduce.matches ? 1 : P.transition.catRecoverMs,
@@ -2148,7 +2089,7 @@ const P = PROTOTYPE_VISUAL_PARAMETERS,
           catZone.classList.remove("charged", "recovering");
           catZone.classList.add("burst");
           beginCatPhysics("burst");
-          document.getElementById("cat-hint").textContent = "豹猫卫星彩蛋";
+          document.getElementById("cat-hint").textContent = homeCopy.cat.hint;
           if (reduce.matches) {
             resetCatToRest();
             navigateToFocus("about", cat);
@@ -2175,7 +2116,7 @@ const P = PROTOTYPE_VISUAL_PARAMETERS,
             catZone.classList.remove("recovering");
             catZone.classList.add("charged");
             document.getElementById("cat-hint").textContent =
-              "再次点击，进入 About";
+              homeCopy.cat.chargedHint;
             clearTimeout(chargeTimer);
             chargeTimer = setTimeout(
               () => {

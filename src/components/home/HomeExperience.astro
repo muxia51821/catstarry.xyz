@@ -15,11 +15,12 @@ import learnOverview from '../../../docs/design/assets/planets/selected/planet-l
 import projectsFocus from '../../../docs/design/assets/planets/selected/planet-projects-focus.webp?url';
 import projectsMobile from '../../../docs/design/assets/planets/selected/planet-projects-mobile.webp?url';
 import projectsOverview from '../../../docs/design/assets/planets/selected/planet-projects-overview.webp?url';
+import { homeCopy } from '../../content/copy/home';
 const manifestUrl = import.meta.env.PUBLIC_ACTIVITY_SIGNALS_URL ?? '/activity-signals.json';
 ---
 
 <main>
-      <section class="journey" id="entry" aria-label="Home 星图" data-home-manifest-url={manifestUrl}>
+      <section class="journey" id="entry" aria-label={homeCopy.accessibility.journeyLabel} data-home-manifest-url={manifestUrl}>
         <div class="stage" id="stage">
           <canvas
             class="star-layer stars-far"
@@ -41,22 +42,22 @@ const manifestUrl = import.meta.env.PUBLIC_ACTIVITY_SIGNALS_URL ?? '/activity-si
             ><i class="entry-meteor"></i>
           </div>
           <section class="entry-copy">
-            <p class="eyebrow">catstarry.xyz</p>
-            <h1>木下的星群漫游</h1>
+            <p class="eyebrow">{homeCopy.entry.eyebrow}</p>
+            <h1>{homeCopy.entry.title}</h1>
             <p class="note">
-              从这里进入各自独立生长的空间。
+              {homeCopy.entry.description}
             </p>
             <button class="discover" id="discover" type="button">
-              <span>DISCOVER MORE</span><i aria-hidden="true"></i>
+              <span>{homeCopy.entry.action}</span><i aria-hidden="true"></i>
             </button>
           </section>
           <p class="stage-readout">
-            <b id="stage-name">00 / ENTRY</b
+            <b id="stage-name">{homeCopy.stage.initial.name}</b
             ><span id="stage-copy"
-              >far field · distance before destination</span
+              >{homeCopy.stage.initial.description}</span
             >
           </p>
-          <div class="map" id="map" aria-label="自由分布星图">
+          <div class="map" id="map" aria-label={homeCopy.accessibility.mapLabel}>
             <button
               class="planet about"
               type="button"
@@ -65,7 +66,7 @@ const manifestUrl = import.meta.env.PUBLIC_ACTIVITY_SIGNALS_URL ?? '/activity-si
             >
               <span class="planet-core"></span
               ><span class="planet-label" id="about-label"
-                >ABOUT<small>personal orbit</small></span
+                >{homeCopy.planets.about.label}<small>{homeCopy.planets.about.subtitle}</small></span
               >
             </button>
             <button
@@ -87,7 +88,7 @@ const manifestUrl = import.meta.env.PUBLIC_ACTIVITY_SIGNALS_URL ?? '/activity-si
                   ><i class="signal-particle"></i><i class="signal-particle"></i
                   ><i class="signal-particle"></i></span></span
               ><span class="planet-label" id="blog-label"
-                >BLOG<small>writing &amp; notes</small></span
+                >{homeCopy.planets.blog.label}<small>{homeCopy.planets.blog.subtitle}</small></span
               ><span class="sr-only" id="blog-signal-status"></span>
             </button>
             <button
@@ -109,7 +110,7 @@ const manifestUrl = import.meta.env.PUBLIC_ACTIVITY_SIGNALS_URL ?? '/activity-si
                   ><i class="signal-particle"></i><i class="signal-particle"></i
                   ><i class="signal-particle"></i></span></span
               ><span class="planet-label" id="feed-label"
-                >FEED<small>public footprints</small></span
+                >{homeCopy.planets.feed.label}<small>{homeCopy.planets.feed.subtitle}</small></span
               ><span class="sr-only" id="feed-signal-status"></span>
             </button>
             <button
@@ -131,7 +132,7 @@ const manifestUrl = import.meta.env.PUBLIC_ACTIVITY_SIGNALS_URL ?? '/activity-si
                   ><i class="signal-particle"></i><i class="signal-particle"></i
                   ><i class="signal-particle"></i></span></span
               ><span class="planet-label" id="learn-label"
-                >LEARN<small>learning tracks</small></span
+                >{homeCopy.planets.learn.label}<small>{homeCopy.planets.learn.subtitle}</small></span
               ><span class="sr-only" id="learn-signal-status"></span>
             </button>
             <button
@@ -153,11 +154,11 @@ const manifestUrl = import.meta.env.PUBLIC_ACTIVITY_SIGNALS_URL ?? '/activity-si
                   ><i class="signal-particle"></i><i class="signal-particle"></i
                   ><i class="signal-particle"></i></span></span
               ><span class="planet-label" id="projects-label"
-                >PROJECTS<small>selected builds</small></span
+                >{homeCopy.planets.projects.label}<small>{homeCopy.planets.projects.subtitle}</small></span
               ><span class="sr-only" id="projects-signal-status"></span>
             </button>
           </div>
-          <div class="about-zone" id="about-zone" aria-label="豹猫卫星彩蛋">
+          <div class="about-zone" id="about-zone" aria-label={homeCopy.accessibility.catZoneLabel}>
             <button
               class="cat"
               id="cat"
@@ -192,31 +193,31 @@ const manifestUrl = import.meta.env.PUBLIC_ACTIVITY_SIGNALS_URL ?? '/activity-si
                   <path d="M596 279 L603 310 L646 407 L598 475 L564 487 L566 502 L615 500 L700 408 L691 353 L693 303 L751 337 L832 366 L856 381 L903 467 L901 477 L879 486 L877 498 L921 502 L930 489 L932 462 L891 341 L851 314 L821 279 L799 228 L793 188" stroke-width="8" stroke-dasharray="45 20"/><path d="M646 407 L693 303 L751 337 M821 279 L856 381 L903 467" stroke-width="3.5" stroke-dasharray="10 16" opacity=".48"/><circle cx="596" cy="279" r="5.5" fill="currentColor"/><circle cx="646" cy="407" r="5.2" fill="currentColor"/><circle cx="615" cy="500" r="5" fill="currentColor"/><circle cx="751" cy="337" r="5.1" fill="currentColor"/><circle cx="856" cy="381" r="5.2" fill="currentColor"/><circle cx="921" cy="502" r="4.9" fill="currentColor"/>
                 </g>
               </svg></button
-            ><span class="cat-hint" id="cat-hint">豹猫卫星彩蛋</span
+            ><span class="cat-hint" id="cat-hint">{homeCopy.cat.hint}</span
             >
           </div>
           <section
             class="planet-focus"
             id="planet-focus"
             aria-hidden="true"
-            aria-label="星球特写"
+            aria-label={homeCopy.accessibility.focusLabel}
           >
             <article class="focus-shot" data-slot="primary" aria-hidden="true">
               <div class="focus-planet-wrap" aria-hidden="true">
                 <div class="focus-planet-core"></div>
               </div>
               <div class="focus-copy">
-                <p class="focus-kicker">PLANET FOCUS</p>
-                <h2 class="focus-title">BLOG</h2>
+                <p class="focus-kicker">{homeCopy.focus.placeholderKicker}</p>
+                <h2 class="focus-title">{homeCopy.planets.blog.focus.title}</h2>
                 <p class="focus-description">
                   
                 </p>
                 <ul class="focus-notes"></ul>
                 <div class="focus-actions">
                   <button class="focus-back" id="focus-back" type="button">
-                    返回星图</button
+                    {homeCopy.focus.backAction}</button
                   ><button class="focus-enter" id="focus-enter" type="button">
-                    ENTER BLOG
+                    {homeCopy.planets.blog.focus.action}
                   </button>
                 </div>
               </div>
@@ -230,8 +231,8 @@ const manifestUrl = import.meta.env.PUBLIC_ACTIVITY_SIGNALS_URL ?? '/activity-si
                 <div class="focus-planet-core"></div>
               </div>
               <div class="focus-copy">
-                <p class="focus-kicker">PLANET FOCUS</p>
-                <h2 class="focus-title">FEED</h2>
+                <p class="focus-kicker">{homeCopy.focus.placeholderKicker}</p>
+                <h2 class="focus-title">{homeCopy.planets.feed.focus.title}</h2>
                 <p class="focus-description">
                   
                 </p>
@@ -244,26 +245,25 @@ const manifestUrl = import.meta.env.PUBLIC_ACTIVITY_SIGNALS_URL ?? '/activity-si
       </section>
       <footer class="footer">
         <p>
-          星图在此自然收束为页脚；没有
-          Recently、列表、标题摘要或跨模块内容读取。
+          {homeCopy.footer}
         </p>
       </footer>
     </main>
-<nav class="flight-index" aria-label="Home 航行索引">
+<nav class="flight-index" aria-label={homeCopy.flightIndex.ariaLabel}>
       <button type="button" data-anchor="entry">
-        <i></i><span>ENTRY</span></button
+        <i></i><span>{homeCopy.flightIndex.entry}</span></button
       ><button type="button" data-anchor="approach">
-        <i></i><span>APPROACH</span></button
+        <i></i><span>{homeCopy.flightIndex.approach}</span></button
       ><button type="button" data-anchor="overview">
-        <i></i><span>STAR MAP</span></button
+        <i></i><span>{homeCopy.flightIndex.overview}</span></button
       ><button type="button" data-focus="about">
-        <i></i><span>ABOUT</span></button
-      ><button type="button" data-focus="feed"><i></i><span>FEED</span></button
-      ><button type="button" data-focus="blog"><i></i><span>BLOG</span></button
+        <i></i><span>{homeCopy.planets.about.label}</span></button
+      ><button type="button" data-focus="feed"><i></i><span>{homeCopy.planets.feed.label}</span></button
+      ><button type="button" data-focus="blog"><i></i><span>{homeCopy.planets.blog.label}</span></button
       ><button type="button" data-focus="projects">
-        <i></i><span>PROJECTS</span></button
+        <i></i><span>{homeCopy.planets.projects.label}</span></button
       ><button type="button" data-focus="learn">
-        <i></i><span>LEARN</span>
+        <i></i><span>{homeCopy.planets.learn.label}</span>
       </button>
     </nav>
 <canvas
