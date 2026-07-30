@@ -96,15 +96,53 @@ export interface PositionLimits {
 export function positionDeviation(input: PositionLimits) {
   for (const [name, value] of Object.entries(input)) assertFinite(value, name);
   if (input.lower > input.target || input.target > input.upper) throw new Error('Position limits must contain the target');
+  const deviation = round(input.current - input.target, 12);
   const status = input.current > input.upper
     ? 'above_upper'
     : input.current < input.lower
       ? 'below_lower'
-      : 'normal';
+      : Math.abs(deviation) <= 0.05
+        ? 'near_target'
+        : 'rebalance';
   return {
-    deviation: round(input.current - input.target, 12),
+    deviation,
     status,
-    suggestedChange: status === 'normal' ? 0 : round(input.target - input.current, 12),
+    suggestedChange: status === 'near_target' ? 0 : round(input.target - input.current, 12),
+  };
+}
+
+export interface ComparableAssetPoint {
+  date: string;
+  total: number;
+  netCashFlow: number;
+  weightedCashFlow: number;
+}
+
+export function cashFlowAdjustedDrawdown(points: ComparableAssetPoint[]) {
+  if (points.length < 2) return null;
+  let comparable = Number(points[0]?.total);
+  if (!Number.isFinite(comparable) || comparable <= 0) return null;
+  let highWater = comparable;
+  let highWaterDate = points[0].date;
+  let current = comparable;
+  let currentDate = points[0].date;
+  for (let index = 1; index < points.length; index += 1) {
+    const point = points[index];
+    const total = Number(point.total); const netCashFlow = Number(point.netCashFlow); const weightedCashFlow = Number(point.weightedCashFlow);
+    if (!Number.isFinite(total) || total < 0 || !Number.isFinite(netCashFlow) || !Number.isFinite(weightedCashFlow)) return null;
+    const prior = comparable;
+    const weightedCapital = prior + weightedCashFlow;
+    if (prior <= 0 || weightedCapital <= 0) return null;
+    const returnRate = (total - prior - netCashFlow) / weightedCapital;
+    if (!Number.isFinite(returnRate) || returnRate <= -1) return null;
+    comparable = prior * (1 + returnRate);
+    current = comparable; currentDate = point.date;
+    if (comparable > highWater) { highWater = comparable; highWaterDate = point.date; }
+  }
+  return {
+    drawdown: round(Math.max(0, (highWater - current) / highWater), 12),
+    high_water_date: highWaterDate,
+    current_date: currentDate,
   };
 }
 

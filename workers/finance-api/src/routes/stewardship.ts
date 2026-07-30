@@ -8,7 +8,7 @@ export async function handleStewardship(request: Request, env: FinanceEnv, pathn
   if (pathname === '/api/risk-rules' && request.method === 'PUT') return saveRules(request, env);
   if (pathname === '/api/memos' && request.method === 'GET') return listMemos(request, env);
   if (pathname === '/api/memos' && request.method === 'POST') return saveMemo(request, env);
-  if (/^\/api\/memos\/\d+$/.test(pathname) && request.method === 'PATCH') return updateMemo(request, env, Number(pathname.split('/')[3]));
+  if (/^\/api\/memos\/\d+$/.test(pathname) && ['PATCH', 'PUT'].includes(request.method)) return updateMemo(request, env, Number(pathname.split('/')[3]));
   if (/^\/api\/memos\/\d+$/.test(pathname) && request.method === 'DELETE') return deleteMemo(request, env, Number(pathname.split('/')[3]));
   if (pathname === '/api/rebalances' && request.method === 'GET') return listRebalances(request, env);
   if (pathname === '/api/rebalances' && request.method === 'POST') return saveRebalance(request, env);
@@ -42,7 +42,9 @@ async function saveRules(request: Request, env: FinanceEnv) {
 
 async function listMemos(request: Request, env: FinanceEnv) {
   const session = await requireFinanceRole(request, env); if (session instanceof Response) return session;
-  const result = await env.DB.prepare('SELECT * FROM finance_memos WHERE deleted_at IS NULL ORDER BY memo_date DESC, id DESC LIMIT 200').all();
+  const result = await env.DB.prepare(`SELECT m.*, t.ticker_name, t.quantity AS trade_quantity, t.price AS trade_price
+    FROM finance_memos m LEFT JOIN trades t ON t.id = m.trade_id
+    WHERE m.deleted_at IS NULL ORDER BY m.memo_date DESC, m.id DESC LIMIT 200`).all();
   return json({ memos: result.results });
 }
 
@@ -50,9 +52,12 @@ async function saveMemo(request: Request, env: FinanceEnv) {
   const session = await requireFinanceRole(request, env, ['admin']); if (session instanceof Response) return session;
   const body = await readJson<Record<string, unknown>>(request); if (body instanceof Response) return body;
   const input = memoInput(body); if (!input) return apiError(400, 'invalid_memo', 'Memo fields are invalid');
+  const trade = await activeTradeForMemo(env, input.trade_id); if (!trade) return apiError(404, 'trade_not_found', 'Trade not found');
+  const existing = await env.DB.prepare('SELECT id FROM finance_memos WHERE trade_id = ? AND deleted_at IS NULL LIMIT 1').bind(input.trade_id).first<{ id: number }>();
+  if (existing) return apiError(409, 'memo_exists_for_trade', 'A trade can have only one active memo');
   const now = new Date().toISOString();
   const result = await env.DB.prepare(`INSERT INTO finance_memos (trade_id, memo_date, ticker, position_category, operation_type, reason, stop_loss_triggered, note, created_at, created_by)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(input.trade_id, input.memo_date, input.ticker, input.position_category, input.operation_type, input.reason, input.stop_loss_triggered, input.note, now, session.username).run();
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(input.trade_id, trade.trade_date, trade.ticker, trade.position_category, trade.direction, input.reason, input.stop_loss_triggered, input.note, now, session.username).run();
   return json({ memo: await env.DB.prepare('SELECT * FROM finance_memos WHERE id = ?').bind(result.meta.last_row_id).first() }, 201);
 }
 
@@ -61,9 +66,12 @@ async function updateMemo(request: Request, env: FinanceEnv, id: number) {
   if (!Number.isSafeInteger(id) || id < 1) return apiError(400, 'invalid_id', 'Memo id is invalid');
   const body = await readJson<Record<string, unknown>>(request); if (body instanceof Response) return body;
   const input = memoInput(body); if (!input) return apiError(400, 'invalid_memo', 'Memo fields are invalid');
+  const existing = await env.DB.prepare('SELECT id, trade_id FROM finance_memos WHERE id = ? AND deleted_at IS NULL').bind(id).first<{ id: number; trade_id: number }>();
+  if (!existing) return apiError(404, 'not_found', 'Memo not found');
+  if (input.trade_id !== Number(existing.trade_id)) return apiError(409, 'memo_trade_immutable', 'The linked trade cannot be changed');
   const now = new Date().toISOString();
-  const result = await env.DB.prepare(`UPDATE finance_memos SET trade_id = ?, memo_date = ?, ticker = ?, position_category = ?, operation_type = ?, reason = ?, stop_loss_triggered = ?, note = ?, updated_at = ?, updated_by = ? WHERE id = ? AND deleted_at IS NULL`)
-    .bind(input.trade_id, input.memo_date, input.ticker, input.position_category, input.operation_type, input.reason, input.stop_loss_triggered, input.note, now, session.username, id).run();
+  const result = await env.DB.prepare(`UPDATE finance_memos SET reason = ?, stop_loss_triggered = ?, note = ?, updated_at = ?, updated_by = ? WHERE id = ? AND deleted_at IS NULL`)
+    .bind(input.reason, input.stop_loss_triggered, input.note, now, session.username, id).run();
   return (result.meta.changes ?? 0) ? json({ memo: await env.DB.prepare('SELECT * FROM finance_memos WHERE id = ?').bind(id).first() }) : apiError(404, 'not_found', 'Memo not found');
 }
 
@@ -136,13 +144,25 @@ async function resolveWorkbookReview(request: Request, env: FinanceEnv, id: numb
   return json({ id, status: 'resolved', resolution_note: note, resolved_at: now });
 }
 
+interface MemoTradeSnapshot {
+  trade_date: string;
+  ticker: string;
+  position_category: string;
+  direction: string;
+}
+
+async function activeTradeForMemo(env: FinanceEnv, tradeId: number): Promise<MemoTradeSnapshot | null> {
+  return env.DB.prepare(`SELECT trade_date, ticker, position_category, direction FROM trades
+    WHERE id = ? AND deleted_at IS NULL`).bind(tradeId).first<MemoTradeSnapshot>();
+}
+
 function memoInput(value: Record<string, unknown>) {
-  const memo_date = text(value.memo_date, 10); const reason = text(value.reason, 8_000);
-  const trade_id = value.trade_id === null || value.trade_id === undefined || value.trade_id === '' ? null : Number(value.trade_id);
-  const ticker = nullableText(value.ticker, 24); const position_category = nullableText(value.position_category, 64); const operation_type = nullableText(value.operation_type, 64); const note = nullableText(value.note, 8_000);
+  const reason = text(value.reason, 8_000);
+  const trade_id = Number(value.trade_id);
+  const note = nullableText(value.note, 8_000);
   const stop_loss_triggered = value.stop_loss_triggered ? 1 : 0;
-  if (!isoDay.test(memo_date) || !reason || !Number.isInteger(trade_id ?? 0) && trade_id !== null || ticker === undefined || position_category === undefined || operation_type === undefined || note === undefined) return null;
-  return { trade_id, memo_date, ticker, position_category, operation_type, reason, stop_loss_triggered, note };
+  if (!Number.isSafeInteger(trade_id) || trade_id < 1 || !reason || note === undefined) return null;
+  return { trade_id, reason, stop_loss_triggered, note };
 }
 function text(value: unknown, max: number) { return typeof value === 'string' && value.trim().length <= max ? value.trim() : ''; }
 function nullableText(value: unknown, max: number): string | null | undefined { return value === undefined || value === null || value === '' ? null : typeof value === 'string' && value.trim().length <= max ? value.trim() : undefined; }

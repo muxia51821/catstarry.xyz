@@ -14,6 +14,7 @@ import { requireFinanceRole, type FinanceEnv } from './auth';
 
 interface HoldingRow {
   ticker: string;
+  ticker_name: string | null;
   quantity: number;
   avg_cost: number;
   position_category: string;
@@ -28,6 +29,23 @@ interface PositionLimitRow {
   upper_ratio: number;
 }
 
+const CATEGORY_ALIASES: Record<string, string> = {
+  '主动操作仓（A股）': '主动操作仓', '主动仓': '主动操作仓',
+  'A股宽基指数底仓': 'A股宽基指数',
+  '货币基金/现金': '机动仓', '机动仓（货币ETF）': '机动仓',
+  '美股ETF（A股跨境ETF）': '美股 ETF', '美股宽基指数底仓': '美股 ETF',
+  'A股总敞口（主动+宽基）': 'A股总敞口',
+};
+const POSITION_ORDER = ['主动操作仓', 'A股宽基指数', '美股 ETF', '黄金ETF', '机动仓', '其他', 'A股总敞口'];
+const PE_INDEXES = [
+  { symbol: 'CSI300_PE', display_name: '沪深 300 PE-TTM', aliases: ['CSI300_PE', 'SSE300_PE'], temperature: true },
+  { symbol: 'CSI500_PE', display_name: '中证 500 PE-TTM', aliases: ['CSI500_PE', 'SSE500_PE'] },
+  { symbol: 'CSI1000_PE', display_name: '中证 1000 PE-TTM', aliases: ['CSI1000_PE', 'SSE1000_PE'] },
+  { symbol: 'STAR50_PE', display_name: '科创 50 PE-TTM', aliases: ['STAR50_PE', 'SSESTAR50_PE'] },
+  { symbol: 'NASDAQ100_PE', display_name: '纳斯达克 100 PE', aliases: ['NASDAQ100_PE', 'NDX_PE'] },
+] as const;
+function normalizeCategory(category: string) { return CATEGORY_ALIASES[category] ?? category; }
+
 export async function handleDashboard(
   request: Request,
   env: FinanceEnv,
@@ -36,6 +54,7 @@ export async function handleDashboard(
   if (pathname === '/api/holdings' && request.method === 'GET') return holdings(request, env);
   if (pathname === '/api/market' && request.method === 'GET') return market(request, env);
   if (pathname === '/api/pe' && request.method === 'GET') return pe(request, env);
+  if (pathname === '/api/risk/signals' && request.method === 'GET') return riskSignals(request, env);
   if (pathname === '/api/circuit' && request.method === 'GET') return circuit(request, env);
   if (pathname === '/api/circuit/evaluate' && request.method === 'POST') return evaluateCircuit(request, env);
   if (pathname === '/api/circuit/objection' && request.method === 'POST') return recordObjection(request, env);
@@ -63,7 +82,11 @@ async function holdings(request: Request, env: FinanceEnv): Promise<Response> {
       SELECT ticker, MAX(snapshot_date || ':' || printf('%020d', id)) AS marker
       FROM holdings_snapshots GROUP BY ticker
     )
-    SELECT h.ticker, h.quantity, h.avg_cost, h.position_category,
+    SELECT h.ticker,
+      (SELECT t.ticker_name FROM trades t
+        WHERE t.ticker = h.ticker AND t.ticker_name IS NOT NULL AND t.ticker_name <> ''
+        ORDER BY t.trade_date DESC, t.id DESC LIMIT 1) AS ticker_name,
+      h.quantity, h.avg_cost, h.position_category,
       (SELECT price FROM market_data m WHERE m.ticker = h.ticker ORDER BY fetched_at DESC, id DESC LIMIT 1) AS price,
       (SELECT fetched_at FROM market_data m WHERE m.ticker = h.ticker ORDER BY fetched_at DESC, id DESC LIMIT 1) AS fetched_at
     FROM holdings_snapshots h
@@ -89,12 +112,16 @@ async function holdings(request: Request, env: FinanceEnv): Promise<Response> {
   const pricedTotal = values.reduce((sum, row) => sum + (row.market_value ?? 0), 0);
   const total = marketDataComplete ? pricedTotal : null;
   const byCategory = new Map<string, number>();
-  for (const row of values) byCategory.set(row.position_category, (byCategory.get(row.position_category) ?? 0) + (row.market_value ?? 0));
-  const configured = new Map(limits.results.map((limit) => [limit.position_category, limit]));
-  const positions = [...new Set([...byCategory.keys(), ...configured.keys()])].map((category) => {
+  for (const row of values) {
+    const category = normalizeCategory(row.position_category);
+    byCategory.set(category, (byCategory.get(category) ?? 0) + (row.market_value ?? 0));
+  }
+  const configured = new Map(limits.results.map((limit) => [normalizeCategory(limit.position_category), limit]));
+  const positions = [...new Set([...byCategory.keys(), ...configured.keys(), '其他'])]
+    .sort((left, right) => POSITION_ORDER.indexOf(left) - POSITION_ORDER.indexOf(right)).map((category) => {
     const limit = configured.get(category);
-    const categoryValue = category === 'A股总敞口（主动+宽基）'
-      ? (byCategory.get('主动操作仓（A股）') ?? 0) + (byCategory.get('A股宽基指数底仓') ?? 0)
+    const categoryValue = category === 'A股总敞口'
+      ? (byCategory.get('主动操作仓') ?? 0) + (byCategory.get('A股宽基指数') ?? 0)
       : byCategory.get(category) ?? 0;
     if (total === null || total <= 0) {
       return {
@@ -130,7 +157,10 @@ async function holdings(request: Request, env: FinanceEnv): Promise<Response> {
       } : { status: 'unconfigured', deviation: null, suggestedChange: null, target_value_change: null }),
     };
   });
-  return json({ holdings: values, total_market_value: total, priced_market_value: pricedTotal, market_data_complete: marketDataComplete, positions });
+  const marketOverview = await env.DB.prepare(`SELECT display_name, current_value, previous_close, change_value, change_percent, market_status, market_time, trading_date, fetched_at
+    FROM finance_market_indexes WHERE symbol = 'SSE_COMPOSITE' ORDER BY fetched_at DESC, id DESC LIMIT 1`).first<Record<string, unknown>>();
+  return json({ holdings: values, total_market_value: total, priced_market_value: pricedTotal, market_data_complete: marketDataComplete, positions,
+    market_overview: marketOverview ? { label: marketOverview.display_name, current_value: marketOverview.current_value, previous_close: marketOverview.previous_close, change: marketOverview.change_value, change_pct: marketOverview.change_percent, market_status: marketOverview.market_status, market_time: marketOverview.market_time, trading_date: marketOverview.trading_date, fetched_at: marketOverview.fetched_at } : null });
 }
 
 async function market(request: Request, env: FinanceEnv): Promise<Response> {
@@ -155,21 +185,47 @@ async function market(request: Request, env: FinanceEnv): Promise<Response> {
 async function pe(request: Request, env: FinanceEnv): Promise<Response> {
   const session = await requireFinanceRole(request, env);
   if (session instanceof Response) return session;
-  const indexes = ['SSE300_PE', 'SSE500_PE', 'SSE1000_PE'];
-  const [result, temperatureRule] = await Promise.all([
-    env.DB.prepare(`SELECT ticker, pe_ttm, fetched_at FROM market_data m
-    WHERE ticker IN (?, ?, ?) AND NOT EXISTS (
-      SELECT 1 FROM market_data newer WHERE newer.ticker = m.ticker
-      AND (newer.fetched_at > m.fetched_at OR (newer.fetched_at = m.fetched_at AND newer.id > m.id))
-    ) ORDER BY ticker`).bind(...indexes).all<{ ticker: string; pe_ttm: number | null; fetched_at: string }>(),
+  const [rows, temperatureRule] = await Promise.all([
+    Promise.all(PE_INDEXES.map(async (index) => ({ index, row: await env.DB.prepare(`SELECT ticker, pe_ttm, fetched_at FROM market_data
+      WHERE ticker IN (${index.aliases.map(() => '?').join(', ')}) ORDER BY fetched_at DESC, id DESC LIMIT 1`)
+      .bind(...index.aliases).first<{ ticker: string; pe_ttm: number | null; fetched_at: string }>() }))),
     env.DB.prepare(`SELECT value_json FROM finance_investment_rules WHERE rule_key = 'temperature'`).first<{ value_json: string }>(),
   ]);
   const boundaries = storedTemperatureBoundaries(temperatureRule?.value_json);
-  return json({ indexes: result.results.map((row) => ({
-    ...row,
-    stale: !row.fetched_at || Date.now() - Date.parse(row.fetched_at) > 36 * 60 * 60 * 1_000,
-    temperature: row.pe_ttm === null ? null : peTemperature(Number(row.pe_ttm), boundaries),
+  return json({ indexes: rows.map(({ index, row }) => ({
+    ticker: index.symbol, display_name: index.display_name, source_ticker: row?.ticker ?? null,
+    pe_ttm: row?.pe_ttm === null || row?.pe_ttm === undefined ? null : Number(row.pe_ttm),
+    fetched_at: row?.fetched_at ?? null,
+    stale: !row?.fetched_at || Date.now() - Date.parse(row.fetched_at) > 36 * 60 * 60 * 1_000,
+    temperature: 'temperature' in index && index.temperature && row?.pe_ttm !== null && row?.pe_ttm !== undefined ? peTemperature(Number(row.pe_ttm), boundaries) : null,
   })) });
+}
+
+async function riskSignals(request: Request, env: FinanceEnv): Promise<Response> {
+  const session = await requireFinanceRole(request, env); if (session instanceof Response) return session;
+  const rows = await env.DB.prepare(`WITH latest AS (
+      SELECT ticker, MAX(snapshot_date || ':' || printf('%020d', id)) AS marker FROM holdings_snapshots GROUP BY ticker
+    ) SELECT h.ticker, h.avg_cost,
+      (SELECT t.ticker_name FROM trades t WHERE t.ticker = h.ticker AND t.ticker_name IS NOT NULL AND t.ticker_name <> '' ORDER BY t.trade_date DESC, t.id DESC LIMIT 1) AS ticker_name,
+      (SELECT price FROM market_data m WHERE m.ticker = h.ticker ORDER BY fetched_at DESC, id DESC LIMIT 1) AS price,
+      (SELECT fetched_at FROM market_data m WHERE m.ticker = h.ticker ORDER BY fetched_at DESC, id DESC LIMIT 1) AS fetched_at
+    FROM holdings_snapshots h JOIN latest l ON l.ticker = h.ticker AND l.marker = h.snapshot_date || ':' || printf('%020d', h.id)
+    WHERE h.quantity > 0`).all<{ ticker: string; ticker_name: string | null; avg_cost: number; price: number | null; fetched_at: string | null }>();
+  const priced = rows.results.map((row) => ({ ...row, loss_ratio: row.price === null || Number(row.avg_cost) <= 0 ? null : (Number(row.price) - Number(row.avg_cost)) / Number(row.avg_cost) }));
+  const usable = priced.filter((row) => row.loss_ratio !== null && row.fetched_at && Date.now() - Date.parse(row.fetched_at) <= 30 * 60 * 1_000);
+  const worst = usable.sort((left, right) => Number(left.loss_ratio) - Number(right.loss_ratio))[0] ?? null;
+  const snapshotCount = await env.DB.prepare(`SELECT COUNT(*) AS count FROM finance_asset_snapshots WHERE deleted_at IS NULL AND is_complete = 1`).first<{ count: number }>();
+  const signals = [] as { level: 'yellow' | 'stop_loss'; reason: string }[];
+  if (worst && Number(worst.loss_ratio) < -0.3) signals.push({ level: 'stop_loss', reason: `${worst.ticker_name || worst.ticker} 单标的亏损超过 30%` });
+  if (worst && Number(worst.loss_ratio) < -0.2) signals.push({ level: 'yellow', reason: `${worst.ticker_name || worst.ticker} 单标的亏损超过 20%` });
+  return json({
+    single_position_loss: worst ? Number(worst.loss_ratio) : null,
+    worst_ticker: worst ? { ticker: worst.ticker, ticker_name: worst.ticker_name } : null,
+    monthly_drawdown: null, annual_drawdown: null,
+    data_complete: false,
+    missing_reasons: Number(snapshotCount?.count ?? 0) < 2 ? ['完整资产快照不足，组合回撤数据积累中。'] : ['现金流调整净值序列尚未完成核验。'],
+    signals,
+  });
 }
 
 async function circuit(request: Request, env: FinanceEnv): Promise<Response> {
@@ -355,11 +411,29 @@ async function notifications(request: Request, env: FinanceEnv): Promise<Respons
 async function accessLog(request: Request, env: FinanceEnv): Promise<Response> {
   const session = await requireFinanceRole(request, env, ['admin']);
   if (session instanceof Response) return session;
-  const limit = Number(new URL(request.url).searchParams.get('limit') ?? '100');
-  if (!Number.isInteger(limit) || limit < 1 || limit > 500) return apiError(400, 'invalid_limit', 'limit must be between 1 and 500');
-  const result = await env.DB.prepare('SELECT username, action, occurred_at FROM finance_access_log ORDER BY occurred_at DESC, id DESC LIMIT ?')
-    .bind(limit).all();
-  return json({ access_log: result.results });
+  const url = new URL(request.url); const limit = Number(url.searchParams.get('limit') ?? '50');
+  if (!Number.isInteger(limit) || limit < 1 || limit > 50) return apiError(400, 'invalid_limit', 'limit must be between 1 and 50');
+  const start = optionalAccessTime(url.searchParams.get('start')); const endInput = optionalAccessTime(url.searchParams.get('end')); const end = endInput && /^\d{4}-\d{2}-\d{2}$/.test(endInput) ? `${endInput}T23:59:59.999Z` : endInput; const username = (url.searchParams.get('username') ?? '').trim(); const action = (url.searchParams.get('action') ?? '').trim();
+  if (start === undefined || end === undefined || (start && end && start > end) || username.length > 64 || action.length > 64) return apiError(400, 'invalid_filter', 'Access filters are invalid');
+  const filter = { start: start ?? null, end: end ?? null, username: username || null, action: action || null };
+  const cursor = decodeAccessCursor(url.searchParams.get('cursor'), filter); if (cursor instanceof Response) return cursor;
+  const clauses = ['1 = 1']; const values: unknown[] = [];
+  if (filter.start) { clauses.push('occurred_at >= ?'); values.push(filter.start); }
+  if (filter.end) { clauses.push('occurred_at <= ?'); values.push(filter.end); }
+  if (filter.username) { clauses.push('username = ?'); values.push(filter.username); }
+  if (filter.action) { clauses.push('action = ?'); values.push(filter.action); }
+  if (cursor) { clauses.push('(occurred_at < ? OR (occurred_at = ? AND id < ?))'); values.push(cursor.sort, cursor.sort, cursor.id); }
+  const result = await env.DB.prepare(`SELECT id, username, action, occurred_at FROM finance_access_log WHERE ${clauses.join(' AND ')} ORDER BY occurred_at DESC, id DESC LIMIT ?`).bind(...values, limit + 1).all<{ id: number; occurred_at: string }>();
+  const items = result.results.slice(0, limit); const last = items.at(-1);
+  return json({ access_log: items, items, nextCursor: result.results.length > limit && last ? encodeAccessCursor({ sort: last.occurred_at, id: last.id, filter }) : null });
+}
+
+function optionalAccessTime(value: string | null): string | null | undefined { return value === null || value === '' ? null : /^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z)?$/.test(value) ? value : undefined; }
+function encodeAccessCursor(value: { sort: string; id: number; filter: unknown }): string { return btoa(JSON.stringify(value)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, ''); }
+function decodeAccessCursor(value: string | null, filter: unknown): { sort: string; id: number } | null | Response {
+  if (!value) return null;
+  try { const source = value.replace(/-/g, '+').replace(/_/g, '/'); const parsed = JSON.parse(atob(source + '='.repeat((4 - source.length % 4) % 4))); if (typeof parsed.sort !== 'string' || !Number.isSafeInteger(parsed.id) || parsed.id < 1 || JSON.stringify(parsed.filter) !== JSON.stringify(filter)) throw new Error(); return { sort: parsed.sort, id: parsed.id }; }
+  catch { return apiError(400, 'invalid_cursor', 'Access cursor is invalid'); }
 }
 
 async function listImportReview(request: Request, env: FinanceEnv): Promise<Response> {

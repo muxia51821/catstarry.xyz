@@ -18,6 +18,7 @@ class MemoryKv {
 
 class MemoryD1 {
   trades = [];
+  memos = [];
   holdings = new Map();
   accessLog = [];
   importReview = [{
@@ -73,6 +74,26 @@ class MemoryStatement {
       return { meta: { changes: 1, last_row_id: trade.id } };
     }
     if (this.sql.startsWith('INSERT INTO finance_trade_audit')) return { meta: { changes: 1 } };
+    if (this.sql.startsWith('INSERT INTO finance_memos')) {
+      const [trade_id, memo_date, ticker, position_category, operation_type, reason, stop_loss_triggered, note, created_at, created_by] = this.values;
+      const memo = { id: this.database.memos.length + 1, trade_id, memo_date, ticker, position_category, operation_type, reason, stop_loss_triggered, note, created_at, created_by, deleted_at: null };
+      this.database.memos.push(memo);
+      return { meta: { changes: 1, last_row_id: memo.id } };
+    }
+    if (this.sql.startsWith('UPDATE finance_memos SET reason')) {
+      const [reason, stop_loss_triggered, note, updated_at, updated_by, id] = this.values;
+      const memo = this.database.memos.find((item) => item.id === id && !item.deleted_at);
+      if (!memo) return { meta: { changes: 0 } };
+      Object.assign(memo, { reason, stop_loss_triggered, note, updated_at, updated_by });
+      return { meta: { changes: 1 } };
+    }
+    if (this.sql.startsWith('UPDATE finance_memos SET deleted_at')) {
+      const [deleted_at, deleted_by, id] = this.values;
+      const memo = this.database.memos.find((item) => item.id === id && !item.deleted_at);
+      if (!memo) return { meta: { changes: 0 } };
+      Object.assign(memo, { deleted_at, deleted_by });
+      return { meta: { changes: 1 } };
+    }
     if (this.sql.startsWith('UPDATE trades SET ticker_name')) {
       const [ticker_name, direction, quantity, price, position_category, reason, updated_at, updated_by, id] = this.values;
       const row = this.database.trades.find((trade) => trade.id === id && !trade.deleted_at);
@@ -144,8 +165,15 @@ class MemoryStatement {
     throw new Error(`Unhandled D1 run: ${this.sql}`);
   }
   async first() {
+    if (this.sql.startsWith('SELECT trade_date, ticker, position_category, direction FROM trades WHERE id')) {
+      const trade = this.database.trades.find((item) => item.id === this.values[0] && !item.deleted_at);
+      return trade ? { trade_date: trade.trade_date, ticker: trade.ticker, position_category: trade.position_category, direction: trade.direction } : null;
+    }
     if (this.sql.startsWith('SELECT id FROM trades WHERE ticker = ? AND trade_date')) return this.database.trades.find((trade) => trade.ticker === this.values[0] && trade.trade_date === this.values[1] && !trade.deleted_at) ?? null;
     if (this.sql.startsWith('SELECT * FROM trades WHERE id')) return this.database.trades.find((trade) => trade.id === this.values[0] && !trade.deleted_at) ?? null;
+    if (this.sql.startsWith('SELECT id FROM finance_memos WHERE trade_id')) return this.database.memos.find((memo) => memo.trade_id === this.values[0] && !memo.deleted_at) ?? null;
+    if (this.sql.startsWith('SELECT id, trade_id FROM finance_memos WHERE id')) return this.database.memos.find((memo) => memo.id === this.values[0] && !memo.deleted_at) ?? null;
+    if (this.sql.startsWith('SELECT * FROM finance_memos WHERE id')) return this.database.memos.find((memo) => memo.id === this.values[0]) ?? null;
     if (this.sql.startsWith('SELECT id FROM trades WHERE ticker = ?')) return [...this.database.trades].filter((trade) => trade.ticker === this.values[0] && !trade.deleted_at).sort((a, b) => b.trade_date.localeCompare(a.trade_date) || b.id - a.id)[0] ?? null;
     if (this.sql.startsWith('SELECT COUNT(*) AS count FROM trades')) return { count: this.database.trades.filter((trade) => trade.ticker === this.values[0] && trade.trade_date === this.values[1] && !trade.deleted_at).length };
     if (this.sql.startsWith('SELECT * FROM monthly_records')) return this.database.monthlyRecords.find((record) => record.year_month === this.values[0]) ?? null;
@@ -168,10 +196,40 @@ class MemoryStatement {
     }
     if (this.sql.startsWith('SELECT calculation_json FROM annual_reviews')) return { results: this.database.annualReviews.filter((review) => review.year < this.values[0]) };
     if (this.sql.startsWith('SELECT * FROM annual_reviews')) return { results: [...this.database.annualReviews].reverse() };
+    if (this.sql.startsWith('SELECT * FROM trades WHERE')) {
+      let index = 0;
+      const start = this.sql.includes('trade_date >= ?') ? this.values[index++] : null;
+      const end = this.sql.includes('trade_date <= ?') ? this.values[index++] : null;
+      const ticker = this.sql.includes('ticker = ?') ? this.values[index++] : null;
+      const direction = this.sql.includes('direction = ?') ? this.values[index++] : null;
+      const cursor = this.sql.includes('(trade_date < ?') ? { sort: this.values[index], id: this.values[index + 2] } : null;
+      const limit = this.values.at(-1);
+      const rows = this.database.trades.filter((trade) => !trade.deleted_at && (!start || trade.trade_date >= start) && (!end || trade.trade_date <= end) && (!ticker || trade.ticker === ticker) && (!direction || trade.direction === direction))
+        .sort((left, right) => right.trade_date.localeCompare(left.trade_date) || right.id - left.id)
+        .filter((trade) => !cursor || trade.trade_date < cursor.sort || (trade.trade_date === cursor.sort && trade.id < cursor.id));
+      return { results: rows.slice(0, limit) };
+    }
     if (this.sql.startsWith('SELECT * FROM trades')) return { results: [...this.database.trades].filter((trade) => !trade.deleted_at).reverse() };
+    if (this.sql.startsWith('SELECT m.*, t.ticker_name')) return { results: [...this.database.memos].filter((memo) => !memo.deleted_at).reverse().map((memo) => {
+      const trade = this.database.trades.find((item) => item.id === memo.trade_id);
+      return { ...memo, ticker_name: trade?.ticker_name ?? null, trade_quantity: trade?.quantity ?? null, trade_price: trade?.price ?? null };
+    }) };
     if (this.sql.startsWith('SELECT * FROM monthly_records')) return { results: [...this.database.monthlyRecords].filter((record) => !record.deleted_at).reverse() };
     if (this.sql.startsWith('SELECT * FROM finance_accounts')) return { results: [...this.database.accounts].filter((account) => !account.archived_at) };
-    if (this.sql.startsWith('SELECT username, action, occurred_at FROM finance_access_log')) return { results: [...this.database.accessLog].reverse() };
+    if (this.sql.startsWith('SELECT id, username, action, occurred_at FROM finance_access_log WHERE')) {
+      let index = 0;
+      const start = this.sql.includes('occurred_at >= ?') ? this.values[index++] : null;
+      const end = this.sql.includes('occurred_at <= ?') ? this.values[index++] : null;
+      const username = this.sql.includes('username = ?') ? this.values[index++] : null;
+      const action = this.sql.includes('action = ?') ? this.values[index++] : null;
+      const cursor = this.sql.includes('(occurred_at < ?') ? { sort: this.values[index], id: this.values[index + 2] } : null;
+      const limit = this.values.at(-1);
+      const rows = this.database.accessLog.filter((row) => (!start || row.occurred_at >= start) && (!end || row.occurred_at <= end) && (!username || row.username === username) && (!action || row.action === action))
+        .sort((left, right) => right.occurred_at.localeCompare(left.occurred_at) || right.id - left.id)
+        .filter((row) => !cursor || row.occurred_at < cursor.sort || (row.occurred_at === cursor.sort && row.id < cursor.id));
+      return { results: rows.slice(0, limit) };
+    }
+    if (this.sql.startsWith('SELECT username, action, occurred_at FROM finance_access_log') || this.sql.startsWith('SELECT id, username, action, occurred_at FROM finance_access_log')) return { results: [...this.database.accessLog].reverse() };
     if (this.sql.startsWith('SELECT username FROM monthly_confirmations')) return { results: [] };
     if (this.sql.startsWith('SELECT trade_date, ticker, ticker_name')) return { results: [...this.database.trades] };
     if (this.sql.startsWith('SELECT snapshot_date, ticker')) return { results: [...this.database.holdings.values()] };
@@ -282,6 +340,42 @@ const created = await fetchWorker('/api/trades', {
   }),
 });
 assert.equal(created.status, 201, await created.text());
+assert.equal((await fetchWorker('/api/memos', {
+  method: 'POST', headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify({ reason: 'linked investment decision' }),
+})).status, 400, 'a memo must select a trade');
+assert.equal((await fetchWorker('/api/memos', {
+  method: 'POST', headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify({ trade_id: 999, reason: 'missing trade' }),
+})).status, 404, 'a memo trade must exist and remain active');
+const memoCreated = await fetchWorker('/api/memos', {
+  method: 'POST', headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify({
+    trade_id: 1,
+    memo_date: '1999-01-01',
+    ticker: 'CLIENT-SUPPLIED',
+    position_category: 'client-category',
+    operation_type: 'client-operation',
+    reason: 'linked investment decision',
+    stop_loss_triggered: true,
+    note: 'memo note',
+  }),
+});
+assert.equal(memoCreated.status, 201, await memoCreated.clone().text());
+const memoSnapshot = (await memoCreated.json()).memo;
+assert.deepEqual(
+  { trade_id: memoSnapshot.trade_id, memo_date: memoSnapshot.memo_date, ticker: memoSnapshot.ticker, position_category: memoSnapshot.position_category, operation_type: memoSnapshot.operation_type },
+  { trade_id: 1, memo_date: '2026-07-25', ticker: '510300', position_category: 'broad-index', operation_type: 'buy' },
+  'memo trade fields must be copied from the active trade, not trusted from the client',
+);
+assert.equal((await fetchWorker('/api/memos/1', {
+  method: 'PUT', headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify({
+    trade_id: 1, reason: 'updated investment decision', stop_loss_triggered: false, note: 'updated memo note', ticker: 'untrusted',
+  }),
+})).status, 200, 'PUT memo updates retain a server-derived snapshot');
+assert.equal((await fetchWorker('/api/memos', {
+  method: 'POST', headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify({ trade_id: 1, reason: 'duplicate memo' }),
+})).status, 409, 'one active trade must have at most one active memo');
+assert.equal((await fetchWorker('/api/memos/1', {
+  method: 'PATCH', headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify({ trade_id: 999, reason: 'reassign memo', stop_loss_triggered: false }),
+})).status, 409, 'editing a memo must not reassign its linked trade');
 env.DB.activeBlackCircuit = true;
 for (const [method, pathname, body] of [
   ['POST', '/api/trades', { trade_date: '2026-07-26', ticker: '510500', direction: 'buy', quantity: 1, price: 5, position_category: 'broad-index' }],
@@ -313,6 +407,38 @@ assert.equal((await fetchWorker('/api/trades/1', {
   method: 'DELETE', headers: { ...trusted, Cookie: adminCookie }, body: '{}',
 })).status, 200, 'the latest standalone online trade can be soft-deleted');
 assert.equal((await fetchWorker('/api/trades', { headers: { Cookie: adminCookie } }).then((response) => response.json())).trades.length, 0);
+const memosAfterTradeDelete = await fetchWorker('/api/memos', { headers: { Cookie: adminCookie } }).then((response) => response.json());
+assert.equal(memosAfterTradeDelete.memos.length, 1, 'soft-deleting a trade must not delete its memo');
+assert.deepEqual(
+  { memo_date: memosAfterTradeDelete.memos[0].memo_date, ticker: memosAfterTradeDelete.memos[0].ticker, position_category: memosAfterTradeDelete.memos[0].position_category, operation_type: memosAfterTradeDelete.memos[0].operation_type },
+  { memo_date: '2026-07-25', ticker: '510300', position_category: 'broad-index', operation_type: 'buy' },
+  'memo snapshot must remain readable after the source trade is soft-deleted',
+);
+assert.equal((await fetchWorker('/api/memos', {
+  method: 'POST', headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify({ trade_id: 1, reason: 'deleted trade cannot be linked' }),
+})).status, 404, 'new memos cannot select a soft-deleted trade');
+assert.equal((await fetchWorker('/api/memos/1', {
+  method: 'DELETE', headers: { ...trusted, Cookie: adminCookie }, body: '{}',
+})).status, 200, 'an administrator can soft-delete a memo');
+assert.equal((await fetchWorker('/api/memos', { headers: { Cookie: adminCookie } }).then((response) => response.json())).memos.length, 0, 'soft-deleted memos must not be listed');
+for (let id = 2; id <= 102; id += 1) {
+  env.DB.trades.push({ id, trade_date: '2026-07-30', ticker: '510300', ticker_name: '沪深300ETF', direction: 'buy', quantity: 1, price: 4.2, position_category: 'broad-index', reason: null, deleted_at: null });
+}
+const firstTradePage = await fetchWorker('/api/trades?limit=50&ticker=510300&direction=buy', { headers: { Cookie: adminCookie } }).then((response) => response.json());
+assert.equal(firstTradePage.items.length, 50);
+assert.ok(firstTradePage.nextCursor, 'trade pagination must return a cursor after the first 50 rows');
+const secondTradePage = await fetchWorker(`/api/trades?limit=50&ticker=510300&direction=buy&cursor=${encodeURIComponent(firstTradePage.nextCursor)}`, { headers: { Cookie: adminCookie } }).then((response) => response.json());
+assert.equal(secondTradePage.items.length, 50);
+assert.equal(new Set([...firstTradePage.items, ...secondTradePage.items].map((trade) => trade.id)).size, 100, 'trade cursor pages must not repeat rows');
+assert.equal((await fetchWorker(`/api/trades?limit=50&ticker=510300&direction=sell&cursor=${encodeURIComponent(firstTradePage.nextCursor)}`, { headers: { Cookie: adminCookie } })).status, 400, 'trade cursor must be bound to its filters');
+for (let id = 1; id <= 101; id += 1) env.DB.accessLog.push({ id: 10_000 + id, username: 'pagination-admin', action: 'view', occurred_at: `2026-07-30T12:00:${String(id % 60).padStart(2, '0')}.000Z` });
+const firstAccessPage = await fetchWorker('/api/access-log?limit=50&start=2026-07-30&end=2026-07-30&username=pagination-admin&action=view', { headers: { Cookie: adminCookie } }).then((response) => response.json());
+assert.equal(firstAccessPage.items.length, 50, 'date-only access end filters must include that day');
+assert.ok(firstAccessPage.nextCursor, 'access pagination must return a cursor after the first 50 rows');
+const secondAccessPage = await fetchWorker(`/api/access-log?limit=50&start=2026-07-30&end=2026-07-30&username=pagination-admin&action=view&cursor=${encodeURIComponent(firstAccessPage.nextCursor)}`, { headers: { Cookie: adminCookie } }).then((response) => response.json());
+assert.equal(secondAccessPage.items.length, 50);
+assert.equal(new Set([...firstAccessPage.items, ...secondAccessPage.items].map((row) => row.id)).size, 100, 'access cursor pages must not repeat rows');
+assert.equal((await fetchWorker(`/api/access-log?limit=50&username=other&cursor=${encodeURIComponent(firstAccessPage.nextCursor)}`, { headers: { Cookie: adminCookie } })).status, 400, 'access cursor must be bound to its filters');
 const archive = await fetchWorker('/api/archive?year=2026', { headers: { Cookie: adminCookie } });
 assert.equal(archive.status, 200);
 assert.match(archive.headers.get('content-type') ?? '', /spreadsheetml/);

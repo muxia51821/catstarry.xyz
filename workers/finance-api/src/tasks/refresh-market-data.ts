@@ -6,6 +6,18 @@ interface ProviderRecord {
   pe_ttm?: unknown;
 }
 
+interface ProviderIndexRecord {
+  symbol?: unknown;
+  display_name?: unknown;
+  current_value?: unknown;
+  previous_close?: unknown;
+  change?: unknown;
+  change_percent?: unknown;
+  market_status?: unknown;
+  market_time?: unknown;
+  trading_date?: unknown;
+}
+
 const MAX_MARKET_RECORDS = 100;
 
 export async function refreshMarketData(
@@ -22,7 +34,7 @@ export async function refreshMarketData(
   const response = await retryFetch(endpoint, env.MARKET_PROVIDER_TOKEN, fetchImpl, sleep);
   const length = Number(response.headers.get('Content-Length') ?? '0');
   if (Number.isFinite(length) && length > 1_048_576) throw new Error('Market provider response is too large');
-  const payload = await readLimitedJson(response, 1_048_576) as { records?: ProviderRecord[] };
+  const payload = await readLimitedJson(response, 1_048_576) as { records?: ProviderRecord[]; indexes?: ProviderIndexRecord[] };
   if (!Array.isArray(payload.records) || payload.records.length > MAX_MARKET_RECORDS) {
     throw new Error('Market provider payload is invalid');
   }
@@ -41,6 +53,26 @@ export async function refreshMarketData(
     return env.DB.prepare('INSERT INTO market_data (ticker, price, pe_ttm, fetched_at) VALUES (?, ?, ?, ?)')
       .bind(ticker, price, peTtm, fetchedAt);
   });
+  if (payload.indexes !== undefined && (!Array.isArray(payload.indexes) || payload.indexes.length > 20)) {
+    throw new Error('Market provider index payload is invalid');
+  }
+  for (const record of payload.indexes ?? []) {
+    const symbol = typeof record.symbol === 'string' ? record.symbol.trim().toUpperCase() : '';
+    const displayName = typeof record.display_name === 'string' ? record.display_name.trim() : '';
+    const currentValue = Number(record.current_value); const previousClose = Number(record.previous_close);
+    const change = Number(record.change); const changePercent = Number(record.change_percent);
+    if (!/^[A-Z0-9._-]{2,32}$/.test(symbol) || !displayName || displayName.length > 64
+      || ![currentValue, previousClose, change, changePercent].every(Number.isFinite)
+      || currentValue < 0 || previousClose < 0 || !['open', 'closed', 'unknown'].includes(String(record.market_status))) {
+      throw new Error('Market provider index record is invalid');
+    }
+    const marketTime = typeof record.market_time === 'string' && record.market_time.trim() ? record.market_time.trim() : null;
+    const tradingDate = typeof record.trading_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(record.trading_date) ? record.trading_date : null;
+    statements.push(env.DB.prepare(`INSERT INTO finance_market_indexes
+      (symbol, display_name, current_value, previous_close, change_value, change_percent, market_status, market_time, trading_date, fetched_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .bind(symbol, displayName, currentValue, previousClose, change, changePercent, record.market_status, marketTime, tradingDate, fetchedAt));
+  }
   if (statements.length > 0) await env.DB.batch(statements);
   return { written: statements.length, configured: true };
 }

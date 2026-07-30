@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
-import { readFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import { connectCdp, delay } from './lib/cdp-session.mjs';
 import { launchIsolatedBrowser } from './lib/isolated-browser.mjs';
 
@@ -12,16 +13,23 @@ const fixtures = {
   '/api/auth/session': { authenticated: false, username: null, role: null },
   '/api/holdings': {
     total_market_value: 12600,
-    holdings: [{ ticker: '510300', quantity: 100, avg_cost: 120, price: 126, market_value: 12600, pnl: 600, fetched_at: '2026-07-25T10:00:00.000Z' }],
+    market_data_complete: true,
+    holdings: [
+      { ticker: '510300', ticker_name: '沪深300ETF', quantity: 100, avg_cost: 66, price: 72, market_value: 7200, pnl: 600, position_category: 'A股宽基指数底仓', fetched_at: '2026-07-25T10:00:00.000Z' },
+      { ticker: '513100', ticker_name: '纳斯达克100ETF', quantity: 100, avg_cost: 33, price: 36, market_value: 3600, pnl: 300, position_category: '美股ETF（A股跨境ETF）', fetched_at: '2026-07-25T10:00:00.000Z' },
+      { ticker: '518880', ticker_name: '黄金ETF', quantity: 100, avg_cost: 16, price: 18, market_value: 1800, pnl: 200, position_category: '黄金ETF', fetched_at: '2026-07-25T10:00:00.000Z' },
+    ],
     positions: [{ position_category: 'core', current_ratio: 1, target_ratio: 1, lower_ratio: 0.8, upper_ratio: 1, suggestedChange: 0, status: 'normal' }],
+    market_overview: { label: '上证指数', current_value: 3452.17, change: 18.24, change_pct: .5312, market_time: '2026-07-30 15:00' },
   },
   '/api/trades': { trades: [{ id: 1, trade_date: '2026-07-24', ticker: '510300', ticker_name: '沪深300ETF', direction: 'buy', quantity: 100, price: 12, position_category: 'A股宽基指数底仓', reason: 'fixture trade', created_by: 'contract-admin' }] },
-  '/api/pe': { indexes: [{ ticker: 'CSI300_PE', pe_ttm: 12.5, temperature: { zone: 'normal', suggestion: 'normal_dca' } }] },
+  '/api/pe': { indexes: [{ ticker: 'CSI300_PE', display_name: '沪深 300 PE-TTM', pe_ttm: 12.5, temperature: { zone: 'normal', suggestion: 'normal_dca' } }, { ticker: 'CSI500_PE', display_name: '中证 500 PE-TTM', pe_ttm: 22.8 }, { ticker: 'CSI1000_PE', display_name: '中证 1000 PE-TTM', pe_ttm: 31.4 }, { ticker: 'STAR50_PE', display_name: '科创 50 PE-TTM', pe_ttm: 48.2 }, { ticker: 'NASDAQ100_PE', display_name: '纳斯达克 100 PE', pe_ttm: 36.1 }] },
   '/api/circuit': { active: null },
   '/api/review': { reviews: [{ year: 2026, summary: 'fixture annual review', calculation: { dietz: { returnRate: .08 } }, confirmed_at: null, confirmed_by: null }] },
-  '/api/monthly': { records: [{ id: 1, year_month: '2026-07', muxia_invest: 5000, cati_invest: 0, end_total: 12600, blue_chip_temp: 'normal', summary: 'fixture monthly record' }] },
+  '/api/monthly': { records: [{ id: 1, year_month: '2026-06', muxia_invest: 5000, cati_invest: 0, end_total: 12000, blue_chip_temp: 'normal', summary: 'fixture monthly record' }, { id: 2, year_month: '2026-07', muxia_invest: 5000, cati_invest: 0, end_total: 12600, blue_chip_temp: 'normal', summary: 'fixture monthly record' }] },
+  '/api/assets/series': { view: 'month', records: [{ snapshot_date: '2026-06-30', total_value: 12000 }, { snapshot_date: '2026-07-31', total_value: 12600 }], legacy_monthly_records: [] },
   '/api/plan': { plan: { initial_capital: 100000, monthly_invest: 5000, months_year1: 7, months_year2plus: 12, rate_low: .03, rate_base: .06, rate_high: .1, bonus1: 50000, bonus2to4: 35000, start_year: 2026, end_year: 2030, updated_at: '2026-07-25T10:00:00.000Z' } },
-  '/api/memos': { memos: [{ id: 1, memo_date: '2026-07-24', ticker: '510300', operation_type: '建仓', reason: 'fixture memo', note: null, stop_loss_triggered: 0 }] },
+  '/api/memos': { memos: [{ id: 1, trade_id: 1, memo_date: '2026-07-24', ticker: '510300', ticker_name: '沪深300ETF', trade_quantity: 100, trade_price: 12, position_category: 'A股宽基指数底仓', operation_type: 'buy', reason: 'fixture memo', note: null, stop_loss_triggered: 0, created_at: '2026-07-24T09:00:00.000Z', updated_at: '2026-07-24T09:00:00.000Z' }] },
   '/api/risk-rules': { rules: [{ rule_key: 'risk', value: { single_position_active_cap: .5, loss_pause_ratio: .15, stop_loss_ratio: .3, rebalance_deviation: .05 } }, { rule_key: 'temperature', value: { freeze: 10, low: 12, normal: 16, high: 20 } }] },
   '/api/rebalances': { rebalances: [{ id: 1, year: 2026, executed_on: '2026-12-20', adjustments: 'fixture rebalance', reason: 'fixture', confirmed_at: null, confirmed_by: null }] },
   '/api/access-log': { access_log: [{ username: 'contract-admin', action: 'login', occurred_at: '2026-07-25T10:00:00.000Z' }] },
@@ -30,7 +38,7 @@ const fixtures = {
 
 const server = createServer(async (request, response) => {
   const url = new URL(request.url, 'http://local.test');
-  const requestRecord = { method: request.method, pathname: url.pathname };
+  const requestRecord = { method: request.method, pathname: url.pathname, search: url.search };
   requests.push(requestRecord);
   if (url.pathname === '/api/auth/session' && initialSessionRequest) {
     initialSessionRequest = false;
@@ -62,6 +70,8 @@ const server = createServer(async (request, response) => {
   if (url.pathname === '/api/monthly' && request.method === 'PUT') return json(response, 200, { record: JSON.parse(await readBody(request)) });
   if (url.pathname === '/api/plan' && request.method === 'PUT') return json(response, 200, { plan: JSON.parse(await readBody(request)) });
   if (url.pathname === '/api/memos' && request.method === 'POST') return json(response, 201, { memo: JSON.parse(await readBody(request)) });
+  if (url.pathname === '/api/memos/1' && request.method === 'PATCH') { Object.assign(fixtures['/api/memos'].memos[0], JSON.parse(await readBody(request)), { updated_at: '2026-07-30T10:00:00.000Z' }); return json(response, 200, { memo: fixtures['/api/memos'].memos[0] }); }
+  if (url.pathname === '/api/memos/1' && request.method === 'DELETE') { fixtures['/api/memos'].memos = []; return json(response, 200, { deleted: true }); }
   if (url.pathname === '/api/risk-rules' && request.method === 'PUT') { requestRecord.body = JSON.parse(await readBody(request)); return json(response, 200, { saved: true }); }
   if (url.pathname === '/api/review/confirm' && request.method === 'POST') { fixtures['/api/review'].reviews[0].confirmed_at = '2026-12-31T00:00:00.000Z'; fixtures['/api/review'].reviews[0].confirmed_by = 'contract-viewer'; return json(response, 200, { confirmed: true }); }
   if (url.pathname === '/api/rebalances/1/confirm' && request.method === 'POST') { fixtures['/api/rebalances'].rebalances[0].confirmed_at = '2026-12-31T00:00:00.000Z'; fixtures['/api/rebalances'].rebalances[0].confirmed_by = 'contract-viewer'; return json(response, 200, { confirmed: true }); }
@@ -80,6 +90,9 @@ const server = createServer(async (request, response) => {
     '/index.html': ['finance-site/index.html', 'text/html; charset=utf-8'],
     '/styles.css': ['finance-site/styles.css', 'text/css; charset=utf-8'],
     '/app.js': ['finance-site/app.js', 'text/javascript; charset=utf-8'],
+    '/fonts/Geist-Variable.ttf': ['finance-site/fonts/Geist-Variable.ttf', 'font/ttf'],
+    '/fonts/JetBrainsMono-Variable.ttf': ['finance-site/fonts/JetBrainsMono-Variable.ttf', 'font/ttf'],
+    '/fonts/HarmonyOS-Sans-SC.ttf': ['finance-site/fonts/HarmonyOS-Sans-SC.ttf', 'font/ttf'],
   };
   const file = files[url.pathname];
   if (!file) {
@@ -112,6 +125,7 @@ if (!address || typeof address === 'string') throw new Error('Finance UI fixture
 const baseUrl = `http://127.0.0.1:${address.port}`;
 
 const diagnostics = { consoleProblems: [], exceptions: [], checks: {} };
+const screenshotDir = process.env.FINANCE_UI_SCREENSHOT_DIR;
 let browser;
 let cdp;
 try {
@@ -126,6 +140,12 @@ try {
     }
   });
   const { send, evaluate, waitFor } = cdp;
+  async function capture(name) {
+    if (!screenshotDir) return;
+    await mkdir(screenshotDir, { recursive: true });
+    const image = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
+    await writeFile(resolve(screenshotDir, name), Buffer.from(image.data, 'base64'));
+  }
   await send('Runtime.enable');
   await send('Page.enable');
   await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
@@ -165,7 +185,15 @@ try {
     monthlyPeFieldsAbsent: !document.querySelector('[data-monthly-form]').elements.sse300_pe && !document.querySelector('[data-monthly-form]').elements.sse500_pe && !document.querySelector('[data-monthly-form]').elements.sse1000_pe && !document.querySelector('[data-monthly-form]').elements.blue_chip_temp,
     loginSurvivesInitialSessionRace: document.querySelector('[data-login]').hidden && !document.querySelector('[data-app]').hidden,
     loginLayerRemoved: getComputedStyle(document.querySelector('[data-login]')).display === 'none',
+    entryStripRemoved: !document.querySelector('[data-entry-strip]'),
+    overviewActive: document.querySelector('[data-tab="overview"]').classList.contains('is-active'),
+    overviewChartPoints: document.querySelectorAll('[data-net-worth-chart] circle').length,
+    overviewChartSvg: document.querySelector('[data-net-worth-chart] svg') instanceof SVGSVGElement && document.querySelectorAll('[data-net-worth-chart] circle title').length === 2,
+    holdingsSummary: [...document.querySelectorAll('[data-top-holdings] p')].map((node) => node.textContent.replace(/\s+/g, ' ').trim()),
+    categoryDistribution: document.querySelectorAll('[data-category-distribution] article').length,
+    fontsLoaded: document.fonts.check('16px Geist') && document.fonts.check('16px "HarmonyOS Sans SC"') && document.fonts.check('16px "JetBrains Mono"'),
   })`);
+  await capture('finance-dashboard-desktop-1440.png');
 
   await evaluate(`(() => {
     const row = document.querySelector('[data-import-review-list] article');
@@ -186,6 +214,7 @@ try {
   await waitFor(`document.querySelector('[data-trade-dialog]').open`, 'trade dialog');
   diagnostics.checks.modal = await evaluate(`(() => {
     const dialog = document.querySelector('[data-trade-dialog]');
+    const form = document.querySelector('[data-trade-form]');
     return {
       appInert: document.querySelector('[data-app]').inert,
       activeInside: dialog.contains(document.activeElement),
@@ -194,6 +223,7 @@ try {
       cancelVisible: Boolean(dialog.querySelector('[data-cancel-trade]')?.getClientRects().length),
       categoryOptions: [...dialog.querySelector('[name="position_category"]').options].map((option) => option.value),
       placeholderUsesUiFont: getComputedStyle(dialog.querySelector('[data-trade-total]')).fontFamily === getComputedStyle(document.documentElement).fontFamily,
+      reasonAbsent: !form.elements.reason,
     };
   })()`);
   await evaluate(`(() => {
@@ -255,11 +285,49 @@ try {
   diagnostics.checks.riskRuleSaved = true;
 
   diagnostics.checks.tabs = [];
-  for (const tab of ['entry', 'holdings', 'review', 'planning', 'records']) {
+  for (const tab of ['overview', 'entry', 'holdings', 'review', 'planning', 'records']) {
     await evaluate(`document.querySelector('[data-tab="${tab}"]').click()`);
     diagnostics.checks.tabs.push(await evaluate(`({ tab: '${tab}', active: document.querySelector('[data-tab="${tab}"]').classList.contains('is-active'), visible: [...document.querySelectorAll('[data-pane="${tab}"]')].some((node) => !node.hidden) })`));
   }
   await evaluate(`document.querySelector('[data-tab="entry"]').click()`);
+  await evaluate(`(() => {
+    const form = document.querySelector('[data-trade-filters]');
+    form.elements.ticker.value = '510300';
+    form.elements.direction.value = 'buy';
+    form.requestSubmit();
+  })()`);
+  await waitFor(`document.querySelector('[data-trade-pagination]').textContent.includes('第 1 页')`, 'trade filters');
+  await evaluate(`document.querySelector('[data-trade-filters] button[type="reset"]').click()`);
+  diagnostics.checks.tradeFilters = true;
+
+  await evaluate(`document.querySelector('[data-open-memo]').click()`);
+  await waitFor(`document.querySelector('[data-memo-dialog]').open`, 'memo dialog for linked trade');
+  diagnostics.checks.memoTradeLink = await evaluate(`(() => {
+    const dialog = document.querySelector('[data-memo-dialog]');
+    const form = dialog.querySelector('[data-memo-form]');
+    const select = form.elements.trade_id;
+    select.value = '1';
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    return {
+      required: select.required,
+      options: select.options.length,
+      snapshot: dialog.querySelector('[data-memo-trade-snapshot]').textContent.replace(/\s+/g, ' ').trim(),
+      checkboxCompact: getComputedStyle(dialog.querySelector('[name="stop_loss_triggered"]')).width !== '100%',
+    };
+  })()`);
+  await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27 });
+  await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27 });
+  await waitFor(`!document.querySelector('[data-memo-dialog]').open`, 'memo dialog close');
+  await evaluate(`document.querySelector('[data-edit-memo="1"]').click()`);
+  await waitFor(`document.querySelector('[data-memo-dialog]').open && document.querySelector('[data-memo-dialog-title]').textContent === '编辑投资备忘录'`, 'memo edit dialog');
+  diagnostics.checks.memoEdit = await evaluate(`(() => {
+    const form = document.querySelector('[data-memo-form]');
+    return { tradeLocked: form.elements.trade_id.disabled, snapshotHasAmount: document.querySelector('[data-memo-trade-total]').textContent !== '—', cancelVisible: Boolean(document.querySelector('[data-cancel-memo]').getClientRects().length) };
+  })()`);
+  await evaluate(`(() => { const form = document.querySelector('[data-memo-form]'); form.elements.reason.value = 'updated fixture memo'; form.requestSubmit(); })()`);
+  await waitFor(`!document.querySelector('[data-memo-dialog]').open`, 'memo edit completion');
+  await evaluate(`(() => { window.confirm = () => true; document.querySelector('[data-delete-memo="1"]').click(); })()`);
+  await waitFor(`document.querySelectorAll('[data-memo-list] article').length === 0`, 'memo deletion completion');
 
   await evaluate(`document.querySelector('[data-open-review]').click()`);
   await waitFor(`document.querySelector('[data-review-dialog]').open`, 'annual review dialog');
@@ -316,6 +384,9 @@ try {
   await evaluate(`document.documentElement.style.removeProperty('font-size')`);
 
   await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+  await evaluate(`document.querySelector('[data-tab="holdings"]').click()`);
+  await delay(100);
+  await capture('finance-holdings-mobile-390.png');
   await evaluate(`document.querySelector('[data-open-trade]').click()`);
   await waitFor(`document.querySelector('[data-trade-dialog]').open`, 'mobile trade dialog');
   diagnostics.checks.mobileTradeEntry = await evaluate(`(() => {
@@ -366,12 +437,12 @@ try {
   console.log(JSON.stringify(diagnostics, null, 2));
   assert.deepEqual(diagnostics.checks.rendered, {
     role: 'ADMIN · READ / WRITE',
-    holdings: 1,
-    pe: 1,
-    peSegments: 5,
+    holdings: 3,
+    pe: 5,
+    peSegments: 25,
     accessRows: 1,
     importReviewRows: 1,
-    monthlyRows: 1,
+    monthlyRows: 2,
     planValues: 4,
     memoRows: 1,
     accessCollapsed: true,
@@ -385,13 +456,23 @@ try {
     monthlyPeFieldsAbsent: true,
     loginSurvivesInitialSessionRace: true,
     loginLayerRemoved: true,
+    entryStripRemoved: true,
+    overviewActive: true,
+    overviewChartPoints: 2,
+    overviewChartSvg: true,
+    holdingsSummary: ['沪深300ETF57.1%', '纳斯达克100ETF28.6%', '黄金ETF14.3%'],
+    categoryDistribution: 3,
+    fontsLoaded: true,
   });
   assert.equal(diagnostics.checks.importReviewResolved, true);
-  assert.deepEqual(diagnostics.checks.modal, { appInert: true, activeInside: true, activeName: 'ticker', sections: ['标的', '本次操作'], cancelVisible: true, categoryOptions: ['主动操作仓（A股）', 'A股宽基指数底仓', '港股宽基指数底仓', '美股宽基指数底仓', '货币基金/现金'], placeholderUsesUiFont: true });
+  assert.deepEqual(diagnostics.checks.modal, { appInert: true, activeInside: true, activeName: 'ticker', sections: ['标的', '本次操作'], cancelVisible: true, categoryOptions: ['主动操作仓（A股）', 'A股宽基指数底仓', '美股ETF（A股跨境ETF）', '黄金ETF', '机动仓（货币ETF）', '其他'], placeholderUsesUiFont: true, reasonAbsent: true });
   assert.deepEqual(diagnostics.checks.tradeEntry, { remainsOpen: true, dateRetained: true, categoryRetained: true, tickerCleared: true, totalReset: true, focus: true });
   assert.deepEqual(diagnostics.checks.modalRestored, { background: true, focus: true });
   assert.deepEqual(diagnostics.checks.management, { editAvailable: true, monthlyEntryAvailable: true, planEntryAvailable: true, memoEntryAvailable: true, rulesEntryAvailable: true });
   assert.equal(diagnostics.checks.tabs.every((item) => item.active && item.visible), true, 'each Finance path must expose its own pane');
+  assert.equal(diagnostics.checks.tradeFilters, true);
+  assert.deepEqual(diagnostics.checks.memoTradeLink, { required: true, options: 2, snapshot: '交易日期2026-07-24标的510300 · 沪深300ETF买入或卖出买入成交数量100成交价格¥12.00成交金额¥1,200.00仓位类别A股宽基指数', checkboxCompact: true });
+  assert.deepEqual(diagnostics.checks.memoEdit, { tradeLocked: true, snapshotHasAmount: true, cancelVisible: true });
   assert.equal(diagnostics.checks.riskRuleSaved, true);
   assert.deepEqual(diagnostics.checks.reviewModal, { appInert: true, activeName: 'year' });
   assert.deepEqual(diagnostics.checks.riskModal, { appInert: true, activeName: 'annualDrawdown' });
@@ -414,6 +495,8 @@ try {
   assert.equal(requests.filter((item) => item.method === 'POST' && item.pathname === '/api/trades').length, 1);
   assert.equal(requests.filter((item) => item.method === 'PATCH' && item.pathname === '/api/trades/1').length, 1);
   assert.equal(requests.filter((item) => item.method === 'DELETE' && item.pathname === '/api/trades/1').length, 1);
+  assert.equal(requests.filter((item) => item.method === 'PATCH' && item.pathname === '/api/memos/1').length, 1);
+  assert.equal(requests.filter((item) => item.method === 'DELETE' && item.pathname === '/api/memos/1').length, 1);
   assert.equal(requests.filter((item) => item.method === 'POST' && item.pathname === '/api/confirmations/monthly').length, 1);
   assert.equal(requests.filter((item) => item.method === 'POST' && item.pathname === '/api/review/confirm').length, 1);
   assert.equal(requests.filter((item) => item.method === 'POST' && item.pathname === '/api/rebalances/1/confirm').length, 1);

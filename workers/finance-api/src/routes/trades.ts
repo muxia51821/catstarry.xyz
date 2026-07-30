@@ -85,11 +85,31 @@ export async function handleTrades(request: Request, env: FinanceEnv): Promise<R
 async function listTrades(request: Request, env: FinanceEnv): Promise<Response> {
   const session = await requireFinanceRole(request, env);
   if (session instanceof Response) return session;
-  const limit = Number(new URL(request.url).searchParams.get('limit') ?? '100');
-  if (!Number.isInteger(limit) || limit < 1 || limit > 500) return apiError(400, 'invalid_limit', 'limit must be between 1 and 500');
-  const rows = await env.DB.prepare(`SELECT * FROM trades WHERE deleted_at IS NULL
-    ORDER BY trade_date DESC, id DESC LIMIT ?`).bind(limit).all();
-  return json({ trades: rows.results });
+  const url = new URL(request.url); const limit = Number(url.searchParams.get('limit') ?? '50');
+  if (!Number.isInteger(limit) || limit < 1 || limit > 50) return apiError(400, 'invalid_limit', 'limit must be between 1 and 50');
+  const start = optionalDate(url.searchParams.get('start')); const end = optionalDate(url.searchParams.get('end'));
+  const ticker = (url.searchParams.get('ticker') ?? '').trim().toUpperCase(); const direction = url.searchParams.get('direction') ?? '';
+  if (start === undefined || end === undefined || (start && end && start > end) || (ticker && !/^[A-Z0-9.-]{2,24}$/.test(ticker)) || (direction && !['buy', 'sell'].includes(direction))) return apiError(400, 'invalid_filter', 'Trade filters are invalid');
+  const filter = { start: start ?? null, end: end ?? null, ticker: ticker || null, direction: direction || null };
+  const cursor = decodeCursor(url.searchParams.get('cursor'), filter);
+  if (cursor instanceof Response) return cursor;
+  const clauses = ['deleted_at IS NULL']; const values: unknown[] = [];
+  if (filter.start) { clauses.push('trade_date >= ?'); values.push(filter.start); }
+  if (filter.end) { clauses.push('trade_date <= ?'); values.push(filter.end); }
+  if (filter.ticker) { clauses.push('ticker = ?'); values.push(filter.ticker); }
+  if (filter.direction) { clauses.push('direction = ?'); values.push(filter.direction); }
+  if (cursor) { clauses.push('(trade_date < ? OR (trade_date = ? AND id < ?))'); values.push(cursor.sort, cursor.sort, cursor.id); }
+  const rows = await env.DB.prepare(`SELECT * FROM trades WHERE ${clauses.join(' AND ')} ORDER BY trade_date DESC, id DESC LIMIT ?`).bind(...values, limit + 1).all<TradeRow>();
+  const items = rows.results.slice(0, limit); const last = items.at(-1);
+  return json({ trades: items, items, nextCursor: rows.results.length > limit && last ? encodeCursor({ sort: last.trade_date, id: last.id, filter }) : null });
+}
+
+function optionalDate(value: string | null): string | null | undefined { return value === null || value === '' ? null : validDate(value) ? value : undefined; }
+function encodeCursor(value: { sort: string; id: number; filter: unknown }): string { return btoa(JSON.stringify(value)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, ''); }
+function decodeCursor(value: string | null, filter: unknown): { sort: string; id: number } | null | Response {
+  if (!value) return null;
+  try { const source = value.replace(/-/g, '+').replace(/_/g, '/'); const parsed = JSON.parse(atob(source + '='.repeat((4 - source.length % 4) % 4))); if (!validDate(parsed.sort) || !Number.isSafeInteger(parsed.id) || parsed.id < 1 || JSON.stringify(parsed.filter) !== JSON.stringify(filter)) throw new Error(); return { sort: parsed.sort, id: parsed.id }; }
+  catch { return apiError(400, 'invalid_cursor', 'Trade cursor is invalid'); }
 }
 
 async function createTrade(request: Request, env: FinanceEnv): Promise<Response> {

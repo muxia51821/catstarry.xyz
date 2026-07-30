@@ -35,6 +35,8 @@
     "finance:import:workbook": "python scripts/finance-import-workbook.py",
     "test:finance:site": "node scripts/finance-site-contract-test.mjs",
     "test:finance:ui": "node scripts/finance-ui-regression.mjs",
+    "finance:preview": "node scripts/finance-preview.mjs",
+    "test:finance:preview": "node scripts/finance-preview-contract-test.mjs",
     "test:finance:import": "node scripts/finance-import-contract-test.mjs",
     "test:finance:import:snapshots": "node scripts/finance-import-snapshots-contract-test.mjs",
     "test:finance:workbook-import": "node scripts/finance-workbook-import-contract-test.mjs",

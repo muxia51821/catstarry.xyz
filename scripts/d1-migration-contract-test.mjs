@@ -47,10 +47,13 @@ for (const table of [
   'annual_reviews',
   'circuit_breaker_log',
   'finance_access_log',
+  'finance_asset_snapshots',
+  'finance_cash_flows',
   'finance_import_batches',
   'finance_import_review',
   'holdings_snapshots',
   'market_data',
+  'finance_market_indexes',
   'monthly_confirmations',
   'position_limits',
   'trades',
@@ -71,6 +74,9 @@ assert.deepEqual(
 const reviewColumns = finance.prepare('PRAGMA table_info(finance_import_review)').all().map(({ name }) => name);
 assert.ok(reviewColumns.includes('resolution_note'));
 assert.ok(reviewColumns.includes('resolved_at'));
+for (const table of ['finance_cash_flows', 'finance_asset_snapshots', 'finance_market_indexes']) {
+  assert.ok(financeTables.includes(table), `Finance migration must create ${table}`);
+}
 assert.match(
   finance.prepare(`EXPLAIN QUERY PLAN SELECT * FROM holdings_snapshots
     WHERE ticker = ? ORDER BY snapshot_date DESC, id DESC LIMIT 1`)

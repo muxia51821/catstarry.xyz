@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   calculateExcessSplit,
   calculateModifiedDietz,
+  cashFlowAdjustedDrawdown,
   circuitBreakerState,
   peTemperature,
   positionDeviation,
@@ -41,6 +42,22 @@ assert.deepEqual(positionDeviation({ current: 0.55, target: 0.4, lower: 0.35, up
   status: 'above_upper',
   suggestedChange: -0.15,
 });
+assert.deepEqual(positionDeviation({ current: 0.43, target: 0.4, lower: 0.25, upper: 0.55 }), {
+  deviation: 0.03,
+  status: 'near_target',
+  suggestedChange: 0,
+});
+assert.deepEqual(positionDeviation({ current: 0.48, target: 0.4, lower: 0.25, upper: 0.55 }), {
+  deviation: 0.08,
+  status: 'rebalance',
+  suggestedChange: -0.08,
+});
+assert.deepEqual(cashFlowAdjustedDrawdown([
+  { date: '2026-01-01', total: 100, netCashFlow: 0, weightedCashFlow: 0 },
+  { date: '2026-01-08', total: 130, netCashFlow: 20, weightedCashFlow: 10 },
+  { date: '2026-01-15', total: 98.1818181818, netCashFlow: 0, weightedCashFlow: 0 },
+]), { drawdown: 0.1, high_water_date: '2026-01-08', current_date: '2026-01-15' });
+assert.equal(cashFlowAdjustedDrawdown([{ date: '2026-01-01', total: 100, netCashFlow: 0 }]), null);
 
 const split = calculateExcessSplit({
   currentValue: 1_250,

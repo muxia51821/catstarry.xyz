@@ -32,7 +32,7 @@ export default {
       let response: Response;
       if (pathname.startsWith('/api/auth/')) response = await handleFinanceAuth(request, env, pathname);
       else if (pathname === '/api/trades' || /^\/api\/trades\/\d+$/.test(pathname)) response = await handleTrades(request, env);
-      else if (pathname.startsWith('/api/monthly') || pathname === '/api/plan') {
+      else if (pathname.startsWith('/api/monthly') || pathname === '/api/plan' || pathname.startsWith('/api/cash-flows') || pathname.startsWith('/api/assets/')) {
         response = await handleRecords(request, env, pathname);
       }
       else if (pathname === '/api/risk-rules' || pathname.startsWith('/api/memos') || pathname.startsWith('/api/rebalances') || pathname.startsWith('/api/workbook-review') || /^\/api\/circuit\/\d+\/confirm-resolve$/.test(pathname)) {
