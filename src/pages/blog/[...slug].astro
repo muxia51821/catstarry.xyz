@@ -38,13 +38,25 @@ const canonicalUrl = post ? new URL(getPostUrl(post), Astro.site).href : '';
     <meta slot="head" property="og:type" content="article" />
     <meta slot="head" name="twitter:card" content="summary" />
     <link slot="head" rel="alternate" type="application/rss+xml" title="catstarry.xyz · 博客 RSS" href="/blog/rss.xml" />
-    <main class="blog-page" data-canvas="content">
+    <main class="blog-page blog-page--reading" data-canvas="content">
+      <nav class="blog-reading-nav" aria-label="文章导航">
+        <a class="blog-reading-nav__return" href="/" aria-label="返回星图">
+          <span aria-hidden="true">←</span>
+          <span>返回星图</span>
+        </a>
+        <a class="blog-reading-nav__wordmark" href="/" aria-label="catstarry.xyz 首页">catstarry.xyz</a>
+        <span class="blog-reading-nav__context">BLOG / READING</span>
+      </nav>
       <article class="blog-article">
         <header class="blog-article__header">
-          <p class="blog-eyebrow">{getCategoryLabel(post.data.category)}</p>
+          <p class="blog-eyebrow">
+            <span>Blog</span>
+            <span aria-hidden="true">/</span>
+            <span>{getCategoryLabel(post.data.category)}</span>
+          </p>
           <h1>{post.data.title}</h1>
-          <a class="blog-article__back" href="/">← 返回星图</a>
-          <div class="blog-article__meta">
+          <p class="blog-article__deck">{post.data.description}</p>
+          <div class="blog-article__meta" aria-label="文章信息">
             <time datetime={post.data.date.toISOString().slice(0, 10)}>{formatBlogDate(post.data.date)}</time>
             <span aria-hidden="true">·</span>
             <a href={`/blog/category/${post.data.category}/`}>{getCategoryLabel(post.data.category)}</a>
