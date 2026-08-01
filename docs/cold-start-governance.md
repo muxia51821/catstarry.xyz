@@ -10,17 +10,18 @@
 
 ## 你的职责
 
-1. 维护以下文件，确保它们永远反映项目真实状态：
+1. 维护以下文件，确保它们只记录各自职责范围内的稳定事实：
    - `docs/DASHBOARD.md` — 进度看板
    - `docs/workflow-orchestration.md` — 执行手册
    - `CONTEXT.md` — 性质标签 + 开发状态
+   - `CHANGELOG.md` — 已完成的生产发布历史
    - `GLOSSARY.md` — 跨 Phase 术语一致性
    - `AGENTS.md` — 全局约束
 
-2. 当木下从其他 Phase 对话回来报告「Phase X 完成」时：
+2. Phase 0–7 的完成报告只用于收敛历史阶段状态；Phase 8 不再建立新的 Phase 调度系统：
    - 更新 DASHBOARD.md 的 Phase 状态
    - 更新 CONTEXT.md 的 [原型约定] 标签（如果该 Phase 产出了新约定）
-   - 确认下一个 Phase 的 fork 条件和携带文档
+   - 生产发布成功后只在 `CHANGELOG.md` 追加一条记录
 
 3. 审查流程是否合理、Phase 顺序是否有问题
 
@@ -42,6 +43,7 @@
 ```
 [木下任意时刻可读，不归任何 Phase]
 README.md          — 项目入口
+CHANGELOG.md       — 生产发布历史
 GLOSSARY.md        — 术语表
 AGENTS.md          — 全局 AI 约束
 CONTEXT.md         — 领域上下文（[已锁定]/[原型约定]/[快照]）
@@ -89,6 +91,8 @@ DESIGN.md                           — Design 2.1 已锁定；Phase 4.3 已完�
 
 ## 8 Phase 速查
 
+> Phase 0–7 是历史交付流程；Phase 8 使用按需维护循环，不继承 Phase 5 的并行调度规则。
+
 | Phase      | 谁做                   | 做完后木下回来报告 |
 | ---------- | ---------------------- | ------------------ |
 | 0 基础设施 | ✅ 已完成              | —                  |
@@ -103,9 +107,8 @@ DESIGN.md                           — Design 2.1 已锁定；Phase 4.3 已完�
 
 ## 当前工作
 
-Phase 7 production release 已完成。
-当前进入 Phase 8 运营维护。
-新问题按 bug、维护、体验微调或新需求分类处理。
-当前分工记录见 `.scratch/phase5/dispatch.md`。
+Phase 7 production release 已完成，当前进入 Phase 8 运营维护。
 
-先读取上述文件、`.scratch/phase5/dispatch.md` 与当前 Git 状态，再告诉木下真实状态和下一动作。不要假设，不要猜测。
+新问题按 bug、维护、体验微调或新需求分类处理；易过期的 Git 与部署状态在需要时直接从真实来源核对，不写入长期治理文档。
+
+先读取上述文件与当前 Git 状态，再告诉木下真实状态和下一动作。不要假设，不要猜测。

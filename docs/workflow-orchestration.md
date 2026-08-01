@@ -1,7 +1,7 @@
 # catstarry.xyz 开发流程编排方案
 
 > 执行手册。进度追踪见 `docs/DASHBOARD.md`。
-> 最后更新：2026-07-29
+> Phase 0–7 的交付协作规则保留作历史参考；Phase 8 当前工作方式见文末的运营维护章节。
 
 ---
 
@@ -213,7 +213,7 @@ Phase 7: 部署上线 ──→ Phase 8: 运营维护 ──→ (循环回 Phase
 
 ---
 
-## Phase 5：开发实现
+## Phase 5：开发实现（历史交付流程）
 
 **目标**：逐模块实现功能代码。
 
@@ -226,7 +226,7 @@ Phase 7: 部署上线 ──→ Phase 8: 运营维护 ──→ (循环回 Phase
 
 > Phase 5.0A 已完成：前端依赖维持现状，不启动独立依赖修复任务；Phase 5.0B 无阻塞。Cloudflare adapter 未安装是当前静态前端的正确状态，不应提前安装。
 
-**当前执行策略**：Phase 5 保留三个常驻角色，并允许模块级并行；模块内部保持单 Owner，不在同一模块内多人抢写。流程治理默认只在模块启动、模块关闭、跨模块冲突、定向回流、依赖 / 架构 Gate 与 Phase 切换时介入，不为普通修复重复登记。
+**历史执行策略（Phase 0–7）**：Phase 5 保留三个常驻角色，并允许模块级并行；模块内部保持单 Owner，不在同一模块内多人抢写。流程治理默认只在模块启动、模块关闭、跨模块冲突、定向回流、依赖 / 架构 Gate 与 Phase 切换时介入，不为普通修复重复登记。Phase 8 不再沿用这套调度方式。
 
 ### Phase 5 常驻角色
 
@@ -241,7 +241,7 @@ Phase 7: 部署上线 ──→ Phase 8: 运营维护 ──→ (循环回 Phase
 - 普通模块由临时 Codex Agent 执行；完成、合并并验收后结束 session。
 - 每个 Agent 只读取模块任务包和直接相关真源；不得默认重读完整 `CONTEXT.md`、完整 workflow、全部 ADR 或其他模块文档。
 - 共享文件只能由 Phase 5 主执行 / 集成线程修改，包括 package 与全局配置、Base layout、shared contracts、migrations、auth / CORS、CI/CD 与生产部署。
-- 当前分工记录只维护 `.scratch/phase5/dispatch.md`，用于记录 base commit、active module、owner、allowed files、blocked by 与 next action。
+- Phase 5 曾使用临时协作记录；该记录不属于 Phase 8 当前真源。
 
 ### Phase 5 风险分级
 
@@ -297,7 +297,7 @@ tdd → implement → code-review → 木下按 acceptance 验收 → 通过/回
 
 **目标**：推送到生产环境。
 
-**当前状态**：✅ production release 已完成。Release SHA：`665fbb3c3f01eb7fa84fb55997def210f47fe1a3`。Production manual smoke：passed。
+**当前状态**：✅ production release 已完成。已完成的 release history 见 `CHANGELOG.md`。
 
 | #   | 动作                                    | skill                     |
 | --- | --------------------------------------- | ------------------------- |
@@ -307,41 +307,33 @@ tdd → implement → code-review → 木下按 acceptance 验收 → 通过/回
 
 ---
 
-## Phase 8：运营维护（持续）
+## Phase 8：运营维护（当前）
 
-**目标**：保持可用，持续改进。
+**目标**：保持可用，持续改进，让项目随着真实使用变得更简单。
 
 **当前状态**：🟡 运营维护已启动。Phase 8 事项不再作为 Phase 7 blocker。
 
-### 木下的日常操作（上线后）
+### 当前循环
 
-| 操作     | 路径            | 方式                                                             |
-| -------- | --------------- | ---------------------------------------------------------------- |
-| 发博客   | /blog           | 本地写 Markdown → Git push → CF Pages 自动部署                   |
-| 发碎碎念 | /feed           | 网站右下角 + 按钮 → 登录 → 发布面板                              |
-| 剪藏     | /feed           | 发布面板切换到剪藏 tab → 粘贴链接 → 自动拉取摘要 → 补评论 → 发布 |
-| 录交易   | f.catstarry.xyz | 登录财务面板 → 录入交易                                          |
-| 看持仓   | f.catstarry.xyz | 打开面板即可查看（cati 登录后只读）                              |
-| 年度导出 | f.catstarry.xyz | D1 → Excel 导出 → 存档签署                                       |
+```text
+发现问题或想法
+    ↓
+分类：Bug / Maintenance / Experience refinement / New feature
+    ↓
+确定最小范围 → 实施 → 自动验证 → 木下人工验收
+    ↓
+需要发布时交给独立 Deployment Session
+    ↓
+Production verification → 在 CHANGELOG.md 追加一条成功 release
+```
 
-### AI 维护（按需触发）
+### 边界与真源
 
-| 触发     | 动作                    | skills                                         |
-| -------- | ----------------------- | ---------------------------------------------- |
-| 线上 bug | 诊断 → 修 → 部署        | `diagnosing-bugs` → `tdd` → `implement`        |
-| 性能退化 | 定位 → 优化             | `web-perf` → `improve-codebase-architecture`   |
-| 技术债   | 分析 → 重构方案 → issue | `improve-codebase-architecture` → `to-tickets` |
-| 新功能   | 回到 Phase 1            | `grill-me` → …                                 |
-
-**周期维护**：每季度 D1 备份（`wrangler d1 backup`）。
-
-### 当前独立维护事项
-
-- Bot Fight Mode 与 GitHub publication challenge。
-- Wrangler trigger migration limitation。
-- npm audit 5 个 high findings。
-- Feed staging Cron 配额。
-- Finance 真实数据、行情 provider 和双角色业务流程。
+- Phase 8 负责判断范围、跨模块影响、发布范围和 production evidence；不默认部署。
+- Deployment Session 负责核查 Git、执行指定组件部署、运行 production smoke 并返回 evidence。
+- Site、Blog、Feed、Learn、Finance 等组件可以处于不同 production source；不为追求 SHA 一致而重复部署无变化组件。
+- Git HEAD、待发布 commit 和组件生产 source 等易过期状态，在需要时直接从 Git 与部署平台核对。
+- 已完成的生产发布只记录在 `CHANGELOG.md`；不建立 dispatch、next 或 release queue 文件。
 
 ---
 

@@ -127,37 +127,22 @@ catstarry.xyz/
 
 ---
 
-## 部署 [快照 | Phase 7 production release complete]
+## 部署 [稳定事实 | Phase 8]
 
-> Phase 7 production release 已完成。当前进入 Phase 8 运营维护。
+> Phase 7 coordinated production release 已完成，当前进入 Phase 8 运营维护。
 
 - **Phase 7 staging gate**：complete
 - **Phase 7 production release**：complete
-- **Production release SHA**：`665fbb3c3f01eb7fa84fb55997def210f47fe1a3`
-- **Production manual smoke**：passed
-- **Phase 8 operations and maintenance**：started
-- **说明**：release 过程、staging 证据与 smoke 细节不在 `CONTEXT.md` 重复记录；执行调度见 `.scratch/phase5/dispatch.md`。
-- **上线后迭代 / 后续业务验收**：星球 selected assets 后续替换与视觉微调；Finance 历史真实数据迁移、真实行情 provider、双角色完整业务体验及年度流程；其他真实数据驱动的业务差异。
+- **Phase 8 operations and maintenance**：active
+- **Production release history**：见 `CHANGELOG.md`
 
 ---
 
-## 开发状态 [快照 | Phase 8 operations started]
+## 当前产品状态 [稳定事实 | Phase 8]
 
-> Phase 5 implementation、Phase 6 QA、Phase 7 staging gate 与 Phase 7 production release 均已完成。当前进入 Phase 8 运营维护。新问题按 bug、维护、体验微调或新需求分类处理。
+> Phase 0–7 的首次正式交付已完成；Phase 8 负责真实使用中的运营维护与增量优化。
 
-- /blog：✅ production release complete
-- /：✅ production release complete
-- /feed：✅ production release complete
-- /learn、/projects：✅ production release complete
-- f.catstarry.xyz：✅ production release complete
-- poker.catstarry.xyz：✅ 已上线（独立部署）
-- 设计系统 CSS：✅ `variables.css` / `components.css` / `typography.css` / `main.css` 已完成 Phase 4.3 canonical 对齐；Star Map、Planet、Focus、HAS、豹猫星座、About Expanded 与 Cursor Meteor 的样式接口已建立；运行时状态机、生产路由和真实数据链路仍属 Phase 5。
-- 依赖基线：✅ RC1 当前基线为 Astro 7.1.3 + `@astrojs/react` 6.0.1 + `@astrojs/cloudflare` 14.1.4 + React 19.2.7 + Wrangler 4.113.0；staging gate 不静默升级依赖。
-- 前端施工规则：✅ Phase 5.0B 完成，`docs/agents/frontend-rules.md` 已创建；Phase 5 前端开发线程必须引用。
-- Home Activity Signal：✅ 定向 Phase 2/3、返回 Phase 4.1 视觉重锁、Phase 4.2 mock 原型验收与 Phase 4.3 canonical 视觉接口落地均已完成；ADR-007 锁定受控静态投影，真实投影接入仍不得在 Phase 5 之前越权实现。
-- 共享基础设施 F：✅ 提交 `2ab3d83`、`51cd489` 已完成；独立 Code Review 已完成，P0/P1 已修复并增量复审通过。不得据此宣布任何业务模块已实现。
-- Phase 7：✅ staging gate complete；production release complete；Production manual smoke passed；Release SHA `665fbb3c3f01eb7fa84fb55997def210f47fe1a3`。
-- Phase 5 协作：✅ 流程减重已生效。保留三个常驻角色：流程治理、Phase 5 主执行 / 集成线程、网页端桥梁。普通模块可并行启动，但每个模块内部必须单 Owner；临时 Codex Agent 只读取模块任务包和直接相关真源，完成并合并后结束 session。
-- 共享文件 Owner：package 与全局配置、Base layout、shared contracts、migrations、auth / CORS、CI/CD 与生产部署只能由 Phase 5 主执行 / 集成线程修改。
-- 流程治理介入点：模块启动、模块关闭、跨模块冲突、定向回流、依赖 / 架构 Gate 与 Phase 切换。普通修复不重复登记。
-- Phase 8：🟡 运营维护已启动。
+- Home、Blog、Feed、Learn、Projects 与 Finance 均处于 production / maintained 状态；Finance 模块保持 actively iterating。
+- `poker.catstarry.xyz` 为独立部署的站点。
+- 设计系统 CSS 已完成 canonical 对齐；运行时状态、生产路由和真实数据链路以实际代码与部署平台为准。
+- 新问题按 bug、维护、体验微调或新需求分类处理；易过期的 Git 与部署状态不在本文档维护。
