@@ -1,7 +1,7 @@
 # 站点地图 (SITEMAP)
 
-> catstarry.xyz 全站 URL 结构与各页面间链接关系。
-> 最后更新：2026-07-26
+> 公开主站 URL 结构、项目内非公开组件与主要 API 关系。
+> 详细接口以实际 Worker 路由为准；本文不维护易过期的 deployment SHA 或 release queue。
 
 ---
 
@@ -96,16 +96,17 @@
 
 ---
 
-## 子域名
+## 相关项目组件
 
-### `f.catstarry.xyz` — 财务面板
+### `f.catstarry.xyz` — Finance（非公开）
 
-| 属性       | 值                              |
-| ---------- | ------------------------------- |
-| 部署       | 独立 CF Pages / Workers 项目    |
-| 访问控制   | 密码鉴权（木下读写、cati 只读） |
-| 与主站关系 | 完全不显示在 Home               |
-| 状态       | 已实现最大安全 coherent slice；真实数据/provider/生产接线待 staging |
+| 属性       | 值                                                                                 |
+| ---------- | ---------------------------------------------------------------------------------- |
+| 公开性     | 项目内非公开工作区，不属于公开站点模块                                             |
+| 部署       | 独立 CF Pages / Workers 项目                                                       |
+| 访问控制   | 密码鉴权（木下读写、cati 只读）                                                    |
+| 与主站关系 | 不出现在 README、Home 或公开 `sitemap.xml`；通过独立 Finance 域名访问              |
+| 状态       | Phase 7 production release 已完成；Phase 8 持续维护，真实数据/provider/完整业务流程按独立验收推进 |
 
 ### `poker.catstarry.xyz` — Poker PWA
 
@@ -116,7 +117,9 @@
 
 ---
 
-## API 端点
+## 主要 API 端点
+
+### 主站 API（含公开与受保护接口）
 
 | 端点            | Worker      | 方法     | 说明                                      |
 | --------------- | ----------- | -------- | ----------------------------------------- |
@@ -126,11 +129,9 @@
 | `/api/auth/*`   | feed-api    | GET/POST | session、登录/登出，bcrypt + KV/D1 session |
 | `/api/blog/internal/publications` | feed-api | POST | 受保护的 Blog 首次生产发布 manifest |
 | `/api/learn/*`  | feed-api    | POST     | Learn 发布适配器、完成足迹与发布 manifest |
-| `/api/trades`   | finance-api | GET/POST | 交易记录 CRUD                             |
-| `/api/holdings` | finance-api | GET      | 实时持仓 + 偏离预警                       |
-| `/api/market`   | finance-api | GET      | 行情数据（15 分钟延迟）                   |
-| `/api/pe`       | finance-api | GET      | PE 温度计数据                             |
-| `/api/circuit`  | finance-api | GET      | 熔断状态                                  |
-| `/api/review`   | finance-api | GET/POST | 年度 Modified Dietz 复盘与确认            |
-| `/api/import-review` | finance-api | GET/PATCH | 管理员导入异常审阅与结案               |
-| `/api/archive`  | finance-api | GET      | 管理员年度 XLSX 归档                      |
+
+### 非公开 Finance API
+
+| 前缀                         | Worker      | 访问控制                 | 主要能力                                                                                  |
+| ---------------------------- | ----------- | ------------------------ | ------------------------------------------------------------------------------------------- |
+| `f.catstarry.xyz/api/*`      | finance-api | Finance session required | auth、trades、monthly、plan、cash-flows、assets、holdings、market、PE、risk、circuit、review、import-review、archive、stewardship |

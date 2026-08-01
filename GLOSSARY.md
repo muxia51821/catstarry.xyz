@@ -1,6 +1,6 @@
 # 项目术语表 (GLOSSARY)
 
-> catstarry.xyz 项目中的关键领域术语。在讨论、开发、AI 对话中保持一致用词。
+> catstarry.xyz 项目中的关键领域术语，包含公开站点与非公开 Finance workspace。在讨论、开发、AI 对话中保持一致用词。
 
 ---
 
@@ -9,8 +9,8 @@
 | 术语     | 含义                                               |
 | -------- | -------------------------------------------------- |
 | **木下** | 网站所有者，非程序员，Vibe Coding，AI 架构师角色   |
-| **cati** | 木下的伴侣，共同投资计划的协作者，财务面板只读用户 |
-| **访客** | 网站公开页面的读者                                 |
+| **cati** | 木下的伴侣，共同投资计划的协作者，非公开 Finance workspace 的只读用户 |
+| **访客** | 公开站点页面的读者，不包含 Finance workspace                     |
 
 ---
 
@@ -25,7 +25,7 @@
 | **feed (`/feed`)**         | 公开足迹／来时路：展示原生碎碎念、剪藏与符合规则的系统事件；公开浏览，认证后发布                                                        |
 | **learn (`/learn`)**       | 编程学习笔记板块，基于 teach skill 的 lesson 产出，按 track 组织                                                                        |
 | **projects (`/projects`)** | 成品项目展示，卡片网格布局，显示最近 2 个项目                                                                                           |
-| **f.catstarry.xyz**        | 独立子域名，双人协作财务面板，密码鉴权，不展示在首页                                                                                    |
+| **f.catstarry.xyz**        | 非公开的独立 Finance workspace；双人协作财务面板，密码鉴权，不展示在 README、Home 或公开站点导航                                      |
 | **poker.catstarry.xyz**    | 独立子域名，Poker PWA 应用，已上线                                                                                                      |
 
 ---
@@ -44,7 +44,7 @@
 
 ---
 
-## /finance 领域术语
+## Finance（非公开）领域术语
 
 | 术语             | 含义                                                                                                   |
 | ---------------- | ------------------------------------------------------------------------------------------------------ |
@@ -65,7 +65,7 @@
 | **SSR**           | 服务端渲染（Server-Side Rendering），请求时动态生成 HTML       |
 | **hybrid**        | Astro 的混合模式，SSG 优先、按需 SSR                           |
 | **island**        | Astro 中的交互组件概念，React 组件以 island 形式嵌入静态页面   |
-| **Monorepo**      | 单一 Git 仓库管理全部代码（blog + feed + finance + 首页）      |
+| **Monorepo**      | 单一 Git 仓库管理公开站点与非公开 Finance 组件（blog + feed + finance + 首页） |
 | **D1**            | Cloudflare 的 serverless SQLite 数据库服务                     |
 | **KV**            | Cloudflare 的 key-value 存储服务，适合缓存和配置               |
 | **R2**            | Cloudflare 的对象存储服务，用于媒体文件                        |
@@ -91,7 +91,7 @@
 | **DESIGN.md**             | 根目录下的全站视觉与交互事实来源；当前锁定版本为 Design 2.1，Phase 4.2 只能验证其参数，不得改变上游产品与架构边界                                     |
 | **prototype**             | Phase 4.2 默认使用的隔离原型 skill；只回答已锁定设计中的参数问题，不得把实验 CSS 直接写入 canonical styles                                            |
 | **依赖基线迁移**          | 核心框架与官方 integration 跨主版本错配时执行的独立基础设施任务；不重开需求、架构或设计阶段，完成升级、最小兼容修改和验证后返回流程治理               |
-| **frontend-rules.md**     | docs/agents/ 下的前端规则固化文件，Phase 5.0B 产出。各模块开发线程必须引用                                                                            |
+| **frontend-rules.md**     | `docs/agents/` 下的前端规则固化文件，Phase 5.0B 产出；涉及前端施工时作为项目规则参考                                                               |
 | **`.anim-fade-up`**       | CSS 动画工具类，元素进入视口时从下方 24px 淡入上浮，animation-timeline: view() 驱动                                                                   |
 | **`.anim-stagger`**       | CSS 动画工具类，父容器子元素逐项错开淡入，基础延迟 80ms                                                                                               |
 | **`.parallax-container`** | CSS 动画工具类，背景/前景层不同速率视差滚动                                                                                                           |
