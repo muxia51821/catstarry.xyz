@@ -152,6 +152,8 @@
   --content-gallery: var(--warm-50);
   --content-surface-soft: var(--warm-200);
   --content-surface-card: var(--warm-100);
+  --content-code-surface: var(--gray-900);
+  --content-code-text: var(--warm-100);
   --content-hairline: var(--warm-200);
   --content-text-primary: var(--warm-900);
   --content-text-body: var(--warm-800);
