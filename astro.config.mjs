@@ -11,7 +11,7 @@ export default defineConfig({
   markdown: {
     processor: unified({ remarkPlugins: [remarkWikilinks] }),
     shikiConfig: {
-      theme: 'catppuccin-latte',
+      theme: 'catppuccin-mocha',
     },
   },
 });

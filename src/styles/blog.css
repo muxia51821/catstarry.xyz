@@ -244,6 +244,7 @@
   align-items: center;
   gap: var(--space-sm);
   color: var(--klein-500);
+  letter-spacing: normal;
 }
 
 .blog-page--reading .blog-eyebrow span:nth-child(2) { color: var(--content-hairline); }
