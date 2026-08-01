@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Blog Kami 阅读页隔离原型：从零开始建造数字空间。"
+    />
+    <title>从零开始建造数字空间 · Blog prototype</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body data-canvas="content" data-prototype="blog-kami">
+    <a class="skip-link" href="#article-content">跳到正文</a>
+
+    <main class="prototype-page" id="top">
+      <div class="reading-shell">
+        <nav class="reading-nav" aria-label="文章导航">
+          <a class="return-link" href="/" aria-label="返回星图">
+            <span aria-hidden="true">←</span>
+            <span>返回星图</span>
+          </a>
+          <a class="wordmark" href="/" aria-label="catstarry.xyz 首页">catstarry.xyz</a>
+          <span class="nav-context">BLOG / READING</span>
+        </nav>
+
+        <header class="article-header">
+          <p class="article-eyebrow">
+            <span>Blog</span>
+            <span class="eyebrow-divider" aria-hidden="true">/</span>
+            <span>技术</span>
+          </p>
+          <h1>从零开始建造数字空间</h1>
+          <p class="article-deck">
+            一个非程序员如何用 AI 和自己的品味，从零搭建一个有意思的网站。
+          </p>
+          <div class="article-meta" aria-label="文章信息">
+            <time datetime="2026-07-03">2026 年 7 月 3 日</time>
+            <span class="meta-separator" aria-hidden="true">·</span>
+            <a href="/blog/category/tech/">技术</a>
+            <span class="meta-separator" aria-hidden="true">·</span>
+            <span class="meta-reading" aria-label="阅读数占位">— 次阅读</span>
+          </div>
+          <div class="article-tags" id="tags" aria-label="文章标签">
+            <a href="/blog/tag/astro/">#astro</a>
+            <a href="/blog/tag/cloudflare/">#cloudflare</a>
+            <a href="/blog/tag/%E4%B8%AA%E4%BA%BA%E7%BD%91%E7%AB%99/">#个人网站</a>
+          </div>
+        </header>
+
+        <article class="article-layout" aria-labelledby="article-title">
+          <aside class="reading-note" aria-label="阅读提示">
+            <span class="reading-note__line" aria-hidden="true"></span>
+            <span>一篇关于开始的记录</span>
+          </aside>
+
+          <div class="article-content" id="article-content">
+            <h1 class="visually-hidden" id="article-title">从零开始建造数字空间</h1>
+
+            <section aria-labelledby="background-title">
+              <h2 id="background-title">背景</h2>
+              <p>
+                我一直想有一个自己的网站。不是那种模板博客，也不是社交媒体主页——而是一个真正属于我自己的数字空间。
+              </p>
+            </section>
+
+            <section aria-labelledby="process-title">
+              <h2 id="process-title">过程</h2>
+              <p>
+                买了域名 catstarry.xyz，用了 AI 做需求分析，从 6 月聊到 7 月，把一个模糊的想法变成了清晰的 7 个板块。
+              </p>
+              <p>
+                下面是一段用来记录构建命令的代码：<code>npm run build</code>
+              </p>
+
+              <pre class="code-block" aria-label="构建命令"><code>npm run build</code></pre>
+
+              <figure class="article-figure">
+                <img
+                  src="./digital-space.svg"
+                  width="800"
+                  height="480"
+                  alt="一颗漂浮在奶油色背景上的暖棕色星球"
+                />
+                <figcaption>一颗属于 Blog 的暖色星球</figcaption>
+              </figure>
+
+              <div class="table-wrap">
+                <table>
+                  <caption>从想法到可阅读页面</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">阶段</th>
+                      <th scope="col">留下的东西</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>想法</td>
+                      <td>一张不会消失的草稿</td>
+                    </tr>
+                    <tr>
+                      <td>实现</td>
+                      <td>一个能被阅读的页面</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <p>
+                如果你也在开始自己的空间，可以从
+                <a href="https://docs.astro.build/">Astro 文档</a> 读起。
+              </p>
+            </section>
+
+            <section aria-labelledby="result-title">
+              <h2 id="result-title">结果</h2>
+              <p>现在你看到的这个博客，就是第一块拼图。</p>
+              <p>
+                后续还有：聚合首页、碎碎念时间线、编程学习笔记、项目展示、和一个只有两个人能看到的财务面板。
+              </p>
+            </section>
+
+            <section class="component-sample" aria-labelledby="sample-title">
+              <p class="sample-label">原型补充演示 · 不进入正式文章</p>
+              <h2 id="sample-title">把复杂度留在合适的位置</h2>
+              <p>
+                长文需要安静的节奏，也需要清楚的工具感。像
+                <code>Content Collection</code> 这样的实现细节，可以在需要时被看见，但不应压过正文。
+              </p>
+              <h3>从想法到页面</h3>
+              <ul>
+                <li>把模糊的想法留成一张不会消失的草稿。</li>
+                <li>把值得重读的判断整理成可以阅读的页面。</li>
+                <li>让代码、表格和图片服务于同一段叙述。</li>
+              </ul>
+              <ol>
+                <li>先写下想法。</li>
+                <li>再编辑和预览。</li>
+                <li>最后把页面交给读者。</li>
+              </ol>
+              <blockquote>
+                不是模板博客，也不是社交媒体主页——而是一个真正属于我自己的数字空间。
+                <cite>— 正文摘录</cite>
+              </blockquote>
+            </section>
+          </div>
+        </article>
+
+        <footer class="article-end">
+          <a class="article-back" href="/blog/">
+            <span aria-hidden="true">←</span>
+            <span>返回博客列表</span>
+          </a>
+          <p>catstarry.xyz / Blog</p>
+        </footer>
+
+        <section class="share-section" aria-labelledby="share-title">
+          <div class="section-heading">
+            <p class="section-kicker">ArticleFooter</p>
+            <h2 id="share-title">分享与讨论</h2>
+          </div>
+          <div class="share-actions" aria-label="分享操作原型">
+            <button type="button">分享到 X</button>
+            <button type="button">复制链接</button>
+            <button type="button">分享到微信</button>
+          </div>
+          <p class="share-state">原型状态：选择一个分享操作后，这里显示反馈。</p>
+        </section>
+
+        <section class="comments-placeholder" aria-labelledby="comments-title">
+          <div class="comments-heading">
+            <div>
+              <p class="section-kicker">Giscus / light</p>
+              <h2 id="comments-title">评论</h2>
+            </div>
+            <span class="comments-status">评论区占位</span>
+          </div>
+          <div class="comment-box" aria-label="Giscus 评论区域占位">
+            <p>生产页面将在这里加载 Giscus。原型不连接外部评论服务。</p>
+            <div class="comment-lines" aria-hidden="true">
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+          </div>
+        </section>
+
+        <footer class="prototype-footer">
+          <span>Blog Kami reading prototype</span>
+          <span>isolated · static · no production runtime</span>
+        </footer>
+      </div>
+    </main>
+  </body>
+</html>

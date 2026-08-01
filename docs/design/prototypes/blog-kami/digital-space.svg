@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 480" role="img" aria-labelledby="title desc">
+  <title id="title">暖色数字空间</title>
+  <desc id="desc">一颗漂浮在奶油色背景上的暖棕色星球</desc>
+  <rect width="800" height="480" fill="#faf9f5"/>
+  <circle cx="400" cy="240" r="154" fill="#cbb184"/>
+  <path d="M268 170c70-82 223-66 274 37-54-38-104-14-151 14-45 26-86 42-146 17 4-26 11-48 23-68Z" fill="#a8755b"/>
+  <path d="M289 328c36-12 65-3 95 15 39 23 94 39 145 6-36 43-90 61-142 50-44-9-80-34-112-71 4 0 9 0 14 0Z" fill="#7a5c48"/>
+  <circle cx="475" cy="169" r="36" fill="#e8dfd0" opacity=".85"/>
+</svg>
