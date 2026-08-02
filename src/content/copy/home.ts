@@ -43,10 +43,15 @@ type HomeCopy = {
   focus: { placeholderKicker: string; backAction: string };
   cat: { hint: string; chargedHint: string };
   footer: string;
+  contact: {
+    ariaLabel: string;
+    label: string;
+    xiaohongshu: { ariaLabel: string; href: string };
+    email: { ariaLabel: string; address: string };
+  };
   flightIndex: {
     ariaLabel: string;
     entry: string;
-    approach: string;
     overview: string;
   };
   accessibility: {
@@ -172,10 +177,18 @@ export const homeCopy = {
   focus: { placeholderKicker: "PLANET FOCUS", backAction: "返回星图" },
   cat: { hint: "starry", chargedHint: "再次点击，进入木下的轨道" },
   footer: "星图在此收束。写作、建造、学习与来时路，仍会在各自的轨道上继续。",
+  contact: {
+    ariaLabel: "联系方式",
+    label: "CONTACT ME",
+    xiaohongshu: {
+      ariaLabel: "在小红书打开木下的主页",
+      href: "https://www.xiaohongshu.com/user/profile/65ae04a9000000000e001b82?xsec_token=YBpD59aYlhY6X6L2AxFjtCoAV05Yydo7eHVkaqOUmsRlg=&xsec_source=app_share&&apptime=1785641579&shareRedId=ODtDRTM5RUI2NzUyOTgwNjZIOTc1Rz47&share_id=f0aff52d27814d2688309f6e6128aec7&xhsshare=CopyLink",
+    },
+    email: { ariaLabel: "显示木下的邮箱", address: "jina@catstarry.xyz" },
+  },
   flightIndex: {
     ariaLabel: "Home 航行索引",
     entry: "ENTRY",
-    approach: "APPROACH",
     overview: "STAR MAP",
   },
   accessibility: {

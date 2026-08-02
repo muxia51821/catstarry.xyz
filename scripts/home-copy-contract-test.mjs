@@ -39,9 +39,13 @@ for (const [key, value] of Object.entries({
   catHint: homeCopy.cat.hint,
   catChargedHint: homeCopy.cat.chargedHint,
   footer: homeCopy.footer,
+  contactAriaLabel: homeCopy.contact.ariaLabel,
+  contactLabel: homeCopy.contact.label,
+  contactXiaohongshuAriaLabel: homeCopy.contact.xiaohongshu.ariaLabel,
+  contactEmailAriaLabel: homeCopy.contact.email.ariaLabel,
+  contactEmailAddress: homeCopy.contact.email.address,
   flightIndexAriaLabel: homeCopy.flightIndex.ariaLabel,
   flightIndexEntry: homeCopy.flightIndex.entry,
-  flightIndexApproach: homeCopy.flightIndex.approach,
   flightIndexOverview: homeCopy.flightIndex.overview,
   journeyLabel: homeCopy.accessibility.journeyLabel,
   mapLabel: homeCopy.accessibility.mapLabel,
@@ -52,6 +56,8 @@ for (const [key, value] of Object.entries({
   activityDormant: homeCopy.activityStatus.dormant,
   activityUnavailable: homeCopy.activityStatus.unavailable,
 })) nonEmpty(value, key, 240);
+assert.match(homeCopy.contact.xiaohongshu.href, /^https:\/\/www\.xiaohongshu\.com\//, 'contact xiaohongshu href must remain an HTTPS profile URL');
+assert.match(homeCopy.contact.email.address, /^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'contact email must be a valid address');
 
 const [experience, runtime] = await Promise.all([
   readFile('src/components/home/HomeExperience.astro', 'utf8'),
@@ -65,6 +71,7 @@ for (const reference of [
   'homeCopy.focus.',
   'homeCopy.cat.',
   'homeCopy.footer',
+  'homeCopy.contact.',
   'homeCopy.flightIndex.',
   'homeCopy.accessibility.',
 ]) assert.ok(experience.includes(reference), `HomeExperience must render ${reference} from homeCopy`);

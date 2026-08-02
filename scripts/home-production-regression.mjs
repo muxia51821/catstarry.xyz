@@ -259,6 +259,7 @@ try {
     homeCopy.entry.action,
     homeCopy.focus.placeholderKicker,
     homeCopy.footer,
+    homeCopy.contact.label,
     homeCopy.planets.about.label,
     homeCopy.planets.feed.label,
     homeCopy.planets.blog.label,
@@ -492,11 +493,31 @@ try {
   const footerRelease = await evaluate(`({
     focusOpen: document.body.classList.contains('focus-open'),
     footerVisible: Boolean(document.querySelector('footer')),
+    copyLineCount: (() => {
+      const copy = document.querySelector('.footer-copy');
+      const range = document.createRange();
+      range.selectNodeContents(copy);
+      return range.getClientRects().length;
+    })(),
+    hasContact: Boolean(document.querySelector('[data-contact="xiaohongshu"]') && document.querySelector('[data-contact="email"]')),
+    hasApproachIndex: Boolean(document.querySelector('.flight-index [data-anchor="approach"]')),
   })`);
+  phase = 'footer email reveal';
+  const footerEmailReveal = await evaluate(`(() => {
+    const details = document.querySelector('[data-contact="email"]');
+    details?.querySelector('summary')?.click();
+    const address = details?.querySelector('.footer-email-address');
+    return {
+      open: details?.open === true,
+      address: address?.textContent?.trim() ?? null,
+      href: address?.getAttribute('href') ?? null,
+    };
+  })()`);
 
   phase = 'viewport matrix';
   const viewports = [];
   let mobileAssets = [];
+  let mobileFooter;
   for (const { width, height } of [
     { width: 1440, height: 900 },
     { width: 1366, height: 768 },
@@ -513,6 +534,13 @@ try {
       const mobileAssetsRaw = await evaluate(planetAssetProbeExpression('mobile'));
       await delay(50);
       mobileAssets = addNetworkStatus(mobileAssetsRaw, networkResponses);
+      mobileFooter = await evaluate(`(() => {
+        const copy = document.querySelector('.footer-copy');
+        return {
+          whiteSpace: getComputedStyle(copy).whiteSpace,
+          noOverflow: copy.scrollWidth <= copy.clientWidth,
+        };
+      })()`);
     }
     viewports.push(await evaluate(`({
       width: ${width},
@@ -520,6 +548,12 @@ try {
       noHorizontalOverflow: document.documentElement.scrollWidth <= document.documentElement.clientWidth,
       hasJourney: Boolean(document.querySelector('.journey')),
       hasFivePlanets: document.querySelectorAll('[data-planet]').length === 5,
+      footerCopyLineCount: (() => {
+        const copy = document.querySelector('.footer-copy');
+        const range = document.createRange();
+        range.selectNodeContents(copy);
+        return range.getClientRects().length;
+      })(),
     })`));
   }
 
@@ -553,6 +587,8 @@ try {
     naturalScroll,
     reverseScroll,
     footerRelease,
+    footerEmailReveal,
+    mobileFooter,
     viewports,
     reducedMotion,
   };
@@ -577,7 +613,16 @@ try {
     || !reverseScroll.visible
     || footerRelease.focusOpen
     || !footerRelease.footerVisible
+    || footerRelease.copyLineCount !== 1
+    || !footerRelease.hasContact
+    || footerRelease.hasApproachIndex
+    || !footerEmailReveal.open
+    || footerEmailReveal.address !== homeCopy.contact.email.address
+    || footerEmailReveal.href !== `mailto:${homeCopy.contact.email.address}`
+    || mobileFooter?.whiteSpace !== 'normal'
+    || !mobileFooter?.noOverflow
     || viewports.some((viewport) => !viewport.noHorizontalOverflow || !viewport.hasJourney || !viewport.hasFivePlanets)
+    || viewports.some((viewport) => viewport.width >= 768 && viewport.footerCopyLineCount !== 1)
     || !reducedMotion.preferred
     || !reducedMotion.cursorMeteorHidden
     || !reducedMotion.entryMeteorsHidden

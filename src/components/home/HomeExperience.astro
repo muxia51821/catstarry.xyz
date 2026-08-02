@@ -244,16 +244,40 @@ const manifestUrl = import.meta.env.PUBLIC_ACTIVITY_SIGNALS_URL ?? '/activity-si
 </div>
       </section>
       <footer class="footer">
-        <p>
-          {homeCopy.footer}
-        </p>
+        <div class="footer-content">
+          <p class="footer-copy">{homeCopy.footer}</p>
+          <nav class="footer-contact" aria-label={homeCopy.contact.ariaLabel}>
+            <span class="footer-contact-label">{homeCopy.contact.label}</span>
+            <a
+              class="footer-contact-link"
+              data-contact="xiaohongshu"
+              href={homeCopy.contact.xiaohongshu.href}
+              target="_blank"
+              rel="noreferrer"
+              aria-label={homeCopy.contact.xiaohongshu.ariaLabel}
+            >
+              <svg class="xiaohongshu-mark" viewBox="0 0 32 24" aria-hidden="true">
+                <text x="1" y="17" textLength="30" lengthAdjust="spacingAndGlyphs">小红书</text>
+              </svg><span class="sr-only">小红书</span>
+            </a>
+            <details class="footer-email" data-contact="email">
+              <summary aria-label={homeCopy.contact.email.ariaLabel}>
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <rect x="3.5" y="5.5" width="17" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"></rect>
+                  <path d="m5 7 7 5.5L19 7" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path>
+                </svg><span class="sr-only">Email</span>
+              </summary>
+              <a class="footer-email-address" href={`mailto:${homeCopy.contact.email.address}`}>
+                {homeCopy.contact.email.address}
+              </a>
+            </details>
+          </nav>
+        </div>
       </footer>
     </main>
 <nav class="flight-index" aria-label={homeCopy.flightIndex.ariaLabel}>
       <button type="button" data-anchor="entry">
         <i></i><span>{homeCopy.flightIndex.entry}</span></button
-      ><button type="button" data-anchor="approach">
-        <i></i><span>{homeCopy.flightIndex.approach}</span></button
       ><button type="button" data-anchor="overview">
         <i></i><span>{homeCopy.flightIndex.overview}</span></button
       ><button type="button" data-focus="about">
