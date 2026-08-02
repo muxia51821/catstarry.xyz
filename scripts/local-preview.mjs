@@ -34,6 +34,8 @@ if (ports.size !== 3) throw new Error('SITE_PREVIEW_PORT, FEED_PREVIEW_PORT, and
 const siteOrigin = `http://127.0.0.1:${sitePort}`;
 const feedOrigin = `http://127.0.0.1:${feedPort}`;
 const financeOrigin = `http://127.0.0.1:${financePort}`;
+const serviceReadyTimeoutMs = 60_000;
+const serviceReadyPollMs = 250;
 
 const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
@@ -60,7 +62,11 @@ function runCommand(command, args, label, env = process.env) {
 }
 
 function startService(label, command, args, env) {
-  const child = spawn(command, args, spawnOptions(command, env));
+  const child = spawn(command, args, {
+    ...spawnOptions(command, env),
+    // Let the parent own Ctrl+C on Windows, then terminate each service tree itself.
+    detached: process.platform === 'win32',
+  });
   const service = { label, child, stopped: false };
   const exit = new Promise((resolve) => {
     child.once('error', (error) => { service.stopped = true; resolve({ code: 1, error }); });
@@ -70,9 +76,11 @@ function startService(label, command, args, env) {
   return service;
 }
 
-async function waitForHttp(url, label, service) {
+async function waitForHttp(url, label, service, shouldStop) {
   let lastError = null;
-  for (let attempt = 0; attempt < 80; attempt += 1) {
+  const deadline = Date.now() + serviceReadyTimeoutMs;
+  while (Date.now() < deadline) {
+    if (shouldStop()) return false;
     if (service.stopped) {
       throw new Error(`${label} exited before becoming ready`);
     }
@@ -83,9 +91,11 @@ async function waitForHttp(url, label, service) {
     } catch (error) {
       lastError = error;
     }
-    await sleep(250);
+    if (shouldStop()) return false;
+    await sleep(serviceReadyPollMs);
   }
-  throw new Error(`${label} did not become ready at ${url}: ${lastError instanceof Error ? lastError.message : 'unknown error'}`);
+  if (shouldStop()) return false;
+  throw new Error(`${label} did not become ready within ${serviceReadyTimeoutMs / 1_000} seconds at ${url}: ${lastError instanceof Error ? lastError.message : 'unknown error'}`);
 }
 
 async function stopService(service) {
@@ -108,21 +118,28 @@ async function runQuickVerification() {
 }
 
 async function main() {
-  await runQuickVerification();
-  if (checkOnly) {
-    console.log('[local-preview] Quick verification passed.');
-    return 0;
-  }
-
   let persist;
   const services = [];
+  let stopRequested = false;
   let signalStop;
   const signalPromise = new Promise((resolve) => { signalStop = resolve; });
-  const onSignal = () => signalStop({ code: 0, requested: true });
-  process.once('SIGINT', onSignal);
-  process.once('SIGTERM', onSignal);
+  const onSignal = (signal) => {
+    if (stopRequested) return;
+    stopRequested = true;
+    console.log(`\n[local-preview] Received ${signal}; stopping all local previews...`);
+    signalStop({ code: 0, requested: true });
+  };
+  process.on('SIGINT', onSignal);
+  process.on('SIGTERM', onSignal);
 
   try {
+    await runQuickVerification();
+    if (stopRequested) return 0;
+    if (checkOnly) {
+      console.log('[local-preview] Quick verification passed.');
+      return 0;
+    }
+
     persist = await mkdtemp(path.join(os.tmpdir(), 'catstarry-local-preview-'));
     const feedEnv = { ...process.env, XDG_CONFIG_HOME: path.join(persist, 'xdg') };
     await runCommand(
@@ -131,6 +148,7 @@ async function main() {
       'Prepare temporary local Feed database',
       feedEnv,
     );
+    if (stopRequested) return 0;
 
     const feed = startService('Feed Worker', node, [
       wrangler,
@@ -144,7 +162,7 @@ async function main() {
       '--var', 'CLIP_PREVIEW_ALLOWED_HOSTS:developer.mozilla.org',
     ], feedEnv);
     services.push(feed);
-    await waitForHttp(`${feedOrigin}/api/feed`, 'Local Feed API', feed);
+    if (!await waitForHttp(`${feedOrigin}/api/feed`, 'Local Feed API', feed, () => stopRequested)) return 0;
 
     const finance = startService('Finance preview', node, ['scripts/finance-preview.mjs'], {
       ...process.env,
@@ -167,10 +185,11 @@ async function main() {
     });
     services.push(site);
 
-    await Promise.all([
-      waitForHttp(siteOrigin, 'Astro site', site),
-      waitForHttp(financeOrigin, 'Finance preview', finance),
+    const ready = await Promise.all([
+      waitForHttp(siteOrigin, 'Astro site', site, () => stopRequested),
+      waitForHttp(financeOrigin, 'Finance preview', finance, () => stopRequested),
     ]);
+    if (stopRequested || ready.includes(false)) return 0;
 
     console.log('');
     console.log('Local previews are ready:');
@@ -189,14 +208,19 @@ async function main() {
       Promise.race(services.map(async (service) => ({ service, ...(await service.exit) }))),
       signalPromise,
     ]);
-    if (result.requested) return 0;
+    if (!result.requested) await Promise.race([signalPromise, sleep(100)]);
+    if (result.requested || stopRequested) return 0;
     console.error(`[local-preview] ${result.service.label} stopped unexpectedly.`);
     return 1;
+  } catch (error) {
+    if (stopRequested) return 0;
+    throw error;
   } finally {
     process.removeListener('SIGINT', onSignal);
     process.removeListener('SIGTERM', onSignal);
     await Promise.all(services.slice().reverse().map(stopService));
     if (persist) await rm(persist, { recursive: true, force: true, maxRetries: 8, retryDelay: 250 });
+    if (stopRequested) console.log('[local-preview] All local previews stopped.');
   }
 }
 

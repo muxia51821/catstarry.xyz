@@ -1546,9 +1546,88 @@
         background: #080a12;
         text-align: center;
       }
-      .footer p {
-        max-width: 46ch;
+      .footer-content {
+        display: grid;
+        justify-items: center;
+        gap: 22px;
+      }
+      .footer-copy {
+        margin: 0;
+        max-width: 100%;
         line-height: 1.8;
+        white-space: nowrap;
+      }
+      .footer-contact {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        color: rgb(232 237 255 / 0.48);
+      }
+      .footer-contact-label {
+        margin-right: 4px;
+        color: rgb(184 200 255 / 0.72);
+        font-size: 9px;
+        letter-spacing: 0.16em;
+      }
+      .footer-contact-link,
+      .footer-email summary {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border: 0;
+        border-radius: 50%;
+        padding: 0;
+        color: inherit;
+        background: transparent;
+        cursor: pointer;
+        list-style: none;
+        transition: color var(--hover) ease, background var(--hover) ease;
+      }
+      .footer-contact-link:hover,
+      .footer-contact-link:focus-visible,
+      .footer-email summary:hover,
+      .footer-email summary:focus-visible {
+        color: var(--klein-pale);
+        background: rgb(51 92 255 / 0.12);
+      }
+      .footer-contact-link[data-contact="xiaohongshu"]:hover,
+      .footer-contact-link[data-contact="xiaohongshu"]:focus-visible {
+        color: #ff2442;
+        background: rgb(255 36 66 / 0.1);
+      }
+      .footer-contact svg {
+        width: 16px;
+        height: 16px;
+      }
+      .footer-contact .xiaohongshu-mark {
+        width: 24px;
+        height: 18px;
+        overflow: visible;
+        font-family: "Noto Sans SC", "Microsoft YaHei", sans-serif;
+        font-size: 16px;
+        font-weight: 900;
+        letter-spacing: -0.08em;
+      }
+      .footer-email {
+        display: inline-flex;
+        align-items: center;
+      }
+      .footer-email summary::-webkit-details-marker {
+        display: none;
+      }
+      .footer-email-address {
+        margin-left: 4px;
+        color: var(--klein-pale);
+        font-size: 11px;
+        letter-spacing: 0.03em;
+        text-decoration: none;
+      }
+      .footer-email-address:hover,
+      .footer-email-address:focus-visible {
+        text-decoration: underline;
       }
       body[data-variant="drift"] .entry-copy {
         left: auto;
@@ -1602,6 +1681,16 @@
         }
         .focus-copy p {
           margin-bottom: 15px;
+        }
+        .footer {
+          padding: 64px 22px;
+        }
+        .footer-copy {
+          max-width: 34ch;
+          white-space: normal;
+        }
+        .footer-contact {
+          flex-wrap: wrap;
         }
         .flight-index {
           right: 9px;
