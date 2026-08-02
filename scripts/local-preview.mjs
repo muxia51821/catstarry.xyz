@@ -1,7 +1,8 @@
 import { spawn } from 'node:child_process';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, readdir, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -36,6 +37,9 @@ const feedOrigin = `http://127.0.0.1:${feedPort}`;
 const financeOrigin = `http://127.0.0.1:${financePort}`;
 const serviceReadyTimeoutMs = 60_000;
 const serviceReadyPollMs = 250;
+const migrationPollMs = 250;
+const migrationCompletionTimeoutMs = 30_000;
+const feedMigrationsDir = path.join(root, 'workers', 'feed-api', 'migrations');
 
 const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
@@ -82,7 +86,7 @@ async function waitForHttp(url, label, service, shouldStop) {
     }
     try {
       const response = await fetch(url, { signal: AbortSignal.timeout(1_000) });
-      if (response.ok) return;
+      if (response.ok) return true;
       lastError = new Error(`HTTP ${response.status}`);
     } catch (error) {
       lastError = error;
@@ -106,6 +110,89 @@ async function stopService(service) {
     service.child.kill('SIGTERM');
   }
   await Promise.race([service.exit, sleep(5_000)]);
+}
+
+function isRetryableLocalD1InspectionError(error) {
+  if (!(error instanceof Error)) return false;
+  if ('code' in error && error.code === 'ENOENT') return true;
+  return /database is locked|disk i\/o error|no such table: d1_migrations/i.test(error.message);
+}
+
+async function localFeedMigrationsApplied(persist) {
+  const migrationEntries = await readdir(feedMigrationsDir, { withFileTypes: true });
+  const expected = migrationEntries
+    .filter((entry) => entry.isFile() && entry.name.endsWith('.sql'))
+    .map((entry) => entry.name);
+  const d1Root = path.join(persist, 'v3', 'd1', 'miniflare-D1DatabaseObject');
+  let d1Entries;
+  try {
+    d1Entries = await readdir(d1Root, { withFileTypes: true });
+  } catch (error) {
+    if (isRetryableLocalD1InspectionError(error)) return false;
+    throw error;
+  }
+  const databasePaths = d1Entries
+    .filter((entry) => entry.isFile() && entry.name.endsWith('.sqlite') && entry.name !== 'metadata.sqlite')
+    .map((entry) => path.join(d1Root, entry.name));
+  for (const directory of d1Entries) {
+    if (!directory.isDirectory()) continue;
+    const directoryPath = path.join(d1Root, directory.name);
+    let files;
+    try {
+      files = await readdir(directoryPath, { withFileTypes: true });
+    } catch (error) {
+      if (isRetryableLocalD1InspectionError(error)) continue;
+      throw error;
+    }
+    databasePaths.push(...files
+      .filter((file) => file.isFile() && file.name.endsWith('.sqlite') && file.name !== 'metadata.sqlite')
+      .map((file) => path.join(directoryPath, file.name)));
+  }
+  for (const databasePath of databasePaths) {
+    let connection;
+    try {
+      connection = new DatabaseSync(databasePath, { readOnly: true });
+      const applied = new Set(connection.prepare('SELECT name FROM d1_migrations').all().map((row) => row.name));
+      if (expected.every((name) => applied.has(name))) return true;
+    } catch (error) {
+      if (isRetryableLocalD1InspectionError(error)) continue;
+      throw error;
+    } finally {
+      connection?.close();
+    }
+  }
+  return false;
+}
+
+async function prepareLocalFeedDatabase(persist, env) {
+  console.log('[local-preview] Prepare temporary local Feed database');
+  const migration = startService('Local Feed database preparation', node, [
+    wrangler,
+    'd1',
+    'migrations',
+    'apply',
+    'catstarry-db',
+    '--local',
+    '--persist-to',
+    persist,
+    '--config',
+    feedConfig,
+  ], env);
+  const deadline = Date.now() + migrationCompletionTimeoutMs;
+  while (Date.now() < deadline) {
+    const outcome = await Promise.race([migration.exit, sleep(migrationPollMs).then(() => null)]);
+    if (outcome) {
+      if (outcome.code === 0) return;
+      throw new Error(`Prepare temporary local Feed database failed${outcome.signal ? ` (${outcome.signal})` : ` with exit code ${outcome.code}`}`);
+    }
+    if (await localFeedMigrationsApplied(persist)) {
+      await stopService(migration);
+      console.log('[local-preview] Local Feed database is ready.');
+      return;
+    }
+  }
+  await stopService(migration);
+  throw new Error(`[local-preview] Local Feed database did not complete within ${migrationCompletionTimeoutMs / 1_000} seconds.`);
 }
 
 async function runQuickVerification() {
@@ -136,12 +223,7 @@ async function main() {
 
     persist = await mkdtemp(path.join(os.tmpdir(), 'catstarry-local-preview-'));
     const feedEnv = { ...process.env, XDG_CONFIG_HOME: path.join(persist, 'xdg') };
-    await runCommand(
-      node,
-      [wrangler, 'd1', 'migrations', 'apply', 'catstarry-db', '--local', '--persist-to', persist, '--config', feedConfig],
-      'Prepare temporary local Feed database',
-      feedEnv,
-    );
+    await prepareLocalFeedDatabase(persist, feedEnv);
     process.on('SIGINT', onSignal);
     process.on('SIGTERM', onSignal);
 
