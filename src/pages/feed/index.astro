@@ -7,6 +7,11 @@ import { publicFeedApiBase } from '../../lib/feed-api';
 ---
 
 <FeedLayout title="Feed" description="木下的公开足迹与来时路。" canonicalPath="/feed/">
-  <header class="feed-header"><p class="feed-eyebrow">PUBLIC FOOTPRINTS</p><h1>Feed</h1><p>碎碎念、剪藏，以及值得留下的创作足迹。</p></header>
+  <header class="feed-header">
+    <nav class="feed-page-nav" aria-label="Feed 页面导航">
+      <a class="feed-home-link feed-button" href="/" aria-label="返回星图"><span aria-hidden="true">←</span><span>返回星图</span></a>
+    </nav>
+    <p class="feed-eyebrow">PUBLIC FOOTPRINTS</p><h1>Feed</h1><p>碎碎念、剪藏，以及值得留下的创作足迹。</p>
+  </header>
   <FeedApp client:load apiBase={publicFeedApiBase()} />
 </FeedLayout>
