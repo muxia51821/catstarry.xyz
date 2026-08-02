@@ -414,7 +414,14 @@ try {
     form.elements.password.dispatchEvent(new Event('input', { bubbles: true }));
     form.requestSubmit();
   })()`);
-  await waitFor(`!document.querySelector('[data-notification-dialog]').open`, 'viewer dashboard without monthly confirmation');
+  await waitFor(`
+    document.querySelector('[data-login]')?.hidden === true
+    && document.querySelector('[data-app]')?.hidden === false
+    && document.querySelector('[data-role]')?.textContent === 'CATI · READ ONLY'
+    && document.querySelector('[data-total-value]')?.textContent !== '—'
+    && document.querySelector('[data-dashboard-status]')?.textContent === ''
+    && !document.querySelector('[data-notification-dialog]')?.open
+  `, 'viewer dashboard without monthly confirmation');
   diagnostics.checks.viewer = await evaluate(`({
     role: document.querySelector('[data-role]').textContent,
     tradeHidden: document.querySelector('[data-open-trade]').hidden,
