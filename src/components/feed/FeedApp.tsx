@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import type { FeedPost, PaginatedResponse, SessionStatus, TimelineEntry } from '../../../shared/types';
+import { loadPublicTimeline, previewCandidateUrl } from '../../lib/feed-api';
 
 interface FeedAppProps {
   apiBase: string;
-  initial: PaginatedResponse<TimelineEntry>;
-  initialError?: string;
+  initial?: PaginatedResponse<TimelineEntry>;
 }
 
+const EMPTY_TIMELINE: PaginatedResponse<TimelineEntry> = { items: [], cursor: null, has_more: false };
 const mediaUrl = (apiBase: string, key: string) => `${apiBase}/api/feed/media/${encodeURIComponent(key)}`;
 
 function formatDate(value: string): string {
@@ -56,13 +57,31 @@ function EntryCard({ entry, apiBase }: { entry: TimelineEntry; apiBase: string }
   </article>;
 }
 
-export default function FeedApp({ apiBase, initial, initialError }: FeedAppProps) {
+export default function FeedApp({ apiBase, initial = EMPTY_TIMELINE }: FeedAppProps) {
   const [timeline, setTimeline] = useState(initial);
-  const [error, setError] = useState(initialError ?? '');
-  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(true);
   const [session, setSession] = useState<SessionStatus | null>(null);
   const [showLogin, setShowLogin] = useState(false);
   const [showPublish, setShowPublish] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setError('');
+    async function loadInitial() {
+      try {
+        const next = await loadPublicTimeline(apiBase);
+        if (active) setTimeline(next);
+      } catch (cause) {
+        if (active) setError(cause instanceof Error ? cause.message : 'Feed 时间线暂时不可用');
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+    void loadInitial();
+    return () => { active = false; };
+  }, [apiBase]);
 
   async function loadMore() {
     if (!timeline.cursor || loading) return;
@@ -80,7 +99,7 @@ export default function FeedApp({ apiBase, initial, initialError }: FeedAppProps
   return <>
     <section className="feed-timeline" aria-live="polite">
       {entries.map((entry) => <EntryCard key={`${entry.kind}:${entry.id}`} entry={entry} apiBase={apiBase} />)}
-      {!entries.length && !error && <p className="feed-state">还没有公开足迹。</p>}
+      {!entries.length && !error && !loading && <p className="feed-state">还没有公开足迹。</p>}
       {error && <p className="feed-state feed-state--error" role="alert">{error}</p>}
       {timeline.has_more && <button className="feed-button" type="button" onClick={loadMore} disabled={loading}>{loading ? '加载中…' : '加载更多'}</button>}
     </section>
@@ -226,7 +245,7 @@ function PublishDialog({ apiBase, onClose, onCreated }: { apiBase: string; onClo
   const publishIsValid = type === 'note' ? noteIsValid : clipIsValid;
   const canPublish = publishIsValid && !uploading && !submitting;
   const publishReason = !publishIsValid ? (type === 'note' ? '请输入文字，或上传图片或视频。' : '请填写链接和标题。') : uploading ? '上传完成后才能发布。' : submitting ? '正在发布，请稍候。' : '';
-  async function preview() { setMessage(''); const response = await fetch(`${apiBase}/api/feed/clip-preview`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ link_url: linkUrl }) }); if (!response.ok) { setMessage('无法获取链接信息，请手动填写。'); return; } const data = await response.json() as { link_title: string | null; link_summary: string | null; link_image: string | null }; setTitle(data.link_title ?? ''); setSummary(data.link_summary ?? ''); setImage(data.link_image ?? ''); }
+  async function preview() { const candidate = previewCandidateUrl(linkUrl); if (!candidate) return; setMessage(''); const response = await fetch(`${apiBase}/api/feed/clip-preview`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ link_url: candidate }) }); if (!response.ok) { setMessage('无法获取链接信息，请手动填写。'); return; } const data = await response.json() as { link_title: string | null; link_summary: string | null; link_image: string | null }; setTitle(data.link_title ?? ''); setSummary(data.link_summary ?? ''); setImage(data.link_image ?? ''); }
   async function chooseFiles(files: FileList | null) {
     if (!files?.length) return; const selected = Array.from(files); const imageFiles = selected.filter((file) => file.type.startsWith('image/')); const videoFiles = selected.filter((file) => file.type.startsWith('video/'));
     if ((imageFiles.length && videoFiles.length) || imageFiles.length > 6 || videoFiles.length > 1 || keys.length + selected.length > 6 || (keys.length && ((imageFiles.length && keys.some((key) => /\.(mp4|webm|mov)$/.test(key))) || (videoFiles.length && keys.some((key) => !/\.(mp4|webm|mov)$/.test(key)))))) { setMessage('图片和视频不能混用；最多 6 张图片或 1 个视频。'); return; }
