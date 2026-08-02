@@ -1588,7 +1588,7 @@ const P = PROTOTYPE_VISUAL_PARAMETERS,
             planet.style.setProperty("--sphere-visible", sphere.toFixed(3));
             planet.style.setProperty(
               "--target-visible",
-              clamp(emergence.targetOpacity * (1 - sphere * 0.92)),
+              sphere > 0 ? 0 : emergence.targetOpacity,
             );
             planet.style.setProperty(
               "--target-halo",
