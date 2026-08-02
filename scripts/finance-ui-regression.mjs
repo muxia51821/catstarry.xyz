@@ -414,7 +414,7 @@ try {
     form.elements.password.dispatchEvent(new Event('input', { bubbles: true }));
     form.requestSubmit();
   })()`);
-  await waitFor(`document.querySelector('[data-notification-dialog]').open`, 'viewer monthly confirmation');
+  await waitFor(`!document.querySelector('[data-notification-dialog]').open`, 'viewer dashboard without monthly confirmation');
   diagnostics.checks.viewer = await evaluate(`({
     role: document.querySelector('[data-role]').textContent,
     tradeHidden: document.querySelector('[data-open-trade]').hidden,
@@ -424,8 +424,16 @@ try {
     prompt: document.querySelector('[data-notification-copy]').textContent,
     appInert: document.querySelector('[data-app]').inert,
   })`);
+  await evaluate(`document.querySelector('[data-tab="holdings"]').click()`);
+  await waitFor(`!document.querySelector('[data-notification-dialog]').open && [...document.querySelectorAll('[data-pane="holdings"]')].some((node) => !node.hidden)`, 'viewer holdings before monthly confirmation');
+  diagnostics.checks.viewerHoldingsFirst = true;
+  await evaluate(`document.querySelector('[data-tab="review"]').click()`);
+  await waitFor(`document.querySelector('[data-notification-dialog]').open`, 'viewer monthly confirmation after holdings');
+  diagnostics.checks.viewerPromptAfterHoldings = true;
   await evaluate(`document.querySelector('[data-confirm-notification]').click()`);
   await waitFor(`!document.querySelector('[data-notification-dialog]').open && document.querySelector('[data-app]').inert === false`, 'viewer monthly confirmation completion');
+  await evaluate(`document.querySelector('[data-tab="planning"]').click()`);
+  await waitFor(`!document.querySelector('[data-notification-dialog]').open`, 'confirmed viewer does not receive another monthly confirmation');
   await evaluate(`document.querySelector('[data-tab="review"]').click()`);
   await waitFor(`Boolean(document.querySelector('[data-confirm-review]')) && Boolean(document.querySelector('[data-confirm-rebalance]'))`, 'viewer review and rebalance confirmations');
   await evaluate(`document.querySelector('[data-confirm-review]').click()`);
@@ -487,9 +495,11 @@ try {
     reviewHidden: true,
     exportHidden: true,
     riskHidden: true,
-    prompt: '请确认已查阅 2026-06 月投资记录。',
-    appInert: true,
+    prompt: '',
+    appInert: false,
   });
+  assert.equal(diagnostics.checks.viewerHoldingsFirst, true);
+  assert.equal(diagnostics.checks.viewerPromptAfterHoldings, true);
   assert.equal(diagnostics.checks.viewerConfirmations, true);
   assert.equal(requests.filter((item) => item.method === 'POST' && item.pathname === '/api/auth/login').length, 2);
   assert.equal(requests.filter((item) => item.method === 'POST' && item.pathname === '/api/trades').length, 1);

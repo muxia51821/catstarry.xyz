@@ -63,10 +63,12 @@ const builtinFetch = async (input, init = {}) => {
   if (url.hostname === 'qt.gtimg.cn') {
     assert.match(url.pathname, /sh000001,sh000300,sh000905,sh000852,sh000688,sh510300,bj920001/);
     assert.equal(init.method, undefined);
+    assert.equal(init.redirect, 'manual');
     return tencentResponse({ include920: true });
   }
   if (url.hostname === 'scanner.tradingview.com') {
     assert.equal(init.method, 'POST');
+    assert.equal(init.redirect, 'manual');
     assert.equal(init.headers.Origin, 'https://www.tradingview.com');
     assert.deepEqual(JSON.parse(init.body), {
       columns: ['name', 'description', 'close', 'change', 'change_abs', 'update_mode'],
@@ -129,6 +131,7 @@ const providerToken = `isolated-${crypto.randomUUID()}`;
 const goodFetch = async (_url, init) => {
   calls += 1;
   assert.equal(init.headers.Authorization, `Bearer ${providerToken}`);
+  assert.equal(init.redirect, 'manual');
   return Response.json({ records: [
     { ticker: '510300', price: 4.2578, pe_ttm: null },
     { ticker: 'SSE300_PE', price: null, pe_ttm: 15.8123 },

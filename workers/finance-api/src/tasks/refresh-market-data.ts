@@ -194,7 +194,7 @@ async function fetchTencentQuotes(
   const url = new URL(`https://qt.gtimg.cn/q=${providerTickers.join(',')}`);
   const response = await retryRequest(url, {
     headers: { Accept: 'text/plain', 'User-Agent': 'Mozilla/5.0 (compatible; catstarry-finance/1.0)' },
-    redirect: 'error',
+    redirect: 'manual',
   }, fetchImpl, sleep, 'Tencent market data');
   const text = await readLimitedText(response, MAX_PROVIDER_BYTES, 'gbk');
   const quotes = new Map<string, TencentQuote>();
@@ -250,7 +250,7 @@ async function fetchNasdaq100Quote(
       'User-Agent': 'Mozilla/5.0 (compatible; catstarry-finance/1.0)',
     },
     body: JSON.stringify({ columns: TRADINGVIEW_COLUMNS, range: [0, 1], symbols: { tickers: ['NASDAQ:NDX'] } }),
-    redirect: 'error',
+    redirect: 'manual',
   }, fetchImpl, sleep, 'TradingView market data');
   const payload = await readLimitedJson(response, MAX_PROVIDER_BYTES) as { totalCount?: unknown; data?: unknown };
   if (payload.totalCount !== 1 || !Array.isArray(payload.data) || payload.data.length !== 1) throw new Error('TradingView did not return NASDAQ:NDX');
@@ -294,7 +294,7 @@ async function retryFetch(url: URL, token: string | undefined, fetchImpl: typeof
       Accept: 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
-    redirect: 'error',
+    redirect: 'manual',
   }, fetchImpl, sleep, 'Market provider');
 }
 

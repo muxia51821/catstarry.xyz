@@ -39,6 +39,7 @@ const state = {
   accessLog: [], importReview: [], monthly: [], assetSeries: null, assetView: 'month', plan: null, memos: [], rules: [], rebalances: [], editingTrade: null, editingMemo: null,
   tradePaging: { cursors: [null], nextCursor: null, page: 0 }, accessPaging: { cursors: [null], nextCursor: null, page: 0 },
 };
+const viewerGuidance = { hasVisitedHoldings: false, monthlyPromptShown: false };
 let authStateVersion = 0;
 
 function localDateForInput() {
@@ -95,6 +96,8 @@ function showApp() {
   $('[data-login]').hidden = true;
   $('[data-app]').hidden = false;
   $('[data-role]').textContent = isAdmin() ? 'ADMIN · READ / WRITE' : 'CATI · READ ONLY';
+  viewerGuidance.hasVisitedHoldings = false;
+  viewerGuidance.monthlyPromptShown = false;
   for (const node of $$('[data-open-trade], [data-open-review], [data-open-risk], [data-export-archive], [data-open-monthly], [data-open-plan], [data-open-memo], [data-open-rules], [data-open-cash-flow], [data-open-asset-snapshot]')) node.hidden = !isAdmin();
 }
 
@@ -123,7 +126,7 @@ async function loadDashboard() {
 
 function renderDashboard() {
   state.tradePaging.cursors = [null]; state.tradePaging.page = 0; state.accessPaging.cursors = [null]; state.accessPaging.page = 0;
-  renderCircuitBanner(); renderSummary(); renderOverview(); renderHoldings(); renderPositions(); renderPe(); renderTrades(); renderMonthly(); renderPlan(); renderReviews(); renderMemos(); renderRules(); renderAccessLog(); renderImportReview(); showPendingNotification();
+  renderCircuitBanner(); renderSummary(); renderOverview(); renderHoldings(); renderPositions(); renderPe(); renderTrades(); renderMonthly(); renderPlan(); renderReviews(); renderMemos(); renderRules(); renderAccessLog(); renderImportReview();
 }
 
 function renderCircuitBanner() {
@@ -337,7 +340,8 @@ function renderImportReview() {
 
 function showPendingNotification() {
   const confirmation = state.notifications?.monthly_confirmation;
-  if (!confirmation || confirmation.confirmed) return;
+  if (isAdmin() || !viewerGuidance.hasVisitedHoldings || viewerGuidance.monthlyPromptShown || !confirmation || confirmation.confirmed) return;
+  viewerGuidance.monthlyPromptShown = true;
   $('[data-notification-copy]').textContent = `请确认已查阅 ${confirmation.period} 月投资记录。`;
   setDialogOpen($('[data-notification-dialog]'), true);
   $('[data-confirm-month]').hidden = false;
@@ -483,7 +487,14 @@ $('[data-open-risk]').addEventListener('click', (event) => { openDialog(riskDial
 $('[data-resolve-circuit]').addEventListener('click', async (event) => { if (!state.circuit?.id) return; event.currentTarget.disabled = true; try { const result = await request(`/api/circuit/${state.circuit.id}/confirm-resolve`, { method: 'POST', body: JSON.stringify({ note: 'Confirmed through Finance workspace' }) }); setStatus($('[data-dashboard-status]'), result.resolved ? '双方已确认，黑色暂停已解除。' : `已记录确认，等待 ${result.waiting_for === 'viewer' ? 'CATI' : '木下'} 确认。`, 'success'); await loadDashboard(); } catch (error) { setStatus($('[data-dashboard-status]'), error.message, 'error'); } finally { event.currentTarget.disabled = false; } });
 
 for (const tab of $$('[data-tab]')) tab.addEventListener('click', () => setTab(tab.dataset.tab));
-function setTab(tab) { for (const button of $$('[data-tab]')) button.classList.toggle('is-active', button.dataset.tab === tab); for (const pane of $$('[data-pane]')) pane.hidden = pane.dataset.pane !== tab; window.scrollTo({ top: 0, behavior: 'smooth' }); }
+function setTab(tab) {
+  const previousTab = $('[data-tab].is-active')?.dataset.tab;
+  for (const button of $$('[data-tab]')) button.classList.toggle('is-active', button.dataset.tab === tab);
+  for (const pane of $$('[data-pane]')) pane.hidden = pane.dataset.pane !== tab;
+  if (!isAdmin() && tab === 'holdings') viewerGuidance.hasVisitedHoldings = true;
+  if (!isAdmin() && previousTab === 'holdings' && tab !== 'holdings') showPendingNotification();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
 $('[data-trade-filters]').addEventListener('submit', (event) => { event.preventDefault(); loadPage('trade', null, true).catch((error) => setStatus($('[data-dashboard-status]'), error.message, 'error')); });
 $('[data-access-filters]').addEventListener('submit', (event) => { event.preventDefault(); loadPage('access', null, true).catch((error) => setStatus($('[data-dashboard-status]'), error.message, 'error')); });
 for (const kind of ['trade', 'access']) { $(`[data-${kind}-filters]`).addEventListener('reset', () => setTimeout(() => loadPage(kind, null, true).catch((error) => setStatus($('[data-dashboard-status]'), error.message, 'error')))); $(`[data-${kind}-next]`).addEventListener('click', () => { const paging = kind === 'trade' ? state.tradePaging : state.accessPaging; if (paging.nextCursor) loadPage(kind, paging.nextCursor).catch((error) => setStatus($('[data-dashboard-status]'), error.message, 'error')); }); $(`[data-${kind}-prev]`).addEventListener('click', () => { const paging = kind === 'trade' ? state.tradePaging : state.accessPaging; if (!paging.page) return; paging.cursors.pop(); paging.page -= 1; loadPage(kind, paging.cursors.at(-1), false, -1).catch((error) => setStatus($('[data-dashboard-status]'), error.message, 'error')); }); }
