@@ -62,11 +62,7 @@ function runCommand(command, args, label, env = process.env) {
 }
 
 function startService(label, command, args, env) {
-  const child = spawn(command, args, {
-    ...spawnOptions(command, env),
-    // Let the parent own Ctrl+C on Windows, then terminate each service tree itself.
-    detached: process.platform === 'win32',
-  });
+  const child = spawn(command, args, spawnOptions(command, env));
   const service = { label, child, stopped: false };
   const exit = new Promise((resolve) => {
     child.once('error', (error) => { service.stopped = true; resolve({ code: 1, error }); });
@@ -129,8 +125,6 @@ async function main() {
     console.log(`\n[local-preview] Received ${signal}; stopping all local previews...`);
     signalStop({ code: 0, requested: true });
   };
-  process.on('SIGINT', onSignal);
-  process.on('SIGTERM', onSignal);
 
   try {
     await runQuickVerification();
@@ -148,7 +142,8 @@ async function main() {
       'Prepare temporary local Feed database',
       feedEnv,
     );
-    if (stopRequested) return 0;
+    process.on('SIGINT', onSignal);
+    process.on('SIGTERM', onSignal);
 
     const feed = startService('Feed Worker', node, [
       wrangler,
