@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { mkdtemp, readdir, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
@@ -40,8 +40,39 @@ const serviceReadyPollMs = 250;
 const migrationPollMs = 250;
 const migrationCompletionTimeoutMs = 30_000;
 const feedMigrationsDir = path.join(root, 'workers', 'feed-api', 'migrations');
+const localPreviewDirectoryPrefix = 'catstarry-local-preview-';
+const localPreviewOwnerFile = '.catstarry-local-preview-owner.json';
 
 const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+
+function processIsRunning(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return error?.code !== 'ESRCH';
+  }
+}
+
+async function recoverAbandonedLocalPreviewState() {
+  const entries = await readdir(os.tmpdir(), { withFileTypes: true });
+  let recovered = 0;
+  for (const entry of entries) {
+    if (!entry.isDirectory() || !entry.name.startsWith(localPreviewDirectoryPrefix)) continue;
+    const directory = path.join(os.tmpdir(), entry.name);
+    let owner;
+    try {
+      owner = JSON.parse(await readFile(path.join(directory, localPreviewOwnerFile), 'utf8'));
+    } catch {
+      continue;
+    }
+    const pid = Number(owner?.pid);
+    if (!Number.isInteger(pid) || pid <= 0 || processIsRunning(pid)) continue;
+    await rm(directory, { recursive: true, force: true, maxRetries: 8, retryDelay: 250 });
+    recovered += 1;
+  }
+  if (recovered) console.log(`[local-preview] Recovered ${recovered} abandoned local preview state ${recovered === 1 ? 'directory' : 'directories'}.`);
+}
 
 function spawnOptions(command, env) {
   return {
@@ -67,10 +98,10 @@ function runCommand(command, args, label, env = process.env) {
 
 function startService(label, command, args, env) {
   const child = spawn(command, args, spawnOptions(command, env));
-  const service = { label, child, stopped: false };
+  const service = { label, child, stopped: false, outcome: null };
   const exit = new Promise((resolve) => {
-    child.once('error', (error) => { service.stopped = true; resolve({ code: 1, error }); });
-    child.once('exit', (code, signal) => { service.stopped = true; resolve({ code: code ?? 1, signal }); });
+    child.once('error', (error) => { service.stopped = true; service.outcome = { code: 1, error }; resolve(service.outcome); });
+    child.once('exit', (code, signal) => { service.stopped = true; service.outcome = { code: code ?? 1, signal }; resolve(service.outcome); });
   });
   service.exit = exit;
   return service;
@@ -82,7 +113,8 @@ async function waitForHttp(url, label, service, shouldStop) {
   while (Date.now() < deadline) {
     if (shouldStop()) return false;
     if (service.stopped) {
-      throw new Error(`${label} exited before becoming ready`);
+      const detail = service.outcome?.signal ? ` (${service.outcome.signal})` : ` with exit code ${service.outcome?.code ?? 'unknown'}`;
+      throw new Error(`${label} exited before becoming ready${detail}`);
     }
     try {
       const response = await fetch(url, { signal: AbortSignal.timeout(1_000) });
@@ -214,6 +246,7 @@ async function main() {
   };
 
   try {
+    await recoverAbandonedLocalPreviewState();
     await runQuickVerification();
     if (stopRequested) return 0;
     if (checkOnly) {
@@ -221,7 +254,8 @@ async function main() {
       return 0;
     }
 
-    persist = await mkdtemp(path.join(os.tmpdir(), 'catstarry-local-preview-'));
+    persist = await mkdtemp(path.join(os.tmpdir(), localPreviewDirectoryPrefix));
+    await writeFile(path.join(persist, localPreviewOwnerFile), JSON.stringify({ pid: process.pid, created_at: new Date().toISOString() }));
     const feedEnv = { ...process.env, XDG_CONFIG_HOME: path.join(persist, 'xdg') };
     await prepareLocalFeedDatabase(persist, feedEnv);
     process.on('SIGINT', onSignal);
@@ -274,6 +308,8 @@ async function main() {
     console.log(`  f.catstarry.xyz ${financeOrigin}/`);
     console.log(`  Feed API       ${feedOrigin}/api/feed`);
     console.log('Feed starts with an empty local database. Press Ctrl+C to stop all previews and clean temporary state.');
+
+    if (process.env.LOCAL_PREVIEW_TEST_STOP_AFTER_READY === 'SIGINT') onSignal('SIGINT');
 
     if (smokeOnly) {
       await sleep(1_000);
