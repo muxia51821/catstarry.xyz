@@ -40,7 +40,7 @@ const canonicalUrl = post ? new URL(getPostUrl(post), Astro.site).href : '';
     <link slot="head" rel="alternate" type="application/rss+xml" title="catstarry.xyz · 博客 RSS" href="/blog/rss.xml" />
     <main class="blog-page blog-page--reading" data-canvas="content">
       <nav class="blog-reading-nav" aria-label="文章导航">
-        <a class="blog-reading-nav__return" href="/" aria-label="返回星图">
+        <a class="page-home-link blog-reading-nav__return" href="/" aria-label="返回星图">
           <span aria-hidden="true">←</span>
           <span>返回星图</span>
         </a>

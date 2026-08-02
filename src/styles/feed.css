@@ -10,8 +10,6 @@
 .feed-content, .feed-clip-summary, .feed-card > p { line-height: 1.85; }
 .feed-header { margin-block-end: var(--space-3xl); border-block-end: 1px solid var(--border-default); }
 .feed-page-nav { margin-block-end: var(--space-lg); }
-.feed-home-link { display: inline-flex; align-items: center; gap: var(--space-xs); text-decoration: none; }
-.feed-home-link:hover { text-decoration: none; }
 .feed-header h1 { margin-block-end: var(--space-sm); font: 500 clamp(2rem, 5vw, 4.5rem)/1.15 var(--font-display); }
 .feed-header p { max-width: 36rem; color: var(--text-secondary); }
 .feed-timeline, .feed-admin-list { display: grid; gap: var(--card-gap); }

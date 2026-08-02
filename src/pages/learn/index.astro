@@ -22,7 +22,12 @@ const recentNotes = notes.slice(0, 10);
     <div class="learn-page__shell">
       <header class="learn-page__header">
         <div>
-          <a class="learn-page__back" href="/">← 返回首页</a>
+          <nav class="page-home-nav" aria-label="Learn 页面导航">
+            <a class="page-home-link learn-page__back" href="/" aria-label="返回星图">
+              <span aria-hidden="true">←</span>
+              <span>返回星图</span>
+            </a>
+          </nav>
           <p class="learn-page__eyebrow">LEARNING RECORDS</p>
           <h1>Learn</h1>
           <p class="learn-page__intro">

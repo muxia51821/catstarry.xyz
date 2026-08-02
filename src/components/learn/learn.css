@@ -34,6 +34,16 @@
   color: var(--klein-500);
 }
 
+.learn-page__back.page-home-link {
+  color: var(--text-primary);
+  font-size: var(--text-base);
+}
+
+.learn-page__back.page-home-link:hover {
+  color: var(--text-primary);
+  border-color: var(--klein-500);
+}
+
 .learn-page__eyebrow {
   margin: 0 0 var(--space-sm);
   color: var(--category-learn);
@@ -354,7 +364,7 @@
 
 .learn-note-card:focus-within,
 .learn-track-card:focus-visible,
-.learn-page__back:focus-visible,
+.learn-page__back:not(.page-home-link):focus-visible,
 .learn-detail-page__back:focus-visible,
 .learn-tree a:focus-visible,
 .learn-tree__toggle:focus-visible,

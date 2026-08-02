@@ -11,7 +11,12 @@ const projects = getVisibleProjects();
   <main class="projects-page" data-canvas="content">
     <div class="projects-page__shell">
       <header class="projects-page__header">
-        <a class="projects-page__back" href="/">← 返回首页</a>
+        <nav class="page-home-nav" aria-label="Projects 页面导航">
+          <a class="page-home-link projects-page__back" href="/" aria-label="返回星图">
+            <span aria-hidden="true">←</span>
+            <span>返回星图</span>
+          </a>
+        </nav>
         <p class="projects-page__eyebrow">SELECTED WORKS</p>
         <h1>Projects</h1>
         <p class="projects-page__intro">

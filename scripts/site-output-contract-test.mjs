@@ -40,6 +40,15 @@ assert.match(notFound, /href="\/"/);
 const projects = await readFile(outputPath(path.join('projects', 'index.html')), 'utf8');
 assert.doesNotMatch(projects, /截图待补|PROJECT PREVIEW/);
 
+for (const [pathname, label] of [['blog/', 'Blog'], ['learn/', 'Learn'], ['projects/', 'Projects']]) {
+  const html = pathname === 'projects/' ? projects : await readFile(outputPath(path.join(pathname, 'index.html')), 'utf8');
+  assert.match(
+    html,
+    /<a[^>]+class="[^"]*page-home-link[^"]*"[^>]+href="\/"[^>]+aria-label="返回星图"[\s\S]*返回星图[\s\S]*<\/a>/,
+    `${label} must provide the shared return-to-star-map link`,
+  );
+}
+
 const blogSources = await markdownFiles('src/data/blog');
 const learnSources = await markdownFiles('src/data/learn');
 const publishedBlog = [];

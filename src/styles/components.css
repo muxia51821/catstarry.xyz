@@ -52,6 +52,33 @@
   background-color: var(--button-secondary-hover);
 }
 
+/* Shared content-page return to the Home star map. */
+.page-home-nav { margin-block-end: var(--space-lg); }
+.page-home-link {
+  display: inline-flex;
+  min-height: var(--interaction-hit-size);
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--field-padding-block) var(--button-padding-inline);
+  color: var(--text-primary);
+  font-size: var(--text-base);
+  line-height: var(--line-height-body-cjk);
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--border-default);
+  border-radius: var(--button-radius);
+  text-decoration: none;
+}
+.page-home-link:hover {
+  color: var(--text-primary);
+  border-color: var(--klein-500);
+  text-decoration: none;
+}
+.page-home-link:focus-visible {
+  outline: 2px solid var(--klein-500);
+  outline-offset: 3px;
+}
+
 /* Finance CTA */
 .btn-finance {
   background-color: var(--finance-cta-green);

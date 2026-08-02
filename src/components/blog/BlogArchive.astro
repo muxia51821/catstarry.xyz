@@ -21,12 +21,17 @@ const { title, intro, posts, allPosts, currentPage, pageCount, basePath, showTax
 ---
 
 <main class="blog-page" data-canvas="content">
+  <nav class="page-home-nav blog-archive__nav" aria-label="博客页面导航">
+    <a class="page-home-link" href="/" aria-label="返回星图">
+      <span aria-hidden="true">←</span>
+      <span>返回星图</span>
+    </a>
+  </nav>
   <div class:list={['blog-archive', { 'blog-archive--with-taxonomy': showTaxonomy }]}>
     <section class="blog-archive__content">
       <header class="blog-archive__header">
         <p class="blog-eyebrow">catstarry.xyz</p>
         <h1>{title}</h1>
-        <a class="blog-article__back" href="/">← 返回星图</a>
         {showBackLink && <a class="blog-article__back" href="/blog/">← 返回全部文章</a>}
         <p>{intro}</p>
       </header>

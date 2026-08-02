@@ -10,7 +10,7 @@ const [page, app] = await Promise.all([
 
 assert.doesNotMatch(page, /loadPublicTimeline|Astro\.url\.origin/, 'Feed page must not fetch the timeline during SSR');
 assert.match(page, /<FeedApp client:load apiBase=\{publicFeedApiBase\(\)\} \/>/, 'Feed page must hydrate without an SSR timeline payload');
-assert.match(page, /<a class="feed-home-link feed-button" href="\/" aria-label="返回星图">[\s\S]*返回星图[\s\S]*<\/a>/, 'Feed page must provide a return-to-star-map link');
+assert.match(page, /<a class="page-home-link feed-home-link" href="\/" aria-label="返回星图">[\s\S]*返回星图[\s\S]*<\/a>/, 'Feed page must provide a return-to-star-map link');
 assert.match(app, /useEffect\(\(\) => \{[\s\S]*loadPublicTimeline\(apiBase\)/, 'FeedApp must load the first timeline page in the browser');
 assert.match(app, /const candidate = previewCandidateUrl\(linkUrl\);[\s\S]*if \(!candidate\) return;/, 'Clip preview must ignore invalid URL candidates');
 
