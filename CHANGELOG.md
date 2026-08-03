@@ -1,5 +1,27 @@
 # 更新记录
 
+## 2026-08-03 — Learn authoring follow-up
+
+### Learn
+
+- 统一 Learn 内容导入、校验和发布清单的规范格式，后续 authoring 以 Markdown 文件为准。
+- 新增《域名、DNS 与 HTTP：浏览器如何找到 catstarry.xyz》学习草稿，并支持从 Learn 管理页打开认证后的私有预览。
+- 为私有预览补充未认证、认证服务不可用和不存在笔记时的安全处理，避免草稿进入公开 Learn 页面或搜索索引。
+
+### Site
+
+- 修复首页星球纹理逐步出现时仍残留目标点的问题，让星球显现过程更干净。
+
+### Operations
+
+- 修复本地预览生命周期测试对全局临时目录的脆弱断言，改为按当前进程的 owner marker 验证 graceful stop 和 forced stop 后的状态回收。
+- 补充本地预览子进程异常和提前退出的诊断信息，减少生命周期测试被误报为超时的情况。
+
+### Governance
+
+- 更新 `AGENTS.md` 的 Git 约束：代码、功能和 Bug 任务默认使用独立任务分支；任务分支单机独占；同步远端 `main` 使用 `git pull --ff-only`；`main` 不作为日常开发工作区。
+- 在 `docs/DASHBOARD.md` 记录同一套 Git 约束基线，明确治理文档与执行规则保持一致。
+
 ## 2026-08-02 — Phase 8 follow-up
 
 ### Site
