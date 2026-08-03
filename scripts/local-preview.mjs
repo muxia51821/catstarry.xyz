@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
 import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -9,6 +10,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const node = process.execPath;
 const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 const astro = path.join(root, 'node_modules', 'astro', 'bin', 'astro.mjs');
+const feedUserRecord = path.join(root, 'scripts', 'feed-user-record.mjs');
 const npmRunner = process.env.npm_execpath
   ? { command: node, prefix: [process.env.npm_execpath] }
   : { command: npm, prefix: [] };
@@ -92,6 +94,22 @@ function runCommand(command, args, label, env = process.env) {
     child.once('exit', (code, signal) => {
       if (code === 0) resolve();
       else reject(new Error(`${label} failed${signal ? ` (${signal})` : ` with exit code ${code}`}`));
+    });
+  });
+}
+
+function runCapturedCommand(command, args, label, env = process.env) {
+  console.log(`[local-preview] ${label}`);
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, args, { ...spawnOptions(command, env), stdio: ['ignore', 'pipe', 'pipe'] });
+    let stdout = '';
+    let stderr = '';
+    child.stdout.on('data', (chunk) => { stdout += chunk.toString(); });
+    child.stderr.on('data', (chunk) => { stderr += chunk.toString(); });
+    child.once('error', reject);
+    child.once('exit', (code, signal) => {
+      if (code === 0) resolve(stdout);
+      else reject(new Error(`${label} failed${signal ? ` (${signal})` : ` with exit code ${code}`}${stderr.trim() ? `: ${stderr.trim()}` : ''}`));
     });
   });
 }
@@ -227,6 +245,34 @@ async function prepareLocalFeedDatabase(persist, env) {
   throw new Error(`[local-preview] Local Feed database did not complete within ${migrationCompletionTimeoutMs / 1_000} seconds.`);
 }
 
+function localPreviewCredentials() {
+  const username = (process.env.LOCAL_PREVIEW_USERNAME ?? 'local-preview').trim();
+  const password = process.env.LOCAL_PREVIEW_PASSWORD ?? randomBytes(24).toString('base64url');
+  if (!/^[A-Za-z0-9._-]{1,64}$/.test(username)) throw new Error('LOCAL_PREVIEW_USERNAME must contain 1 to 64 ASCII username characters');
+  const passwordBytes = Buffer.byteLength(password, 'utf8');
+  if (passwordBytes < 12 || passwordBytes > 72) throw new Error('LOCAL_PREVIEW_PASSWORD must contain 12 to 72 UTF-8 bytes');
+  return { username, password };
+}
+
+async function prepareLocalPreviewAuth(persist, env) {
+  const credentials = localPreviewCredentials();
+  const recordOutput = await runCapturedCommand(node, [feedUserRecord, credentials.username], 'Prepare temporary local Feed auth user', {
+    ...env,
+    FEED_PASSWORD: credentials.password,
+  });
+  let record;
+  try {
+    record = JSON.parse(recordOutput);
+  } catch {
+    throw new Error('Temporary local Feed auth user record was invalid');
+  }
+  if (record?.key !== `user:${credentials.username}` || record?.value?.role !== 'admin' || typeof record?.value?.password_hash !== 'string') {
+    throw new Error('Temporary local Feed auth user record did not match the auth contract');
+  }
+
+  return { ...credentials, passwordHash: record.value.password_hash };
+}
+
 async function runQuickVerification() {
   await runCommand(npmRunner.command, [...npmRunner.prefix, 'run', 'test:feed:page'], 'Feed page quick verification');
   await runCommand(npmRunner.command, [...npmRunner.prefix, 'run', 'test:finance:preview'], 'Finance preview quick verification');
@@ -258,6 +304,7 @@ async function main() {
     await writeFile(path.join(persist, localPreviewOwnerFile), JSON.stringify({ pid: process.pid, created_at: new Date().toISOString() }));
     const feedEnv = { ...process.env, XDG_CONFIG_HOME: path.join(persist, 'xdg') };
     await prepareLocalFeedDatabase(persist, feedEnv);
+    const localAuth = await prepareLocalPreviewAuth(persist, feedEnv);
     process.on('SIGINT', onSignal);
     process.on('SIGTERM', onSignal);
 
@@ -271,6 +318,9 @@ async function main() {
       '--var', `SITE_ORIGIN:${siteOrigin}`,
       '--var', 'FOOTPRINT_INGEST_TOKEN:local-preview-token',
       '--var', 'CLIP_PREVIEW_ALLOWED_HOSTS:developer.mozilla.org',
+      '--var', 'LOCAL_PREVIEW_AUTH:1',
+      '--var', `LOCAL_PREVIEW_AUTH_USERNAME:${localAuth.username}`,
+      '--var', `LOCAL_PREVIEW_AUTH_PASSWORD_HASH:${localAuth.passwordHash}`,
     ], feedEnv);
     services.push(feed);
     if (!await waitForHttp(`${feedOrigin}/api/feed`, 'Local Feed API', feed, () => stopRequested)) return 0;
@@ -307,7 +357,17 @@ async function main() {
     console.log(`  catstarry.xyz  ${siteOrigin}/`);
     console.log(`  f.catstarry.xyz ${financeOrigin}/`);
     console.log(`  Feed API       ${feedOrigin}/api/feed`);
-    console.log('Feed starts with an empty local database. Press Ctrl+C to stop all previews and clean temporary state.');
+    console.log('');
+    console.log('Local preview login (LOCAL PREVIEW ONLY):');
+    console.log(`  username: ${localAuth.username}`);
+    console.log(`  password: ${localAuth.password}`);
+    console.log('');
+    console.log('Next steps:');
+    console.log(`  1. Open ${siteOrigin}/feed/`);
+    console.log('  2. Login with the LOCAL PREVIEW ONLY credentials above');
+    console.log('  3. Open /learn/admin');
+    console.log('  4. Click Preview on the Draft');
+    console.log('This account exists only in the temporary local preview state. Press Ctrl+C to stop all previews and clean temporary state.');
 
     if (process.env.LOCAL_PREVIEW_TEST_STOP_AFTER_READY === 'SIGINT') onSignal('SIGINT');
 

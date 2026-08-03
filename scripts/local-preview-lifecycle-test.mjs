@@ -89,6 +89,51 @@ function spawnPreview(args, env) {
   };
 }
 
+function localPreviewCredentials(output) {
+  const match = output.match(/Local preview login \(LOCAL PREVIEW ONLY\):\s+username:\s+(\S+)\s+password:\s+(\S+)/);
+  if (!match) throw new Error(`Local preview credentials were not printed in the ready output:\n${output}`);
+  return { username: match[1], password: match[2] };
+}
+
+async function verifyLocalAuthoringWorkflow({ sitePort, feedPort, output }) {
+  const credentials = localPreviewCredentials(output);
+  const siteOrigin = `http://127.0.0.1:${sitePort}`;
+  const feedOrigin = `http://127.0.0.1:${feedPort}`;
+  const login = await fetch(`${feedOrigin}/api/auth/login`, {
+    method: 'POST',
+    headers: { Origin: siteOrigin, 'Content-Type': 'application/json' },
+    body: JSON.stringify(credentials),
+  });
+  assert.equal(login.status, 200, await login.text());
+  const setCookie = login.headers.get('set-cookie') ?? '';
+  assert.match(setCookie, /HttpOnly; SameSite=Lax/);
+  assert.doesNotMatch(setCookie, /(?:^|; )Secure(?:;|$)/, 'local preview cookies must work over HTTP');
+  const cookie = setCookie.split(';', 1)[0];
+  assert.match(cookie, /^token=[0-9a-f-]+$/i);
+
+  const session = await fetch(`${feedOrigin}/api/auth/session`, { headers: { Cookie: cookie } });
+  assert.equal(session.status, 200);
+  assert.deepEqual(await session.json(), { authenticated: true, username: credentials.username });
+
+  const admin = await fetch(`${siteOrigin}/learn/admin/`, { headers: { Cookie: cookie } });
+  assert.equal(admin.status, 200);
+  const adminBody = await admin.text();
+  assert.match(adminBody, /Learn 管理/);
+  assert.match(adminBody, /domain-dns-http/);
+
+  const preview = await fetch(`${siteOrigin}/learn/preview/domain-dns-http/`, { headers: { Cookie: cookie } });
+  assert.equal(preview.status, 200);
+  const previewBody = await preview.text();
+  assert.match(previewBody, /PRIVATE PREVIEW/);
+  assert.match(previewBody, /域名、DNS 与 HTTP/);
+  assert.match(previewBody, /浏览器访问网站/);
+
+  const unauthenticated = await fetch(`${siteOrigin}/learn/preview/domain-dns-http/`, { redirect: 'manual' });
+  assert.ok([301, 302, 303, 307, 308].includes(unauthenticated.status));
+  assert.doesNotMatch(await unauthenticated.text(), /域名、DNS 与 HTTP/);
+  assert.doesNotMatch(output, /\$2[aby]\$/i, 'bcrypt hashes must not be printed');
+}
+
 function exitDetails(child) {
   return child.signalCode ? `signal ${child.signalCode}` : `exit code ${child.exitCode}`;
 }
@@ -183,6 +228,7 @@ try {
   const gracefulExit = await waitForExit(preview);
   assert.deepEqual(gracefulExit, { code: 0, signal: null }, preview.output());
   assert.match(preview.output(), /Local previews are ready:/);
+  assert.match(preview.output(), /LOCAL PREVIEW ONLY/);
   assert.match(preview.output(), /Received SIGINT; stopping all local previews/);
   assert.match(preview.output(), /All local previews stopped\./);
   assert.deepEqual(await Promise.all([portIsAvailable(sitePort), portIsAvailable(feedPort), portIsAvailable(financePort)]), [true, true, true]);
@@ -196,6 +242,11 @@ try {
   });
   const forcedDirectory = await waitForOwnerDirectory(preview);
   await waitForOutput(preview, /Local previews are ready:/);
+  await verifyLocalAuthoringWorkflow({
+    sitePort: forceSitePort,
+    feedPort: forceFeedPort,
+    output: preview.output(),
+  });
   const forcedExit = waitForExit(preview);
   await stopProcessTree(preview.child);
   await forcedExit;
