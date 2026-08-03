@@ -89,7 +89,7 @@ catstarry.xyz/
 |  |= content/                    # Astro Content Collections
 |  |  |- config.ts                #   blog + learn schema 定义
 |  |  |= blog/                    #   Markdown 博客文章（不部署到 D1）
-|  |  `- learn/                   #   MDX 学习笔记（按 track 分子目录）
+|  |  `- learn/                   #   Markdown 学习笔记（按 track 分子目录）
 |  |= layouts/                    # 页面布局 module
 |  |  |- Base.astro               #   全站 layout（导航栏 + footer + seo）
 |  |  |- BlogLayout.astro         #   blog 板块 layout
@@ -365,7 +365,7 @@ src/content/            ← 仅被 Astro build 读取
 | `workers/feed-api/`    | 单文件 `index.ts` | `src/routes/` + `src/middleware/`           |
 | `workers/finance-api/` | 不存在            | 完整新建（routes + middleware + tasks）     |
 | `src/pages/`           | 仅 blog 有        | 新增 feed/、learn/、projects/、index.astro  |
-| `src/content/learn/`   | 不存在            | 新建 MDX 笔记目录                           |
+| `src/content/learn/`   | 不存在            | 新建 Markdown 笔记目录                     |
 
 **保留不变**：
 

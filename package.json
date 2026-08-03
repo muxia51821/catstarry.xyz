@@ -29,6 +29,7 @@
     "learn:import": "node scripts/learn-import.mjs",
     "learn:sync-publications": "node scripts/learn-publication-manifest.mjs",
     "test:learn:authoring": "node --experimental-transform-types --import ./scripts/register-typescript-loader.mjs scripts/learn-authoring-contract-test.mjs",
+    "test:learn:preview": "node scripts/learn-preview-contract-test.mjs",
     "test:finance:calculations": "node --experimental-transform-types --import ./scripts/register-typescript-loader.mjs scripts/finance-calculations-contract-test.mjs",
     "finance:user": "node scripts/finance-user-record.mjs",
     "finance:import": "node scripts/finance-import.mjs",

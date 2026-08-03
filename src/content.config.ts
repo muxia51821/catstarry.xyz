@@ -21,7 +21,7 @@ const blog = defineCollection({
 
 const learn = defineCollection({
   loader: glob({
-    pattern: '**/*.{md,mdx}',
+    pattern: '**/*.md',
     base: './src/data/learn',
   }),
   schema: z.object({

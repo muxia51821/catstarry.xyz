@@ -20,7 +20,7 @@ export function slugifyTitle(title, translation = '') {
 export async function uniqueLearnSlug(baseSlug, root = 'src/data/learn') {
   const existing = new Set();
   for (const file of await walk(root)) {
-    if (!/\.mdx?$/.test(file)) continue;
+    if (!/\.md$/.test(file)) continue;
     const source = await readFile(file, 'utf8');
     const slug = source.match(/^slug:\s*["']?([a-z0-9-]+)["']?\s*$/m)?.[1];
     if (slug) existing.add(slug);
