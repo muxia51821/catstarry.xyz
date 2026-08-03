@@ -207,6 +207,34 @@ function unavailableSignalsPass(signals) {
   ));
 }
 
+function planetRevealTransitionExpression() {
+  return `(async () => {
+    const journey = document.querySelector('.journey');
+    const planets = [...document.querySelectorAll('[data-planet]')];
+    const maxScroll = Math.max(1, journey.offsetHeight - innerHeight);
+    const residuals = new Map();
+    const revealed = new Set();
+    for (let step = 0; step <= 160; step++) {
+      scrollTo(0, (maxScroll * step) / 160);
+      await new Promise(requestAnimationFrame);
+      for (const planet of planets) {
+        const texture = Number(getComputedStyle(planet.querySelector('.planet-core')).opacity);
+        const targetDot = Number(getComputedStyle(planet, '::before').opacity);
+        if (texture > 0.001) revealed.add(planet.dataset.planet);
+        if (texture > 0.001 && targetDot > 0.001 && !residuals.has(planet.dataset.planet)) {
+          residuals.set(planet.dataset.planet, { planet: planet.dataset.planet, texture, targetDot });
+        }
+      }
+      if (revealed.size === planets.length) break;
+    }
+    return { revealed: [...revealed], residuals: [...residuals.values()] };
+  })()`;
+}
+
+function planetRevealTransitionPass(snapshot) {
+  return snapshot.revealed.length === planetKeys.length && snapshot.residuals.length === 0;
+}
+
 function describeException(details, phase) {
   const frames = details.stackTrace?.callFrames ?? [];
   const exception = details.exception ?? {};
@@ -400,6 +428,8 @@ try {
     ]),
   )`);
   const visibleSignals = await evaluate(activitySignalSnapshotExpression());
+  phase = 'planet texture reveal transition';
+  const planetRevealTransition = await evaluate(planetRevealTransitionExpression());
   const unavailableSignalStates = await evaluate(`(() => {
     const signals = [...document.querySelectorAll('.signal-wrap')];
     const states = signals.map((signal) => signal.dataset.state);
@@ -581,6 +611,7 @@ try {
     firstPaintDrift,
     copyOutputPass,
     visibleSignals,
+    planetRevealTransition,
     unavailableSignals,
     planetClick: { visible: planetClick.visible, samples: planetClick.results.map(({ afterMs, state }) => ({ afterMs, focus: state.focus, focusMode: state.focusMode, focusOpen: state.focusOpen, layerOpacity: state.layer?.opacity, planetOpacity: state.planet?.opacity, proxyOpacity: state.proxy?.opacity, titleOpacity: state.title?.opacity, enterOpacity: state.enter?.opacity })) },
     indexClick: { visible: indexClick.visible, samples: indexClick.results.map(({ afterMs, state }) => ({ afterMs, focus: state.focus, focusMode: state.focusMode, focusOpen: state.focusOpen, layerOpacity: state.layer?.opacity, planetOpacity: state.planet?.opacity, proxyOpacity: state.proxy?.opacity, titleOpacity: state.title?.opacity, enterOpacity: state.enter?.opacity })) },
@@ -604,6 +635,7 @@ try {
     || !firstPaintDrift
     || !copyOutputPass
     || !visibleSignalsPass(visibleSignals)
+    || !planetRevealTransitionPass(planetRevealTransition)
     || !unavailableSignalsPass(unavailableSignals)
     || !planetClick.visible
     || !indexClick.visible

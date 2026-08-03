@@ -61,6 +61,7 @@ const clientApiBase = publicFeedApiBase();
               <time datetime={note.lastModified}>{new Date(note.lastModified).toLocaleDateString('zh-CN')}</time>
             </div>
             <div class="learn-admin-row__actions">
+              <a href={`/learn/preview/${note.slug}/`}>预览</a>
               <button type="button" data-publication-action={note.draft ? 'publish' : 'retract'}>
                 {note.draft ? '发布' : '撤回'}
               </button>
@@ -147,6 +148,7 @@ const clientApiBase = publicFeedApiBase();
   .learn-admin-row p { color: var(--content-text-secondary); }
   .learn-admin-row__state { display: grid; align-content: start; gap: var(--space-xs); text-align: end; }
   .learn-admin-row__actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: end; gap: var(--space-md); }
+  .learn-admin-row__actions > a { display: inline-flex; align-items: center; min-block-size: var(--interaction-hit-size); }
   .learn-admin-row__actions form { display: flex; flex-wrap: wrap; align-items: end; gap: var(--space-sm); }
   .learn-admin-row__actions input { min-block-size: var(--interaction-hit-size); padding: var(--space-sm); }
   .learn-admin-row__actions button { min-block-size: var(--interaction-hit-size); }

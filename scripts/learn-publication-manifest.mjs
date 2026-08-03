@@ -11,7 +11,7 @@ if (apiBase.origin !== 'https://catstarry.xyz' || apiBase.pathname !== '/' || ap
 if (!process.env.FOOTPRINT_INGEST_TOKEN) throw new Error('FOOTPRINT_INGEST_TOKEN is required');
 const slugs = [];
 for (const file of await walk('src/data/learn')) {
-  if (!/\.mdx?$/.test(file)) continue;
+  if (!/\.md$/.test(file)) continue;
   const source = await readFile(file, 'utf8');
   if (/^draft:\s*true\s*$/m.test(source)) continue;
   const slug = source.match(/^slug:\s*["']?([a-z0-9-]+)["']?\s*$/m)?.[1];

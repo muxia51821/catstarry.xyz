@@ -14,7 +14,7 @@ const baseSlug = options.slug ?? slugifyTitle(title, options.translation ?? '');
 const slug = await uniqueLearnSlug(baseSlug);
 const { markdown, interactiveCount } = lessonHtmlToMarkdown(html);
 const outputDir = path.join('src/data/learn', options.track);
-const output = path.join(outputDir, `${slug}.mdx`);
+const output = path.join(outputDir, `${slug}.md`);
 const today = new Date().toISOString().slice(0, 10);
 const tags = (options.tags ?? '').split(',').map((tag) => tag.trim()).filter(Boolean);
 const frontmatter = [

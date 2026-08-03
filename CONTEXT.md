@@ -143,6 +143,7 @@ catstarry.xyz/
 > Phase 0–7 的首次正式交付已完成；Phase 8 负责真实使用中的运营维护与增量优化。
 
 - Home、Blog、Feed、Learn、Projects 与 Finance 均处于 production / maintained 状态；Finance 模块保持 actively iterating。
+- Public Learn Note 的 canonical source format 为 Markdown（`.md`）；MDX 不属于当前 Learn runtime baseline。Learn 的页面交互、未来 Quiz、Review 或 Simulator 可以由 Astro、React 或独立学习模块承载，不要求 Public Note 正文使用 MDX。详见 `docs/adr/008-learn-markdown-canonical-content-format.md`。
 - `poker.catstarry.xyz` 为独立部署的站点。
 - 设计系统 CSS 已完成 canonical 对齐；运行时状态、生产路由和真实数据链路以实际代码与部署平台为准。
 - 新问题按 bug、维护、体验微调或新需求分类处理；易过期的 Git 与部署状态不在本文档维护。
