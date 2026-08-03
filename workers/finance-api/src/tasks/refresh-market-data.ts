@@ -21,6 +21,7 @@ interface ProviderIndexRecord {
 
 const MAX_MARKET_RECORDS = 100;
 const MAX_PROVIDER_BYTES = 1_048_576;
+const STALE_QUOTE_SLA_MS = 30 * 60 * 1000;
 const TENCENT_INDEXES = [
   { providerTicker: 'sh000001', symbol: 'SSE_COMPOSITE', displayName: '上证指数' },
   { providerTicker: 'sh000300', peTicker: 'CSI300_PE' },
@@ -48,8 +49,6 @@ interface QuoteSnapshot {
 
 interface TencentQuote extends QuoteSnapshot {
   peTtm: number | null;
-  amount: number;
-  isStale: boolean;
 }
 
 interface SinaQuote extends QuoteSnapshot {}
@@ -67,12 +66,13 @@ export async function refreshMarketData(
   env: FinanceEnv,
   fetchImpl: typeof fetch = fetch,
   sleep: (milliseconds: number) => Promise<void> = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)),
+  now: Date = new Date(),
 ): Promise<{ written: number; configured: boolean; missing?: MissingItems }> {
   if (env.MARKET_PROVIDER_URL) {
     const payload = await fetchConfiguredProvider(env, fetchImpl, sleep);
     return writeMarketPayload(env, payload);
   }
-  const payload = await fetchBuiltinMarketData(env, fetchImpl, sleep);
+  const payload = await fetchBuiltinMarketData(env, fetchImpl, sleep, now);
   const written = await writeMarketPayload(env, payload);
   return { ...written, missing: payload.missing };
 }
@@ -139,6 +139,7 @@ async function fetchBuiltinMarketData(
   env: FinanceEnv,
   fetchImpl: typeof fetch,
   sleep: (milliseconds: number) => Promise<void>,
+  now: Date,
 ): Promise<MarketPayload & { missing: MissingItems }> {
   const holdingTickers = await activeHoldingTickers(env);
   const providerTickers = new Set<string>(TENCENT_INDEXES.map((index) => index.providerTicker));
@@ -166,7 +167,7 @@ async function fetchBuiltinMarketData(
   for (const index of TENCENT_INDEXES) {
     if (!('peTicker' in index)) continue;
     const quote = tencentQuotes.get(index.providerTicker);
-    if (!quote || quote.isStale || quote.peTtm === null) {
+    if (!quote || isStaleQuote(quote, now) || quote.peTtm === null) {
       missingIndexes.push(index.peTicker);
       continue;
     }
@@ -176,7 +177,7 @@ async function fetchBuiltinMarketData(
   const holdingQuotes = new Map<string, { price: number; peTtm: number | null }>();
   for (const holding of normalizedHoldings) {
     const quote = tencentQuotes.get(holding.providerTicker);
-    if (quote && !quote.isStale) {
+    if (quote && !isStaleQuote(quote, now)) {
       holdingQuotes.set(holding.providerTicker, { price: quote.price, peTtm: quote.peTtm });
     } else {
       fallbackTickers.add(holding.providerTicker);
@@ -184,7 +185,7 @@ async function fetchBuiltinMarketData(
   }
 
   const sseComposite = tencentQuotes.get('sh000001');
-  const sseUsable = sseComposite && !sseComposite.isStale ? sseComposite : null;
+  const sseUsable = sseComposite && !isStaleQuote(sseComposite, now) ? sseComposite : null;
   if (!sseUsable) fallbackTickers.add('sh000001');
 
   let fallbackQuotes = new Map<string, SinaQuote>();
@@ -341,15 +342,50 @@ function parseTencentQuote(values: string[]): TencentQuote | null {
   const peTtm = rawPe ? finiteNumber(rawPe) : null;
   if (rawPe && (peTtm === null || peTtm < 0)) return null;
   const rawTime = values[30]?.trim() ?? '';          // 30=行情时间戳 YYYYMMDDHHMMSS（未列入 skill 速查表，本项目实测格式）
-  const amount = finiteNumber(values[37]) ?? 0;      // 37=成交额(万)，僵尸报价检测用
-  const isStale = amount === 0 && price === previousClose && price > 0;
-  return { name, price, previousClose, change, changePercent, peTtm, amount, isStale, ...tencentTimestamp(rawTime) };
+  return { name, price, previousClose, change, changePercent, peTtm, ...tencentTimestamp(rawTime) };
 }
 
 function tencentTimestamp(rawTime: string): Pick<TencentQuote, 'marketTime' | 'tradingDate'> {
   if (!/^\d{14}$/.test(rawTime)) return { marketTime: null, tradingDate: null };
   const tradingDate = `${rawTime.slice(0, 4)}-${rawTime.slice(4, 6)}-${rawTime.slice(6, 8)}`;
   return { marketTime: `${tradingDate}T${rawTime.slice(8, 10)}:${rawTime.slice(10, 12)}:${rawTime.slice(12, 14)}+08:00`, tradingDate };
+}
+
+// 僵尸报价判定：仅当 A 股处于应开市时段（交易日且当日在交易时段内）、且行情时间属于今天、
+// 且行情时间可验证地超过 freshness SLA 时，才视为僵尸。停牌、未开盘、收盘后、周末/节假日、
+// 合法零成交平盘以及行情时间不可验证时，一律保留 Tencent 原报价。
+function isStaleQuote(quote: TencentQuote, now: Date): boolean {
+  if (!isTradingTime(now)) return false;
+  if (!quote.tradingDate || quote.tradingDate !== todayInShanghai(now)) return false;
+  if (!quote.marketTime) return false;
+  const marketTime = Date.parse(quote.marketTime);
+  if (!Number.isFinite(marketTime)) return false;
+  return now.getTime() - marketTime > STALE_QUOTE_SLA_MS;
+}
+
+function isTradingTime(now: Date): boolean {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Shanghai',
+    weekday: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(now);
+  const value = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  if (value.weekday === 'Sat' || value.weekday === 'Sun') return false;
+  const minutes = Number(value.hour) * 60 + Number(value.minute);
+  return (minutes >= 570 && minutes < 690) || (minutes >= 780 && minutes < 900);
+}
+
+function todayInShanghai(now: Date): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(now);
+  const value = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${value.year}-${value.month}-${value.day}`;
 }
 
 async function fetchNasdaq100Quote(
