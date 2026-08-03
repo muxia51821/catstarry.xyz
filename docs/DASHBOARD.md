@@ -42,5 +42,6 @@ Astro + React + shadcn/ui + Cloudflare Pages / Workers + D1 + KV + R2。
 - 生产发布由 Deployment Session 执行；Phase 8 负责确定范围、审查证据并在成功后追加一条 `CHANGELOG.md` 记录。
 - Git HEAD、待发布 commit、组件生产 source 等易过期状态，在需要时直接从 Git 与部署平台核对，不在看板中手工维护。
 - 不建立 Phase 8 dispatch、next 或 release queue 文件。
+- Git 约束基线已更新：代码/功能/Bug 任务默认在独立任务分支（`task/<name>`）上开发，一个分支同一时间只由一台电脑修改；`main` 不作日常开发工作区。详见 `AGENTS.md`。
 
 Phase 0–7 的历史交付流程仍保留在 [`workflow-orchestration.md`](workflow-orchestration.md) 中作为参考；它不构成 Phase 8 的当前任务分发表。

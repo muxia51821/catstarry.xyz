@@ -61,6 +61,9 @@ These rules apply to coding, implementation, testing, and repository tasks.
 
 ## Git 约束
 
+- 功能开发、Bug 修复和其他可能影响生产行为的任务，默认从最新 `main` 创建独立任务分支（例如 `task/finance-reliability`）；不要直接在 `main` 上进行此类开发。纯文档或极小的非生产性维护可以按任务需要例外处理。
+- 同一任务分支同时只允许一台电脑主动修改。任务完成并提交后 push 该任务分支；合并回 `main` 后，其他电脑必须先同步最新 `main`，再创建新的任务分支。不要让两台电脑同时推进同一个分支。
+- 同步远端 `main` 使用 `git pull --ff-only`：本机 `main` 与远端分叉时直接停下报错，不自动生成 merge commit。
 - 所有 `git commit` 和 `git push` 均由木下执行。
 - 修改文件前必须运行：
 
