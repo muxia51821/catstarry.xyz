@@ -1,3 +1,4 @@
+// 腾讯行情索引权威来源 = a-stock-data skill §1.2 腾讯字段速查表（simonlin1212/a-stock-data）。
 import type { FinanceEnv } from '../routes/auth';
 
 interface ProviderRecord {
@@ -35,15 +36,27 @@ interface MarketPayload {
   indexes?: ProviderIndexRecord[];
 }
 
-interface TencentQuote {
+interface QuoteSnapshot {
   name: string;
   price: number;
   previousClose: number;
   change: number;
   changePercent: number;
-  peTtm: number | null;
   marketTime: string | null;
   tradingDate: string | null;
+}
+
+interface TencentQuote extends QuoteSnapshot {
+  peTtm: number | null;
+  amount: number;
+  isStale: boolean;
+}
+
+interface SinaQuote extends QuoteSnapshot {}
+
+interface MissingItems {
+  indexes: string[];
+  holdings: string[];
 }
 
 interface HoldingTickerRow {
@@ -54,11 +67,14 @@ export async function refreshMarketData(
   env: FinanceEnv,
   fetchImpl: typeof fetch = fetch,
   sleep: (milliseconds: number) => Promise<void> = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)),
-): Promise<{ written: number; configured: boolean }> {
-  const payload = env.MARKET_PROVIDER_URL
-    ? await fetchConfiguredProvider(env, fetchImpl, sleep)
-    : await fetchBuiltinMarketData(env, fetchImpl, sleep);
-  return writeMarketPayload(env, payload);
+): Promise<{ written: number; configured: boolean; missing?: MissingItems }> {
+  if (env.MARKET_PROVIDER_URL) {
+    const payload = await fetchConfiguredProvider(env, fetchImpl, sleep);
+    return writeMarketPayload(env, payload);
+  }
+  const payload = await fetchBuiltinMarketData(env, fetchImpl, sleep);
+  const written = await writeMarketPayload(env, payload);
+  return { ...written, missing: payload.missing };
 }
 
 async function fetchConfiguredProvider(
@@ -123,7 +139,7 @@ async function fetchBuiltinMarketData(
   env: FinanceEnv,
   fetchImpl: typeof fetch,
   sleep: (milliseconds: number) => Promise<void>,
-): Promise<MarketPayload> {
+): Promise<MarketPayload & { missing: MissingItems }> {
   const holdingTickers = await activeHoldingTickers(env);
   const providerTickers = new Set<string>(TENCENT_INDEXES.map((index) => index.providerTicker));
   const normalizedHoldings = holdingTickers.flatMap((ticker) => {
@@ -141,29 +157,76 @@ async function fetchBuiltinMarketData(
   ]);
   if (tencentResult.status === 'rejected') throw tencentResult.reason;
   const tencentQuotes = tencentResult.value;
-  const sseComposite = tencentQuotes.get('sh000001');
-  if (!sseComposite) throw new Error('Tencent did not return sh000001');
+
+  const missingIndexes: string[] = [];
+  const missingHoldings: string[] = [];
+  const fallbackTickers = new Set<string>();
 
   const records: ProviderRecord[] = [];
   for (const index of TENCENT_INDEXES) {
     if (!('peTicker' in index)) continue;
     const quote = tencentQuotes.get(index.providerTicker);
-    if (!quote || quote.peTtm === null) throw new Error(`Tencent did not return PE-TTM for ${index.providerTicker}`);
+    if (!quote || quote.isStale || quote.peTtm === null) {
+      missingIndexes.push(index.peTicker);
+      continue;
+    }
     records.push({ ticker: index.peTicker, price: null, pe_ttm: quote.peTtm });
   }
+
+  const holdingQuotes = new Map<string, { price: number; peTtm: number | null }>();
   for (const holding of normalizedHoldings) {
     const quote = tencentQuotes.get(holding.providerTicker);
-    if (!quote) continue;
-    records.push({ ticker: holding.ticker, price: quote.price, pe_ttm: quote.peTtm });
+    if (quote && !quote.isStale) {
+      holdingQuotes.set(holding.providerTicker, { price: quote.price, peTtm: quote.peTtm });
+    } else {
+      fallbackTickers.add(holding.providerTicker);
+    }
   }
 
-  const indexes = [toIndexRecord('SSE_COMPOSITE', sseComposite.name || '上证指数', sseComposite)];
+  const sseComposite = tencentQuotes.get('sh000001');
+  const sseUsable = sseComposite && !sseComposite.isStale ? sseComposite : null;
+  if (!sseUsable) fallbackTickers.add('sh000001');
+
+  let fallbackQuotes = new Map<string, SinaQuote>();
+  if (fallbackTickers.size > 0) {
+    try {
+      fallbackQuotes = await fetchSinaQuotes([...fallbackTickers], fetchImpl, sleep);
+    } catch (error) {
+      console.warn('Sina market data fallback failed; those quotes will be reported missing', error);
+    }
+  }
+
+  for (const holding of normalizedHoldings) {
+    if (holdingQuotes.has(holding.providerTicker)) continue;
+    const sinaQuote = fallbackQuotes.get(holding.providerTicker);
+    if (sinaQuote) {
+      holdingQuotes.set(holding.providerTicker, { price: sinaQuote.price, peTtm: null });
+    } else {
+      missingHoldings.push(holding.ticker);
+    }
+  }
+  for (const holding of normalizedHoldings) {
+    const quote = holdingQuotes.get(holding.providerTicker);
+    if (quote) records.push({ ticker: holding.ticker, price: quote.price, pe_ttm: quote.peTtm });
+  }
+
+  const indexes: ProviderIndexRecord[] = [];
+  if (sseUsable) {
+    indexes.push(toIndexRecord('SSE_COMPOSITE', sseUsable.name || '上证指数', sseUsable));
+  } else {
+    const sinaSse = fallbackQuotes.get('sh000001');
+    if (sinaSse) {
+      indexes.push(toIndexRecord('SSE_COMPOSITE', sinaSse.name || '上证指数', sinaSse));
+    } else {
+      missingIndexes.push('SSE_COMPOSITE');
+    }
+  }
   if (nasdaqResult.status === 'fulfilled') {
     indexes.push(nasdaqResult.value);
   } else {
     console.warn('TradingView market data refresh failed; retaining the last Nasdaq-100 D1 snapshot', nasdaqResult.reason);
   }
-  return { records, indexes };
+  return { records, indexes, missing: { indexes: missingIndexes, holdings: missingHoldings } };
 }
 
 async function activeHoldingTickers(env: FinanceEnv): Promise<string[]> {
@@ -209,25 +272,78 @@ async function fetchTencentQuotes(
     const quote = parseTencentQuote(values);
     if (quote) quotes.set(ticker, quote);
   }
-  for (const index of TENCENT_INDEXES) {
-    if (!quotes.has(index.providerTicker)) throw new Error(`Tencent did not return ${index.providerTicker}`);
+  return quotes;
+}
+
+async function fetchSinaQuotes(
+  providerTickers: string[],
+  fetchImpl: typeof fetch,
+  sleep: (milliseconds: number) => Promise<void>,
+): Promise<Map<string, SinaQuote>> {
+  const url = new URL(`https://hq.sinajs.cn/list=${providerTickers.join(',')}`);
+  const response = await retryRequest(url, {
+    headers: {
+      Accept: 'text/plain',
+      Referer: 'https://stock.finance.sina.com.cn/',
+      'User-Agent': 'Mozilla/5.0 (compatible; catstarry-finance/1.0)',
+    },
+    redirect: 'manual',
+  }, fetchImpl, sleep, 'Sina market data');
+  const text = await readLimitedText(response, MAX_PROVIDER_BYTES, 'gbk');
+  const quotes = new Map<string, SinaQuote>();
+  for (const rawLine of text.split(';')) {
+    const line = rawLine.trim();
+    const equals = line.indexOf('=');
+    const firstQuote = line.indexOf('"');
+    const lastQuote = line.lastIndexOf('"');
+    if (equals < 0 || firstQuote < 0 || lastQuote <= firstQuote) continue;
+    const ticker = line.slice(0, equals).trim().replace(/^var hq_str_/, '').toLowerCase();
+    if (!providerTickers.includes(ticker)) continue;
+    const quote = parseSinaQuote(line.slice(firstQuote + 1, lastQuote));
+    if (quote) quotes.set(ticker, quote);
   }
   return quotes;
 }
 
+function parseSinaQuote(payload: string): SinaQuote | null {
+  const fields = payload.split(',');
+  if (fields.length < 6) return null;
+  const name = fields[0]?.trim();
+  const price = finiteNumber(fields[3]);
+  const previousClose = finiteNumber(fields[2]);
+  if (!name || price === null || previousClose === null || price < 0 || previousClose < 0) return null;
+  const change = Number((price - previousClose).toFixed(4));
+  if (previousClose === 0) return null;
+  const changePercent = Number((change / previousClose * 100).toFixed(2));
+  if (!Number.isFinite(changePercent)) return null;
+  const dateField = fields[30] ?? fields[8] ?? '';
+  const timeField = fields[31] ?? fields[9] ?? '';
+  let tradingDate: string | null = null;
+  let marketTime: string | null = null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateField)) {
+    tradingDate = dateField;
+    if (/^\d{2}:\d{2}:\d{2}$/.test(timeField)) {
+      marketTime = `${dateField}T${timeField}+08:00`;
+    }
+  }
+  return { name, price, previousClose, change, changePercent, marketTime, tradingDate };
+}
+
 function parseTencentQuote(values: string[]): TencentQuote | null {
   if (values.length < 40) return null;
-  const name = values[1]?.trim();
-  const price = finiteNumber(values[3]);
-  const previousClose = finiteNumber(values[4]);
-  const change = finiteNumber(values[31]);
-  const changePercent = finiteNumber(values[32]);
+  const name = values[1]?.trim();                    // 1=名称
+  const price = finiteNumber(values[3]);             // 3=当前价
+  const previousClose = finiteNumber(values[4]);     // 4=昨收
+  const change = finiteNumber(values[31]);           // 31=涨跌额
+  const changePercent = finiteNumber(values[32]);    // 32=涨跌幅%
   if (!name || price === null || previousClose === null || change === null || changePercent === null || price < 0 || previousClose < 0) return null;
-  const rawPe = values[39]?.trim();
+  const rawPe = values[39]?.trim();                  // 39=PE(TTM)
   const peTtm = rawPe ? finiteNumber(rawPe) : null;
   if (rawPe && (peTtm === null || peTtm < 0)) return null;
-  const rawTime = values[30]?.trim() ?? '';
-  return { name, price, previousClose, change, changePercent, peTtm, ...tencentTimestamp(rawTime) };
+  const rawTime = values[30]?.trim() ?? '';          // 30=行情时间戳 YYYYMMDDHHMMSS（未列入 skill 速查表，本项目实测格式）
+  const amount = finiteNumber(values[37]) ?? 0;      // 37=成交额(万)，僵尸报价检测用
+  const isStale = amount === 0 && price === previousClose && price > 0;
+  return { name, price, previousClose, change, changePercent, peTtm, amount, isStale, ...tencentTimestamp(rawTime) };
 }
 
 function tencentTimestamp(rawTime: string): Pick<TencentQuote, 'marketTime' | 'tradingDate'> {
@@ -275,7 +391,7 @@ async function fetchNasdaq100Quote(
   };
 }
 
-function toIndexRecord(symbol: string, displayName: string, quote: TencentQuote): ProviderIndexRecord {
+function toIndexRecord(symbol: string, displayName: string, quote: QuoteSnapshot): ProviderIndexRecord {
   return {
     symbol, display_name: displayName, current_value: quote.price, previous_close: quote.previousClose,
     change: quote.change, change_percent: quote.changePercent, market_status: 'unknown',

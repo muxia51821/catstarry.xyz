@@ -49,7 +49,12 @@ export default {
 
   async scheduled(controller, env, ctx): Promise<void> {
     if (!['*/15 * * * *', '30 7 * * 1-5'].includes(controller.cron)) return;
-    ctx.waitUntil(refreshMarketData(env).catch((error: unknown) => {
+    ctx.waitUntil(refreshMarketData(env).then((result) => {
+      const missing = result.missing;
+      if (missing && (missing.indexes.length > 0 || missing.holdings.length > 0)) {
+        console.warn('Finance market refresh partial; missing indexes:', missing.indexes, 'holdings:', missing.holdings);
+      }
+    }).catch((error: unknown) => {
       console.error('Finance market refresh failed; last valid snapshot retained', error);
     }));
   },
