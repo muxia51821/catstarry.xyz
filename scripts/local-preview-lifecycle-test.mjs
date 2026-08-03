@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
-import { mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
+import { access, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
@@ -44,12 +44,28 @@ async function portIsAvailable(port) {
   }
 }
 
-async function previewDirectories() {
+async function previewDirectoryForPid(pid) {
   const entries = await readdir(os.tmpdir(), { withFileTypes: true });
-  return entries
-    .filter((entry) => entry.isDirectory() && entry.name.startsWith('catstarry-local-preview-'))
-    .map((entry) => entry.name)
-    .sort();
+  for (const entry of entries) {
+    if (!entry.isDirectory() || !entry.name.startsWith('catstarry-local-preview-')) continue;
+    const directory = path.join(os.tmpdir(), entry.name);
+    try {
+      const owner = JSON.parse(await readFile(path.join(directory, ownerFile), 'utf8'));
+      if (Number(owner?.pid) === pid) return directory;
+    } catch {
+      // Ignore unrelated and partially-created temporary directories.
+    }
+  }
+  return null;
+}
+
+async function exists(target) {
+  try {
+    await access(target);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function spawnPreview(args, env) {
@@ -59,32 +75,81 @@ function spawnPreview(args, env) {
     stdio: ['ignore', 'pipe', 'pipe'],
     windowsHide: true,
   });
-  let output = '';
-  child.stdout.on('data', (chunk) => { output += chunk; });
-  child.stderr.on('data', (chunk) => { output += chunk; });
-  return { child, output: () => output };
+  let stdout = '';
+  let stderr = '';
+  let spawnError = null;
+  child.stdout.on('data', (chunk) => { stdout += chunk; });
+  child.stderr.on('data', (chunk) => { stderr += chunk; });
+  child.on('error', (error) => { spawnError = error; });
+  return {
+    child,
+    output: () => `${stdout}${stderr}`,
+    error: () => spawnError,
+    failureContext: () => `PID ${child.pid ?? 'unknown'}${spawnError ? `\nprocess error: ${spawnError.message}` : ''}\nstdout:\n${stdout}\nstderr:\n${stderr}`,
+  };
 }
 
-function waitForOutput(process, pattern, timeoutMs = 90_000) {
+function exitDetails(child) {
+  return child.signalCode ? `signal ${child.signalCode}` : `exit code ${child.exitCode}`;
+}
+
+function waitForOutput(preview, pattern, timeoutMs = 90_000) {
   return new Promise((resolve, reject) => {
-    const deadline = Date.now() + timeoutMs;
-    const timer = setInterval(() => {
-      if (pattern.test(process.output())) {
-        clearInterval(timer);
-        resolve();
-      } else if (Date.now() >= deadline) {
-        clearInterval(timer);
-        reject(new Error(`Timed out waiting for ${pattern}; output:\n${process.output()}`));
-      }
-    }, 100);
+    const { child } = preview;
+    const fail = (message) => finish(reject, new Error(`${message}\n${preview.failureContext()}`));
+    const onExit = () => fail(`Local preview exited before ${pattern} (${exitDetails(child)})`);
+    const onError = (error) => fail(`Local preview failed before ${pattern}: ${error.message}`);
+    const onTick = () => {
+      if (pattern.test(preview.output())) finish(resolve);
+      else if (child.exitCode !== null || child.signalCode !== null) onExit();
+    };
+    const timer = setInterval(onTick, 100);
+    const timeout = setTimeout(() => fail(`Timed out waiting for ${pattern}`), timeoutMs);
+    const finish = (settle, value) => {
+      clearInterval(timer);
+      clearTimeout(timeout);
+      child.removeListener('exit', onExit);
+      child.removeListener('error', onError);
+      settle(value);
+    };
+    child.once('exit', onExit);
+    child.once('error', onError);
+    onTick();
   });
 }
 
-function waitForExit(child, timeoutMs = 20_000) {
+function waitForExit(preview, timeoutMs = 20_000) {
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error('Timed out waiting for local preview to exit')), timeoutMs);
-    child.once('exit', (code, signal) => { clearTimeout(timer); resolve({ code, signal }); });
+    const { child } = preview;
+    const finish = (settle, value) => {
+      clearTimeout(timer);
+      child.removeListener('exit', onExit);
+      child.removeListener('error', onError);
+      settle(value);
+    };
+    const onExit = (code, signal) => finish(resolve, { code, signal });
+    const onError = (error) => finish(reject, new Error(`Local preview process error: ${error.message}\n${preview.failureContext()}`));
+    const timer = setTimeout(() => finish(reject, new Error(`Timed out waiting for local preview to exit\n${preview.failureContext()}`)), timeoutMs);
+    child.once('exit', onExit);
+    child.once('error', onError);
+    if (child.exitCode !== null || child.signalCode !== null) onExit(child.exitCode, child.signalCode);
   });
+}
+
+async function waitForOwnerDirectory(preview, timeoutMs = 20_000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const directory = await previewDirectoryForPid(preview.child.pid);
+    if (directory) return directory;
+    if (preview.error()) {
+      throw new Error(`Local preview failed before creating an owner marker: ${preview.error().message}\n${preview.failureContext()}`);
+    }
+    if (preview.child.exitCode !== null || preview.child.signalCode !== null) {
+      throw new Error(`Local preview exited before creating an owner marker (${exitDetails(preview.child)})\n${preview.failureContext()}`);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  throw new Error(`Timed out waiting for local preview owner marker\n${preview.failureContext()}`);
 }
 
 async function stopProcessTree(child) {
@@ -103,11 +168,10 @@ await writeFile(path.join(staleDirectory, ownerFile), JSON.stringify({ pid: 2147
 let preview;
 try {
   preview = spawnPreview(['--check-only']);
-  const checkOnly = await waitForExit(preview.child);
+  const checkOnly = await waitForExit(preview);
   assert.deepEqual(checkOnly, { code: 0, signal: null });
   await assert.rejects(readdir(staleDirectory), { code: 'ENOENT' }, 'check-only must recover an abandoned local preview directory');
 
-  const before = await previewDirectories();
   const [sitePort, feedPort, financePort] = await freePorts(3);
   preview = spawnPreview([], {
     SITE_PREVIEW_PORT: String(sitePort),
@@ -115,13 +179,14 @@ try {
     FINANCE_PREVIEW_PORT: String(financePort),
     LOCAL_PREVIEW_TEST_STOP_AFTER_READY: 'SIGINT',
   });
-  const gracefulExit = await waitForExit(preview.child);
+  const gracefulDirectory = await waitForOwnerDirectory(preview);
+  const gracefulExit = await waitForExit(preview);
   assert.deepEqual(gracefulExit, { code: 0, signal: null }, preview.output());
   assert.match(preview.output(), /Local previews are ready:/);
   assert.match(preview.output(), /Received SIGINT; stopping all local previews/);
   assert.match(preview.output(), /All local previews stopped\./);
   assert.deepEqual(await Promise.all([portIsAvailable(sitePort), portIsAvailable(feedPort), portIsAvailable(financePort)]), [true, true, true]);
-  assert.deepEqual(await previewDirectories(), before, 'a graceful stop must remove its temporary state');
+  assert.equal(await exists(gracefulDirectory), false, 'a graceful stop must remove its own temporary state');
 
   const [forceSitePort, forceFeedPort, forceFinancePort] = await freePorts(3);
   preview = spawnPreview([], {
@@ -129,14 +194,15 @@ try {
     FEED_PREVIEW_PORT: String(forceFeedPort),
     FINANCE_PREVIEW_PORT: String(forceFinancePort),
   });
+  const forcedDirectory = await waitForOwnerDirectory(preview);
   await waitForOutput(preview, /Local previews are ready:/);
-  const forcedExit = waitForExit(preview.child);
+  const forcedExit = waitForExit(preview);
   await stopProcessTree(preview.child);
   await forcedExit;
   preview = spawnPreview(['--check-only']);
-  const recoveryExit = await waitForExit(preview.child);
+  const recoveryExit = await waitForExit(preview);
   assert.deepEqual(recoveryExit, { code: 0, signal: null });
-  assert.deepEqual(await previewDirectories(), before, 'the next launch must recover state left by a forced stop');
+  assert.equal(await exists(forcedDirectory), false, 'the next launch must recover state left by a forced stop');
   console.log('Local preview lifecycle contract passed.');
 } finally {
   if (preview) await stopProcessTree(preview.child);
