@@ -1,15 +1,19 @@
 import type { PaginatedResponse, TimelineEntry } from '../../shared/types';
 
+export function normalizeApiBase(value: string): string {
+  return value.replace(/\/$/, '');
+}
+
 export function feedApiBase(origin: string): string {
-  return (import.meta.env.FEED_API_URL ?? origin).replace(/\/$/, '');
+  return normalizeApiBase(import.meta.env.FEED_API_URL ?? origin);
 }
 
 export function publicFeedApiBase(): string {
-  return (import.meta.env.PUBLIC_FEED_API_URL ?? '').replace(/\/$/, '');
+  return normalizeApiBase(import.meta.env.PUBLIC_FEED_API_URL ?? '');
 }
 
 export async function loadPublicTimeline(apiBase: string): Promise<PaginatedResponse<TimelineEntry>> {
-  const response = await fetch(`${apiBase.replace(/\/$/, '')}/api/feed?limit=20`, {
+  const response = await fetch(`${normalizeApiBase(apiBase)}/api/feed?limit=20`, {
     credentials: 'include',
     headers: { Accept: 'application/json' },
   });

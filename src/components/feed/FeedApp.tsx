@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import type { FeedPost, PaginatedResponse, SessionStatus, TimelineEntry } from '../../../shared/types';
-import { loadPublicTimeline, previewCandidateUrl } from '../../lib/feed-api';
+import { loadPublicTimeline, normalizeApiBase, previewCandidateUrl } from '../../lib/feed-api';
 
 interface FeedAppProps {
   apiBase: string;
@@ -8,7 +8,7 @@ interface FeedAppProps {
 }
 
 const EMPTY_TIMELINE: PaginatedResponse<TimelineEntry> = { items: [], cursor: null, has_more: false };
-const mediaUrl = (apiBase: string, key: string) => `${apiBase}/api/feed/media/${encodeURIComponent(key)}`;
+const mediaUrl = (apiBase: string, key: string) => `${normalizeApiBase(apiBase)}/api/feed/media/${encodeURIComponent(key)}`;
 
 function formatDate(value: string): string {
   return new Intl.DateTimeFormat('zh-CN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
@@ -245,7 +245,7 @@ function PublishDialog({ apiBase, onClose, onCreated }: { apiBase: string; onClo
   const publishIsValid = type === 'note' ? noteIsValid : clipIsValid;
   const canPublish = publishIsValid && !uploading && !submitting;
   const publishReason = !publishIsValid ? (type === 'note' ? '请输入文字，或上传图片或视频。' : '请填写链接和标题。') : uploading ? '上传完成后才能发布。' : submitting ? '正在发布，请稍候。' : '';
-  async function preview() { const candidate = previewCandidateUrl(linkUrl); if (!candidate) return; setMessage(''); const response = await fetch(`${apiBase}/api/feed/clip-preview`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ link_url: candidate }) }); if (!response.ok) { setMessage('无法获取链接信息，请手动填写。'); return; } const data = await response.json() as { link_title: string | null; link_summary: string | null; link_image: string | null }; setTitle(data.link_title ?? ''); setSummary(data.link_summary ?? ''); setImage(data.link_image ?? ''); }
+  async function preview() { const candidate = previewCandidateUrl(linkUrl); if (!candidate) return; setMessage(''); const response = await fetch(`${normalizeApiBase(apiBase)}/api/feed/clip-preview`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ link_url: candidate }) }); if (!response.ok) { setMessage('无法获取链接信息，请手动填写。'); return; } const data = await response.json() as { link_title: string | null; link_summary: string | null; link_image: string | null }; setTitle(data.link_title ?? ''); setSummary(data.link_summary ?? ''); setImage(data.link_image ?? ''); }
   async function chooseFiles(files: FileList | null) {
     if (!files?.length) return; const selected = Array.from(files); const imageFiles = selected.filter((file) => file.type.startsWith('image/')); const videoFiles = selected.filter((file) => file.type.startsWith('video/'));
     if ((imageFiles.length && videoFiles.length) || imageFiles.length > 6 || videoFiles.length > 1 || keys.length + selected.length > 6 || (keys.length && ((imageFiles.length && keys.some((key) => /\.(mp4|webm|mov)$/.test(key))) || (videoFiles.length && keys.some((key) => !/\.(mp4|webm|mov)$/.test(key)))))) { setMessage('图片和视频不能混用；最多 6 张图片或 1 个视频。'); return; }

@@ -39,20 +39,60 @@ function tencentLine(ticker, { name, price, previousClose, change, changePercent
   return `v_${ticker}="${values.join('~')}";`;
 }
 
-function tencentResponse({ include920 = false } = {}) {
-  const lines = [
-    tencentLine('sh000001', { name: 'SSE Composite', price: 3832.26, previousClose: 3804.69, change: 27.57, changePercent: 0.72, peTtm: 17.73, quoteTime: '20260731161420' }),
-    tencentLine('sh000300', { name: 'CSI 300', price: 4588.2, previousClose: 4549.72, change: 38.48, changePercent: 0.85, peTtm: 14.38, quoteTime: '20260731161408' }),
-    tencentLine('sh000905', { name: 'CSI 500', price: 7493.99, previousClose: 7309.58, change: 184.41, changePercent: 2.52, peTtm: 35.24, quoteTime: '20260731161414' }),
-    tencentLine('sh000852', { name: 'CSI 1000', price: 7075.51, previousClose: 6900.66, change: 174.85, changePercent: 2.53, peTtm: 42.23, quoteTime: '20260731161414' }),
-    tencentLine('sh000688', { name: 'STAR 50', price: 1635.96, previousClose: 1588.41, change: 47.55, changePercent: 2.99, peTtm: 196.04, quoteTime: '20260731161414' }),
-    tencentLine('sh510300', { name: 'CSI 300 ETF', price: 4.2578, previousClose: 4.22, change: 0.0378, changePercent: 0.9, peTtm: 14.38, quoteTime: '20260731161408' }),
-  ];
+const TENCENT_FIXTURES = [
+  { ticker: 'sh000001', name: 'SSE Composite', price: 3832.26, previousClose: 3804.69, change: 27.57, changePercent: 0.72, peTtm: 17.73, quoteTime: '20260731161420' },
+  { ticker: 'sh000300', name: 'CSI 300', price: 4588.2, previousClose: 4549.72, change: 38.48, changePercent: 0.85, peTtm: 14.38, quoteTime: '20260731161408' },
+  { ticker: 'sh000905', name: 'CSI 500', price: 7493.99, previousClose: 7309.58, change: 184.41, changePercent: 2.52, peTtm: 35.24, quoteTime: '20260731161414' },
+  { ticker: 'sh000852', name: 'CSI 1000', price: 7075.51, previousClose: 6900.66, change: 174.85, changePercent: 2.53, peTtm: 42.23, quoteTime: '20260731161414' },
+  { ticker: 'sh000688', name: 'STAR 50', price: 1635.96, previousClose: 1588.41, change: 47.55, changePercent: 2.99, peTtm: 196.04, quoteTime: '20260731161414' },
+  { ticker: 'sh510300', name: 'CSI 300 ETF', price: 4.2578, previousClose: 4.22, change: 0.0378, changePercent: 0.9, peTtm: 14.38, quoteTime: '20260731161408' },
+];
+
+function tencentResponse({ include920 = false, omit = [], zombie = [], quoteTimeOverrides = {} } = {}) {
+  const fixtures = TENCENT_FIXTURES.filter((fixture) => !omit.includes(fixture.ticker));
   if (include920) {
-    lines.push(tencentLine('bj920001', { name: 'Beijing Sample', price: 9.12, previousClose: 9, change: 0.12, changePercent: 1.33, peTtm: 20.5, quoteTime: '20260731161408' }));
+    fixtures.push({ ticker: 'bj920001', name: 'Beijing Sample', price: 9.12, previousClose: 9, change: 0.12, changePercent: 1.33, peTtm: 20.5, quoteTime: '20260731161408' });
   }
+  const lines = fixtures.map((fixture) => {
+    const isZombie = zombie.includes(fixture.ticker);
+    return tencentLine(fixture.ticker, {
+      name: fixture.name,
+      price: isZombie ? fixture.previousClose : fixture.price,
+      previousClose: fixture.previousClose,
+      change: isZombie ? 0 : fixture.change,
+      changePercent: isZombie ? 0 : fixture.changePercent,
+      peTtm: fixture.peTtm,
+      quoteTime: quoteTimeOverrides[fixture.ticker] ?? fixture.quoteTime,
+    });
+  });
   return new Response(lines.join(''));
 }
+
+function sinaLine(ticker, { name, open, prevClose, price, high, low, date = '2026-07-31', time = '15:00:00' }) {
+  const values = Array.from({ length: 33 }, () => '');
+  values[0] = name;
+  values[1] = open;
+  values[2] = prevClose;
+  values[3] = price;
+  values[4] = high;
+  values[5] = low;
+  values[8] = '1234567';
+  values[9] = '99999999';
+  values[30] = date;
+  values[31] = time;
+  return `var hq_str_${ticker}="${values.join(',')}";`;
+}
+
+function tradingViewOk() {
+  return Response.json({ totalCount: 1, data: [{
+    s: 'NASDAQ:NDX', d: ['NDX', 'NASDAQ 100 Index', 28274.1951, 0.5971914585, 167.8487, 'delayed_streaming_900'],
+  }] });
+}
+
+// 2026-07-31 14:00 Asia/Shanghai（周五盘中）——固定 now，保证僵尸判定与边界用例确定性，不依赖真实时钟。
+const TRADING_NOW = new Date('2026-07-31T06:00:00.000Z');
+// 2026-07-31 09:30 Asia/Shanghai（同日盘中，距 TRADING_NOW 超 30 分钟 SLA）——用于构造僵尸行情。
+const STALE_QUOTE_TIME = '20260731093000';
 
 const builtin = new MarketDatabase();
 builtin.holdingTickers = [{ ticker: '510300' }, { ticker: '920001' }];
@@ -80,8 +120,9 @@ const builtinFetch = async (input, init = {}) => {
   }
   throw new Error(`Unexpected built-in adapter request: ${url}`);
 };
-assert.deepEqual(await refreshMarketData({ DB: builtin }, builtinFetch, async () => {}), { written: 8, configured: true });
+assert.deepEqual(await refreshMarketData({ DB: builtin }, builtinFetch, async () => {}, TRADING_NOW), { written: 8, configured: true, missing: { indexes: [], holdings: [] } });
 assert.equal(builtinCalls.length, 2);
+assert.ok(!builtinCalls.some((call) => call.url.includes('hq.sinajs.cn')), 'Sina must not be called when Tencent returns a complete response');
 assert.deepEqual(builtin.marketRows.map(({ ticker, price, pe_ttm }) => ({ ticker, price, pe_ttm })), [
   { ticker: 'CSI300_PE', price: null, pe_ttm: 14.38 },
   { ticker: 'CSI500_PE', price: null, pe_ttm: 35.24 },
@@ -111,7 +152,7 @@ const bestEffortFetch = async (input) => {
 const originalWarn = console.warn;
 console.warn = () => {};
 try {
-  assert.deepEqual(await refreshMarketData({ DB: bestEffort }, bestEffortFetch, async () => {}), { written: 6, configured: true });
+  assert.deepEqual(await refreshMarketData({ DB: bestEffort }, bestEffortFetch, async () => {}, TRADING_NOW), { written: 6, configured: true, missing: { indexes: [], holdings: [] } });
 } finally {
   console.warn = originalWarn;
 }
@@ -199,5 +240,139 @@ await assert.rejects(refreshMarketData(
   async () => new Response(oversized, { headers: { 'Content-Type': 'application/json' } }),
   async () => {},
 ), /too large/);
+
+const partial = new MarketDatabase();
+partial.holdingTickers = [{ ticker: '510300' }, { ticker: '600519' }];
+const partialCalls = [];
+const partialFetch = async (input, init = {}) => {
+  const url = new URL(input);
+  partialCalls.push(url.hostname);
+  if (url.hostname === 'qt.gtimg.cn') return tencentResponse({ omit: ['sh000905', 'sh600519'] });
+  if (url.hostname === 'scanner.tradingview.com') return tradingViewOk();
+  if (url.hostname === 'hq.sinajs.cn') {
+    assert.match(url.pathname, /sh600519/);
+    assert.equal(init.headers.Referer, 'https://stock.finance.sina.com.cn/');
+    return new Response(sinaLine('sh600519', { name: '贵州茅台', open: '1499', prevClose: '1490', price: '1510.5', high: '1520', low: '1489' }));
+  }
+  throw new Error(`Unexpected partial adapter request: ${url}`);
+};
+const partialResult = await refreshMarketData({ DB: partial }, partialFetch, async () => {}, TRADING_NOW);
+assert.deepEqual(partialResult, { written: 7, configured: true, missing: { indexes: ['CSI500_PE'], holdings: [] } });
+assert.deepEqual(partial.marketRows.map(({ ticker, price, pe_ttm }) => ({ ticker, price, pe_ttm })), [
+  { ticker: 'CSI300_PE', price: null, pe_ttm: 14.38 },
+  { ticker: 'CSI1000_PE', price: null, pe_ttm: 42.23 },
+  { ticker: 'STAR50_PE', price: null, pe_ttm: 196.04 },
+  { ticker: '510300', price: 4.2578, pe_ttm: 14.38 },
+  { ticker: '600519', price: 1510.5, pe_ttm: null },
+]);
+assert.ok(partialCalls.includes('hq.sinajs.cn'), 'Sina fallback must be attempted for missing quotes');
+
+const noSina = new MarketDatabase();
+noSina.holdingTickers = [{ ticker: '600519' }];
+let sinaAttempts = 0;
+const originalWarn2 = console.warn;
+console.warn = () => {};
+try {
+  const noSinaFetch = async (input) => {
+    const url = new URL(input);
+    if (url.hostname === 'qt.gtimg.cn') return tencentResponse({ omit: ['sh600519'] });
+    if (url.hostname === 'scanner.tradingview.com') return tradingViewOk();
+    if (url.hostname === 'hq.sinajs.cn') {
+      sinaAttempts += 1;
+      return new Response('unavailable', { status: 503 });
+    }
+    throw new Error(`Unexpected no-sina adapter request: ${url}`);
+  };
+  const noSinaResult = await refreshMarketData({ DB: noSina }, noSinaFetch, async () => {}, TRADING_NOW);
+  assert.deepEqual(noSinaResult, { written: 6, configured: true, missing: { indexes: [], holdings: ['600519'] } });
+} finally {
+  console.warn = originalWarn2;
+}
+assert.equal(sinaAttempts, 3, 'Sina fallback failures must use bounded retries without blocking Tencent writes');
+
+const zombie = new MarketDatabase();
+zombie.holdingTickers = [{ ticker: '920001' }];
+let sawZombieSina = false;
+const zombieFetch = async (input, init = {}) => {
+  const url = new URL(input);
+  if (url.hostname === 'qt.gtimg.cn') return tencentResponse({ include920: true, zombie: ['bj920001'], quoteTimeOverrides: { bj920001: STALE_QUOTE_TIME } });
+  if (url.hostname === 'scanner.tradingview.com') return tradingViewOk();
+  if (url.hostname === 'hq.sinajs.cn') {
+    sawZombieSina = true;
+    assert.match(url.pathname, /bj920001/);
+    return new Response(sinaLine('bj920001', { name: 'Beijing Sample', open: '9', prevClose: '9', price: '10.2', high: '10.3', low: '9' }));
+  }
+  throw new Error(`Unexpected zombie adapter request: ${url}`);
+};
+const zombieResult = await refreshMarketData({ DB: zombie }, zombieFetch, async () => {}, TRADING_NOW);
+assert.equal(sawZombieSina, true, 'Zombie quotes must not be written verbatim; fallback must be attempted');
+assert.deepEqual(zombieResult, { written: 7, configured: true, missing: { indexes: [], holdings: [] } });
+const zombieRow = zombie.marketRows.find((row) => row.ticker === '920001');
+assert.deepEqual(
+  { ticker: zombieRow.ticker, price: zombieRow.price, pe_ttm: zombieRow.pe_ttm },
+  { ticker: '920001', price: 10.2, pe_ttm: null },
+  'Zombie quote price must not be written; the Sina fallback price replaces it',
+);
+
+const retainedScenarios = [
+  { name: 'after close', now: new Date('2026-07-31T12:00:00.000Z'), quoteTime: STALE_QUOTE_TIME },
+  { name: 'before open', now: new Date('2026-07-31T01:00:00.000Z'), quoteTime: STALE_QUOTE_TIME },
+  { name: 'weekend', now: new Date('2026-08-01T06:00:00.000Z'), quoteTime: STALE_QUOTE_TIME },
+  { name: 'suspended stock', now: TRADING_NOW, quoteTime: '20260730161408' },
+  { name: 'unverifiable quote time', now: TRADING_NOW, quoteTime: '' },
+  { name: 'legal flat within SLA', now: TRADING_NOW, quoteTime: '20260731135000' },
+];
+for (const scenario of retainedScenarios) {
+  const retained = new MarketDatabase();
+  retained.holdingTickers = [{ ticker: '920001' }];
+  let sinaCalled = false;
+  const retainedFetch = async (input) => {
+    const url = new URL(input);
+    if (url.hostname === 'qt.gtimg.cn') return tencentResponse({ include920: true, zombie: ['bj920001'], quoteTimeOverrides: { bj920001: scenario.quoteTime } });
+    if (url.hostname === 'scanner.tradingview.com') return tradingViewOk();
+    if (url.hostname === 'hq.sinajs.cn') {
+      sinaCalled = true;
+      return new Response('unavailable', { status: 503 });
+    }
+    throw new Error(`Unexpected retained adapter request: ${url}`);
+  };
+  await refreshMarketData({ DB: retained }, retainedFetch, async () => {}, scenario.now);
+  assert.equal(sinaCalled, false, `${scenario.name}: Sina must not be called`);
+  const retainedRow = retained.marketRows.find((row) => row.ticker === '920001');
+  assert.deepEqual(
+    { ticker: retainedRow.ticker, price: retainedRow.price, pe_ttm: retainedRow.pe_ttm },
+    { ticker: '920001', price: 9, pe_ttm: 20.5 },
+    `${scenario.name}: the Tencent quote must be retained verbatim`,
+  );
+}
+
+const staleNoSina = new MarketDatabase();
+staleNoSina.holdingTickers = [{ ticker: '920001' }];
+let staleNoSinaSina = 0;
+const originalWarn3 = console.warn;
+console.warn = () => {};
+try {
+  const staleNoSinaFetch = async (input) => {
+    const url = new URL(input);
+    if (url.hostname === 'qt.gtimg.cn') return tencentResponse({ include920: true, zombie: ['bj920001'], quoteTimeOverrides: { bj920001: STALE_QUOTE_TIME } });
+    if (url.hostname === 'scanner.tradingview.com') return tradingViewOk();
+    if (url.hostname === 'hq.sinajs.cn') {
+      staleNoSinaSina += 1;
+      return new Response('unavailable', { status: 503 });
+    }
+    throw new Error(`Unexpected stale-no-sina adapter request: ${url}`);
+  };
+  const staleNoSinaResult = await refreshMarketData({ DB: staleNoSina }, staleNoSinaFetch, async () => {}, TRADING_NOW);
+  assert.equal(staleNoSinaSina, 3, 'A same-day stale quote must attempt Sina fallback');
+  assert.deepEqual(staleNoSinaResult, { written: 7, configured: true, missing: { indexes: [], holdings: [] } });
+} finally {
+  console.warn = originalWarn3;
+}
+const staleNoSinaRow = staleNoSina.marketRows.find((row) => row.ticker === '920001');
+assert.deepEqual(
+  { ticker: staleNoSinaRow.ticker, price: staleNoSinaRow.price, pe_ttm: staleNoSinaRow.pe_ttm },
+  { ticker: '920001', price: 9, pe_ttm: 20.5 },
+  'When Sina yields no valid price for a same-day stale quote, the Tencent quote must be retained, not reported missing',
+);
 
 console.log('Finance market provider contract passed.');
