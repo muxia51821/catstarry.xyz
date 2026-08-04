@@ -200,8 +200,12 @@ async function fetchBuiltinMarketData(
   for (const holding of normalizedHoldings) {
     if (holdingQuotes.has(holding.providerTicker)) continue;
     const sinaQuote = fallbackQuotes.get(holding.providerTicker);
+    const tencentQuote = tencentQuotes.get(holding.providerTicker);
     if (sinaQuote) {
       holdingQuotes.set(holding.providerTicker, { price: sinaQuote.price, peTtm: null });
+    } else if (tencentQuote) {
+      // 疑似僵尸但 Sina 无有效价时保留腾讯原报价（如当日盘中停牌），不标缺失。
+      holdingQuotes.set(holding.providerTicker, { price: tencentQuote.price, peTtm: tencentQuote.peTtm });
     } else {
       missingHoldings.push(holding.ticker);
     }

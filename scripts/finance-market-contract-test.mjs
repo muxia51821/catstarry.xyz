@@ -346,4 +346,33 @@ for (const scenario of retainedScenarios) {
   );
 }
 
+const staleNoSina = new MarketDatabase();
+staleNoSina.holdingTickers = [{ ticker: '920001' }];
+let staleNoSinaSina = 0;
+const originalWarn3 = console.warn;
+console.warn = () => {};
+try {
+  const staleNoSinaFetch = async (input) => {
+    const url = new URL(input);
+    if (url.hostname === 'qt.gtimg.cn') return tencentResponse({ include920: true, zombie: ['bj920001'], quoteTimeOverrides: { bj920001: STALE_QUOTE_TIME } });
+    if (url.hostname === 'scanner.tradingview.com') return tradingViewOk();
+    if (url.hostname === 'hq.sinajs.cn') {
+      staleNoSinaSina += 1;
+      return new Response('unavailable', { status: 503 });
+    }
+    throw new Error(`Unexpected stale-no-sina adapter request: ${url}`);
+  };
+  const staleNoSinaResult = await refreshMarketData({ DB: staleNoSina }, staleNoSinaFetch, async () => {}, TRADING_NOW);
+  assert.equal(staleNoSinaSina, 3, 'A same-day stale quote must attempt Sina fallback');
+  assert.deepEqual(staleNoSinaResult, { written: 7, configured: true, missing: { indexes: [], holdings: [] } });
+} finally {
+  console.warn = originalWarn3;
+}
+const staleNoSinaRow = staleNoSina.marketRows.find((row) => row.ticker === '920001');
+assert.deepEqual(
+  { ticker: staleNoSinaRow.ticker, price: staleNoSinaRow.price, pe_ttm: staleNoSinaRow.pe_ttm },
+  { ticker: '920001', price: 9, pe_ttm: 20.5 },
+  'When Sina yields no valid price for a same-day stale quote, the Tencent quote must be retained, not reported missing',
+);
+
 console.log('Finance market provider contract passed.');
