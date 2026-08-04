@@ -1,5 +1,14 @@
 # 更新记录
 
+## 2026-08-04 — Finance market reliability
+
+### Finance
+
+- 提升行情刷新连续性：Tencent 个别报价缺失时尝试 Sina 补价；Sina 无有效价格时保留 Tencent 原报价。
+- TradingView 行情失败时不再阻断 Tencent 行情更新。
+- 优化行情新鲜度判断，减少休市、停牌等场景下的误报。
+- 修复 `920xxx` 指数代码映射，确保北京交易所行情可正常读取。
+
 ## 2026-08-03 — Learn authoring follow-up
 
 ### Learn
