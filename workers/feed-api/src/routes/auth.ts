@@ -16,6 +16,7 @@ interface MainAuthEnv {
   AUTH_KV: KVNamespace;
   DB: D1Database;
   COOKIE_DOMAIN?: string;
+  LOCAL_PREVIEW_AUTH?: string;
 }
 
 export async function handleAuth(request: Request, env: MainAuthEnv, pathname: string): Promise<Response> {
@@ -70,7 +71,7 @@ async function handleLogin(request: Request, env: MainAuthEnv): Promise<Response
 
   const payload: LoginResponse = { token, expires_at: expiresAt };
   const headers = new Headers();
-  headers.set('Set-Cookie', sessionCookie(token, SESSION_SECONDS, env.COOKIE_DOMAIN));
+  headers.set('Set-Cookie', sessionCookie(token, SESSION_SECONDS, env.COOKIE_DOMAIN, env.LOCAL_PREVIEW_AUTH !== '1'));
   return json(payload, 200, headers);
 }
 
@@ -83,19 +84,17 @@ async function handleLogout(request: Request, env: MainAuthEnv): Promise<Respons
     ]);
   }
   const headers = new Headers();
-  headers.set('Set-Cookie', sessionCookie('', 0, env.COOKIE_DOMAIN));
+  headers.set('Set-Cookie', sessionCookie('', 0, env.COOKIE_DOMAIN, env.LOCAL_PREVIEW_AUTH !== '1'));
   return json({ authenticated: false }, 200, headers);
 }
 
-function sessionCookie(token: string, maxAge: number, domain?: string): string {
+function sessionCookie(token: string, maxAge: number, domain?: string, secure = true): string {
   const parts = [
     `token=${encodeURIComponent(token)}`,
     'HttpOnly',
-    'Secure',
-    'SameSite=Lax',
-    'Path=/',
-    `Max-Age=${maxAge}`,
   ];
+  if (secure) parts.push('Secure');
+  parts.push('SameSite=Lax', 'Path=/', `Max-Age=${maxAge}`);
 
   if (domain) {
     const normalized = domain.trim().replace(/^\./, '').toLowerCase();

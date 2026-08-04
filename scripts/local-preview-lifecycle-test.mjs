@@ -225,6 +225,7 @@ try {
     LOCAL_PREVIEW_TEST_STOP_AFTER_READY: 'SIGINT',
   });
   const gracefulDirectory = await waitForOwnerDirectory(preview);
+  await waitForOutput(preview, /Local previews are ready:/);
   const gracefulExit = await waitForExit(preview);
   assert.deepEqual(gracefulExit, { code: 0, signal: null }, preview.output());
   assert.match(preview.output(), /Local previews are ready:/);

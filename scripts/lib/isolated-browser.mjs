@@ -4,6 +4,13 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
+const profileCleanupOptions = {
+  recursive: true,
+  force: true,
+  maxRetries: 10,
+  retryDelay: 200,
+};
+
 export async function launchIsolatedBrowser() {
   const executable = findBrowserExecutable();
   const profile = await mkdtemp(path.join(os.tmpdir(), 'catstarry-browser-'));
@@ -34,13 +41,13 @@ export async function launchIsolatedBrowser() {
       async close() {
         if (!processHandle.killed) processHandle.kill();
         await waitForExit(processHandle);
-        await rm(profile, { recursive: true, force: true });
+        await rm(profile, profileCleanupOptions);
       },
     };
   } catch (error) {
     if (!processHandle.killed) processHandle.kill();
     await waitForExit(processHandle);
-    await rm(profile, { recursive: true, force: true });
+    await rm(profile, profileCleanupOptions);
     throw error;
   }
 }

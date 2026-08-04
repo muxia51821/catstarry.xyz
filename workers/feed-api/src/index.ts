@@ -15,7 +15,25 @@ import { handleActivitySignals } from './routes/activity-signals';
 import { cleanUnreferencedMedia } from './tasks/clean-media';
 import { cleanExpiredViewVisitors } from './tasks/clean-view-visitors';
 
-type FeedRuntimeEnv = Env & { SITE_ORIGIN?: string };
+type FeedRuntimeEnv = Env & {
+  LOCAL_PREVIEW_AUTH?: string;
+  LOCAL_PREVIEW_AUTH_PASSWORD_HASH?: string;
+  LOCAL_PREVIEW_AUTH_USERNAME?: string;
+  SITE_ORIGIN?: string;
+};
+
+async function ensureLocalPreviewUser(env: FeedRuntimeEnv): Promise<void> {
+  if (env.LOCAL_PREVIEW_AUTH !== '1') return;
+  const username = env.LOCAL_PREVIEW_AUTH_USERNAME?.trim();
+  const passwordHash = env.LOCAL_PREVIEW_AUTH_PASSWORD_HASH;
+  if (!username || !/^[A-Za-z0-9._-]{1,64}$/.test(username) || !passwordHash) {
+    throw new Error('LOCAL_PREVIEW_AUTH configuration is invalid');
+  }
+  const key = `user:${username}`;
+  if (!(await env.AUTH_KV.get(key))) {
+    await env.AUTH_KV.put(key, JSON.stringify({ password_hash: passwordHash, role: 'admin' }));
+  }
+}
 
 function corsFor(env: FeedRuntimeEnv) {
   const stagingOrigin = env.SITE_ORIGIN?.replace(/\/$/, '');
@@ -43,6 +61,7 @@ export default {
     if (originRejection) return originRejection;
 
     try {
+      await ensureLocalPreviewUser(env);
       let response: Response;
       if (pathname === '/activity-signals.json') response = await handleActivitySignals(request, env);
       else if (pathname.startsWith('/api/auth/')) response = await handleAuth(request, env, pathname);
