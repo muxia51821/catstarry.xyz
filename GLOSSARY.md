@@ -1,109 +1,134 @@
-# 项目术语表 (GLOSSARY)
+# 项目共享词汇表 (GLOSSARY)
 
-> catstarry.xyz 项目中的关键领域术语，包含公开站点与非公开 Finance workspace。在讨论、开发、AI 对话中保持一致用词。
+> 本文件是 catstarry.xyz 的稳定共享命名与术语边界来源，供 AI agent、木下和实际参与项目维护的协作者快速查阅。
 
----
+## 使用边界与事实来源
 
-## 角色
+GLOSSARY 只记录跨模块、跨 Phase、容易被误解或存在命名漂移的稳定词汇。它负责 canonical naming、别名和“不包含什么”，不负责产品行为、技术架构、视觉参数、实现规则或易过期状态。
 
-| 术语     | 含义                                               |
-| -------- | -------------------------------------------------- |
-| **木下** | 网站所有者，非程序员，Vibe Coding，AI 架构师角色   |
-| **cati** | 木下的伴侣，共同投资计划的协作者，非公开 Finance workspace 的只读用户 |
-| **访客** | 公开站点页面的读者，不包含 Finance workspace                     |
+详细事实按职责分工存放：
 
----
+- `CONTEXT.md`：Agent 快速上下文和少量高频摘要。
+- `docs/architecture.md` 及子文档：技术架构、数据模型、API、存储和数据流。
+- `DESIGN.md`：三画布、视觉状态、资产和动效设计事实。
+- `docs/agents/frontend-rules.md`：前端施工规则和验收约束。
+- `docs/SITEMAP.md`：路由、页面和公开／非公开范围。
+- `docs/cold-start-governance.md`：治理身份、文件地图和流程边界。
 
-## 板块与路径
+术语语义发生变化时，应先修改对应的产品、ADR、架构或设计事实源，再同步更新本文件；GLOSSARY 不自行裁决新的产品、架构、设计或实现规则。
 
-| 术语                       | 含义                                                                                                                                    |
-| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| **Home (`/`)**             | catstarry 的宇宙入口：滚动接近星域后进入自由星图总览，作为各功能页面的导航起点；不聚合跨模块内容流                                      |
-| **星图**                   | Home 中自由分布、可被滚动观察并可直接进入对应 Planet Focus 的空间导航；远景是星点，接近后显现为五颗完整星球，不替代各板块自身的功能页面 |
-| **About（Home 内）**       | 星图中的平权个人入口；点击星球可直接在 Home 原地展开，豹猫彩蛋也可进入同一展开态；不是独立路径或中心天体                                |
-| **blog (`/blog`)**         | 长文博客，Markdown 写作 + Git push 发布到 Cloudflare Pages，技术/生活/观点混合                                                          |
-| **feed (`/feed`)**         | 公开足迹／来时路：展示原生碎碎念、剪藏与符合规则的系统事件；公开浏览，认证后发布                                                        |
-| **learn (`/learn`)**       | 编程学习笔记板块，基于 teach skill 的 lesson 产出，按 track 组织                                                                        |
-| **projects (`/projects`)** | 成品项目展示，卡片网格布局，显示最近 2 个项目                                                                                           |
-| **f.catstarry.xyz**        | 非公开的独立 Finance workspace；双人协作财务面板，密码鉴权，不展示在 README、Home 或公开站点导航                                      |
-| **poker.catstarry.xyz**    | 独立子域名，Poker PWA 应用，已上线                                                                                                      |
+## 角色与访问范围
 
----
+| 术语 | 定义 |
+| --- | --- |
+| **木下** | 项目所有者和最终决策者。 |
+| **cati** | Finance workspace 的指定只读协作者，不是公开站点角色。 |
+| **访客** | 公开主站访问者，不包含 Finance workspace 使用者。 |
 
-## /feed 领域术语
+## 公开主站与板块
 
-| 术语                              | 含义                                                                                                                             |
-| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| **碎碎念**                        | 个人原创短内容（文字 + 图片或视频），发布后不编辑，快速表达                                                                      |
-| **剪藏**                          | 网页收藏：链接 + 自动获取标题/摘要/封面 + 用户评论                                                                               |
-| **备忘录感**                      | 发布哲学：写完即发、不编辑、不纠结、极低摩擦                                                                                     |
-| **管理后台**                      | 独立的后台页面（需认证），用于隐藏/删除/批量管理帖子，按状态/类型/日期筛选                                                       |
-| **公开足迹（Public Footprint）**  | Feed 面向访客的系统事件记录，也是木下“来时路”的一部分；创建时保存来源快照，可独立隐藏，不影响来源内容；不等同于 Home 的导航星图  |
-| **公开时间线（Public Timeline）** | `/feed` 面向访客的统一呈现：原生碎碎念、剪藏与公开足迹按时间排序；不做历史回填，也不回流到 Home                                  |
-| **系统足迹事件**                  | 由来源板块产生并进入 Feed 的事件：Blog 首次生产部署成功、Learn 明确完成一个小节、Projects 显式标记实质更新；普通小编辑不产生事件 |
+| 术语 | 定义与边界 |
+| --- | --- |
+| **公开主站** | `catstarry.xyz` 主域上的 Home、Blog、Feed、Learn、Projects 及其公开页面集合；不包含 `f.catstarry.xyz`、独立部署的项目子域，或本地写作、学习、预览和管理工作区。具体页面事实见 [`docs/SITEMAP.md`](docs/SITEMAP.md)。 |
+| **Home (`/`)** | 公开主站的宇宙入口和空间导航，不是跨模块内容聚合页。 |
+| **Blog (`/blog`)** | 公开长文模块；不指 DOCX 草稿、本地 workbench 或发布流程。 |
+| **Feed (`/feed`)** | 公开时间线模块，呈现原生 Feed 内容和公开足迹。详细关系见“Feed 与公开足迹”。 |
+| **Learn (`/learn`)** | 公开学习笔记模块；不指本地私有学习区、课程生成 workspace 或 draft preview 工具。 |
+| **Projects (`/projects`)** | 公开项目展示模块。 |
+| **Finance workspace** | `f.catstarry.xyz` 的内部私密财务工作区，不属于公开主站、Home 导航或公开内容模块。详细 Finance 术语见下文。 |
 
----
+## Home 导航与交互词汇
 
-## Finance（非公开）领域术语
+### 导航关系
 
-| 术语             | 含义                                                                                                   |
-| ---------------- | ------------------------------------------------------------------------------------------------------ |
-| **修正迪茨法**   | 收益率计算方法，用于超额分成计算                                                                       |
-| **高水位线**     | 历史最高净值 × 1.03，超过此线才计算超额分成                                                            |
-| **PE 温度计**    | 沪深300 PE-TTM 自动映射五档温度（冰点/低温/常温/高温/过热），给出对应操作建议                          |
-| **仓位偏离预警** | 任一仓位超出硬性上限/下限时自动标红/黄 + 再平衡建议                                                    |
-| **三级熔断**     | 黄色（回撤 > 10% 暂停主动仓新增）→ 红色（回撤 > 20% 强制全宽基定投）→ 黑色（伴侣提出重大异议，全暂停） |
+```text
+星图
+  → 目标星球
+    → Planet Focus
+      → Focus action
+        ├─ Blog / Feed / Learn / Projects
+        │    → Planet Push → 对应功能页
+        └─ About → About 展开态
+```
 
----
+- 星图不是内容列表。
+- 星球不是抽象按钮、节点或卡片。
+- Planet Focus 不是板块详情页。
+- Focus action 是明确的目的地动作，不是额外确认层。
+- Planet Push 是短暂转场行为，不是目的地。
+- About 是例外，进入 Home 原地展开态，而不是独立 About 页面。
 
-## 技术术语
+| 术语 | 定义与边界 |
+| --- | --- |
+| **星图** | Home 中用于观察和进入五颗导航星球的空间导航；不承载内容聚合、时间线或板块详情。 |
+| **Planet Focus** | Home 内对目标星球的观察状态，显示近景、名称、极短说明和明确 action；不加载真实板块内容。 |
+| **Focus action** | Planet Focus 中的明确目的地动作；功能星球触发 Planet Push，About 进入 Home 原地展开态。 |
+| **Planet Push** | Focus action 之后发生的短暂、可中断的空间转场；不是页面或内容层。 |
+| **About 展开态** | Home 内 About 信息的原地展开状态，可由 About 主路径或豹猫卫星彩蛋进入。 |
+| **Home Activity Signal** | Home 消费的最小板块活动状态投影，只表达 Blog、Feed、Learn、Projects 的 `active`、`stable`、`dormant`；不包含内容、标题、摘要、链接、数量、精确时间或访客未读语义。它不是 Public Timeline 的简化版本，也不进入 Feed。详细事实见 [ADR-007](docs/adr/007-home-activity-signal-static-projection.md) 和架构文档。 |
+| **信号卫星** | 四颗功能星球旁用于表达 Home Activity Signal 状态的视觉载体；About 和豹猫卫星不消费这套三态语义。数据不可用不等于 `dormant`。 |
+| **豹猫卫星** | About 附近的特殊活动／交互信号卫星，也是木下的个人签名元素；通过可选彩蛋进入与 About 主路径相同的展开态。它不消费 Home Activity Signal，也不是四颗功能星球的 HAS 三态信号卫星。“豹猫星座”只可作为视觉形态或历史称呼。 |
+| **鼠标流星尾** | 跟随指针的个人交互签名；在 Home 保留，在 Content 弱化，在 Finance 关闭；不等同于首屏一次性的 DISCOVER MORE 流星。 |
+| **Entry Display** | Home 宇宙入口的世界观短句排版角色；不承担产品 landing page 式促销标题。 |
+| **暖性地质宇宙** | Home 五颗导航星球共享的材质和光学母题；具体视觉参数、资产和动效由 `DESIGN.md` 负责。 |
 
-| 术语              | 含义                                                           |
-| ----------------- | -------------------------------------------------------------- |
-| **Vibe Coding**   | 木下的开发方式：用 AI 生成代码，自己关注需求和方向，不手写代码 |
-| **SSG**           | 静态站点生成（Static Site Generation），构建时生成 HTML        |
-| **SSR**           | 服务端渲染（Server-Side Rendering），请求时动态生成 HTML       |
-| **hybrid**        | Astro 的混合模式，SSG 优先、按需 SSR                           |
-| **island**        | Astro 中的交互组件概念，React 组件以 island 形式嵌入静态页面   |
-| **Monorepo**      | 单一 Git 仓库管理公开站点与非公开 Finance 组件（blog + feed + finance + 首页） |
-| **D1**            | Cloudflare 的 serverless SQLite 数据库服务                     |
-| **KV**            | Cloudflare 的 key-value 存储服务，适合缓存和配置               |
-| **R2**            | Cloudflare 的对象存储服务，用于媒体文件                        |
-| **Cron Triggers** | Cloudflare Workers 的定时任务功能，用于定时拉取行情数据        |
+## Feed 与公开足迹
 
----
+### 原生内容与足迹关系
 
-## 设计与风格
+```text
+碎碎念 / 剪藏
+    → Feed 原生记录
+                         ┐
+足迹来源事件             ├→ Public Timeline → /feed
+    → Public Footprint  ┘
+```
 
-| 术语                      | 含义                                                                                                                                                  |
-| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **艺术温暖**              | 全站视觉基调：偏艺术、有温度、不极简，设计阶段用 AI 工具定稿                                                                                          |
-| **暖性地质宇宙**          | Home 五颗星球共享的材质体系：真实光照与体积为基础，奶油、砂岩、陶土和浅矿物为地表底色，各星球以不同主地貌区分                                         |
-| **星球节点**              | About、Blog、Feed、Learn、Projects 在 Home 星图中的完整天体入口；总览显示全貌，触发后进入对应 Planet Focus                                            |
-| **Planet Focus**          | Home 内可停留的单星观察状态：显露同一星球的高细节近景、标题、极短说明与 action；不加载板块内容，也不是星球详情页                                      |
-| **Focus action**          | Planet Focus 中的明确目的地动作；功能星球触发后执行 Planet Push 并进入对应页面，About 则进入 Home 原地展开态                                          |
-| **Home Activity Signal**  | Home 仅消费的最小板块活动状态投影：Blog、Feed、Learn、Projects 各为 active、stable 或 dormant；不含内容、精确时间、数量或访客未读语义                 |
-| **信号卫星**              | 四颗功能星球附近低音量的 Klein Blue 活动／焦点标记；依据 Home Activity Signal 表达状态，只在进入视野、hover 或 focus 时短暂反馈，不读取或展示具体内容 |
-| **豹猫卫星**              | About 专属的个人签名元素；靠近后显现行走侧影，可通过两次点击触发蓄能、局部粒子爆开并进入 About 展开态                                                 |
-| **鼠标流星尾**            | 跟随精细指针的个人交互签名；Home 完整、Content 弱化、Finance 关闭，与 DISCOVER MORE 的一次性引导流星不同                                              |
-| **About 展开态**          | Home 内 About 信息在星球附近出现的原地展开状态；可由直接点击 About 星球或豹猫彩蛋进入，关闭后恢复星图                                                 |
-| **Entry Display**         | Home 宇宙入口的世界观短句排版角色；替代旧 Hero Display 命名，不承担产品 landing page 式促销标题                                                       |
-| **DESIGN.md**             | 根目录下的全站视觉与交互事实来源；当前锁定版本为 Design 2.1，Phase 4.2 只能验证其参数，不得改变上游产品与架构边界                                     |
-| **prototype**             | Phase 4.2 默认使用的隔离原型 skill；只回答已锁定设计中的参数问题，不得把实验 CSS 直接写入 canonical styles                                            |
-| **依赖基线迁移**          | 核心框架与官方 integration 跨主版本错配时执行的独立基础设施任务；不重开需求、架构或设计阶段，完成升级、最小兼容修改和验证后返回流程治理               |
-| **frontend-rules.md**     | `docs/agents/` 下的前端规则固化文件，Phase 5.0B 产出；涉及前端施工时作为项目规则参考                                                               |
-| **`.anim-fade-up`**       | CSS 动画工具类，元素进入视口时从下方 24px 淡入上浮，animation-timeline: view() 驱动                                                                   |
-| **`.anim-stagger`**       | CSS 动画工具类，父容器子元素逐项错开淡入，基础延迟 80ms                                                                                               |
-| **`.parallax-container`** | CSS 动画工具类，背景/前景层不同速率视差滚动                                                                                                           |
-| **`animation-timeline`**  | CSS 原生滚动驱动动画，view() 函数根据元素在视口中的位置控制动画进度                                                                                   |
-| **CJK 排版**              | 中文排版规则（行高、字间距、标点挤压）。与英文排版不同，需单独覆盖                                                                                    |
+| 术语 | 定义与边界 |
+| --- | --- |
+| **碎碎念** | Feed 原生的个人原创短内容；作为原生记录参与 Public Timeline，不转化为 Public Footprint。 |
+| **剪藏** | Feed 原生的网页收藏，包含链接、自动摘要或封面以及用户评论；作为原生记录参与 Public Timeline，不转化为 Public Footprint。 |
+| **备忘录感** | Feed 的低摩擦发布原则：写完即发、不以编辑和打磨为前置条件；不是技术流程或内容审核规则。 |
+| **足迹来源事件** | Blog、Learn 或 Projects 中满足足迹生成合同、可以产生 Public Footprint 的来源事件。不包含普通编辑、重复部署、碎碎念、剪藏或已经写入的 Public Footprint 记录。旧文档中的“系统足迹事件”统一以本名称为准。 |
+| **Public Footprint（公开足迹）** | 足迹来源事件固化形成的独立记录，保存创建时的来源身份和内容快照，并拥有独立可见性；不等于整个 Feed，也不包含碎碎念和剪藏。来源内容的普通编辑、隐藏或删除不会自动改写或删除该记录。详细存储决策见 [ADR-005](docs/adr/005-public-footprint-separate-storage.md)。 |
+| **Public Timeline（公开时间线）** | Feed 在读取时将原生碎碎念、剪藏与公开足迹统一排序形成的读取投影，也是 `/feed` 面向访客的呈现；不是数据库表，不是 Public Footprint 的别名，也不被 Home 使用。 |
 
----
+## Finance workspace（内部）
 
-## 参考对象
+以下术语仅适用于内部 Finance workspace，不属于公开主站内容或公开站点导航。具体公式、档位、阈值、流程和实现以当前 Finance requirements 与验收文档为准。
 
-| 术语                   | 含义                                                                |
-| ---------------------- | ------------------------------------------------------------------- |
-| **安永全《我的高考》** | 博客写作风格参考：真实个人叙事能量                                  |
-| **LayorX**             | /projects 页面布局参考（卡片网格 + 弹窗）                           |
-| **angular-from-zero**  | /learn 板块结构参考（step-by-step lessons、MISSION.md、track 组织） |
+| 术语 | 简短定义 |
+| --- | --- |
+| **修正迪茨法** | Finance 用于处理期间现金流影响的收益率计算方法。 |
+| **高水位线** | Finance 用于判断历史净值和超额分成基准的参考线。 |
+| **PE 温度计** | 将受支持指数的 PE-TTM 映射为离散估值温度和操作提示的 Finance 估值视图。 |
+| **仓位偏离预警** | 当持仓相对目标范围发生重要偏离时，Finance 提供的状态提示和再平衡提醒。 |
+| **三级熔断** | Finance 的分级风险保护机制；具体级别、触发、解除和沟通规则不在本词汇表定义。 |
+
+详细规则见 [`docs/finance-requirements-20260703.json`](docs/finance-requirements-20260703.json)、[`docs/final-requirements-finance.json`](docs/final-requirements-finance.json) 和 [`docs/acceptance-finance.md`](docs/acceptance-finance.md)。
+
+## 不纳入本词汇表与维护规则
+
+不纳入：
+
+- 普通技术词汇，归 `docs/architecture.md` 及其子文档。
+- 设计施工和实现词汇和依赖基线迁移；归设计、施工、流程治理或实现文档。
+- HEAD、commit SHA、Phase 状态、当前数量、provider、具体阈值、临时功能状态和 release queue。
+
+### Canonical naming
+
+| Canonical term | 允许的语境名称 | 弃用或禁止误读 |
+| --- | --- | --- |
+| Public Timeline | 公开时间线 | 公开足迹时间线 |
+| 足迹来源事件 | — | 系统足迹事件 |
+| 豹猫卫星 | 豹猫星座（仅视觉形态） | HAS 三态信号卫星 |
+| Planet Focus | Focus | 星球详情页 |
+| Entry Display | — | Hero Display |
+
+### 准入与维护
+
+- 术语至少应满足以下一项：跨两个以上权威文档反复使用；横跨产品、架构、设计或实现边界；已经造成 AI agent 误解；或存在需要裁决的别名漂移。
+- 术语事实由对应产品、ADR、架构或设计事实源提供；流程治理负责边界审查、一致性检查和经确认后的同步。
+- Phase 完成不会自动触发术语新增。
+- 公式、流程、实现细节和新的产品、架构、设计决策必须回到对应事实来源。
+- 无法仅凭现有资料裁决的词义冲突标记为“待木下确认”，不在 Glossary 中自行猜测。

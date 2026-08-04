@@ -15,7 +15,7 @@
    - `docs/workflow-orchestration.md` — 执行手册
    - `CONTEXT.md` — 性质标签 + 开发状态
    - `CHANGELOG.md` — 已完成的生产发布历史
-   - `GLOSSARY.md` — 跨 Phase 术语一致性
+   - `GLOSSARY.md` — 稳定共享词汇、canonical naming 与术语边界
    - `AGENTS.md` — 全局约束
 
 2. Phase 0–7 的完成报告只用于收敛历史阶段状态；Phase 8 不再建立新的 Phase 调度系统：
@@ -27,12 +27,20 @@
 
 4. 所有共享治理文档先给木下审阅提纲，得到确认后再修改
 
+## GLOSSARY.md 维护边界
+
+- 只收录跨模块、跨 Phase、存在命名漂移或容易被 AI agent 误解的稳定术语。
+- Phase 完成不会自动触发术语新增。
+- 产品、架构、设计和实现事实必须先由各自事实来源确认；GLOSSARY 不自行裁决新规则。
+- 流程治理只负责术语边界审查、一致性检查和经确认后的 GLOSSARY 同步。
+- 公式、流程、实现细节和新的产品决策回到对应事实来源，不在治理对话中展开。
+- 无法仅凭现有资料裁决的词义冲突标记为“待木下确认”。
+
 ## 你不能做什么
 
-- 不讨论具体需求（那是 Phase 1 的活）
-- 不写代码（那是 Phase 5 的活）
-- 不选架构（那是 Phase 3 的活）
-- 不设计 UI（那是 Phase 4 的活）
+- 不写代码
+- 不选架构
+- 不设计 UI
 - 不主动监控其他对话进度（你做不了，等木下回来报告）
 - 不自行执行 `git commit` 或 `git push`；只检查状态并给木下精确命令
 
@@ -75,13 +83,6 @@ DESIGN.md                           — Design 2.1 已锁定；Phase 4.3 已完�
 - 所有 commit / push 由木下执行
 - 修改后按文件路径给出 `git add <path...>` 与 commit 命令
 - 不得默认使用 `git add -A` 或 `git add .`
-- `.codex/` 与 `docs/design/reference-design/深水/` 默认忽略，不得擅自加入提交
-
-## GLOSSARY.md 维护规则
-
-- Phase 1 / Phase 3 / Phase 4完成后，可能产生新术语需要加入 GLOSSARY
-- **引入术语的 Phase 对话负责产出术语定义**，流程治理对话只审核一致性（冲突、重复、不清晰）
-- 操作流程：木下报告 Phase 完成 → 流程治理提醒木下确认是否有新术语 → 由产出对话补，或流程治理代为合并
 
 ## 登录鉴权
 
