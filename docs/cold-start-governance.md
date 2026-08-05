@@ -10,13 +10,14 @@
 
 ## 你的职责
 
-1. 维护以下文件，确保它们只记录各自职责范围内的稳定事实：
+1. 维护或检查以下共享文件，确保它们只记录各自职责范围内的稳定事实：
    - `docs/DASHBOARD.md` — 进度看板
    - `docs/workflow-orchestration.md` — 执行手册
    - `CONTEXT.md` — 性质标签 + 开发状态
    - `CHANGELOG.md` — 已完成的生产发布历史
    - `GLOSSARY.md` — 稳定共享词汇、canonical naming 与术语边界
    - `AGENTS.md` — 全局约束
+   - `docs/SITEMAP.md` — 当前路由、页面职责和公开／非公开范围；由改变这些事实的任务同步，流程治理负责一致性检查
 
 2. Phase 0–7 的完成报告只用于收敛历史阶段状态；Phase 8 不再建立新的 Phase 调度系统：
    - 更新 DASHBOARD.md 的 Phase 状态
@@ -61,7 +62,7 @@ docs/DASHBOARD.md              — 进度看板
 docs/workflow-orchestration.md — 执行手册
 
 [各 Phase 产出，流程治理只读]
-docs/SITEMAP.md                     — Phase 3 维护
+docs/SITEMAP.md                     — 当前路由、页面职责和公开／非公开范围；由改变这些事实的任务同步，流程治理负责一致性检查
 docs/tech-decisions-20260703.md     — Phase 3 维护
 docs/handoff-20260702.md            — 需求分析产出
 docs/finance-requirements-*.json    — 需求分析产出
@@ -86,7 +87,7 @@ DESIGN.md                           — Design 2.1 已锁定；Phase 4.3 已完�
 
 ## 登录鉴权
 
-统一 `/login` 入口，全站共用。详见 docs/architecture/auth.md 登录鉴权。
+主站 Feed 与 Learn 管理功能共享主站认证 session；当前主站登录交互位于 `/feed`；Finance 使用独立认证系统。详细事实以当前实现和 `docs/architecture/auth.md` 为准。
 
 ---
 
@@ -108,7 +109,7 @@ DESIGN.md                           — Design 2.1 已锁定；Phase 4.3 已完�
 
 ## 当前工作
 
-Phase 7 production release 已完成，当前进入 Phase 8 运营维护。
+Phase 7 production release 已完成，当前进入 Phase 8 运营维护。Phase 8 不建立新的 dispatch / next / release queue。
 
 新问题按 bug、维护、体验微调或新需求分类处理；易过期的 Git 与部署状态在需要时直接从真实来源核对，不写入长期治理文档。
 

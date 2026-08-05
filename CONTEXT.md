@@ -7,12 +7,12 @@
 
 本文档中的每节标注了性质标签：
 
-| 标签         | 含义                     |
-| ------------ | ------------------------ | ----------------------------------------------------------------------------- |
-| `[已锁定]`   | Phase 0 确定的，尽量不改 |
-| `[原型约定   | Phase X 重新裁决]`       | blog 原型阶段的临时约定，进入标注的 Phase 时必须重新审查，有权推翻            |
-| `[定向回流中 | Phase X]`                | 已确认的上游变更正在复核受影响契约；在标注 Phase 闭合前，不得作为最终实现依据 |
-| `[快照       | Phase X 更新]`           | 随项目推进需同步更新                                                          |
+| 标签 | 含义 |
+| --- | --- |
+| `[已锁定]` | Phase 0 确定的，尽量不改 |
+| `[原型约定 \| Phase X 重新裁决]` | blog 原型阶段的临时约定，进入标注的 Phase 时必须重新审查，有权推翻 |
+| `[定向回流中 \| Phase X]` | 已确认的上游变更正在复核受影响契约；在标注 Phase 闭合前，不得作为最终实现依据 |
+| `[快照 \| Phase X 更新]` | 随项目推进需同步更新 |
 
 ---
 
@@ -70,7 +70,7 @@ catstarry.xyz 是木下的个人网站，用 AI 驱动搭建。非程序员用�
 - About 可直接点击星球原地展开；豹猫星座的两次点击蓄能 / 爆开是通往同一展开态的可选彩蛋，不是访问 About 的前置条件。
 - 鼠标流星尾在 Home 完整但克制，在 Content 弱化，在 Finance 关闭；首屏 DISCOVER MORE 流星是另一种一次性引导。
 - Home 不展示最近内容、Public Timeline、标题、摘要、列表或卡片；信号卫星只依据 ADR-007 的最小静态投影表达 `active` / `stable` / `dormant` 三态，视觉和 token 接口已由 Phase 4.1 重锁。
-- Feed 使用单列 Public Timeline；原生 note / clip 与系统足迹可辨认但不暴露物理分存差异。
+- Feed 使用单列 Public Timeline；原生碎碎念、剪藏与 Public Footprint 在其中统一呈现，但不暴露底层物理分存差异。
 
 ### CJK 优先
 
@@ -91,7 +91,9 @@ catstarry.xyz 是木下的个人网站，用 AI 驱动搭建。非程序员用�
 catstarry.xyz/
 ├── src/pages/ # 路由页面（blog/feed/learn/projects/home）
 ├── src/components/ # React islands，按模块分子目录
-├── src/content/ # Astro Content Collections（blog + learn）
+├── src/content.config.ts # Astro Content Collections schema
+├── src/data/blog/ # Blog Content Collection source
+├── src/data/learn/ # Learn Content Collection source
 ├── src/layouts/ # 页面布局（Base/Blog/Feed）
 ├── src/lib/ # 纯前端工具函数
 ├── src/styles/ # 暖色系 CSS 变量
@@ -122,7 +124,7 @@ catstarry.xyz/
 > 以下为 Phase 5/6/7 已采用并通过生产发布的后端实现约定。上线后如发现偏差，应以实际代码、测试与验收结果为准再更新本文档。
 
 - Workers 响应必须包含 CORS 头
-- 鉴权方案见 `docs/architecture/auth.md`：统一 `/login` 入口 + bcrypt + KV session + TTL 24h
+- 主站登录交互位于 `/feed`；`/feed/admin` 与 `/learn/admin` 共享主站认证 session；Finance 使用独立认证系统；当前两套 session 有效期均为 12h。详细事实见 `docs/architecture/auth.md` 与当前实现。
 - 阅读量去重：IP + slug + 日期，KV key TTL 24h
 - D1 表命名：snake_case
 - API 路由：`/api/views` → 扩展为 `/api/feed`、`/api/auth`、`/api/learn`（见 `docs/architecture/modules.md`）。`/api/home` 及其聚合职责已由 ADR-006 退役；blog-metadata KV bridge 同时退役。

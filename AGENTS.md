@@ -34,10 +34,13 @@ These rules apply to coding, implementation, testing, and repository tasks.
 
 - Issue tracker：`.scratch/<feature>/`，见 `docs/agents/issue-tracker.md`。
 - Triage labels：见 `docs/agents/triage-labels.md`。
-- 当前产品事实：`CONTEXT.md`。
-- 架构决策：`docs/adr/`。
-- 项目术语：`GLOSSARY.md`。
-- 技术架构：`docs/architecture.md`。
+- `CONTEXT.md`：Agent 快速上下文和少量长期事实摘要。
+- `GLOSSARY.md`：共享命名、别名和术语边界。
+- `docs/SITEMAP.md`：路由、页面职责和公开／非公开范围。
+- requirements / acceptance：产品需求与验收。
+- `docs/adr/`、`docs/architecture*.md`：架构决策与技术事实。
+- `DESIGN.md`：设计事实。
+- 当前代码和测试：已实现行为的直接证据，但不能自行推翻明确的上游需求或架构决策。
 
 ## 项目与流程
 
@@ -107,6 +110,13 @@ git log -1 --oneline
 
 - Agent 行为、权限和仓库安全：以 `AGENTS.md` 为准。
 - 执行调度和高风险流程：以 `docs/workflow-orchestration.md` 为准。
-- 产品事实和已确认决策：以 `CONTEXT.md` 和对应 ADR 为准。
+- 共享命名、别名和术语边界：以 `GLOSSARY.md` 为准。
+- 路由、页面职责和公开／非公开范围：以 `docs/SITEMAP.md` 为准。
+- 产品行为：以对应 requirements、acceptance 和确认后的任务事实为准。
+- 架构：以 ADR 和 `docs/architecture*.md` 为准。
+- 设计：以 `DESIGN.md` 为准。
+- 实现状态：以当前代码、测试和生产证据为准。
 - Issue 状态：以 triage labels 为准。
+- 不存在一份文档可以跨职责维度覆盖所有其他文档。
+- 如果 Glossary 的命名与上游事实发生冲突，Agent 必须停止并报告冲突，不得擅自选一份覆盖另一份。
 - 无法判断时，说明冲突来源，不得自行覆盖已有决策。

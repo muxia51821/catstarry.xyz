@@ -9,10 +9,12 @@
 
 **「流程治理」对话**是项目的中枢。它不执行任何 Phase，只负责：
 
-- 维护 `DASHBOARD.md`（进度）、`workflow-orchestration.md`（本文件）、`CONTEXT.md`（性质标签 + 状态）、`AGENTS.md`（约束 + Rule Precedence）
+- 维护 `DASHBOARD.md`（进度）、`workflow-orchestration.md`（本文件）、`CONTEXT.md`（快速上下文与少量长期事实）、`AGENTS.md`（全局约束）
+- 维护 `GLOSSARY.md`（共享命名、别名和术语边界）；仅在对应产品、需求、ADR、架构、设计或实现事实确认后同步。
+- 改变路由、页面职责或公开／非公开范围的任务负责同步 `docs/SITEMAP.md`；流程治理负责共享文档一致性检查，不凭空创造产品事实。
 - 审查流程是否合理
 - 协调各 Phase 之间的衔接
-- Rule Precedence 见 `AGENTS.md`：AGENTS.md > workflow-orchestration > CONTEXT.md > triage labels > local heuristics
+- 不同职责维度的冲突按 `AGENTS.md` 的冲突处理规则报告和裁决，不使用单一线性优先级覆盖所有文档。
 
 **触发机制**（手动，非自动）：
 
@@ -331,6 +333,8 @@ Production verification → 在 CHANGELOG.md 追加一条成功 release
 
 - Phase 8 负责判断范围、跨模块影响、发布范围和 production evidence；不默认部署。
 - Deployment Session 负责核查 Git、执行指定组件部署、运行 production smoke 并返回 evidence。
+- 共享命名、别名和术语边界由 `GLOSSARY.md` 记录；只有对应上游事实确认后才同步，流程治理不自行裁决产品、架构、设计或实现规则。
+- 改变路由、页面职责或公开／非公开范围的任务负责同步 `docs/SITEMAP.md`；流程治理只做一致性检查。
 - Site、Blog、Feed、Learn、Finance 等组件可以处于不同 production source；不为追求 SHA 一致而重复部署无变化组件。
 - Git HEAD、待发布 commit 和组件生产 source 等易过期状态，在需要时直接从 Git 与部署平台核对。
 - 已完成的生产发布只记录在 `CHANGELOG.md`；不建立 dispatch、next 或 release queue 文件。
