@@ -43,10 +43,17 @@ assert.match(script, /year: Number\(data\.get\('year'\)\), summary: data\.get\('
 assert.match(html, /<select name="position_category" required>/);
 assert.match(html, /主动操作仓（A股）/);
 assert.match(html, /机动仓（货币ETF）/);
-assert.match(html, /风险与熔断评估/);
+assert.match(html, /风险与自评/);
 assert.match(html, /年终奖金额仅用于基准情景预测/);
 assert.match(html, /data-holdings-summary/);
 assert.match(html, /PE 与温度由行情接入写入/);
+assert.match(html, /data-cash-flows-body/);
+assert.match(html, /data-asset-snapshots-body/);
+assert.match(html, /data-risk-signals-list/);
+assert.match(script, /\/api\/cash-flows/);
+assert.match(script, /\/api\/assets\/snapshots/);
+assert.match(script, /\/api\/risk\/signals/);
+assert.match(html, /风险信号暂时无法读取/);
 assert.doesNotMatch(html, /TODAY'S FLOW|从一笔真实交易开始|data-open-trade-secondary/);
 assert.doesNotMatch(html, /<textarea name="reason" maxlength="2000"/);
 assert.match(html, /name="trade_id" required data-memo-trade-select/);

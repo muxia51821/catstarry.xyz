@@ -169,10 +169,13 @@ tbody tr:last-child td { border-bottom: 0; }
 .text-button { min-height: 30px; padding: 3px 0; border: 0; border-radius: 0; color: var(--green); background: transparent; font-size: 12px; font-weight: 600; }
 .text-button:hover { color: #8fe1ce; background: transparent; transform: none; text-decoration: underline; }
 .text-button--danger { color: var(--status-error); }
-.monthly-list, .memo-list, .rebalance-list { display: grid; gap: var(--space-2); }
+.monthly-list, .memo-list, .rebalance-list, .risk-signal-list { display: grid; gap: var(--space-2); }
 .monthly-row, .memo-row { padding: 12px; border: 1px solid var(--line); border-radius: var(--radius); background: rgba(255,255,255,.018); }
 .monthly-row header { display: flex; justify-content: space-between; gap: var(--space-2); font-family: "JetBrains Mono", ui-monospace, monospace; }
 .monthly-row p, .memo-row p, .rules-list p { margin: 6px 0 0; color: var(--muted); font-size: 13px; line-height: 1.65; }
+.risk-signal-row { display: grid; grid-template-columns: minmax(0, 150px) minmax(0, 1fr); gap: var(--space-3); padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius); background: rgba(255,255,255,.018); }
+.risk-signal-row span { color: var(--muted); font-size: 13px; }
+.risk-signal-row strong { font-size: 13px; line-height: 1.55; overflow-wrap: anywhere; }
 .memo-row header { display: flex; justify-content: space-between; gap: var(--space-2); font-family: "JetBrains Mono", ui-monospace, monospace; }
 .memo-row--editable { cursor: pointer; }
 .memo-row--editable:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
@@ -299,6 +302,7 @@ dialog::backdrop { background: rgba(3, 5, 8, .76); backdrop-filter: blur(5px); }
   .plan-grid { grid-template-columns: 1fr; }
   .trade-snapshot { grid-template-columns: 1fr 1fr; }
   .holdings-overview-grid { grid-template-columns: 1fr; }
+  .risk-signal-row { grid-template-columns: 1fr; gap: 4px; }
   .category-distribution-row { grid-template-columns: minmax(96px, 1fr) minmax(64px, 1.4fr) auto; }
 }
 

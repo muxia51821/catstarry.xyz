@@ -9,6 +9,7 @@ const requests = [];
 let currentRole = null;
 let viewerConfirmed = false;
 let initialSessionRequest = true;
+let riskSignalsFailure = false;
 const fixtures = {
   '/api/auth/session': { authenticated: false, username: null, role: null },
   '/api/holdings': {
@@ -28,6 +29,9 @@ const fixtures = {
   '/api/review': { reviews: [{ year: 2026, summary: 'fixture annual review', calculation: { dietz: { returnRate: .08 } }, confirmed_at: null, confirmed_by: null }] },
   '/api/monthly': { records: [{ id: 1, year_month: '2026-06', muxia_invest: 5000, cati_invest: 0, end_total: 12000, blue_chip_temp: 'normal', summary: 'fixture monthly record' }, { id: 2, year_month: '2026-07', muxia_invest: 5000, cati_invest: 0, end_total: 12600, blue_chip_temp: 'normal', summary: 'fixture monthly record' }] },
   '/api/assets/series': { view: 'month', records: [{ snapshot_date: '2026-06-30', total_value: 12000 }, { snapshot_date: '2026-07-31', total_value: 12600 }], legacy_monthly_records: [] },
+  '/api/cash-flows': { cash_flows: [{ id: 1, occurred_on: '2026-07-28', contributor: 'muxia', flow_type: 'bonus_investment', confirmed_amount: 10000, manager_share_offset: 1000, net_amount: 9000, note: 'fixture cash flow' }] },
+  '/api/assets/snapshots': { snapshots: [{ id: 1, snapshot_at: '2026-07-31T15:00', snapshot_date: '2026-07-31', total_value: 12600, source: 'fixture statement', is_complete: 1, incomplete_reason: null, created_at: '2026-07-31T15:10:00.000Z' }] },
+  '/api/risk/signals': { single_position_loss: null, worst_ticker: null, monthly_drawdown: null, annual_drawdown: null, data_complete: false, missing_reasons: ['完整资产快照不足，组合回撤数据积累中。'], signals: [{ level: 'yellow', reason: 'fixture signal' }] },
   '/api/plan': { plan: { initial_capital: 100000, monthly_invest: 5000, months_year1: 7, months_year2plus: 12, rate_low: .03, rate_base: .06, rate_high: .1, bonus1: 50000, bonus2to4: 35000, start_year: 2026, end_year: 2030, updated_at: '2026-07-25T10:00:00.000Z' } },
   '/api/memos': { memos: [{ id: 1, trade_id: 1, memo_date: '2026-07-24', ticker: '510300', ticker_name: '沪深300ETF', trade_quantity: 100, trade_price: 12, position_category: 'A股宽基指数底仓', operation_type: 'buy', reason: 'fixture memo', note: null, stop_loss_triggered: 0, created_at: '2026-07-24T09:00:00.000Z', updated_at: '2026-07-24T09:00:00.000Z' }] },
   '/api/risk-rules': { rules: [{ rule_key: 'risk', value: { single_position_active_cap: .5, loss_pause_ratio: .15, stop_loss_ratio: .3, rebalance_deviation: .05 } }, { rule_key: 'temperature', value: { freeze: 10, low: 12, normal: 16, high: 20 } }] },
@@ -60,6 +64,7 @@ const server = createServer(async (request, response) => {
     unconfirmed_viewers: [],
     annual_review_due: false,
   });
+  if (url.pathname === '/api/risk/signals' && riskSignalsFailure) return json(response, 503, { message: 'risk signal fixture unavailable' });
   if (url.pathname === '/api/confirmations/monthly' && request.method === 'POST') {
     viewerConfirmed = true;
     return json(response, 200, { created: true, period: '2026-06', username: 'contract-viewer' });
@@ -68,6 +73,25 @@ const server = createServer(async (request, response) => {
   if (url.pathname === '/api/trades/1' && request.method === 'PATCH') return json(response, 200, { updated: true });
   if (url.pathname === '/api/trades/1' && request.method === 'DELETE') return json(response, 200, { deleted: true });
   if (url.pathname === '/api/monthly' && request.method === 'PUT') return json(response, 200, { record: JSON.parse(await readBody(request)) });
+  if (url.pathname === '/api/cash-flows' && request.method === 'POST') {
+    const cashFlow = { id: fixtures['/api/cash-flows'].cash_flows.length + 1, ...JSON.parse(await readBody(request)), net_amount: 1000 };
+    fixtures['/api/cash-flows'].cash_flows.unshift(cashFlow);
+    return json(response, 201, { cash_flow: cashFlow });
+  }
+  if (url.pathname === '/api/cash-flows/1' && request.method === 'PATCH') {
+    Object.assign(fixtures['/api/cash-flows'].cash_flows.find((row) => row.id === 1), JSON.parse(await readBody(request)));
+    return json(response, 200, { updated: true });
+  }
+  if (url.pathname === '/api/cash-flows/1' && request.method === 'DELETE') {
+    fixtures['/api/cash-flows'].cash_flows = fixtures['/api/cash-flows'].cash_flows.filter((row) => row.id !== 1);
+    return json(response, 200, { deleted: true });
+  }
+  if (url.pathname === '/api/assets/snapshots' && request.method === 'POST') {
+    const payload = JSON.parse(await readBody(request));
+    const snapshot = { id: fixtures['/api/assets/snapshots'].snapshots.length + 1, ...payload, snapshot_date: String(payload.snapshot_at).slice(0, 10), total_value: Number(payload.holdings_value) + Number(payload.cash_value), created_at: '2026-08-05T10:00:00.000Z' };
+    fixtures['/api/assets/snapshots'].snapshots.unshift(snapshot);
+    return json(response, 201, { created: true, total_value: snapshot.total_value });
+  }
   if (url.pathname === '/api/plan' && request.method === 'PUT') return json(response, 200, { plan: JSON.parse(await readBody(request)) });
   if (url.pathname === '/api/memos' && request.method === 'POST') return json(response, 201, { memo: JSON.parse(await readBody(request)) });
   if (url.pathname === '/api/memos/1' && request.method === 'PATCH') { Object.assign(fixtures['/api/memos'].memos[0], JSON.parse(await readBody(request)), { updated_at: '2026-07-30T10:00:00.000Z' }); return json(response, 200, { memo: fixtures['/api/memos'].memos[0] }); }
@@ -172,6 +196,9 @@ try {
     accessRows: document.querySelectorAll('[data-access-list] p').length,
     importReviewRows: document.querySelectorAll('[data-import-review-list] article').length,
     monthlyRows: document.querySelectorAll('[data-monthly-list] article').length,
+    cashFlowRows: document.querySelectorAll('[data-cash-flows-body] tr').length,
+    assetSnapshotRows: document.querySelectorAll('[data-asset-snapshots-body] tr').length,
+    riskSignalRows: document.querySelectorAll('[data-risk-signals-list] article').length,
     planValues: document.querySelectorAll('[data-plan-overview] strong').length,
     memoRows: document.querySelectorAll('[data-memo-list] article').length,
     accessCollapsed: !document.querySelector('[data-access-panel]').open,
@@ -265,6 +292,33 @@ try {
   await waitFor(`!document.querySelector('[data-trade-dialog]').open`, 'trade edit completion');
   await evaluate(`(() => { window.confirm = () => true; document.querySelector('[data-delete-trade="1"]').click(); })()`);
   await delay(250);
+
+  await evaluate(`document.querySelector('[data-open-cash-flow]').click()`);
+  await waitFor(`document.querySelector('[data-cash-flow-dialog]').open`, 'cash flow dialog');
+  await evaluate(`(() => { const form = document.querySelector('[data-cash-flow-form]'); form.elements.confirmed_amount.value = '1234'; form.elements.note.value = 'new fixture cash flow'; form.requestSubmit(); })()`);
+  await waitFor(`!document.querySelector('[data-cash-flow-dialog]').open && document.querySelectorAll('[data-cash-flows-body] tr').length === 2`, 'cash flow creation refresh');
+  await evaluate(`document.querySelector('[data-edit-cash-flow="1"]').click()`);
+  await waitFor(`document.querySelector('[data-cash-flow-dialog]').open && document.querySelector('[data-cash-flow-dialog] h2').textContent === '编辑真实现金流'`, 'cash flow edit dialog');
+  await evaluate(`(() => { const form = document.querySelector('[data-cash-flow-form]'); form.elements.note.value = 'updated fixture cash flow'; form.requestSubmit(); })()`);
+  await waitFor(`!document.querySelector('[data-cash-flow-dialog]').open`, 'cash flow edit completion');
+  await evaluate(`(() => { window.confirm = () => true; document.querySelector('[data-delete-cash-flow="1"]').click(); })()`);
+  await waitFor(`document.querySelectorAll('[data-cash-flows-body] tr').length === 1`, 'cash flow deletion refresh');
+  diagnostics.checks.cashFlows = await evaluate(`({ rows: document.querySelectorAll('[data-cash-flows-body] tr').length, netAmount: document.querySelector('[data-cash-flows-body] tr td:nth-child(6)')?.textContent, adminActions: document.querySelectorAll('[data-edit-cash-flow], [data-delete-cash-flow]').length })`);
+
+  const assetSeriesRequestsBeforeSnapshot = requests.filter((item) => item.pathname === '/api/assets/series').length;
+  await evaluate(`document.querySelector('[data-open-asset-snapshot]').click()`);
+  await waitFor(`document.querySelector('[data-asset-snapshot-dialog]').open`, 'asset snapshot dialog');
+  await evaluate(`(() => { const form = document.querySelector('[data-asset-snapshot-form]'); form.elements.source.value = 'new fixture statement'; form.elements.holdings_value.value = '10000'; form.elements.cash_value.value = '2000'; form.requestSubmit(); })()`);
+  await waitFor(`!document.querySelector('[data-asset-snapshot-dialog]').open && document.querySelectorAll('[data-asset-snapshots-body] tr').length === 2`, 'asset snapshot creation refresh');
+  diagnostics.checks.assetSnapshots = await evaluate(`({ rows: document.querySelectorAll('[data-asset-snapshots-body] tr').length, hasReadOnlyActions: document.querySelectorAll('[data-asset-snapshots-body] button').length === 0 })`);
+  assert.ok(requests.filter((item) => item.pathname === '/api/assets/series').length > assetSeriesRequestsBeforeSnapshot, 'saving an asset snapshot must refresh the total-asset series');
+
+  diagnostics.checks.riskSignals = await evaluate(`({ rows: document.querySelectorAll('[data-risk-signals-list] article').length, signal: document.querySelector('[data-risk-signals-list] article:last-child strong')?.textContent, incomplete: document.querySelector('[data-risk-signals-list]')?.textContent.includes('数据积累中') })`);
+  riskSignalsFailure = true;
+  await evaluate(`document.querySelector('[data-refresh]').click()`);
+  await waitFor(`!document.querySelector('[data-risk-signals-error]').hidden && document.querySelector('[data-total-value]').textContent !== '—'`, 'risk signal failure isolation');
+  diagnostics.checks.riskSignalsFailureIsolated = true;
+  riskSignalsFailure = false;
 
   for (const [trigger, dialog] of [['[data-open-monthly]', '[data-monthly-dialog]'], ['[data-open-plan]', '[data-plan-dialog]'], ['[data-open-memo]', '[data-memo-dialog]'], ['[data-open-rules]', '[data-rules-dialog]']]) {
     await evaluate(`document.querySelector('${trigger}').click()`);
@@ -428,6 +482,7 @@ try {
     reviewHidden: document.querySelector('[data-open-review]').hidden,
     exportHidden: document.querySelector('[data-export-archive]').hidden,
     riskHidden: document.querySelector('[data-open-risk]').hidden,
+    cashFlowActions: document.querySelectorAll('[data-edit-cash-flow], [data-delete-cash-flow]').length,
     prompt: document.querySelector('[data-notification-copy]').textContent,
     appInert: document.querySelector('[data-app]').inert,
   })`);
@@ -458,6 +513,9 @@ try {
     accessRows: 1,
     importReviewRows: 1,
     monthlyRows: 2,
+    cashFlowRows: 1,
+    assetSnapshotRows: 1,
+    riskSignalRows: 7,
     planValues: 4,
     memoRows: 1,
     accessCollapsed: true,
@@ -484,6 +542,10 @@ try {
   assert.deepEqual(diagnostics.checks.tradeEntry, { remainsOpen: true, dateRetained: true, categoryRetained: true, tickerCleared: true, totalReset: true, focus: true });
   assert.deepEqual(diagnostics.checks.modalRestored, { background: true, focus: true });
   assert.deepEqual(diagnostics.checks.management, { editAvailable: true, monthlyEntryAvailable: true, planEntryAvailable: true, memoEntryAvailable: true, rulesEntryAvailable: true });
+  assert.deepEqual(diagnostics.checks.cashFlows, { rows: 1, netAmount: '¥1,000.00', adminActions: 2 });
+  assert.deepEqual(diagnostics.checks.assetSnapshots, { rows: 2, hasReadOnlyActions: true });
+  assert.deepEqual(diagnostics.checks.riskSignals, { rows: 7, signal: '黄色关注', incomplete: true });
+  assert.equal(diagnostics.checks.riskSignalsFailureIsolated, true);
   assert.equal(diagnostics.checks.tabs.every((item) => item.active && item.visible), true, 'each Finance path must expose its own pane');
   assert.equal(diagnostics.checks.tradeFilters, true);
   assert.deepEqual(diagnostics.checks.memoTradeLink, { required: true, options: 2, snapshot: '交易日期2026-07-24标的510300 · 沪深300ETF买入或卖出买入成交数量100成交价格¥12.00成交金额¥1,200.00仓位类别A股宽基指数', checkboxCompact: true });
@@ -502,6 +564,7 @@ try {
     reviewHidden: true,
     exportHidden: true,
     riskHidden: true,
+    cashFlowActions: 0,
     prompt: '',
     appInert: false,
   });
@@ -514,6 +577,10 @@ try {
   assert.equal(requests.filter((item) => item.method === 'DELETE' && item.pathname === '/api/trades/1').length, 1);
   assert.equal(requests.filter((item) => item.method === 'PATCH' && item.pathname === '/api/memos/1').length, 1);
   assert.equal(requests.filter((item) => item.method === 'DELETE' && item.pathname === '/api/memos/1').length, 1);
+  assert.equal(requests.filter((item) => item.method === 'POST' && item.pathname === '/api/cash-flows').length, 1);
+  assert.equal(requests.filter((item) => item.method === 'PATCH' && item.pathname === '/api/cash-flows/1').length, 1);
+  assert.equal(requests.filter((item) => item.method === 'DELETE' && item.pathname === '/api/cash-flows/1').length, 1);
+  assert.equal(requests.filter((item) => item.method === 'POST' && item.pathname === '/api/assets/snapshots').length, 1);
   assert.equal(requests.filter((item) => item.method === 'POST' && item.pathname === '/api/confirmations/monthly').length, 1);
   assert.equal(requests.filter((item) => item.method === 'POST' && item.pathname === '/api/review/confirm').length, 1);
   assert.equal(requests.filter((item) => item.method === 'POST' && item.pathname === '/api/rebalances/1/confirm').length, 1);

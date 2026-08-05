@@ -36,7 +36,7 @@ const CATEGORY_ALIASES = new Map([
 ]);
 const state = {
   session: null, holdings: null, trades: [], pe: [], circuit: null, reviews: [], notifications: null,
-  accessLog: [], importReview: [], monthly: [], assetSeries: null, assetView: 'month', plan: null, memos: [], rules: [], rebalances: [], editingTrade: null, editingMemo: null,
+  accessLog: [], importReview: [], monthly: [], cashFlows: [], assetSnapshots: [], riskSignals: null, cashFlowsError: null, assetSnapshotsError: null, riskSignalsError: null, assetSeries: null, assetView: 'month', plan: null, memos: [], rules: [], rebalances: [], editingTrade: null, editingMemo: null, editingCashFlow: null,
   tradePaging: { cursors: [null], nextCursor: null, page: 0 }, accessPaging: { cursors: [null], nextCursor: null, page: 0 },
 };
 const viewerGuidance = { hasVisitedHoldings: false, monthlyPromptShown: false };
@@ -120,13 +120,24 @@ async function loadDashboard() {
     state.importReview = [];
   }
   state.assetSeries = await request(`/api/assets/series?view=${state.assetView}`).catch(() => null);
+  const optional = await Promise.all([
+    request('/api/cash-flows').then((data) => ({ data, error: null })).catch((error) => ({ data: null, error })),
+    request('/api/assets/snapshots').then((data) => ({ data, error: null })).catch((error) => ({ data: null, error })),
+    request('/api/risk/signals').then((data) => ({ data, error: null })).catch((error) => ({ data: null, error })),
+  ]);
+  state.cashFlows = optional[0].data?.cash_flows ?? [];
+  state.cashFlowsError = optional[0].error;
+  state.assetSnapshots = optional[1].data?.snapshots ?? [];
+  state.assetSnapshotsError = optional[1].error;
+  state.riskSignals = optional[2].data;
+  state.riskSignalsError = optional[2].error;
   renderDashboard();
   setStatus($('[data-dashboard-status]'), '');
 }
 
 function renderDashboard() {
   state.tradePaging.cursors = [null]; state.tradePaging.page = 0; state.accessPaging.cursors = [null]; state.accessPaging.page = 0;
-  renderCircuitBanner(); renderSummary(); renderOverview(); renderHoldings(); renderPositions(); renderPe(); renderTrades(); renderMonthly(); renderPlan(); renderReviews(); renderMemos(); renderRules(); renderAccessLog(); renderImportReview();
+  renderCircuitBanner(); renderSummary(); renderOverview(); renderHoldings(); renderPositions(); renderPe(); renderTrades(); renderMonthly(); renderCashFlows(); renderAssetSnapshots(); renderPlan(); renderReviews(); renderRiskSignals(); renderMemos(); renderRules(); renderAccessLog(); renderImportReview();
 }
 
 function renderCircuitBanner() {
@@ -263,6 +274,42 @@ function renderMonthly() {
   for (const button of $$('[data-delete-monthly]')) button.addEventListener('click', () => deleteMonthly(Number(button.dataset.deleteMonthly)));
 }
 
+const CASH_FLOW_TYPES = {
+  monthly_investment: '月度投入', bonus_investment: '奖金投入', additional_investment: '额外投入', withdrawal: '取出', adjustment: '调整',
+};
+const CONTRIBUTORS = { muxia: '木下', cati: 'cati' };
+
+function renderCashFlows() {
+  const rows = state.cashFlows ?? [];
+  replace($('[data-cash-flows-body]'), rows.slice(0, 12).map((row) => el('tr', {},
+    el('td', { className: 'table-data', text: row.occurred_on || '—' }),
+    el('td', { text: CONTRIBUTORS[row.contributor] ?? row.contributor ?? '—' }),
+    el('td', { text: CASH_FLOW_TYPES[row.flow_type] ?? row.flow_type ?? '—' }),
+    el('td', { className: 'table-data', text: valueOrDash(row.confirmed_amount, money) }),
+    el('td', { className: 'table-data', text: valueOrDash(row.manager_share_offset, money) }),
+    el('td', { className: 'table-data', text: valueOrDash(row.net_amount, money) }),
+    el('td', { text: row.note || '—' }),
+    el('td', {}, isAdmin() ? el('div', { className: 'row-actions' }, el('button', { className: 'text-button', text: '编辑', attrs: { type: 'button' }, dataset: { editCashFlow: row.id } }), el('button', { className: 'text-button text-button--danger', text: '删除', attrs: { type: 'button' }, dataset: { deleteCashFlow: row.id } })) : null),
+  )));
+  $('[data-cash-flows-empty]').hidden = Boolean(state.cashFlowsError) || rows.length > 0;
+  $('[data-cash-flows-error]').hidden = !state.cashFlowsError;
+  for (const button of $$('[data-edit-cash-flow]')) button.addEventListener('click', () => openCashFlowEdit(Number(button.dataset.editCashFlow), button));
+  for (const button of $$('[data-delete-cash-flow]')) button.addEventListener('click', () => deleteCashFlow(Number(button.dataset.deleteCashFlow)));
+}
+
+function renderAssetSnapshots() {
+  const rows = state.assetSnapshots ?? [];
+  replace($('[data-asset-snapshots-body]'), rows.slice(0, 12).map((row) => el('tr', {},
+    el('td', { className: 'table-data', text: row.snapshot_at || row.snapshot_date || '—' }),
+    el('td', { className: 'table-data', text: valueOrDash(row.total_value, money) }),
+    el('td', { text: Number(row.is_complete) === 1 ? '完整' : '不完整' }),
+    el('td', { text: row.incomplete_reason || row.source || '—' }),
+    el('td', { className: 'table-data', text: row.created_at || '—' }),
+  )));
+  $('[data-asset-snapshots-empty]').hidden = Boolean(state.assetSnapshotsError) || rows.length > 0;
+  $('[data-asset-snapshots-error]').hidden = !state.assetSnapshotsError;
+}
+
 function renderPlan() {
   const plan = state.plan; const configured = Boolean(plan?.updated_at);
   replace($('[data-plan-overview]'), configured ? [el('div', { className: 'plan-grid' }, ...[['起始资金', valueOrDash(plan.initial_capital, money)], ['每月投入', valueOrDash(plan.monthly_invest, money)], ['基准年化', formatPercent(plan.rate_base)], ['周期', `${plan.start_year}–${plan.end_year}`]].map(([label, value]) => el('span', { text: label }, el('strong', { text: value }))))] : []);
@@ -303,6 +350,23 @@ function renderReviews() {
   replace($('[data-review-list]'), rows.slice(0, 3).map((row) => el('article', { className: 'review-row' }, el('header', {}, el('strong', { text: `${row.year} 年` }), el('span', { text: row.confirmed_at ? '已确认' : '待确认' })), el('p', { text: row.summary || '没有文字总结。' }), el('p', { text: `回报 ${formatPercent(row.calculation?.dietz?.returnRate)}` }), !isAdmin() && !row.confirmed_at ? el('button', { className: 'button-secondary', text: '确认年度复盘', attrs: { type: 'button' }, dataset: { confirmReview: row.year } }) : null)));
   $('[data-review-empty]').hidden = rows.length > 0;
   for (const button of $$('[data-confirm-review]')) button.addEventListener('click', () => confirmReview(Number(button.dataset.confirmReview), button));
+}
+
+function renderRiskSignals() {
+  const error = state.riskSignalsError;
+  const signals = state.riskSignals;
+  const rows = error || !signals ? [] : [
+    ['单标的最大亏损', signals.single_position_loss === null || signals.single_position_loss === undefined ? '数据积累中' : formatPercent(signals.single_position_loss)],
+    ['对应标的', signals.worst_ticker?.ticker_name || signals.worst_ticker?.ticker || '数据积累中'],
+    ['月度回撤', signals.monthly_drawdown === null || signals.monthly_drawdown === undefined ? '数据积累中' : formatPercent(signals.monthly_drawdown)],
+    ['年度回撤', signals.annual_drawdown === null || signals.annual_drawdown === undefined ? '数据积累中' : formatPercent(signals.annual_drawdown)],
+    ['数据完整性', signals.data_complete ? '完整' : '数据积累中'],
+    ['数据缺失原因', signals.missing_reasons?.length ? signals.missing_reasons.join('；') : '—'],
+    ['当前信号', signals.signals?.some((signal) => signal.level === 'stop_loss') ? '强制止损提示' : signals.signals?.some((signal) => signal.level === 'yellow') ? '黄色关注' : '无信号'],
+  ];
+  replace($('[data-risk-signals-list]'), rows.map(([label, value]) => el('article', { className: 'risk-signal-row' }, el('span', { text: label }), el('strong', { text: value }))));
+  $('[data-risk-signals-empty]').hidden = Boolean(error) || Boolean(signals);
+  $('[data-risk-signals-error]').hidden = !error;
 }
 
 function renderAccessLog() {
@@ -426,7 +490,27 @@ function connectPostDialog(selector, triggerSelector, fill, path, normalize) {
   for (const trigger of $$(triggerSelector)) trigger.addEventListener('click', () => { form.reset(); fill(form); setStatus($('.form-status', dialog), ''); openDialog(dialog, trigger); });
   form.addEventListener('submit', async (event) => { event.preventDefault(); const submit = $('button[type="submit"]', form); const status = $('.form-status', dialog); submit.disabled = true; try { await request(path, { method: 'POST', body: JSON.stringify(normalize(Object.fromEntries(new FormData(form)), form)) }); setDialogOpen(dialog, false); await loadDashboard(); } catch (error) { setStatus(status, error.message, 'error'); } finally { submit.disabled = false; } });
 }
-connectPostDialog('[data-cash-flow-dialog]', '[data-open-cash-flow]', (form) => { form.elements.occurred_on.value = localDateForInput(); form.elements.manager_share_offset.value = '0'; }, '/api/cash-flows', (data) => data);
+const cashFlowDialog = $('[data-cash-flow-dialog]'); const cashFlowForm = $('[data-cash-flow-form]');
+function openCashFlowNew(trigger) {
+  state.editingCashFlow = null; cashFlowForm.reset(); cashFlowForm.elements.occurred_on.value = localDateForInput(); cashFlowForm.elements.manager_share_offset.value = '0';
+  $('h2', cashFlowDialog).textContent = '记录真实现金流'; $('button[type="submit"]', cashFlowForm).textContent = '保存现金流'; setStatus($('.form-status', cashFlowDialog), ''); openDialog(cashFlowDialog, trigger);
+}
+function openCashFlowEdit(id, trigger) {
+  const cashFlow = state.cashFlows.find((row) => Number(row.id) === id); if (!cashFlow) return;
+  state.editingCashFlow = cashFlow; cashFlowForm.reset(); for (const [key, value] of Object.entries(cashFlow)) if (cashFlowForm.elements[key]) cashFlowForm.elements[key].value = value ?? '';
+  $('h2', cashFlowDialog).textContent = '编辑真实现金流'; $('button[type="submit"]', cashFlowForm).textContent = '保存修改'; setStatus($('.form-status', cashFlowDialog), ''); openDialog(cashFlowDialog, trigger);
+}
+for (const trigger of $$('[data-open-cash-flow]')) trigger.addEventListener('click', (event) => openCashFlowNew(event.currentTarget));
+cashFlowForm.addEventListener('submit', async (event) => {
+  event.preventDefault(); const submit = $('button[type="submit"]', cashFlowForm); const status = $('.form-status', cashFlowDialog); submit.disabled = true;
+  try { const editing = state.editingCashFlow; await request(editing ? `/api/cash-flows/${editing.id}` : '/api/cash-flows', { method: editing ? 'PATCH' : 'POST', body: JSON.stringify(Object.fromEntries(new FormData(cashFlowForm))) }); setDialogOpen(cashFlowDialog, false); await loadDashboard(); }
+  catch (error) { setStatus(status, error.message, 'error'); } finally { submit.disabled = false; }
+});
+async function deleteCashFlow(id) {
+  if (!window.confirm('删除后会保留审计记录，是否继续？')) return;
+  try { await request(`/api/cash-flows/${id}`, { method: 'DELETE', body: '{}' }); await loadDashboard(); setStatus($('[data-dashboard-status]'), '现金流已删除。', 'success'); }
+  catch (error) { setStatus($('[data-dashboard-status]'), error.message, 'error'); }
+}
 connectPostDialog('[data-asset-snapshot-dialog]', '[data-open-asset-snapshot]', (form) => { form.elements.snapshot_at.value = new Date().toISOString().slice(0, 16); form.elements.is_complete.checked = true; }, '/api/assets/snapshots', (data, form) => ({ ...data, is_complete: form.elements.is_complete.checked }));
 const memoDialog = $('[data-memo-dialog]'); const memoForm = $('[data-memo-form]');
 $('[data-open-memo]').addEventListener('click', (event) => openMemoNew(event.currentTarget));

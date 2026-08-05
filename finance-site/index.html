@@ -100,12 +100,30 @@
           <section class="panel panel--action" data-pane="review" aria-labelledby="review-title">
             <header class="panel-header"><div><p class="eyebrow">REVIEW / RISK</p><h2 id="review-title">复盘与风险</h2></div></header>
             <div class="review-list" data-review-list></div><p class="empty-state" data-review-empty hidden>还没有已计算的年度复盘。</p>
-            <div class="action-stack"><button type="button" data-open-review hidden>计算年度复盘</button><button class="button-secondary" type="button" data-open-risk hidden>风险与熔断评估</button><p class="action-note">依据手动核查的账户回撤、单标的亏损和共同异议判断；提交可能写入正式熔断状态。</p><button class="button-secondary" type="button" data-export-archive hidden>导出 Excel</button></div>
+            <div class="action-stack"><button type="button" data-open-review hidden>计算年度复盘</button><button class="button-secondary" type="button" data-open-risk hidden>风险与自评</button><p class="action-note">依据手动核查的账户回撤、单标的亏损和共同异议判断；提交可能写入正式熔断状态。</p><button class="button-secondary" type="button" data-export-archive hidden>导出 Excel</button></div>
+          </section>
+
+          <section class="panel panel--span-2" data-pane="review" aria-labelledby="risk-signals-title">
+            <header class="panel-header"><div><p class="eyebrow">AUTOMATIC SIGNALS</p><h2 id="risk-signals-title">自动风险信号</h2></div></header>
+            <div class="risk-signal-list" data-risk-signals-list></div><p class="empty-state" data-risk-signals-empty hidden>数据积累中</p><p class="empty-state" data-risk-signals-error hidden>风险信号暂时无法读取</p>
           </section>
 
           <section class="panel" data-pane="planning" aria-labelledby="monthly-title">
-            <header class="panel-header"><div><p class="eyebrow">MONTHLY</p><h2 id="monthly-title">月度记录</h2></div><div class="panel-actions"><button class="button-secondary" type="button" data-open-cash-flow hidden>记录现金流</button><button class="button-secondary" type="button" data-open-asset-snapshot hidden>记录资产快照</button><button class="button-secondary" type="button" data-open-monthly hidden>维护</button></div></header>
+            <header class="panel-header"><div><p class="eyebrow">MONTHLY SUMMARY</p><h2 id="monthly-title">月度总结与历史记录</h2></div><div class="panel-actions"><button class="button-secondary" type="button" data-open-monthly hidden>维护</button></div></header>
+            <p class="panel-copy">保留既有月度总结；真实资金流与账户总资产分别记录在下方。</p>
             <div class="monthly-list" data-monthly-list></div><p class="empty-state" data-monthly-empty hidden>还没有月度记录。</p>
+          </section>
+
+          <section class="panel panel--span-2" data-pane="planning" aria-labelledby="cash-flows-title">
+            <header class="panel-header"><div><p class="eyebrow">ACTUAL CASH FLOW</p><h2 id="cash-flows-title">现金流记录</h2></div><button class="button-secondary" type="button" data-open-cash-flow hidden>记录现金流</button></header>
+            <div class="table-scroll"><table><thead><tr><th>日期</th><th>贡献人</th><th>类型</th><th>确认金额</th><th>管理者分成抵扣</th><th>净投入</th><th>备注</th><th>操作</th></tr></thead><tbody data-cash-flows-body></tbody></table></div>
+            <p class="empty-state" data-cash-flows-empty hidden>还没有真实现金流记录。</p><p class="empty-state" data-cash-flows-error hidden>现金流记录暂时无法读取</p>
+          </section>
+
+          <section class="panel panel--span-2" data-pane="planning" aria-labelledby="asset-snapshots-title">
+            <header class="panel-header"><div><p class="eyebrow">ASSET SNAPSHOT</p><h2 id="asset-snapshots-title">资产快照</h2></div><button class="button-secondary" type="button" data-open-asset-snapshot hidden>记录资产快照</button></header>
+            <div class="table-scroll"><table><thead><tr><th>快照日期</th><th>总资产</th><th>完整性</th><th>备注</th><th>创建时间</th></tr></thead><tbody data-asset-snapshots-body></tbody></table></div>
+            <p class="empty-state" data-asset-snapshots-empty hidden>还没有资产快照。</p><p class="empty-state" data-asset-snapshots-error hidden>资产快照暂时无法读取</p>
           </section>
 
           <section class="panel" data-pane="planning" aria-labelledby="plan-title">
