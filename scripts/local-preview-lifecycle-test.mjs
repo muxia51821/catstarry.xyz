@@ -211,6 +211,8 @@ const staleDirectory = await mkdtemp(path.join(os.tmpdir(), 'catstarry-local-pre
 await writeFile(path.join(staleDirectory, ownerFile), JSON.stringify({ pid: 2147483647, created_at: new Date(0).toISOString() }));
 
 let preview;
+let externallyStoppedPreview;
+let legacyStoppedPreview;
 try {
   preview = spawnPreview(['--check-only']);
   const checkOnly = await waitForExit(preview);
@@ -235,6 +237,45 @@ try {
   assert.deepEqual(await Promise.all([portIsAvailable(sitePort), portIsAvailable(feedPort), portIsAvailable(financePort)]), [true, true, true]);
   assert.equal(await exists(gracefulDirectory), false, 'a graceful stop must remove its own temporary state');
 
+  const [stopSitePort, stopFeedPort, stopFinancePort] = await freePorts(3);
+  const stopEnvironment = {
+    SITE_PREVIEW_PORT: String(stopSitePort),
+    FEED_PREVIEW_PORT: String(stopFeedPort),
+    FINANCE_PREVIEW_PORT: String(stopFinancePort),
+  };
+  externallyStoppedPreview = spawnPreview([], stopEnvironment);
+  const externallyStoppedDirectory = await waitForOwnerDirectory(externallyStoppedPreview);
+  await waitForOutput(externallyStoppedPreview, /Local previews are ready:/);
+  const stopCommand = spawnPreview(['--stop'], stopEnvironment);
+  const stopCommandExit = await waitForExit(stopCommand);
+  assert.deepEqual(stopCommandExit, { code: 0, signal: null }, stopCommand.output());
+  await waitForExit(externallyStoppedPreview);
+  assert.match(stopCommand.output(), /Stopped local preview/);
+  assert.deepEqual(await Promise.all([portIsAvailable(stopSitePort), portIsAvailable(stopFeedPort), portIsAvailable(stopFinancePort)]), [true, true, true]);
+  assert.equal(await exists(externallyStoppedDirectory), false, 'preview:stop must remove the targeted preview state');
+  externallyStoppedPreview = null;
+
+  const [legacySitePort, legacyFeedPort, legacyFinancePort] = await freePorts(3);
+  const legacyEnvironment = {
+    SITE_PREVIEW_PORT: String(legacySitePort),
+    FEED_PREVIEW_PORT: String(legacyFeedPort),
+    FINANCE_PREVIEW_PORT: String(legacyFinancePort),
+  };
+  legacyStoppedPreview = spawnPreview([], legacyEnvironment);
+  const legacyDirectory = await waitForOwnerDirectory(legacyStoppedPreview);
+  await waitForOutput(legacyStoppedPreview, /Local previews are ready:/);
+  const legacyOwner = JSON.parse(await readFile(path.join(legacyDirectory, ownerFile), 'utf8'));
+  delete legacyOwner.ports;
+  await writeFile(path.join(legacyDirectory, ownerFile), JSON.stringify(legacyOwner));
+  const legacyStopCommand = spawnPreview(['--stop'], legacyEnvironment);
+  const legacyStopExit = await waitForExit(legacyStopCommand);
+  assert.deepEqual(legacyStopExit, { code: 0, signal: null }, legacyStopCommand.output());
+  await waitForExit(legacyStoppedPreview);
+  assert.match(legacyStopCommand.output(), /Stopped local preview/);
+  assert.deepEqual(await Promise.all([portIsAvailable(legacySitePort), portIsAvailable(legacyFeedPort), portIsAvailable(legacyFinancePort)]), [true, true, true]);
+  assert.equal(await exists(legacyDirectory), false, 'preview:stop must safely recover one legacy preview state');
+  legacyStoppedPreview = null;
+
   const [forceSitePort, forceFeedPort, forceFinancePort] = await freePorts(3);
   preview = spawnPreview([], {
     SITE_PREVIEW_PORT: String(forceSitePort),
@@ -258,5 +299,7 @@ try {
   console.log('Local preview lifecycle contract passed.');
 } finally {
   if (preview) await stopProcessTree(preview.child);
+  if (externallyStoppedPreview) await stopProcessTree(externallyStoppedPreview.child);
+  if (legacyStoppedPreview) await stopProcessTree(legacyStoppedPreview.child);
   await rm(staleDirectory, { recursive: true, force: true });
 }

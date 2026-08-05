@@ -41,6 +41,7 @@
     "test:preview:local": "node scripts/local-preview.mjs --smoke-only",
     "test:preview:lifecycle": "node scripts/local-preview-lifecycle-test.mjs",
     "preview:local": "node scripts/local-preview.mjs",
+    "preview:stop": "node scripts/local-preview.mjs --stop",
     "test:finance:preview": "node scripts/finance-preview-contract-test.mjs",
     "test:finance:import": "node scripts/finance-import-contract-test.mjs",
     "test:finance:import:snapshots": "node scripts/finance-import-snapshots-contract-test.mjs",

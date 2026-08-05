@@ -18,7 +18,10 @@ const wrangler = path.join(root, 'node_modules', 'wrangler', 'bin', 'wrangler.js
 const feedConfig = path.join(root, 'workers', 'feed-api', 'wrangler.jsonc');
 const checkOnly = process.argv.includes('--check-only');
 const smokeOnly = process.argv.includes('--smoke-only');
-if (checkOnly && smokeOnly) throw new Error('--check-only and --smoke-only cannot be used together');
+const stopOnly = process.argv.includes('--stop');
+if ([checkOnly, smokeOnly, stopOnly].filter(Boolean).length > 1) {
+  throw new Error('--check-only, --smoke-only, and --stop cannot be used together');
+}
 
 function portFromEnv(name, fallback) {
   const value = Number(process.env[name] ?? fallback);
@@ -56,24 +59,116 @@ function processIsRunning(pid) {
   }
 }
 
-async function recoverAbandonedLocalPreviewState() {
+async function readPreviewOwners() {
   const entries = await readdir(os.tmpdir(), { withFileTypes: true });
-  let recovered = 0;
+  const owners = [];
   for (const entry of entries) {
     if (!entry.isDirectory() || !entry.name.startsWith(localPreviewDirectoryPrefix)) continue;
     const directory = path.join(os.tmpdir(), entry.name);
-    let owner;
     try {
-      owner = JSON.parse(await readFile(path.join(directory, localPreviewOwnerFile), 'utf8'));
+      owners.push({ directory, owner: JSON.parse(await readFile(path.join(directory, localPreviewOwnerFile), 'utf8')) });
     } catch {
-      continue;
+      // Ignore unrelated and partially-created temporary directories.
     }
+  }
+  return owners;
+}
+
+async function recoverAbandonedLocalPreviewState() {
+  let recovered = 0;
+  for (const { directory, owner } of await readPreviewOwners()) {
     const pid = Number(owner?.pid);
     if (!Number.isInteger(pid) || pid <= 0 || processIsRunning(pid)) continue;
     await rm(directory, { recursive: true, force: true, maxRetries: 8, retryDelay: 250 });
     recovered += 1;
   }
   if (recovered) console.log(`[local-preview] Recovered ${recovered} abandoned local preview state ${recovered === 1 ? 'directory' : 'directories'}.`);
+}
+
+function previewPortsMatch(owner) {
+  const ports = owner?.ports;
+  return Number(ports?.site) === sitePort
+    && Number(ports?.feed) === feedPort
+    && Number(ports?.finance) === financePort;
+}
+
+async function processCommandLine(pid) {
+  if (process.platform !== 'win32') return '';
+  return new Promise((resolve) => {
+    const command = `& { $process = Get-CimInstance Win32_Process -Filter 'ProcessId = ${pid}'; if ($process) { [Console]::Out.Write($process.CommandLine) } }`;
+    const child = spawn('pwsh.exe', ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', command], {
+      stdio: ['ignore', 'pipe', 'ignore'],
+      windowsHide: true,
+    });
+    let output = '';
+    child.stdout.on('data', (chunk) => { output += chunk; });
+    child.once('close', () => resolve(output));
+    child.once('error', () => resolve(''));
+  });
+}
+
+async function isLocalPreviewController(pid) {
+  if (!processIsRunning(pid)) return false;
+  if (process.platform !== 'win32') return true;
+  const command = await processCommandLine(pid);
+  return /(?:^|[\s"'\\/])scripts[\\/]local-preview\.mjs(?:\s|$)/i.test(command);
+}
+
+async function stopProcessTree(pid) {
+  if (process.platform === 'win32') {
+    await new Promise((resolve) => {
+      const killer = spawn('taskkill.exe', ['/PID', String(pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true });
+      killer.once('close', resolve);
+      killer.once('error', resolve);
+    });
+    return;
+  }
+  try {
+    process.kill(pid, 'SIGTERM');
+  } catch (error) {
+    if (error?.code !== 'ESRCH') throw error;
+  }
+}
+
+async function waitForProcessExit(pid, timeoutMs = 5_000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (!processIsRunning(pid)) return;
+    await sleep(100);
+  }
+  if (processIsRunning(pid)) throw new Error(`Timed out waiting for local preview PID ${pid} to exit`);
+}
+
+async function stopLocalPreview() {
+  await recoverAbandonedLocalPreviewState();
+  const owners = await readPreviewOwners();
+  let candidates = owners.filter(({ owner }) => previewPortsMatch(owner));
+  if (candidates.length === 0) {
+    const legacyCandidates = [];
+    for (const candidate of owners) {
+      if (candidate.owner?.ports) continue;
+      const pid = Number(candidate.owner?.pid);
+      if (Number.isInteger(pid) && pid > 0 && await isLocalPreviewController(pid)) legacyCandidates.push(candidate);
+    }
+    if (legacyCandidates.length === 1) candidates = legacyCandidates;
+    if (legacyCandidates.length > 1) throw new Error('[local-preview] More than one legacy local preview is running; refusing to guess which one to stop.');
+  }
+  if (candidates.length === 0) {
+    console.log('[local-preview] No running local preview matches the requested ports.');
+    return 0;
+  }
+  if (candidates.length > 1) throw new Error('[local-preview] More than one local preview matches the requested ports.');
+
+  const { directory, owner } = candidates[0];
+  const pid = Number(owner?.pid);
+  if (!Number.isInteger(pid) || pid <= 0 || !await isLocalPreviewController(pid)) {
+    throw new Error(`[local-preview] Refusing to stop PID ${String(owner?.pid)} because it is not an active local-preview controller.`);
+  }
+  await stopProcessTree(pid);
+  await waitForProcessExit(pid);
+  await rm(directory, { recursive: true, force: true, maxRetries: 8, retryDelay: 250 });
+  console.log(`[local-preview] Stopped local preview on ports ${sitePort}/${feedPort}/${financePort}.`);
+  return 0;
 }
 
 function spawnOptions(command, env) {
@@ -150,15 +245,7 @@ async function waitForHttp(url, label, service, shouldStop) {
 
 async function stopService(service) {
   if (service.stopped) return;
-  if (process.platform === 'win32') {
-    await new Promise((resolve) => {
-      const killer = spawn('taskkill.exe', ['/PID', String(service.child.pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true });
-      killer.once('close', resolve);
-      killer.once('error', resolve);
-    });
-  } else {
-    service.child.kill('SIGTERM');
-  }
+  await stopProcessTree(service.child.pid);
   await Promise.race([service.exit, sleep(5_000)]);
 }
 
@@ -292,7 +379,10 @@ async function main() {
   };
 
   try {
+    process.on('SIGINT', onSignal);
+    process.on('SIGTERM', onSignal);
     await recoverAbandonedLocalPreviewState();
+    if (stopOnly) return await stopLocalPreview();
     await runQuickVerification();
     if (stopRequested) return 0;
     if (checkOnly) {
@@ -301,13 +391,14 @@ async function main() {
     }
 
     persist = await mkdtemp(path.join(os.tmpdir(), localPreviewDirectoryPrefix));
-    await writeFile(path.join(persist, localPreviewOwnerFile), JSON.stringify({ pid: process.pid, created_at: new Date().toISOString() }));
+    await writeFile(path.join(persist, localPreviewOwnerFile), JSON.stringify({
+      pid: process.pid,
+      created_at: new Date().toISOString(),
+      ports: { site: sitePort, feed: feedPort, finance: financePort },
+    }));
     const feedEnv = { ...process.env, XDG_CONFIG_HOME: path.join(persist, 'xdg') };
     await prepareLocalFeedDatabase(persist, feedEnv);
     const localAuth = await prepareLocalPreviewAuth(persist, feedEnv);
-    process.on('SIGINT', onSignal);
-    process.on('SIGTERM', onSignal);
-
     const feed = startService('Feed Worker', node, [
       wrangler,
       'dev',
