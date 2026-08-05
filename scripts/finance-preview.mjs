@@ -35,8 +35,12 @@ const state = {
   circuit: null,
   reviews: [{ year: 2026, summary: '本地预览用年度复盘。', calculation: { dietz: { returnRate: .08 } }, confirmed_at: null, confirmed_by: null }],
   monthly: [{ id: 1, year_month: '2026-06', muxia_invest: 5000, cati_invest: 0, end_total: 12000, summary: '本地预览数据' }, { id: 2, year_month: '2026-07', muxia_invest: 5000, cati_invest: 0, end_total: 12600, summary: '本地预览数据' }],
-  assetSnapshots: [{ snapshot_date: '2026-06-30', total_value: 12000 }, { snapshot_date: '2026-07-31', total_value: 12600 }],
-  cashFlows: [],
+  assetSnapshots: [
+    { id: 1, snapshot_at: '2026-06-30T15:00:00.000Z', snapshot_date: '2026-06-30', holdings_value: 11000, cash_value: 1000, total_value: 12000, source: 'manual', is_complete: 1, incomplete_reason: null, created_at: '2026-06-30T15:05:00.000Z', created_by: 'local-preview' },
+    { id: 2, snapshot_at: '2026-07-31T15:00:00.000Z', snapshot_date: '2026-07-31', holdings_value: 11600, cash_value: 1000, total_value: 12600, source: 'manual', is_complete: 1, incomplete_reason: null, created_at: '2026-07-31T15:05:00.000Z', created_by: 'local-preview' },
+  ],
+  cashFlows: [{ id: 1, occurred_on: '2026-07-25', contributor: 'muxia', flow_type: 'monthly_investment', bonus_source_year: null, baseline_amount: null, confirmed_amount: 5000, manager_share_offset: 0, net_amount: 5000, note: '本地预览月度投入。', created_at: '2026-07-25T10:00:00.000Z', created_by: 'local-preview', updated_at: null, updated_by: null }],
+  riskSignals: { single_position_loss: -0.21, worst_ticker: { ticker: '510300', ticker_name: '沪深300ETF' }, monthly_drawdown: null, annual_drawdown: null, data_complete: false, missing_reasons: ['现金流调整净值序列尚未完成核验。'], signals: [{ level: 'yellow', reason: '沪深300ETF 单标的亏损超过 20%' }] },
   plan: { initial_capital: 100000, monthly_invest: 5000, months_year1: 7, months_year2plus: 12, rate_low: .03, rate_base: .06, rate_high: .1, bonus1: 50000, bonus2to4: 35000, start_year: 2026, end_year: 2030, updated_at: '2026-07-25T10:00:00.000Z' },
   memos: [{ id: 1, trade_id: 1, memo_date: '2026-07-24', ticker: '510300', ticker_name: '沪深300ETF', trade_quantity: 100, trade_price: 12, position_category: 'A股宽基指数底仓', operation_type: 'buy', reason: '本地预览备忘录。', note: null, stop_loss_triggered: 0, created_at: '2026-07-24T09:00:00.000Z', updated_at: '2026-07-24T09:00:00.000Z' }],
   rules: [{ rule_key: 'risk', value: { single_position_active_cap: .5, loss_pause_ratio: .15, stop_loss_ratio: .3, rebalance_deviation: .05 } }, { rule_key: 'temperature', value: { freeze: 10, low: 12, normal: 16, high: 20 } }],
@@ -80,6 +84,57 @@ function admin(response) {
 
 function nextId(rows) { return Math.max(0, ...rows.map((row) => Number(row.id) || 0)) + 1; }
 
+function nullableString(value, max) {
+  if (value === null || value === undefined || value === '') return null;
+  return typeof value === 'string' && value.trim().length <= max ? value.trim() : undefined;
+}
+
+function nullableNumber(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : undefined;
+}
+
+function normalizeCashFlow(body = {}) {
+  const occurred_on = typeof body.occurred_on === 'string' ? body.occurred_on.trim() : '';
+  const confirmed_amount = Number(body.confirmed_amount);
+  const manager_share_offset = body.manager_share_offset === '' || body.manager_share_offset === undefined ? 0 : Number(body.manager_share_offset);
+  const flow_type = typeof body.flow_type === 'string' ? body.flow_type.trim() : '';
+  const contributor = typeof body.contributor === 'string' ? body.contributor.trim() : '';
+  const baseline_amount = nullableNumber(body.baseline_amount);
+  const bonus_source_year = body.bonus_source_year === '' || body.bonus_source_year === undefined ? null : Number(body.bonus_source_year);
+  const note = nullableString(body.note, 2_000);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(occurred_on) || !['muxia', 'cati'].includes(contributor) || !['monthly_investment', 'bonus_investment', 'additional_investment', 'withdrawal', 'adjustment'].includes(flow_type)
+    || !Number.isFinite(confirmed_amount) || confirmed_amount < 0 || baseline_amount === undefined || (baseline_amount !== null && baseline_amount < 0)
+    || !Number.isFinite(manager_share_offset) || manager_share_offset < 0 || note === undefined || (bonus_source_year !== null && (!Number.isInteger(bonus_source_year) || bonus_source_year < 2000 || bonus_source_year > 2200))) return null;
+  if ((flow_type === 'bonus_investment') !== (bonus_source_year !== null) || (manager_share_offset > 0 && (flow_type !== 'bonus_investment' || contributor !== 'muxia'))) return null;
+  const net_amount = flow_type === 'withdrawal' ? -confirmed_amount : flow_type === 'bonus_investment' && contributor === 'muxia' ? Math.max(0, confirmed_amount - manager_share_offset) : confirmed_amount;
+  return {
+    occurred_on, contributor, flow_type, bonus_source_year, baseline_amount, confirmed_amount, manager_share_offset, net_amount, note,
+  };
+}
+
+function normalizeAssetSnapshot(body = {}) {
+  const snapshot_at = typeof body.snapshot_at === 'string' ? body.snapshot_at.trim() : '';
+  const source = typeof body.source === 'string' ? body.source.trim() : '';
+  const holdings_value = Number(body.holdings_value); const cash_value = Number(body.cash_value);
+  const is_complete = body.is_complete === true || body.is_complete === 1 ? 1 : 0;
+  const incomplete_reason = nullableString(body.incomplete_reason, 500);
+  if (!snapshot_at || !source || source.length > 64 || !Number.isFinite(holdings_value) || holdings_value < 0 || !Number.isFinite(cash_value) || cash_value < 0 || incomplete_reason === undefined || (!is_complete && !incomplete_reason)) return null;
+  return { snapshot_at, snapshot_date: snapshot_at.slice(0, 10), holdings_value, cash_value, total_value: holdings_value + cash_value, source, is_complete, incomplete_reason };
+}
+
+function isoWeek(value) { const date = new Date(`${value}T00:00:00Z`); const day = date.getUTCDay() || 7; date.setUTCDate(date.getUTCDate() + 4 - day); const start = new Date(Date.UTC(date.getUTCFullYear(), 0, 1)); return String(Math.ceil((((date.getTime() - start.getTime()) / 86_400_000) + 1) / 7)).padStart(2, '0'); }
+
+function assetSeries(view) {
+  const selected = new Map();
+  for (const row of state.assetSnapshots.filter((row) => !row.deleted_at && Number(row.is_complete) === 1).slice().sort((left, right) => left.snapshot_at.localeCompare(right.snapshot_at) || left.id - right.id)) {
+    const key = view === 'week' ? `${row.snapshot_date.slice(0, 4)}-W${isoWeek(row.snapshot_date)}` : row.snapshot_date.slice(0, 7);
+    selected.set(key, row);
+  }
+  return { view, records: [...selected.values()], legacy_monthly_records: view === 'month' ? state.monthly.filter((row) => row.end_total !== null && row.end_total !== undefined).map((row) => ({ year_month: row.year_month, end_total: row.end_total })) : [] };
+}
+
 function listTrades(url) {
   const start = url.searchParams.get('start'); const end = url.searchParams.get('end'); const ticker = url.searchParams.get('ticker')?.trim().toUpperCase(); const direction = url.searchParams.get('direction');
   return state.trades.filter((row) => (!start || row.trade_date >= start) && (!end || row.trade_date <= end) && (!ticker || row.ticker === ticker) && (!direction || row.direction === direction)).sort((left, right) => right.trade_date.localeCompare(left.trade_date) || right.id - left.id);
@@ -118,9 +173,32 @@ const server = createServer(async (request, response) => {
   if (pathname === '/api/circuit') return json(response, 200, { active: state.circuit });
   if (pathname === '/api/review') return json(response, 200, { reviews: state.reviews });
   if (pathname === '/api/monthly' && request.method === 'GET') return json(response, 200, { records: state.monthly });
-  if (pathname === '/api/assets/series' && request.method === 'GET') return json(response, 200, { view: url.searchParams.get('view') ?? 'month', records: state.assetSnapshots, legacy_monthly_records: [] });
-  if (pathname === '/api/cash-flows' && request.method === 'POST') { if (!admin(response)) return; const body = await readJson(request); const row = { id: nextId(state.cashFlows), ...body }; state.cashFlows.unshift(row); return json(response, 201, { cash_flow: row }); }
-  if (pathname === '/api/assets/snapshots' && request.method === 'POST') { if (!admin(response)) return; const body = await readJson(request); const row = { snapshot_date: String(body?.snapshot_at ?? '').slice(0, 10), total_value: Number(body?.holdings_value ?? 0) + Number(body?.cash_value ?? 0) }; state.assetSnapshots.push(row); return json(response, 201, { created: true, total_value: row.total_value }); }
+  if (pathname === '/api/cash-flows' && request.method === 'GET') return json(response, 200, { cash_flows: state.cashFlows.filter((row) => !row.deleted_at).slice().sort((left, right) => right.occurred_on.localeCompare(left.occurred_on) || right.id - left.id) });
+  if (pathname === '/api/risk/signals' && request.method === 'GET') return json(response, 200, state.riskSignals);
+  if (pathname === '/api/assets/snapshots' && request.method === 'GET') return json(response, 200, { snapshots: state.assetSnapshots.filter((row) => !row.deleted_at).slice().sort((left, right) => right.snapshot_at.localeCompare(left.snapshot_at) || right.id - left.id) });
+  if (pathname === '/api/assets/series' && request.method === 'GET') { const view = url.searchParams.get('view') ?? 'month'; return ['week', 'month'].includes(view) ? json(response, 200, assetSeries(view)) : json(response, 400, { message: 'view 必须是 week 或 month。' }); }
+  if (pathname === '/api/cash-flows' && request.method === 'POST') {
+    if (!admin(response)) return;
+    const body = await readJson(request); const input = normalizeCashFlow(body); if (!input) return json(response, 400, { message: '现金流字段无效。' });
+    const now = new Date().toISOString(); const row = { id: nextId(state.cashFlows), ...input, created_at: now, created_by: 'local-admin', updated_at: null, updated_by: null, deleted_at: null, deleted_by: null };
+    state.cashFlows.unshift(row); return json(response, 201, { cash_flow: row });
+  }
+  const cashFlowMatch = pathname.match(/^\/api\/cash-flows\/(\d+)$/);
+  if (cashFlowMatch && ['PATCH', 'DELETE'].includes(request.method ?? '')) {
+    if (!admin(response)) return;
+    const id = Number(cashFlowMatch[1]); const index = state.cashFlows.findIndex((row) => row.id === id && !row.deleted_at);
+    if (index < 0) return json(response, 404, { message: '现金流不存在。' });
+    if (request.method === 'DELETE') { state.cashFlows[index] = { ...state.cashFlows[index], deleted_at: new Date().toISOString(), deleted_by: 'local-admin' }; return json(response, 200, { deleted: true }); }
+    const body = await readJson(request); const input = normalizeCashFlow(body); if (!input) return json(response, 400, { message: '现金流字段无效。' });
+    const row = { ...state.cashFlows[index], ...input, updated_at: new Date().toISOString(), updated_by: 'local-admin' };
+    state.cashFlows[index] = row; return json(response, 200, { cash_flow: row, updated: true });
+  }
+  if (pathname === '/api/assets/snapshots' && request.method === 'POST') {
+    if (!admin(response)) return;
+    const body = await readJson(request); const input = normalizeAssetSnapshot(body); if (!input) return json(response, 400, { message: '资产快照字段无效。' });
+    const now = new Date().toISOString(); const row = { id: nextId(state.assetSnapshots), ...input, created_at: now, created_by: 'local-admin', deleted_at: null, deleted_by: null };
+    state.assetSnapshots.push(row); return json(response, 201, { created: true, total_value: row.total_value });
+  }
   if (pathname === '/api/plan' && request.method === 'GET') return json(response, 200, { plan: state.plan });
   if (pathname === '/api/memos' && request.method === 'GET') return json(response, 200, { memos: state.memos });
   if (pathname === '/api/risk-rules' && request.method === 'GET') return json(response, 200, { rules: state.rules });
