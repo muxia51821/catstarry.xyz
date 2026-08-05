@@ -1,5 +1,23 @@
 # 更新记录
 
+## 2026-08-06 — Finance workspace and architecture follow-up
+
+### Finance
+
+- 财务面板新增真实现金流记录、资产快照和自动风险信号，分别展示资金投入与取出、资产完整性以及回撤和风险提示。
+- 改进现金流编辑与删除、资产快照保存后的数据刷新，并在单个风险接口不可用时保留其他面板内容。
+- 补充 Finance preview mock 场景和 UI 回归覆盖，方便验证管理员与只读用户看到的不同状态。
+
+### Operations
+
+- 新增 `preview:stop`，可按预览端口精确停止当前本地预览，释放三项服务端口并清理临时状态。
+- 增强本地预览对旧格式状态目录和遗留进程的恢复能力，并补充对应生命周期验证。
+
+### Architecture / Governance
+
+- 重新对齐架构文档与当前实现，细化 Workers、Finance Pages、路由、鉴权、D1/KV 存储和公开／私有页面边界，减少历史阶段描述与现行系统之间的歧义。
+- 统一项目术语和模块职责，联动更新 `CONTEXT.md`、`GLOSSARY.md`、`docs/SITEMAP.md`、架构文档、相关 ADR 与工作流治理说明。
+
 ## 2026-08-04 — Finance market reliability
 
 ### Finance
