@@ -1,7 +1,7 @@
 # 数据模型 (Data Model)
 
 > catstarry.xyz 全站数据结构定义 — D1 schema + KV namespace + Content Collection schema + API 类型定义
-> Phase 3 / 3.1 领域建模产出 | 定向回流复核：2026-07-16
+> 当前主站与 Finance 数据概念模型；字段和索引以 migrations 与当前查询实现为准。
 
 ---
 
@@ -74,7 +74,7 @@ LIMIT ?3;
 
 ### 1.2 public_footprints 表
 
-系统足迹的不可变写模型。它只记录已经发生、可公开展示的 Blog 发布、Learn 小节完成和 Projects 实质更新；不存原生碎碎念或剪藏。
+`public_footprints` 是 Public Footprint 的独立写模型。它记录已经发生、可公开展示的 Blog 发布、Learn 小节完成和 Projects 实质更新；不存原生碎碎念或剪藏。创建时固化来源身份和展示快照，但不表示整条记录的所有字段都绝对不可变；`visibility` 可以独立变化。
 
 ```sql
 CREATE TABLE IF NOT EXISTS public_footprints (
@@ -114,6 +114,8 @@ CREATE INDEX idx_public_footprints_source ON public_footprints(source_module, so
 
 `feed_posts` 与 `public_footprints` 不合并为写表。`GET /api/feed` 由 Public Timeline 模块按 `(occurred_at, id)` 统一排序和游标分页，返回访客可读的 `TimelineEntry`。该投影不是 D1 表，也不应被 Home 使用。
 
+当前内部 `TimelineEntry.kind` 仍使用 `system_footprint` 作为稳定代码 discriminator；面向项目共享语言时 canonical term 为 `Public Footprint`。内部类型名不改变产品语义。
+
 ### 1.4 Home Activity Signal 静态投影
 
 Home Activity Signal 不是 D1 表、不是 Public Timeline 的简化响应，也不是 `/api/home` 的替代。它是 `Activity Signal Projection` 内部计算后发布的固定静态对象。
@@ -136,7 +138,7 @@ Home Activity Signal 不是 D1 表、不是 Public Timeline 的简化响应，�
 | --- | --- |
 | 允许字段 | `schema_version` 与四颗功能星球各自的 `state` |
 | 状态值 | `active`（≤7 天）、`stable`（>7 且≤60 天）、`dormant`（>60 天或无公开活动） |
-| 来源 | Blog / Learn / Projects 取最新公开 Public Footprint；Feed 取公开原生帖子与公开系统足迹中较新者 |
+| 来源 | Blog / Learn / Projects 取最新公开 Public Footprint；Feed 取公开原生帖子与公开 Public Footprint 中较新者 |
 | About | 不得出现在投影中；豹猫卫星不参与活动状态 |
 | 禁止字段 | 标题、正文、摘要、链接、列表、时间线、事件数、精确时间、事件／来源标识、`generated_at`、unread/read |
 | 失败降级 | Home 隐藏活动卫星，不能把不可用状态视为 `dormant` |
@@ -145,7 +147,7 @@ Home Activity Signal 不是 D1 表、不是 Public Timeline 的简化响应，�
 
 ### 1.5 blog_views 表
 
-/blog 文章阅读量统计。已存在（Phase 1 原型）。
+/blog 文章阅读量统计；阅读者去重由 `blog_view_visitors` 补充。
 
 ```sql
 CREATE TABLE IF NOT EXISTS blog_views (
@@ -159,7 +161,7 @@ CREATE TABLE IF NOT EXISTS blog_views (
 
 ### 1.6 auth_sessions 表
 
-认证 session 存储（/feed 登录后 12h 有效期）。
+主站认证 session 持久化记录（/feed 登录后 12h 有效期）；KV 是优先读取层，D1 用作 fallback 与登出删除的持久记录。
 
 ```sql
 CREATE TABLE IF NOT EXISTS auth_sessions (
@@ -183,7 +185,7 @@ CREATE INDEX idx_auth_sessions_expires ON auth_sessions(expires_at);
 
 ### 2.1 trades 表
 
-每笔 A 股/ETF 交易记录。
+每笔 A 股/ETF 交易记录。当前 migration 还补充 `created_by`、更新时间、软删除和 review 字段，并由 `finance_trade_audit` 保存变更审计。
 
 ```sql
 CREATE TABLE IF NOT EXISTS trades (
@@ -199,6 +201,8 @@ CREATE TABLE IF NOT EXISTS trades (
   needs_review     INTEGER DEFAULT 0 -- 0 = clean, 1 = Excel 迁移时发现 dirty data
 );
 ```
+
+`trades` 的 current migration 还包含 `created_at`、`created_by`、`updated_at`、`updated_by`、`deleted_at` 和 `deleted_by`；上面的字段表只展示交易业务核心字段。
 
 ### 2.2 holdings_snapshots 表
 
@@ -245,6 +249,17 @@ CREATE TABLE IF NOT EXISTS circuit_breaker_log (
 );
 ```
 
+当前 Finance migrations 还包含以下概念组：
+
+- `finance_market_indexes`：指数快照，保存展示值、涨跌、市场状态和抓取时间；
+- `monthly_records`、`plan_params`：月度记录和计划参数；
+- `finance_cash_flows`、`finance_asset_snapshots`：真实现金流与资产快照；
+- `position_limits`、`finance_investment_rules`、`finance_memos`、`finance_rebalance_records`：仓位与 stewardship 记录；
+- `finance_trade_audit`、`finance_plan_audit`、`finance_cash_flow_audit`、`finance_rule_audit`：审计记录；
+- `finance_access_log`、`finance_import_batches`、`finance_import_review`、`finance_workbook_imports`、`finance_workbook_review` 及其 audit 表：访问、导入和 workbook review 状态。
+
+以上列表用于说明概念边界，不替代 migrations 的逐表 schema。
+
 ---
 
 ## 3. KV Namespace
@@ -253,8 +268,9 @@ CREATE TABLE IF NOT EXISTS circuit_breaker_log (
 | ----------- | -------------------- | ---------------------------------- | ---------- |
 | **VIEW_KV** | `view:{slug}:{date}` | 阅读量去重（IP→count）             | 24h        |
 | **AUTH_KV** | `user:{username}`    | 用户密码 bcrypt hash               | 永久       |
-| **AUTH_KV** | `session:{token}`    | 登录 session                       | 12h        |
-| **AUTH_KV** | `ratelimit:{ip}`     | 登录限流计数器                     | 5min       |
+| **AUTH_KV** | `session:{token}`    | 主站登录 session                   | 12h        |
+| **AUTH_KV** | `ratelimit:{ip}`     | 主站登录限流计数器                 | 5min       |
+| **FINANCE_AUTH_KV** | `user:{username}` / `session:{token}` | Finance 用户、角色和 session | session 12h |
 
 ---
 
@@ -271,35 +287,40 @@ CREATE TABLE IF NOT EXISTS circuit_breaker_log (
 
 ### 5.1 blog collection
 
-已存在（Phase 1）。Markdown frontmatter 定义在 `src/content/config.ts`。
+Blog collection 由 `src/content.config.ts` 定义；loader 读取 `src/data/blog`，接受 `.md` 与 `.mdx`。
 
 ```typescript
-// 字段保持 Phase 1 定义：
-// title, slug, date, category, tags, excerpt, draft, description
+// 当前字段：title, date, category, tags, description,
+// slug?, draft (default false), publication_id?
 ```
 
 ### 5.2 learn collection
 
-Phase 5 开发时扩展 `src/content/config.ts`。
+Learn collection 由 `src/content.config.ts` 定义；loader 读取 `src/data/learn`，当前只接受 `.md`。
 
 ```typescript
 const learnCollection = defineCollection({
   type: "content",
   schema: z.object({
+    slug: z.string(),
     title: z.string(), // 笔记标题
     track: z.string(), // 学习轨道（如 astro）
     section: z.string().optional(), // 分节（如 pages-routing）
     tags: z.array(z.string()).default([]),
-    draft: z.boolean().default(false),
-    publishDate: z.date(),
-    lastModified: z.date().default(() => new Date()),
+    draft: z.boolean().default(true),
+    publishDate: z.coerce.date(),
+    lastModified: z.coerce.date(),
     excerpt: z.string().optional(),
     completionId: z.string().optional(), // 仅明确完成小节时写入；不是普通编辑时间
+    parentSlug: z.string().optional(),
+    sourceUrl: z.string().url().optional(),
   }),
 });
 ```
 
 `completionId` 是 Learn 足迹的来源版本。它只在木下明确完成一个已发布小节时创建；`lastModified` 继续用于 /learn 的自身排序，绝不用于生成或重排公开足迹。
+
+这与 ADR-008 的边界一致：Learn public note 当前 canonical source 为 Markdown；Blog 仍可读取 MDX，但不代表 Learn runtime 支持 MDX。
 
 ---
 
@@ -321,7 +342,7 @@ D1 public_footprints
 
 - 幂等键使用 `blog:{slug}:{publication_id}`，不使用 deployment id 或普通 Git SHA。
 - 普通编辑、构建开始、部署失败与对同一发布标识的重复部署均不得产生新足迹。
-- 具体 Cloudflare 部署成功回调适配方式在 Phase 5 实现前验证；架构接口不依赖某个特定供应商回调格式。
+- 生产部署成功后的受保护 manifest sync 由 repository workflow 与 publication-manifest scripts 触发；架构接口不依赖某个特定供应商回调格式。
 
 ---
 

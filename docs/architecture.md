@@ -1,7 +1,7 @@
 # 架构总览 (Architecture)
 
 > catstarry.xyz 全站架构总览 — 模块关系图 + 数据流向 + 技术栈映射
-> Phase 3 架构设计产出 | 定向回流复核：2026-07-16
+> 当前架构事实来源：主站与 Finance Worker 的 current-state 结构、数据流和边界。
 
 ---
 
@@ -10,7 +10,7 @@
 | 层            | 选型                                | 部署              | 用途                                      |
 | ------------- | ----------------------------------- | ----------------- | ----------------------------------------- |
 | **前端框架**  | Astro (hybrid: SSG + SSR)           | CF Pages          | 全站页面渲染                              |
-| **交互组件**  | React 19 + shadcn/ui                | 嵌入 Astro island | 发布面板、公开足迹时间线、管理后台、Home 交互 |
+| **交互组件**  | React 19 + shadcn/ui                | 嵌入 Astro island | Feed 发布、管理后台、Home 交互 |
 | **API**       | CF Workers (feed-api + finance-api) | wrangler deploy   | 数据读写、认证、Cron 任务                 |
 | **数据库**    | D1 (catstarry-db + finance-db)      | CF                | 原生 Feed、公开足迹、交易、阅读量、session |
 | **缓存/配置** | KV                                  | CF                | 阅读量去重、认证、限流                    |
@@ -60,12 +60,10 @@
                     ┌──────────────────────────────────┐
                     │     finance-api.workers.dev      │
                     │  ┌──────────────────────────┐    │
-                    │  │ /api/trades /api/holdings │    │
-                    │  │ /api/market /api/pe       │    │
-                    │  │ /api/circuit              │    │
-                    │  │ Cron: fetch-prices        │    │
-                    │  │ Cron: fetch-pe            │    │
-                    │  │ Cron: clean-r2            │    │
+                    │  │ Finance auth / dashboard  │    │
+                    │  │ records / stewardship     │    │
+                    │  │ trades / market refresh   │    │
+                    │  │ Cron: refresh-market-data│    │
                     │  └──────┬───────┬───────────┘    │
                     │         │       │                │
                     │  ┌──────▼──┐ ┌──▼──────────┐    │
@@ -90,14 +88,18 @@
                                                    D1 public_footprints（Blog 快照）
 ```
 
-### Feed 发布流
+### Feed 与 Public Footprint 写入流
 
 ```
-木下 → 发布面板 → 选文件 → 上传 R2（自动）
-                            ↓
-                  选文字 + 点发布 → POST /api/feed → D1 feed_posts
-                            ↓
-                  时间线自动刷新 ← GET /api/feed
+碎碎念 / 剪藏 → POST /api/feed → D1 feed_posts
+
+Blog / Learn / Projects 足迹来源事件
+    → 受保护的内部 publication / footprint route
+    → D1 public_footprints（来源身份与展示快照）
+
+feed_posts + public_footprints
+    → GET /api/feed 的 Public Timeline 读取投影
+    → /feed
 ```
 
 ### Feed 浏览流（访客）
@@ -140,23 +142,31 @@
 
 来源事件仍是事实来源；投影发布失败不得回滚来源事件。保留上一份完整投影并由后续校正任务修复；资源缺失、无效或超过内部新鲜度阈值时，Home 隐藏活动卫星，不得误报为 `dormant`。
 
-### Finance 行情流
+### Finance current-state 数据流
 
 ```
-Cron (每15分钟) → fetch-prices task → a-stock-data API → D1 market_data
-Cron (每日收盘) → fetch-pe task → PE-TTM 数据 → D1 market_data
-木下/cati → /dashboard → SSR → fetch /api/holdings + /api/market → 渲染
+Finance Cron (*/15 * * * * 或 30 7 * * 1-5)
+    → refresh-market-data.ts
+    → 可选 MARKET_PROVIDER_URL，或内置 Tencent / TradingView；Sina 作为 A 股报价 fallback
+    → market_data 与 finance_market_indexes
+
+Finance 页面
+    → finance-api routes
+    → holdings / market / pe / risk / review 等读取接口
+    → Finance workspace
 ```
 
 ### 认证流
 
 ```
-未登录用户 → /feed → 右下角「登录」按钮
+未登录用户 → /feed → 页面内登录交互
     ↓ 点击
 登录面板 → POST /api/auth/login → bcrypt 验证 → KV session → Set-Cookie
     ↓ 成功后
 右下角 →「+」发布按钮出现
 12h 后 → session 过期 → KV TTL 自动清除 → 回到未登录状态
+
+Finance 使用独立 FINANCE_AUTH_KV 和独立 cookie，不与主站 session 共享。
 ```
 
 ---
@@ -172,28 +182,17 @@ Cron (每日收盘) → fetch-pe task → PE-TTM 数据 → D1 market_data
 | `docs/adr/002-blog-metadata-kv-bridge.md`   | 已被 ADR-006 对其 Home 聚合用途 supersede                                      | 历史      |
 | `docs/adr/003-worker-count.md`              | 2 个 Worker vs 多 Worker                                                        | 3.5       |
 | `docs/adr/004-feed-visibility-two-state.md` | visibility 两状态 vs 三状态                                                     | 3.5       |
-| `docs/adr/005-public-footprint-separate-storage.md` | 原生帖子与系统足迹分存、统一读取                                         | 定向 3   |
+| `docs/adr/005-public-footprint-separate-storage.md` | 原生帖子与 Public Footprint 分存、Public Timeline 统一读取              | accepted |
 | `docs/adr/006-retire-home-aggregation-and-kv-bridge.md` | 退役 Home 聚合与 KV bridge                                           | 定向 3   |
-| `docs/adr/007-home-activity-signal-static-projection.md` | Home 最小活动状态的静态投影、刷新与降级                           | 定向 3   |
+| `docs/adr/007-home-activity-signal-static-projection.md` | Home 最小活动状态的静态投影、刷新与降级                        | accepted |
 | `docs/architecture.md`                      | 本文件（架构总览）                                                              | 汇总      |
 | `DESIGN.md`                                 | 根目录视觉设计系统；目录以文件当前版本为准                                      | 4.1       |
 
 ---
 
-## 与 Phase 0 技术选型的差异
+## 架构边界
 
-tech-decisions-20260703.md 中的 7 项决策全部保留，但以下三点在 Phase 3 中细化：
-
-1. **D1 拆分**（决策 #1）：从"1 个 D1"细化为"2 个 D1（主站 + 财务独立）"→ ADR-001
-2. **博客元数据不入 D1**：Blog 内容继续以 Markdown 为源；原 KV bridge 已由 ADR-006 退役
-3. **Workers 拆分**（决策 #2）：保持 2 个，但 feed-api 升级为主站 API Worker → ADR-003
-
-其余 4 项决策（Astro hybrid、React+shadcn/ui、Monorepo、行情 API、CI/CD）不变。
-
----
-
-## 定向 Phase 3 交接状态
-
-Home / Feed 的原定向 Phase 3 已完成，ADR-005、ADR-006 及本架构文档已经锁定。Home Activity Signal 是后续极小定向回流：它以 ADR-007 增加无内容的静态状态投影，不恢复 Home 聚合、`/api/home`、KV bridge 或 Public Timeline 给 Home 的读取关系。
-
-ADR-007 闭合后，应由流程治理将 Phase 4 标记为“返回 4.1 重锁中”。随后 Design 2.0 只需重锁三态信号卫星的视觉接口；Phase 4.2 只能以模拟投影校准视觉，不读取真实数据。Astro 7 基线不受本次定向回流影响。
+- Home 只读取 `activity-signals.json`，不读取 Public Timeline，也不恢复 `/api/home` 或已退役的 `blog-metadata` KV bridge。
+- `feed_posts` 与 `public_footprints` 是两个独立写模型；`Public Timeline` 只在读取时统一排序和分页。
+- Finance 使用独立 Worker、D1、认证 KV 和页面，不进入公开主站内容链路。
+- 双 D1、双 Worker、Feed 两态可见性、Home 静态活动投影和 Learn Markdown canonical source 分别由 ADR-001、003、004、007、008 约束。

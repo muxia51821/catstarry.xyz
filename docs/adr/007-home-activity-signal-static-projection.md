@@ -5,6 +5,9 @@
 > Deciders: Home Activity Signal 定向 Phase 3 architecture agent + 木下
 > Complements: ADR-005、ADR-006
 
+> Terminology note: 本文中的“系统足迹”对应当前 canonical term `Public Footprint`；
+> `Public Timeline` 仍是 Feed 的统一读取投影。代码内部 discriminator 不在本 ADR 重命名。
+
 ---
 
 ## Context
@@ -17,7 +20,7 @@ Home 是 SSG 宇宙入口与星图导航，不展示 Recently、内容卡片或�
 - `stable`：超过 7 × 24 小时且不超过 60 × 24 小时；
 - `dormant`：超过 60 × 24 小时，或从无合资格公开活动。
 
-About 不参与该模型；豹猫卫星是个人彩蛋，不是活动信号。
+About 不参与该模型；豹猫卫星是 About 附近的特殊活动／交互信号卫星，但不消费 HAS 的三态投影。
 
 ## Options
 
@@ -65,10 +68,10 @@ About 不参与该模型；豹猫卫星是个人彩蛋，不是活动信号。
 - Blog：最新公开 Blog Public Footprint；
 - Learn：最新公开 Learn 小节完成 Public Footprint；
 - Projects：最新公开 Projects 实质更新 Public Footprint；
-- Feed：公开 `feed_posts` 中最新 note / clip 与公开 `public_footprints` 中最新系统足迹两者的较新者；
+- Feed：公开 `feed_posts` 中最新 note / clip 与公开 `public_footprints` 中最新 Public Footprint 两者的较新者；
 - About：无状态、无卫星活动投影。
 
-某个 Blog、Learn 或 Projects 系统足迹可同时影响其来源星球和 Feed 星球。这是状态映射，不是 Home 内容聚合。
+某个 Blog、Learn 或 Projects Public Footprint 可同时影响其来源星球和 Feed 星球。这是状态映射，不是 Home 内容聚合。
 
 ## Refresh and Failure Rules
 
@@ -84,7 +87,7 @@ About 不参与该模型；豹猫卫星是个人彩蛋，不是活动信号。
 - Home 保持 SSG，且不请求 `/api/home`、Public Timeline 或来源内容 API。
 - `Activity Signal Projection` 成为 feed-api 内部的深模块；调用方只触发刷新或读取固定资源，不处理四源查询、阈值和失败恢复细节。
 - 主站新增专用 R2 静态投影存储；不得复用 `catstarry-media` 的 Feed 媒体路径。
-- Phase 5 实现时需要配置静态资源交付、短缓存重新验证、小时级 Cron、失败日志与投影新鲜度监控。
+- 当前实现由 feed-api 的 `activity-signals` module、`activity-signal-store` adapter、固定 `HOME_PROJECTIONS` R2 对象和 hourly scheduled handler 提供静态资源交付、失败保留与时间阈值校正。
 - Phase 4.1 只把三态映射为信号卫星视觉；Phase 4.2 使用模拟状态，不接入真实投影。
 
 ## ADR-006 Compatibility
