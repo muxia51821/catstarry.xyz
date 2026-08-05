@@ -7,8 +7,8 @@ import path from 'node:path';
 const profileCleanupOptions = {
   recursive: true,
   force: true,
-  maxRetries: 10,
-  retryDelay: 200,
+  maxRetries: 20,
+  retryDelay: 250,
 };
 
 export async function launchIsolatedBrowser() {
@@ -39,17 +39,55 @@ export async function launchIsolatedBrowser() {
     return {
       target,
       async close() {
-        if (!processHandle.killed) processHandle.kill();
+        await stopBrowserProcessTree(processHandle, profile);
         await waitForExit(processHandle);
         await rm(profile, profileCleanupOptions);
       },
     };
   } catch (error) {
-    if (!processHandle.killed) processHandle.kill();
+    await stopBrowserProcessTree(processHandle, profile);
     await waitForExit(processHandle);
     await rm(profile, profileCleanupOptions);
     throw error;
   }
+}
+
+async function stopBrowserProcessTree(processHandle, profile) {
+  if (process.platform !== 'win32') {
+    if (processHandle.exitCode !== null) return;
+    if (!processHandle.killed) processHandle.kill();
+    return;
+  }
+  if (processHandle.exitCode === null) {
+    if (!processHandle.killed) processHandle.kill();
+    await runWindowsCommand('taskkill.exe', ['/PID', String(processHandle.pid), '/T', '/F']);
+  }
+  const escapedProfile = profile.replaceAll("'", "''");
+  await runWindowsCommand('pwsh.exe', [
+    '-NoLogo',
+    '-NoProfile',
+    '-NonInteractive',
+    '-Command',
+    `$profile = '${escapedProfile}'; Get-CimInstance Win32_Process | Where-Object { $_.Name -in @('chrome.exe', 'msedge.exe') -and $_.CommandLine -and $_.CommandLine.Contains($profile) } | ForEach-Object { & taskkill.exe /PID $_.ProcessId /T /F | Out-Null }`,
+  ]);
+}
+
+function runWindowsCommand(executable, args) {
+  return new Promise((resolve) => {
+    const child = spawn(executable, args, { stdio: 'ignore', windowsHide: true });
+    const timeout = setTimeout(() => {
+      child.kill();
+      resolve();
+    }, 5_000);
+    child.once('close', () => {
+      clearTimeout(timeout);
+      resolve();
+    });
+    child.once('error', () => {
+      clearTimeout(timeout);
+      resolve();
+    });
+  });
 }
 
 function findBrowserExecutable() {
@@ -73,13 +111,16 @@ function findBrowserExecutable() {
 async function waitForDebugPort(profile, processHandle) {
   const activePort = path.join(profile, 'DevToolsActivePort');
   for (let attempt = 0; attempt < 100; attempt += 1) {
-    if (processHandle.exitCode !== null) throw new Error(`Isolated browser exited early (${processHandle.exitCode})`);
     try {
       const port = Number((await readFile(activePort, 'utf8')).split(/\r?\n/)[0]);
       if (Number.isInteger(port) && port > 0) return port;
     } catch {}
+    if (processHandle.exitCode !== null && (process.platform !== 'win32' || processHandle.exitCode !== 0)) {
+      throw new Error(`Isolated browser exited early (${processHandle.exitCode})`);
+    }
     await delay(100);
   }
+  if (processHandle.exitCode !== null) throw new Error(`Isolated browser exited early (${processHandle.exitCode})`);
   throw new Error('Timed out waiting for isolated browser debugging port');
 }
 
