@@ -2,6 +2,7 @@
 
 > 执行手册。进度追踪见 `docs/DASHBOARD.md`。
 > Phase 0–7 的交付协作规则保留作历史参考；Phase 8 当前工作方式见文末的运营维护章节。
+> 当前 Phase 8 任务先读取文末“Phase 8：运营维护（当前）”章节；Phase 0–7 章节仅在历史追溯、定向上游回流或复核既有交付规则时读取。
 
 ---
 
@@ -14,7 +15,7 @@
 - 改变路由、页面职责或公开／非公开范围的任务负责同步 `docs/SITEMAP.md`；流程治理负责共享文档一致性检查，不凭空创造产品事实。
 - 审查流程是否合理
 - 协调各 Phase 之间的衔接
-- 不同职责维度的冲突按 `AGENTS.md` 的冲突处理规则报告和裁决，不使用单一线性优先级覆盖所有文档。
+- 不同职责维度的冲突按 `AGENTS.md` 的冲突处理规则报告，并等待对应事实源或木下裁决；不使用单一线性优先级覆盖所有文档。
 
 **触发机制**（手动，非自动）：
 
@@ -79,8 +80,8 @@ Phase 4.2：原型生成
 - 依赖迁移不得夹带视觉重做、功能开发、架构扩张或未使用的 adapter。
 - 目标是最新稳定主版本，但升级必须使用 lockfile 固化实际版本，并记录官方 migration guide 中与项目相关的破坏性变化。
 - 迁移任务必须验证 build、Content Collections、Markdown、React islands 与现有可运行页面；Cloudflare adapter 仅在项目真正启用对应渲染模式时安装和验证。
-- 当前一次性迁移：已在 Phase 4.1 闭合后、Phase 4.2 启动前完成。基线为 Astro 7.0.9 + `@astrojs/react` 6.0.1 + React 19.2.7 + Vite 8.1.4；Content Layer、Markdown、React islands、现有 build 与 `.astro/` untrack 均已验证。Phase 4.1 保持完成，Phase 4.2 可由流程治理启动。
-- Phase 5.0 开始前仍需再次核对最新稳定版本，但不得无审计自动升级。
+- 当前一次性迁移已完成；具体依赖版本以 `package.json` 和 lockfile 为准，不在本文件维护版本号。Content Layer、Markdown、React islands、现有 build 与 `.astro/` untrack 已完成当时的验证。
+- 后续依赖变更另立独立任务；具体版本以 `package.json` 和 lockfile 为准，不得据此自动升级。
 
 ---
 
@@ -117,10 +118,10 @@ Phase 7: 部署上线 ──→ Phase 8: 运营维护 ──→ (循环回 Phase
 
 | #   | 动作                                             | skill                        |
 | --- | ------------------------------------------------ | ---------------------------- |
-| 0.1 | 从 handoff 提取术语 → `GLOSSARY.md`              | `ubiquitous-language`        |
-| 0.2 | 配置 issue tracker + triage labels + domain docs | `setup-matt-pocock-skills`   |
+| 0.1 | 从 handoff 提取术语 → `GLOSSARY.md`              | `domain-modeling`            |
+| 0.2 | 配置 issue tracker + triage labels + domain docs | 历史配置步骤                 |
 | 0.3 | 写 `CONTEXT.md`：项目简介、技术栈、约束          | —                            |
-| 0.4 | 配置 Git 规范                                    | `git-guardrails-claude-code` |
+| 0.4 | 配置 Git 规范                                    | `AGENTS.md`                  |
 
 ---
 
@@ -128,9 +129,9 @@ Phase 7: 部署上线 ──→ Phase 8: 运营维护 ──→ (循环回 Phase
 
 **目标**：将模糊想法转化为结构化、可验证的需求。
 
-**输入**：handoff 文档 + 木下口述新需求。
+**输入**：已确认的 handoff 或任务简报 + 木下口述新需求。
 
-**产出物**：每个模块一份需求文档（`docs/final-requirements-*.md`）。
+**产出物**：每个模块一份需求文档（`docs/final-requirements-*.json`）。
 
 **执行方式**：使用 `grill-me` 或 `grill-with-docs` 加载「需求解剖师」角色定义（`D:/business analyst/AGENTS.md`）和输出 schema（`D:/business analyst/output_schema.json`），按 6 层深挖 + 发散前置的规则执行。对话结束后按 schema 输出结构化 JSON。
 
@@ -170,7 +171,7 @@ Phase 7: 部署上线 ──→ Phase 8: 运营维护 ──→ (循环回 Phase
 
 **目标**：基于 PRD 确定技术架构细节。
 
-**输入**：PRD + `docs/tech-decisions-20260703.md`。
+**输入**：PRD、已确认的技术决策和当前事实源。
 
 **产出物**：`docs/architecture.md`（总览）、`docs/architecture/data-model.md`（D1 schema + API 类型）、`docs/architecture/auth.md`（鉴权）、`docs/architecture/modules.md`（目录结构 + Workers 路由）、`docs/adr/*.md`。
 
@@ -178,8 +179,8 @@ Phase 7: 部署上线 ──→ Phase 8: 运营维护 ──→ (循环回 Phase
 | --- | -------------------------------------------------------------------------------------- | --------------------------------------- |
 | 3.1 | 领域建模（术语表 → D1 schema、API 数据结构） → `architecture/data-model.md`            | `domain-modeling`                       |
 | 3.2 | 代码库架构（目录结构、模块边界、依赖） → `architecture.md` + `architecture/modules.md` | `codebase-design`                       |
-| 3.3 | 数据流设计（Workers 路由、D1/KV/R2 读写、Cron） → `architecture/modules.md`            | `cloudflare` + `workers-best-practices` |
-| 3.4 | 鉴权方案（/feed + f.catstarry.xyz 的具体实现） → `architecture/auth.md`                | `cloudflare-one`                        |
+| 3.3 | 数据流设计（Workers 路由、D1/KV/R2 读写、Cron） → `architecture/modules.md`            | 架构文档 + 当前实现                  |
+| 3.4 | 鉴权方案（/feed + f.catstarry.xyz 的具体实现） → `architecture/auth.md`                | ADR + 当前实现                       |
 | 3.5 | 架构决策记录（每个重大决策一条：为什么选 A 不选 B） → `docs/adr/*.md`                  | —                                       |
 
 ---
@@ -257,23 +258,23 @@ Phase 7: 部署上线 ──→ Phase 8: 运营维护 ──→ (循环回 Phase
 
 D1 schema、类型定义、鉴权逻辑、CI/CD 配置必须先完成，其他线程才可独立开发。当前 F 已完成；不得据此宣布任何业务模块已实现。
 
-F deferred：Cloudflare 真实资源 ID、远程 migration、路由与生产部署留到 Phase 7；旧生产 `feed-api` 继续保留，新 skeleton 已使用非生产名称机械隔离；Blog views API 兼容留到 Blog / API 模块；旧 `from-zero → 2` 数据在生产切换时处理；`Base.astro` / `global.css` 入口迁移留到首个正式前端模块；依赖安全告警另立维护事项。
+F deferred：真实资源、远程 migration、路由与生产部署留到 Phase 7；其余当时的模块 deferred 记录仅作历史参考，不构成 Phase 8 当前任务规则。
 
 ……（后面不动）
 
-| 线程 | 负责模块     | skills                                |
-| ---- | ------------ | ------------------------------------- |
-| F    | 共享基础设施 | `implement`、`workers-best-practices` |
+| 线程 | 负责模块     | 参考入口       |
+| ---- | ------------ | -------------- |
+| F    | 共享基础设施 | `implement`、架构文档 |
 
 ### 第二波：业务模块（开发-F 完成后允许模块级并行）
 
-| 线程 | 负责模块                                     | skills                                                              |
-| ---- | -------------------------------------------- | ------------------------------------------------------------------- |
-| A    | /blog（列表 + 详情 + 分类 + 标签 + RSS）     | `tdd`、`implement`、`code-review`                                   |
-| B    | /feed（时间线 + 发布面板 + 媒体上传 + 鉴权） | `tdd`、`implement`、`code-review`、`cloudflare`、`wrangler`         |
-| C    | /projects + /learn                           | `implement`、`scaffold-exercises`                                   |
-| D    | `/` Home                                     | `tdd`、`implement`                                                  |
-| E    | f.catstarry.xyz                              | `tdd`、`implement`、`code-review`、`a-stock-data`、`cloudflare-one` |
+| 线程 | 负责模块                                     | 参考入口                                          |
+| ---- | -------------------------------------------- | ------------------------------------------------- |
+| A    | /blog（列表 + 详情 + 分类 + 标签 + RSS）     | `tdd`、`implement`、`code-review`                |
+| B    | /feed（时间线 + 发布面板 + 媒体上传 + 鉴权） | `tdd`、`implement`、`code-review`                |
+| C    | /projects + /learn                           | `implement`、`scaffold-exercises`                |
+| D    | `/` Home                                     | `tdd`、`implement`                               |
+| E    | f.catstarry.xyz                              | `tdd`、`implement`、`code-review`、`a-stock-data` |
 
 **每个模块的 micro loop**：
 
@@ -287,11 +288,11 @@ tdd → implement → code-review → 木下按 acceptance 验收 → 通过/回
 
 **目标**：全站集成测试 + 性能验证。
 
-| #   | 动作                              | skill      |
-| --- | --------------------------------- | ---------- |
-| 6.1 | 全站按 PRD 验收                   | `qa`       |
-| 6.2 | Core Web Vitals                   | `web-perf` |
-| 6.3 | Excel 迁移正确性 + 实时行情准确性 | `qa`       |
+| #   | 动作                              | 参考入口 |
+| --- | --------------------------------- | -------- |
+| 6.1 | 全站按 PRD 验收                   | `qa`     |
+| 6.2 | Core Web Vitals                   | `qa`     |
+| 6.3 | Excel 迁移正确性 + 实时行情准确性 | `qa`     |
 
 ---
 
@@ -301,11 +302,11 @@ tdd → implement → code-review → 木下按 acceptance 验收 → 通过/回
 
 **当前状态**：✅ production release 已完成。已完成的 release history 见 `CHANGELOG.md`。
 
-| #   | 动作                                    | skill                     |
-| --- | --------------------------------------- | ------------------------- |
-| 7.1 | D1 schema、KV namespace、R2 bucket 创建 | `wrangler`                |
-| 7.2 | CF Pages + Workers 部署                 | `wrangler`                |
-| 7.3 | 域名 DNS + 环境变量/密钥                | `cloudflare` + `wrangler` |
+| #   | 动作                                    | 参考入口     |
+| --- | --------------------------------------- | ------------ |
+| 7.1 | D1 schema、KV namespace、R2 bucket 创建 | 历史部署步骤 |
+| 7.2 | CF Pages + Workers 部署                 | 历史部署步骤 |
+| 7.3 | 域名 DNS + 环境变量/密钥                | 历史部署步骤 |
 
 ---
 
@@ -369,12 +370,10 @@ catstarry.xyz/
 │   ├── DASHBOARD.md
 │   ├── SITEMAP.md
 │   ├── cold-start-governance.md
-│   ├── tech-decisions-20260703.md
-│   ├── phase2-briefing.md
-│   ├── phase3-briefing.md
 │   ├── phase-briefing/
+│   │   ├── phase2-briefing.md
+│   │   ├── phase3-briefing.md
 │   │   └── phase4-briefing.md       (Phase 4 启动前与回流后同步)
-│   ├── handoff-20260702.md
 │   ├── architecture.md              (Phase 3)
 │   ├── architecture/                (Phase 3)
 │   │   ├── data-model.md
@@ -383,8 +382,8 @@ catstarry.xyz/
 │   ├── adr/                         (Phase 3)
 │   ├── design/                      (Phase 4)
 │   │   └── reference-design/        (木下人工选取的参照)
-│   ├── final-requirements-.json    (Phase 1)
-│   ├── acceptance-.md              (Phase 2)
+│   ├── final-requirements-*.json  (Phase 1)
+│   ├── acceptance-*.md            (Phase 2)
 │   └── agents/
 │       ├── issue-tracker.md
 │       ├── triage-labels.md

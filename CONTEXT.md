@@ -1,7 +1,8 @@
 # 项目上下文 (CONTEXT)
 
-> catstarry.xyz 项目的领域上下文、术语和架构决策。
-> 供 `improve-codebase-architecture`、`diagnosing-bugs`、`tdd` 等 skill 读取。
+> catstarry.xyz 项目的 Agent 快速上下文摘要、领域术语和已确认决策入口。
+> 供 `improve-codebase-architecture`、`diagnosing-bugs`、`tdd` 等 skill 快速定向。
+> 本文不替代 `GLOSSARY.md`、ADR、架构文档、`DESIGN.md`、`docs/SITEMAP.md` 或当前代码与测试；摘要与对应事实源冲突时，按 `AGENTS.md` 的冲突规则报告并回到事实源核对。
 
 ## 约定性质说明
 
@@ -10,6 +11,7 @@
 | 标签 | 含义 |
 | --- | --- |
 | `[已锁定]` | Phase 0 确定的，尽量不改 |
+| `[摘要]` | 高频上下文摘要；详细事实和当前实现以对应事实源为准 |
 | `[原型约定 \| Phase X 重新裁决]` | blog 原型阶段的临时约定，进入标注的 Phase 时必须重新审查，有权推翻 |
 | `[定向回流中 \| Phase X]` | 已确认的上游变更正在复核受影响契约；在标注 Phase 闭合前，不得作为最终实现依据 |
 | `[快照 \| Phase X 更新]` | 随项目推进需同步更新 |
@@ -22,7 +24,7 @@ catstarry.xyz 是木下的个人网站，用 AI 驱动搭建。非程序员用�
 
 ---
 
-## 领域术语 [已锁定]
+## 领域术语 [摘要]
 
 核心术语：
 
@@ -39,7 +41,7 @@ catstarry.xyz 是木下的个人网站，用 AI 驱动搭建。非程序员用�
 
 ---
 
-## 技术架构 [已锁定]
+## 技术架构 [摘要 | 事实源见架构文档]
 
 | 层     | 选型                                  | 部署            |
 | ------ | ------------------------------------- | --------------- |
@@ -51,7 +53,7 @@ catstarry.xyz 是木下的个人网站，用 AI 驱动搭建。非程序员用�
 
 ---
 
-## 设计基调 [已锁定 | Phase 4.3 设计侧闭合]
+## 设计基调 [摘要 | 事实源见 DESIGN.md]
 
 > `DESIGN.md` v2.1 是当前全站视觉与交互事实来源。Home Activity Signal 已完成定向 Phase 2/3 与返回 Phase 4.1 视觉重锁；2026-07-18 又完成一次极小交互重锁，正式确认 `Star Map → Focus → action`。ADR-007 继续锁定 Home 可消费无内容的三态静态投影。Phase 4.2 隔离原型已完成木下目测验收；Phase 4.3 已完成 canonical CSS、五颗星球三槽 selected assets 与 UI QA 的设计侧落地。
 
@@ -84,7 +86,7 @@ catstarry.xyz 是木下的个人网站，用 AI 驱动搭建。非程序员用�
 - CSS-only 动画工具类：.anim-fade-up / .anim-stagger / .parallax-container
 - prefers-reduced-motion 降级
 
-## 目录结构 [已锁定]
+## 目录结构 [摘要 | 事实源见架构文档]
 
 > Phase 3 裁决锁定。完整版见 `docs/architecture/modules.md`。
 
