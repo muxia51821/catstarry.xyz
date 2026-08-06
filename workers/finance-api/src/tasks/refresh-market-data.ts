@@ -1,5 +1,6 @@
 // 腾讯行情索引权威来源 = a-stock-data skill §1.2 腾讯字段速查表（simonlin1212/a-stock-data）。
 import type { FinanceEnv } from '../routes/auth';
+import { logWorkerWarning } from '../../../../shared/worker-log';
 
 interface ProviderRecord {
   ticker?: unknown;
@@ -193,7 +194,7 @@ async function fetchBuiltinMarketData(
     try {
       fallbackQuotes = await fetchSinaQuotes([...fallbackTickers], fetchImpl, sleep);
     } catch (error) {
-      console.warn('Sina market data fallback failed; those quotes will be reported missing', error);
+      logWorkerWarning('sina_market_data_fallback_failed_quotes_reported_missing', {}, error);
     }
   }
 
@@ -229,7 +230,7 @@ async function fetchBuiltinMarketData(
   if (nasdaqResult.status === 'fulfilled') {
     indexes.push(nasdaqResult.value);
   } else {
-    console.warn('TradingView market data refresh failed; retaining the last Nasdaq-100 D1 snapshot', nasdaqResult.reason);
+    logWorkerWarning('tradingview_market_data_refresh_failed_last_nasdaq_snapshot_retained', {}, nasdaqResult.reason);
   }
   return { records, indexes, missing: { indexes: missingIndexes, holdings: missingHoldings } };
 }

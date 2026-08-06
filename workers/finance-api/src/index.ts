@@ -10,6 +10,7 @@ import { handleRecords } from './routes/records';
 import { handleStewardship } from './routes/stewardship';
 import { handleTrades } from './routes/trades';
 import { refreshMarketData } from './tasks/refresh-market-data';
+import { logWorkerError, logWorkerWarning } from '../../../shared/worker-log';
 
 function corsFor(env: FinanceEnv) {
   const configured = env.FINANCE_SITE_ORIGIN?.replace(/\/$/, '');
@@ -42,7 +43,7 @@ export default {
       else response = apiError(404, 'not_found', 'Route not found');
       return withCors(response, request, cors);
     } catch (error) {
-      console.error('finance-api request failed', { pathname, method: request.method, error });
+      logWorkerError('finance_request_failed', { pathname, method: request.method }, error);
       return withCors(apiError(500, 'internal_error', 'The request could not be completed'), request, cors);
     }
   },
@@ -52,10 +53,13 @@ export default {
     ctx.waitUntil(refreshMarketData(env).then((result) => {
       const missing = result.missing;
       if (missing && (missing.indexes.length > 0 || missing.holdings.length > 0)) {
-        console.warn('Finance market refresh partial; missing indexes:', missing.indexes, 'holdings:', missing.holdings);
+        logWorkerWarning('finance_market_refresh_partial', {
+          missing_indexes: missing.indexes,
+          missing_holdings: missing.holdings,
+        });
       }
     }).catch((error: unknown) => {
-      console.error('Finance market refresh failed; last valid snapshot retained', error);
+      logWorkerError('finance_market_refresh_failed_last_valid_snapshot_retained', {}, error);
     }));
   },
 } satisfies ExportedHandler<FinanceEnv>;

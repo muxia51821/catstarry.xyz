@@ -44,6 +44,18 @@ function Assert-Http200 {
   Write-Host "HTTP 200: $Uri"
 }
 
+function Assert-SiteWorkerConfig {
+  param([Parameter(Mandatory)][string]$Path)
+
+  $config = Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json
+  $sessionBindings = @($config.kv_namespaces | Where-Object { $_.binding -eq 'SESSION' })
+  if ($sessionBindings.Count -ne 1) {
+    throw "Site Worker configuration must contain exactly one SESSION KV binding."
+  }
+
+  Write-Host "Validated Site Worker SESSION KV binding."
+}
+
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 Set-Location $repoRoot
 
@@ -68,6 +80,7 @@ $workerConfig = Join-Path $repoRoot 'dist/server/wrangler.json'
 if (-not (Test-Path -LiteralPath $workerConfig -PathType Leaf)) {
   throw "Site Worker configuration was not generated: $workerConfig"
 }
+Assert-SiteWorkerConfig -Path $workerConfig
 
 Invoke-RequiredCommand npx wrangler deploy --dry-run --config $workerConfig --name catstarry-site-production --keep-vars
 Invoke-RequiredCommand npx wrangler deploy --config $workerConfig --name catstarry-site-production --keep-vars

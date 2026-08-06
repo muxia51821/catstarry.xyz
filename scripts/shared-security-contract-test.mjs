@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { getSessionToken } from '../shared/auth.ts';
+import { timingSafeEqualText } from '../shared/security.ts';
 import { readBoundedJson } from '../shared/request.ts';
 import { getFinanceSession, getMainSiteSession } from '../shared/auth.ts';
 import { summarizeBatchResults } from '../src/lib/batch-results.ts';
@@ -8,6 +9,9 @@ assert.equal(getSessionToken(new Request('https://example.test', { headers: { Co
 assert.equal(getSessionToken(new Request('https://example.test', { headers: { Cookie: 'token=not-a-session' } })), null);
 const token = crypto.randomUUID();
 assert.equal(getSessionToken(new Request('https://example.test', { headers: { Cookie: `other=1; token=${token}` } })), token);
+assert.equal(await timingSafeEqualText('Bearer secret', 'Bearer secret'), true);
+assert.equal(await timingSafeEqualText('Bearer secret', 'Bearer secreT'), false);
+assert.equal(await timingSafeEqualText(null, 'Bearer secret'), false);
 
 assert.deepEqual(await readBoundedJson(new Request('https://example.test', { method: 'POST', body: '{"ok":true}' }), 64), { ok: true, value: { ok: true } });
 assert.deepEqual(await readBoundedJson(new Request('https://example.test', { method: 'POST', body: '{' }), 64), { ok: false, reason: 'invalid_json' });

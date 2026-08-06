@@ -1,8 +1,8 @@
 # Worker 配置合同
 
-`workers/*/wrangler.jsonc` 是 Phase 5 可追踪的唯一配置事实来源。被忽略的
-`workers/feed-api/wrangler.toml` 是本地遗留文件：仓库脚本不会读取它，也不得
-用它部署。
+`workers/*/wrangler.jsonc` 是 Phase 5 可追踪的唯一配置事实来源。原本被忽略的
+`workers/feed-api/wrangler.toml` 已归档至 `_archive/feed-api-wrangler-legacy.toml`；
+仓库脚本不会读取它，也不得用它部署。
 
 ## Binding 对照
 
@@ -13,8 +13,8 @@
 | `catstarry-feed-api-staging` | `AUTH_KV` | 部署前必须在账户中核实 | `REPLACE_WITH_AUTH_KV_NAMESPACE_ID` |
 | `catstarry-feed-api-staging` | `MEDIA_BUCKET` | `catstarry-media` R2 | R2 按 bucket name 绑定 |
 | `catstarry-feed-api-staging` | `HOME_PROJECTIONS` | `home-projections` R2 | R2 按 bucket name 绑定 |
-| `finance-api` | `DB` | `finance-db` D1 | `REPLACE_WITH_FINANCE_DB_ID` |
-| `finance-api` | `FINANCE_AUTH_KV` | 部署前必须在账户中核实 | `REPLACE_WITH_FINANCE_AUTH_KV_NAMESPACE_ID` |
+| `catstarry-finance-api-staging` | `DB` | `finance-db` D1 | `REPLACE_WITH_FINANCE_DB_ID` |
+| `catstarry-finance-api-staging` | `FINANCE_AUTH_KV` | 部署前必须在账户中核实 | `REPLACE_WITH_FINANCE_AUTH_KV_NAMESPACE_ID` |
 
 占位符是有意保留的：本地类型生成、本地 D1 验证和 dry-run 打包都可使用它；
 只有核实对应账户资源后才能替换为真实 ID。`account_id` 由已认证的 Wrangler 或

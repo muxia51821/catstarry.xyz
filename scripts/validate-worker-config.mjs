@@ -1,4 +1,5 @@
 import { readFile } from 'node:fs/promises';
+import { parse as parseJsonc } from 'jsonc-parser';
 
 const configs = [
   {
@@ -29,13 +30,23 @@ function fail(message) {
   throw new Error(`Worker configuration validation failed: ${message}`);
 }
 
+async function readConfig(path) {
+  const errors = [];
+  const config = parseJsonc(await readFile(path, 'utf8'), errors, { allowTrailingComma: true });
+  if (errors.length > 0 || !config || typeof config !== 'object' || Array.isArray(config)) {
+    fail(`${path} must be a valid JSONC object`);
+  }
+  return config;
+}
+
 function hasAccountIdentifier(value) {
   return typeof value === 'string' &&
-    (/^REPLACE_WITH_[A-Z0-9_]+$/.test(value) || /^[0-9a-f]{32}$/i.test(value));
+    (/^REPLACE_WITH_[A-Z0-9_]+$/.test(value) || /^[0-9a-f]{32}$/i.test(value) ||
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value));
 }
 
 for (const { path, expected } of configs) {
-  const config = JSON.parse(await readFile(path, 'utf8'));
+  const config = await readConfig(path);
   if (config.name === 'feed-api') {
     fail(`${path} must not use the legacy production Worker name feed-api`);
   }
@@ -87,12 +98,12 @@ for (const { path, expected } of configs) {
   }
 }
 
-const financeSite = JSON.parse(await readFile('finance-site/wrangler.jsonc', 'utf8'));
+const financeSite = await readConfig('finance-site/wrangler.jsonc');
 if (financeSite.name !== 'catstarry-finance-staging') fail('finance-site must use its staging Pages project name');
 if (financeSite.compatibility_date !== '2026-07-22') fail('finance-site compatibility date is out of baseline');
 if (financeSite.pages_build_output_dir !== '.') fail('finance-site must deploy only its own directory');
 
-const site = JSON.parse(await readFile('wrangler.jsonc', 'utf8'));
+const site = await readConfig('wrangler.jsonc');
 if (site.name !== 'catstarry-site-staging') fail('root site config must use the staging Worker name');
 if (site.compatibility_date !== '2026-07-22') fail('root site compatibility date is out of baseline');
 if (site.observability?.enabled !== true) fail('root site must enable observability');

@@ -3,6 +3,7 @@ import {
   rejectUntrustedStateChange,
   withCors,
 } from '../../../shared/cors';
+import { logWorkerError } from '../../../shared/worker-log';
 import { apiError } from './lib/http';
 import { refreshActivitySignals } from './modules/activity-signals';
 import { handleAuth } from './routes/auth';
@@ -74,7 +75,7 @@ export default {
       } else response = apiError(404, 'not_found', 'Route not found');
       return withCors(response, request, cors);
     } catch (error) {
-      console.error('feed-api request failed', { pathname, method: request.method, error });
+      logWorkerError('feed_request_failed', { pathname, method: request.method }, error);
       return withCors(apiError(500, 'internal_error', 'The request could not be completed'), request, cors);
     }
   },
@@ -84,13 +85,13 @@ export default {
 
     ctx.waitUntil(Promise.all([
       refreshActivitySignals(env).catch((error: unknown) => {
-        console.error('Activity Signal projection refresh failed', error);
+        logWorkerError('activity_signal_projection_refresh_failed', {}, error);
       }),
       cleanUnreferencedMedia(env).catch((error: unknown) => {
-        console.error('Temporary Feed media cleanup failed', error);
+        logWorkerError('temporary_feed_media_cleanup_failed', {}, error);
       }),
       cleanExpiredViewVisitors(env.DB).catch((error: unknown) => {
-        console.error('Expired Blog view visitor cleanup failed', error);
+        logWorkerError('expired_blog_view_visitor_cleanup_failed', {}, error);
       }),
     ]));
   },

@@ -6,12 +6,27 @@
 
 | 环境 | 站点 | API 路由 | 资源 |
 | --- | --- | --- | --- |
-| staging | `https://staging.catstarry.xyz` → `catstarry-site-staging` | `/api/*`、`/activity-signals.json` → `catstarry-feed-api-staging` | staging D1/KV/R2 |
+| staging | `https://staging.catstarry.xyz` → `catstarry-site-staging` | `/api/*`、`/activity-signals.json` → `catstarry-feed-api-staging` | Site `SESSION` KV（Astro 自动 provisioning）+ staging D1/KV/R2 |
 | finance staging | `https://f-staging.catstarry.xyz` → `catstarry-finance-staging` Pages | `/api/*` → `catstarry-finance-api-staging` | 独立 Finance D1/KV |
-| production | `https://catstarry.xyz` | `/api/*`、`/activity-signals.json` → production Feed Worker | production D1/KV/R2 |
+| production | `https://catstarry.xyz` | `/api/*`、`/activity-signals.json` → production Feed Worker | Site `SESSION` KV（由 production Worker 名称确定）+ production D1/KV/R2 |
 | finance production | `https://f.catstarry.xyz` | `/api/*` → production Finance Worker | 独立 Finance D1/KV |
 
 Feed 与 Finance API 均使用同源 `/api/*` 路由。Session Cookie 保持 host-only；不得为了跨 `workers.dev` 请求设置 `.catstarry.xyz` Domain。
+
+## Production Worker inventory（只记录合同，不记录 secret）
+
+仓库没有版本化的 production Feed/Finance Wrangler 配置；下表记录当前已知的
+production 合同和必须从 Cloudflare 账户只读核验的事实。`待账户核验` 不能视为
+已通过 production release gate。
+
+| Worker | Route | 预期 binding / resource | 预期 Cron | 外部 vars / secret 名称 | 当前状态 |
+| --- | --- | --- | --- | --- | --- |
+| Production Feed Worker | `catstarry.xyz/api/*`、`/activity-signals.json` | `DB` → `catstarry-db`；`VIEW_KV`、`AUTH_KV`；`MEDIA_BUCKET` → `catstarry-media`；`HOME_PROJECTIONS` → `home-projections` | 当前 Feed 合同为 `0 * * * *` | `SITE_ORIGIN`、`CLIP_PREVIEW_ALLOWED_HOSTS`、`FOOTPRINT_INGEST_TOKEN`；可选 Learn webhook 名称 | Worker 名称、实际 IDs、Cron、observability 和 routes 待账户核验 |
+| Production Finance Worker | `f.catstarry.xyz/api/*` | `DB` → `finance-db`；`FINANCE_AUTH_KV` | 当前 Finance 合同为 `*/15 * * * *`、`30 7 * * 1-5` | `FINANCE_SITE_ORIGIN`、可选 `MARKET_PROVIDER_URL`、`MARKET_PROVIDER_TOKEN` | Worker 名称、实际 IDs、Cron、observability 和 routes 待账户核验 |
+
+Staging 的 `2026-07-22` compatibility date、observability 开关和上述 binding 集合是
+当前本地合同；production 是否一致仍需独立的 Cloudflare 只读盘点确认。不得把 staging
+配置直接当作 production inventory，也不得在本表写入 secret 值。
 
 ## 本地/CI 验证
 
@@ -39,6 +54,12 @@ git diff --check
 - Feed R2：`catstarry-media`、`home-projections`
 - Finance D1：`finance-db`
 - Finance KV：`FINANCE_AUTH_KV`
+
+主站 Site Worker 的 `SESSION` KV 由 `@astrojs/cloudflare` 自动注入。生成的
+`dist/server/wrangler.json` 只包含 `SESSION` binding、不包含手工 `id` 是预期行为；
+Wrangler 会按目标 Worker 名称执行自动 provisioning。若账户侧已经存在对应 binding，
+仍需在部署后的 Cloudflare 资源状态中确认映射。它与 Feed 和 Finance 的 KV 独立，
+不得替换为 `VIEW_KV`、`AUTH_KV` 或 `FINANCE_AUTH_KV`。
 
 版本化 `wrangler.jsonc` 中的 `REPLACE_WITH_*` 是明确的资源插槽，不是可部署值。替换位置分别是对应 `database_id` 或 namespace `id`；值来自 `wrangler d1 list` / `wrangler kv namespace list`。
 

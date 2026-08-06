@@ -1,9 +1,11 @@
 import type { FeedPostInput, PublicFootprintCandidate, Visibility } from '../../../../shared/types';
+import { timingSafeEqualText } from '../../../../shared/security';
 import { FeedStore, decodeCursor } from '../adapters/feed-store';
 import { apiError, json, parseBoundedLimit, readJson } from '../lib/http';
 import { recordPublicFootprint, parseFootprintCandidate } from '../modules/footprints';
 import { refreshActivitySignals } from '../modules/activity-signals';
 import { requireMainSession } from './auth';
+import { logWorkerError } from '../../../../shared/worker-log';
 
 const MAX_MEDIA_KEYS = 6;
 const MEDIA_KEY_PATTERN = /^feed\/\d{4}-\d{2}\/[0-9a-f-]{36}\.(?:jpg|jpeg|png|webp|heic|mp4|webm|mov)$/;
@@ -195,7 +197,7 @@ async function previewClip(request: Request, env: FeedEnv): Promise<Response> {
 async function ingestFootprint(request: Request, env: FeedEnv, ctx: ExecutionContext): Promise<Response> {
   const secret = env.FOOTPRINT_INGEST_TOKEN;
   const authorization = request.headers.get('Authorization');
-  if (!secret || authorization !== `Bearer ${secret}`) {
+  if (!secret || !(await timingSafeEqualText(authorization, `Bearer ${secret}`))) {
     return apiError(secret ? 401 : 503, secret ? 'unauthorized' : 'not_configured', 'Footprint ingestion is not available');
   }
   const value = await readJson<Record<string, unknown>>(request, 40 * 1_024);
@@ -373,6 +375,6 @@ async function idForIdempotencyKey(username: string | null, key: string): Promis
 
 function refreshAfterMutation(env: FeedEnv, ctx: ExecutionContext, operation: string): void {
   ctx.waitUntil(refreshActivitySignals(env).catch((error: unknown) => {
-    console.error(`Activity Signal projection refresh failed after ${operation}`, error);
+    logWorkerError('activity_signal_projection_refresh_after_mutation_failed', { operation }, error);
   }));
 }

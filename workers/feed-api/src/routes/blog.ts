@@ -2,6 +2,8 @@ import { FeedStore } from '../adapters/feed-store';
 import { apiError, json, readJson } from '../lib/http';
 import { refreshActivitySignals } from '../modules/activity-signals';
 import { parseFootprintCandidate } from '../modules/footprints';
+import { timingSafeEqualText } from '../../../../shared/security';
+import { logWorkerError } from '../../../../shared/worker-log';
 
 type BlogEnv = Env & { FOOTPRINT_INGEST_TOKEN?: string };
 
@@ -21,7 +23,7 @@ export async function handleBlog(
     return apiError(404, 'not_found', 'Blog route not found');
   }
   const authorization = request.headers.get('Authorization');
-  if (!env.FOOTPRINT_INGEST_TOKEN || authorization !== `Bearer ${env.FOOTPRINT_INGEST_TOKEN}`) {
+  if (!env.FOOTPRINT_INGEST_TOKEN || !(await timingSafeEqualText(authorization, `Bearer ${env.FOOTPRINT_INGEST_TOKEN}`))) {
     return apiError(env.FOOTPRINT_INGEST_TOKEN ? 401 : 503, 'unauthorized', 'Blog publication sync is not available');
   }
   const body = await readJson<{ entries?: unknown; deployed_at?: unknown }>(request, 128 * 1_024);
@@ -69,7 +71,7 @@ export async function handleBlog(
   await env.AUTH_KV.put(manifestKey, JSON.stringify(slugs));
   if (created > 0) {
     ctx.waitUntil(refreshActivitySignals(env).catch((error: unknown) => {
-      console.error('Activity Signal refresh failed after Blog publication sync', error);
+      logWorkerError('activity_signal_refresh_after_blog_publication_sync_failed', {}, error);
     }));
   }
   return json({ initialized: false, synced: slugs.length, created });

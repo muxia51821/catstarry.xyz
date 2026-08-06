@@ -1,4 +1,5 @@
 import { apiError, json, readJson } from '../lib/http';
+import { logWorkerError } from '../../../../shared/worker-log';
 
 const MAX_SLUGS = 50;
 const MAX_RECORDS_PER_MINUTE = 120;
@@ -59,7 +60,7 @@ async function recordView(request: Request, env: Env): Promise<Response> {
   try {
     await env.VIEW_KV.put(cacheKey, '1', { expirationTtl: 86_400 });
   } catch (error) {
-    console.error('Blog view cache marker failed after durable record', { slug, error });
+    logWorkerError('blog_view_cache_marker_failed_after_durable_record', { slug }, error);
   }
   return json({ slug, count: await totalViews(env.DB, slug) });
 }

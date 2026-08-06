@@ -3,6 +3,8 @@ import { apiError, json, readJson } from '../lib/http';
 import { parseFootprintCandidate } from '../modules/footprints';
 import { refreshActivitySignals } from '../modules/activity-signals';
 import { requireMainSession } from './auth';
+import { timingSafeEqualText } from '../../../../shared/security';
+import { logWorkerError } from '../../../../shared/worker-log';
 
 type LearnEnv = Env & {
   FOOTPRINT_INGEST_TOKEN?: string;
@@ -86,14 +88,14 @@ async function completeSection(request: Request, env: LearnEnv, ctx: ExecutionCo
   if (!candidate) return apiError(400, 'invalid_completion', 'Published note completion data is invalid');
   const result = await new FeedStore(env.DB).recordFootprint(candidate, new Date().toISOString());
   if (result.created) ctx.waitUntil(refreshActivitySignals(env).catch((error: unknown) => {
-    console.error('Activity Signal refresh failed after Learn completion', error);
+    logWorkerError('activity_signal_refresh_after_learn_completion_failed', {}, error);
   }));
   return json(result, result.created ? 201 : 200);
 }
 
 async function syncPublishedManifest(request: Request, env: LearnEnv): Promise<Response> {
   const authorization = request.headers.get('Authorization');
-  if (!env.FOOTPRINT_INGEST_TOKEN || authorization !== `Bearer ${env.FOOTPRINT_INGEST_TOKEN}`) {
+  if (!env.FOOTPRINT_INGEST_TOKEN || !(await timingSafeEqualText(authorization, `Bearer ${env.FOOTPRINT_INGEST_TOKEN}`))) {
     return apiError(env.FOOTPRINT_INGEST_TOKEN ? 401 : 503, 'unauthorized', 'Publication manifest sync is not available');
   }
   const body = await readJson<{ slugs?: unknown }>(request, 64 * 1_024);
