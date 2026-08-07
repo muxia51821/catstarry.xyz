@@ -5,9 +5,8 @@
         --klein-500: #002fa7;
         --klein-400: #335cff;
         --klein-pale: #b8c8ff;
-        --warm-0: #fbf4e8;
-        --warm-1: #d9b884;
-        --warm-2: #8b6243;
+        --home-warm-dust-rgb: 217 184 132;
+        --home-warm-terrain-rgb: 126 98 71;
         --ink: #e8edff;
         --muted: rgb(224 232 255 / 0.62);
         --progress: 0;
@@ -35,7 +34,7 @@
         --cat-recover: 2750ms;
         --cat-dust-stagger: 25ms;
         --background-bloom: 0.16;
-        --warm-dust: 0.11;
+        --home-warm-dust-opacity: 0.11;
         --stars-far-opacity: 0.34;
         --stars-mid-opacity: 0.46;
         --stars-near-opacity: 0.18;
@@ -149,12 +148,12 @@
           ),
           radial-gradient(
             circle at 78% 23%,
-            rgb(217 184 132 / var(--warm-dust)),
+            rgb(var(--home-warm-dust-rgb) / var(--home-warm-dust-opacity)),
             transparent 19%
           ),
           radial-gradient(
             ellipse at 55% 62%,
-            rgb(126 98 71 / 0.055),
+            rgb(var(--home-warm-terrain-rgb) / 0.055),
             transparent 31%
           );
         filter: blur(28px);
@@ -445,7 +444,7 @@
         transform: translate(-50%, -50%)
           scale(calc(0.72 + var(--target-halo, 0) * 0.46));
       }
-      .planet.ready {
+      .planet[data-planet-state="ready"] {
         pointer-events: auto;
       }
       .planet:hover,
@@ -503,7 +502,7 @@
         box-shadow: -4px -3px 9px
           rgb(91 123 255 / var(--atmosphere-glow-opacity));
       }
-      .planet.ready .planet-core::after {
+      .planet[data-planet-state="ready"] .planet-core::after {
         border-color: rgb(122 151 255 / var(--planet-ready-rim-opacity));
         border-right-color: rgb(63 83 157 / var(--atmosphere-shadow-opacity));
       }
@@ -642,8 +641,11 @@
           opacity var(--micro) ease,
           transform var(--parallax-ease) ease-out;
       }
-      .signal-wrap[data-state] .signal-layer {
+      .signal-wrap[data-has-state] .signal-layer {
         opacity: var(--signal-reveal, 0);
+      }
+      .signal-wrap[data-has-state="unavailable"] .signal-layer {
+        opacity: 0;
       }
       .signal-orbit-layer,
       .signal-core-layer {
@@ -830,27 +832,31 @@
         animation: none;
         opacity: calc(var(--particle-opacity, 0.3) * 0.7);
       }
-      .signal-wrap[data-state="active"] {
+      .signal-wrap[data-has-state="active"] {
         --signal-opacity: 0.88;
         --orbit: 0.46;
         --signal-scale: 1;
         --signal-band-opacity: 0.92;
       }
-      .signal-wrap[data-state="stable"] {
+      .signal-wrap[data-has-state="stable"] {
         --signal-opacity: 0.67;
         --orbit: 0.28;
         --signal-scale: 0.84;
         --signal-band-opacity: 0.76;
       }
-      .signal-wrap[data-state="dormant"] {
+      .signal-wrap[data-has-state="dormant"] {
         --signal-opacity: 0.48;
         --orbit: 0.14;
         --signal-scale: 0.7;
         --signal-band-opacity: 0.54;
       }
-      .signal-wrap[data-state] .signal-core {
+      .signal-wrap[data-has-state] .signal-core {
         opacity: var(--signal-opacity);
         scale: var(--signal-scale);
+      }
+      .signal-wrap[data-has-state="unavailable"] .signal-core {
+        opacity: 0;
+        scale: 1;
       }
       .signal-wrap.respond .signal-core {
         animation: signal-response var(--satellite-response) ease-out;
@@ -1039,35 +1045,35 @@
       .cat-svg .cat-fragment use {
         pointer-events: none;
       }
-      .about-zone.revealed .cat-svg .cat-fragment,
+      .about-zone[data-cat-state="reveal"] .cat-svg .cat-fragment,
       .about-zone:hover .cat-svg .cat-fragment,
       .about-zone:focus-within .cat-svg .cat-fragment {
         opacity: var(--cat-fragment-reveal-opacity, 0.86);
         filter: drop-shadow(0 0 3px rgb(0 47 167 / 0.2));
       }
-      .about-zone.revealed .cat-svg .cat-aura,
+      .about-zone[data-cat-state="reveal"] .cat-svg .cat-aura,
       .about-zone:hover .cat-svg .cat-aura,
       .about-zone:focus-within .cat-svg .cat-aura {
         opacity: var(--cat-aura-reveal-opacity, 0.22);
       }
       .about-zone:hover .cat,
       .about-zone:focus-within .cat,
-      .about-zone.revealed .cat {
+      .about-zone[data-cat-state="reveal"] .cat {
         color: var(--klein-500);
         filter: drop-shadow(0 0 7px rgb(0 47 167 / 0.26));
       }
-      .about-zone.charged .cat {
+      .about-zone[data-cat-state="charged"] .cat {
         animation: cat-charge var(--cat-charge) ease-in-out;
       }
-      .about-zone.charged .cat-svg .cat-fragment {
+      .about-zone[data-cat-state="charged"] .cat-svg .cat-fragment {
         opacity: var(--cat-constellation-charge-opacity, 1);
         filter: drop-shadow(0 0 7px rgb(51 92 255 / 0.58));
         animation: constellation-charge var(--cat-charge) ease-in-out;
       }
-      .about-zone.charged .cat-svg .cat-aura {
+      .about-zone[data-cat-state="charged"] .cat-svg .cat-aura {
         opacity: var(--cat-aura-charge-opacity, 0.42);
       }
-      .about-zone.charged::before {
+      .about-zone[data-cat-state="charged"]::before {
         content: "";
         position: absolute;
         inset: 22px 25px;
@@ -1105,7 +1111,7 @@
         transform: translateX(-50%);
         transition: opacity var(--micro);
       }
-      .about-zone.charged .cat-hint,
+      .about-zone[data-cat-state="charged"] .cat-hint,
       .about-zone:hover .cat-hint,
       .about-zone:focus-within .cat-hint {
         opacity: 0.82;
@@ -1163,23 +1169,23 @@
         box-shadow: 0 0 8px var(--klein-400);
         transform: translate(-50%, -50%);
       }
-      .about-zone.burst .cat-svg .cat-aura {
+      .about-zone[data-cat-state="burst"] .cat-svg .cat-aura {
         opacity: 0;
         transition: opacity var(--micro);
       }
-      .about-zone.burst .cat-svg .cat-fragment {
+      .about-zone[data-cat-state="burst"] .cat-svg .cat-fragment {
         animation: cat-fragment-burst var(--cat-burst)
           cubic-bezier(0.12, 0.8, 0.22, 1) forwards;
         animation-delay: var(--fragment-delay);
       }
-      .about-zone.recovering .cat {
+      .about-zone[data-cat-state="recovering"] .cat {
         animation: cat-recover var(--cat-recover)
           cubic-bezier(0.18, 0.72, 0.22, 1);
       }
-      .about-zone.burst .cat-dust {
+      .about-zone[data-cat-state="burst"] .cat-dust {
         opacity: 1;
       }
-      .about-zone.burst .cat-dust i {
+      .about-zone[data-cat-state="burst"] .cat-dust i {
         animation: dust-burst var(--cat-burst) cubic-bezier(0.15, 0.75, 0.24, 1)
           forwards;
       }
@@ -1271,15 +1277,15 @@
       .cat-burst-layer { pointer-events: none; }
       .cat-burst-particle { opacity: 0; color: var(--klein-400); }
       .cat-burst-particle circle { fill: currentColor; filter: drop-shadow(0 0 2px rgb(51 92 255 / .58)); }
-      .about-zone.revealed .cat-node-layer .cat-node,
+      .about-zone[data-cat-state="reveal"] .cat-node-layer .cat-node,
       .about-zone:hover .cat-node-layer .cat-node,
       .about-zone:focus-within .cat-node-layer .cat-node { opacity: var(--cat-node-reveal-opacity, .96); }
-      .about-zone.revealed .cat-link-layer .cat-link-fragment,
+      .about-zone[data-cat-state="reveal"] .cat-link-layer .cat-link-fragment,
       .about-zone:hover .cat-link-layer .cat-link-fragment,
       .about-zone:focus-within .cat-link-layer .cat-link-fragment { opacity: .42; }
-      .about-zone.charged .cat-svg .cat-fragment { animation: none; }
-      .about-zone.charged .cat-node-layer .cat-node { opacity: var(--cat-node-charged-opacity, 1); }
-      .about-zone.burst .cat-svg .cat-fragment { animation: none; }
+      .about-zone[data-cat-state="charged"] .cat-svg .cat-fragment { animation: none; }
+      .about-zone[data-cat-state="charged"] .cat-node-layer .cat-node { opacity: var(--cat-node-charged-opacity, 1); }
+      .about-zone[data-cat-state="burst"] .cat-svg .cat-fragment { animation: none; }
       .focus-open.cat-residue-visible .cat-contour-layer,
       .focus-open.cat-residue-visible .cat-link-layer { opacity: 0; }
       .focus-open.cat-residue-visible .cat-node-layer .cat-node:not(.is-residue),

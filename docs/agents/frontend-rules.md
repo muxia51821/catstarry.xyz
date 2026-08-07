@@ -41,8 +41,8 @@
 ## 4. Canonical CSS 与 token 施工规则
 
 - `src/styles/main.css` 是 Phase 5 正式前端的 canonical 全局入口，导入顺序固定为 `variables.css` → `typography.css` → `components.css`。
-- 当前 `src/layouts/Base.astro` 仍引用旧 Blog 原型的 `src/styles/global.css`。该文件属于待迁移遗留，不得被新页面或新组件继续引用。
-- 在首个正式前端模块接入 canonical CSS 时，应审计旧页面依赖，完成 `Base.astro` 的入口切换；不得让 `global.css` 与 `main.css` 长期并存并互相覆盖。
+- `src/layouts/Base.astro` 已切换到 `src/styles/main.css` 入口（2026-08-06 核验）；旧 `src/styles/global.css` 为历史遗留死文件（生产零引用），不得被新页面或新组件重新引用。
+- `global.css` 保留为死文件（零引用零风险），不做清理；任何新模块不得引用。
 - 组件只消费 Layer 2（语义）或 Layer 3（组件）token；不得在页面或组件中直接绑定 Layer 1 原始色值、尺寸或动效值。
 - 新增样式优先复用现有 token 和 selector/state interface。确有新视觉角色时，先补齐语义 token，再由组件 token 映射；不能用一批局部 CSS custom properties 绕过三层结构。
 - 不把滚动阶段、Focus 顺序、星图随机 seed、星团坐标、轨道相位、豹猫粒子物理、鼠标采样或路由状态塞入 CSS token。它们是 runtime-owned。
@@ -55,6 +55,7 @@
 - 中文正文至少 16px，行高至少 1.85；中文标题至少 1.35，说明文字至少 1.65。
 - 中文使用 `HarmonyOS Sans SC` 等既有 CJK fallback；常用字重不高于 500，不用 700+ 伪造“粗黑科技感”。
 - 中文字距保持 `0` 或 `normal`；负字距只允许纯英文或数字标题。中文 Display / Heading 继续使用已有 `:lang(zh*)` 规则，不自行覆盖为英文排版参数。
+- 唯一例外：品牌角标（如 `.xiaohongshu-mark` 中的“小红书”）可突破字重 ≤500 与负字距限制，仅限用于品牌身份标识，不得推广到普通中文标题或正文。
 - 保留 `text-spacing-trim`、`hanging-punctuation` 与 `:lang(zh)` / `:lang(zh-Hans)` / `:lang(zh-CN)` 的渐进增强。
 - 中英、中文与数字之间约 1/4em 的自动间距属于 Phase 5 的浏览器侧实现项；实现时不得以破坏复制、搜索、读屏或断行的手工空格替代。
 - 星球标签默认可低声量，但 hover / keyboard focus 后必须达到正文可读对比度；中文标签和 action 不使用英文式全大写或大字距。
@@ -80,7 +81,7 @@
 
 - HAS 只服务 Blog、Feed、Learn、Projects 四颗功能星球；About 与豹猫永不参与。它只表达 `active`、`stable`、`dormant`，不是未读提醒、内容预览或第二套导航。
 - 缺少有效静态投影时，四颗信标必须全部隐藏；不得把数据不可用伪装成 `dormant`。状态须通过材质、轨道残留、受限运动和可访问文字共同表达，不能只靠颜色。
-- 保留既有 `data-has-state`、`data-attention`、轨道前后层等 canonical state interface；轨道路径、相位、周期和 pulse scheduler 仍由运行时控制。
+- Home 生产 state vocabulary（2026-08-06 核验）：`data-has-state="active|stable|dormant|unavailable"`、`data-planet-state="ready"`、`data-cat-state="reveal|charged|burst|recovering"`、`.about-zone.ready`（交互开关，非状态机）；`data-attention` 与 `.attention` class、轨道前后层（canonical `data-orbit-layer/depth` vs 生产 `.back`/`.front`）为未收敛待裁决项；轨道路径、相位、周期和 pulse scheduler 仍由运行时控制。
 - 星球必须使用 `docs/design/assets/planets/selected/` 中已选的同源 Overview / Focus / Mobile 身份，不重新生成、替换为相似星球或混用 Phase 4.2 历史候选。
 - Overview 是完整球体，Focus 使用同一母版的细节裁切，Mobile 保留同一主地貌。是否需要大屏 2x 母版、资源优先级、preload / lazy 与 CDN/R2 策略，须在生产接入时以实际性能证据裁决，不得假定已完成。
 

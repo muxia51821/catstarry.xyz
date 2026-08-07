@@ -177,7 +177,7 @@ function activitySignalSnapshotExpression() {
     const core = signal?.querySelector('.signal-core');
     const coreRect = core?.getBoundingClientRect();
     return [key, {
-      state: signal?.dataset.state ?? null,
+      hasState: signal?.dataset.hasState ?? null,
       reveal: signal ? getComputedStyle(signal).getPropertyValue('--signal-reveal').trim() : null,
       layerOpacities: layers.map((layer) => Number(getComputedStyle(layer).opacity)),
       coreOpacity: core ? Number(getComputedStyle(core).opacity) : null,
@@ -189,7 +189,7 @@ function activitySignalSnapshotExpression() {
 
 function visibleSignalsPass(signals) {
   return Object.values(signals).every((signal) => (
-    ['active', 'stable', 'dormant'].includes(signal.state)
+    ['active', 'stable', 'dormant'].includes(signal.hasState)
     && Number(signal.reveal) > 0
     && signal.layerOpacities.length > 0
     && signal.layerOpacities.every((opacity) => opacity > 0)
@@ -201,7 +201,7 @@ function visibleSignalsPass(signals) {
 
 function unavailableSignalsPass(signals) {
   return Object.values(signals).every((signal) => (
-    signal.state === null
+    signal.hasState === 'unavailable'
     && signal.layerOpacities.length > 0
     && signal.layerOpacities.every((opacity) => opacity === 0)
   ));
@@ -381,11 +381,11 @@ try {
     }
     const activityReady = ownsServer
       ? `${JSON.stringify(Object.entries(fixtureActivitySignals))}.every(([key, state]) =>
-          document.querySelector('[data-planet="' + key + '"] .signal-wrap')?.dataset.state === state
+          document.querySelector('[data-planet="' + key + '"] .signal-wrap')?.dataset.hasState === state
         )`
       : `['blog', 'feed', 'learn', 'projects'].every((key) =>
           ['active', 'stable', 'dormant'].includes(
-            document.querySelector('[data-planet="' + key + '"] .signal-wrap')?.dataset.state
+            document.querySelector('[data-planet="' + key + '"] .signal-wrap')?.dataset.hasState
           )
         )`;
     await waitFor(activityReady, 'Home Activity Signal projection', 5_000);
@@ -424,7 +424,7 @@ try {
   const activitySignals = await evaluate(`Object.fromEntries(
     ['blog', 'feed', 'learn', 'projects'].map((key) => [
       key,
-      document.querySelector('[data-planet="' + key + '"] .signal-wrap')?.dataset.state ?? null,
+      document.querySelector('[data-planet="' + key + '"] .signal-wrap')?.dataset.hasState ?? null,
     ]),
   )`);
   const visibleSignals = await evaluate(activitySignalSnapshotExpression());
@@ -432,15 +432,56 @@ try {
   const planetRevealTransition = await evaluate(planetRevealTransitionExpression());
   const unavailableSignalStates = await evaluate(`(() => {
     const signals = [...document.querySelectorAll('.signal-wrap')];
-    const states = signals.map((signal) => signal.dataset.state);
-    signals.forEach((signal) => { delete signal.dataset.state; });
+    const states = signals.map((signal) => signal.dataset.hasState);
+    signals.forEach((signal) => { signal.dataset.hasState = 'unavailable'; });
     return states;
   })()`);
   await delay(1_000);
   const unavailableSignals = await evaluate(activitySignalSnapshotExpression());
   await evaluate(`document.querySelectorAll('.signal-wrap').forEach((signal, index) => {
-    signal.dataset.state = ${JSON.stringify(unavailableSignalStates)}[index];
+    signal.dataset.hasState = ${JSON.stringify(unavailableSignalStates)}[index];
   })`);
+  await evaluate(`scrollTo({ top: document.querySelector('.journey').offsetHeight - innerHeight, behavior: 'instant' })`);
+  await delay(300);
+  phase = 'cat vocabulary';
+  await waitFor(
+    `document.querySelector('.about-zone')?.classList.contains('ready')`,
+    'cat companion ready',
+    3_000,
+  );
+  const catVocabulary = await evaluate(`(async () => {
+    const about = document.querySelector('[data-planet="about"]');
+    const catZone = document.querySelector('.about-zone');
+    const cat = catZone.querySelector('.cat');
+    const click = (target) => target.dispatchEvent(
+      new MouseEvent('click', { bubbles: true, clientX: 600, clientY: 300 }),
+    );
+    const states = [];
+    const planetStates = [...document.querySelectorAll('[data-planet]')]
+      .map((p) => p.dataset.planetState ?? null);
+    about.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    states.push({ step: 'hover-enter', catState: catZone.dataset.catState ?? null });
+    about.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
+    states.push({ step: 'hover-leave', catState: catZone.dataset.catState ?? null });
+    about.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    states.push({ step: 'hover-enter-2', catState: catZone.dataset.catState ?? null });
+    click(cat);
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    states.push({ step: 'charged', catState: catZone.dataset.catState ?? null });
+    click(cat);
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    states.push({ step: 'burst', catState: catZone.dataset.catState ?? null });
+    return { planetStates, states };
+  })()`);
+  const catVocabularyPass = (
+    catVocabulary.planetStates.includes('ready')
+    && catVocabulary.states[0].catState === 'reveal'
+    && catVocabulary.states[1].catState === null
+    && catVocabulary.states[2].catState === 'reveal'
+    && catVocabulary.states[3].catState === 'charged'
+    && catVocabulary.states[4].catState === 'burst'
+  );
+  await load();
   phase = 'planet click';
   await evaluate(`document.querySelector('[data-planet="learn"]').click()`);
   const planetClick = await samples('learn');
@@ -613,6 +654,7 @@ try {
     visibleSignals,
     planetRevealTransition,
     unavailableSignals,
+    catVocabulary,
     planetClick: { visible: planetClick.visible, samples: planetClick.results.map(({ afterMs, state }) => ({ afterMs, focus: state.focus, focusMode: state.focusMode, focusOpen: state.focusOpen, layerOpacity: state.layer?.opacity, planetOpacity: state.planet?.opacity, proxyOpacity: state.proxy?.opacity, titleOpacity: state.title?.opacity, enterOpacity: state.enter?.opacity })) },
     indexClick: { visible: indexClick.visible, samples: indexClick.results.map(({ afterMs, state }) => ({ afterMs, focus: state.focus, focusMode: state.focusMode, focusOpen: state.focusOpen, layerOpacity: state.layer?.opacity, planetOpacity: state.planet?.opacity, proxyOpacity: state.proxy?.opacity, titleOpacity: state.title?.opacity, enterOpacity: state.enter?.opacity })) },
     naturalScroll,
@@ -637,6 +679,7 @@ try {
     || !visibleSignalsPass(visibleSignals)
     || !planetRevealTransitionPass(planetRevealTransition)
     || !unavailableSignalsPass(unavailableSignals)
+    || !catVocabularyPass
     || !planetClick.visible
     || !indexClick.visible
     || !naturalScroll.visible

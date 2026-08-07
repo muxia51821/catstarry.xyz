@@ -350,7 +350,10 @@ const P = PROTOTYPE_VISUAL_PARAMETERS,
             "--background-bloom",
             P.environment.backgroundBloomOpacity,
           );
-          root.style.setProperty("--warm-dust", P.environment.warmDustOpacity);
+          root.style.setProperty(
+            "--home-warm-dust-opacity",
+            P.environment.warmDustOpacity,
+          );
           root.style.setProperty(
             "--stars-far-opacity",
             P.environment.starLayerOpacity.far,
@@ -903,18 +906,22 @@ const P = PROTOTYPE_VISUAL_PARAMETERS,
           signal._responseTimer = null;
           signal.classList.remove("respond", "ambient-pulse");
         }
+        function isInertSignal(signal) {
+          const state = signal?.dataset.hasState;
+          return state === "dormant" || state === "unavailable";
+        }
         function respond(signal, ambient = false) {
           if (
             !signal ||
             reduce.matches ||
             !finePointer.matches ||
-            signal.dataset.state === "dormant"
+            isInertSignal(signal)
           )
             return;
           clearSignalResponse(signal);
           signal._responseFrame = requestAnimationFrame(() => {
             signal._responseFrame = null;
-            if (!signal.dataset.state) return;
+            if (isInertSignal(signal)) return;
             signal.classList.add("respond");
             signal.classList.toggle("ambient-pulse", ambient);
             signal._responseTimer = setTimeout(
@@ -930,7 +937,7 @@ const P = PROTOTYPE_VISUAL_PARAMETERS,
           signal.classList.remove("ambient-pulse");
         }
         function canRunAmbientPulse(signal) {
-          const state = signal?.dataset.state;
+          const state = signal?.dataset.hasState;
           return (
             (state === "active" || state === "stable") &&
             !reduce.matches &&
@@ -943,7 +950,7 @@ const P = PROTOTYPE_VISUAL_PARAMETERS,
           clearAmbientPulse(signal);
           if (!canRunAmbientPulse(signal)) return;
           const [minMs, maxMs] =
-              P.satellite.ambientPulse.intervalMs[signal.dataset.state],
+              P.satellite.ambientPulse.intervalMs[signal.dataset.hasState],
             delay = minMs + Math.random() * (maxMs - minMs);
           signal._ambientPulseTimer = setTimeout(() => {
             signal._ambientPulseTimer = null;
@@ -974,15 +981,20 @@ const P = PROTOTYPE_VISUAL_PARAMETERS,
           signal._rateFrame = requestAnimationFrame(tick);
         }
         function updateSignalAttention(signal) {
-          if (!signal?.dataset.state || reduce.matches || !finePointer.matches)
+          if (
+            !signal?.dataset.hasState ||
+            isInertSignal(signal) ||
+            reduce.matches ||
+            !finePointer.matches
+          )
             return;
           const attentive = Boolean(
               signal._pointerAttention || signal._focusAttention,
             ),
             wasAttentive = signal.classList.contains("attention"),
-            state = signal.dataset.state;
+            state = signal.dataset.hasState;
           signal.classList.toggle("attention", attentive);
-          if (state === "dormant") return;
+          if (state === "dormant" || state === "unavailable") return;
           if (attentive === wasAttentive) return;
           if (attentive) clearAmbientPulse(signal);
           setSignalOrbitRate(
@@ -1033,7 +1045,7 @@ const P = PROTOTYPE_VISUAL_PARAMETERS,
           delete signal.dataset.depth;
         }
         function syncSignalDepth(signal) {
-          const state = signal?.dataset.state,
+          const state = signal?.dataset.hasState,
             animation = signal?._ambientMotion;
           if (!state || !animation || signal.dataset.staticMotion === "true") {
             stopSignalDepthSync(signal);
@@ -1129,7 +1141,7 @@ const P = PROTOTYPE_VISUAL_PARAMETERS,
             signal._ambientMotion?.cancel();
             signal._ambientMotion = null;
             if (state) {
-              signal.dataset.state = state;
+              signal.dataset.hasState = state;
               signal.dataset.particles = P.satellite.particleCount[state];
               signal.style.setProperty(
                 "--particle-duration",
@@ -1157,7 +1169,7 @@ const P = PROTOTYPE_VISUAL_PARAMETERS,
             } else {
               clearAmbientPulse(signal);
               clearSignalResponse(signal);
-              delete signal.dataset.state;
+              signal.dataset.hasState = "unavailable";
               delete signal.dataset.particles;
               delete signal.dataset.staticMotion;
               status.textContent = signalStateText.unavailable;
@@ -1605,7 +1617,8 @@ const P = PROTOTYPE_VISUAL_PARAMETERS,
               p >= emergence.targetStart ? 1 : 0,
             );
             planet.style.setProperty("--z", z);
-            planet.classList.toggle("ready", ready);
+            if (ready) planet.dataset.planetState = "ready";
+            else delete planet.dataset.planetState;
             planet.tabIndex = ready ? 0 : -1;
           });
           const aboutRect = aboutPlanet.getBoundingClientRect(),
@@ -1621,7 +1634,7 @@ const P = PROTOTYPE_VISUAL_PARAMETERS,
               66,
               innerHeight - 66,
             ),
-            canEnter = aboutPlanet.classList.contains("ready");
+            canEnter = aboutPlanet.dataset.planetState === "ready";
           catZone.style.setProperty("--cat-x", `${catX}px`);
           catZone.style.setProperty("--cat-y", `${catY}px`);
           catZone.classList.toggle("ready", canEnter);
@@ -1861,6 +1874,22 @@ const P = PROTOTYPE_VISUAL_PARAMETERS,
         document
           .querySelectorAll(".flight-index [data-focus]")
           .forEach((b) => (b.onclick = () => jumpFocus(b.dataset.focus)));
+        const CAT_STATE_ATTR = {
+          charged: "charged",
+          burst: "burst",
+          recover: "recovering",
+        };
+        let catRevealActive = false;
+        function syncCatState() {
+          const primary = CAT_STATE_ATTR[catState] ?? null,
+            value = primary ?? (catRevealActive ? "reveal" : null);
+          if (value) catZone.dataset.catState = value;
+          else delete catZone.dataset.catState;
+        }
+        function setCatReveal(active) {
+          catRevealActive = active;
+          syncCatState();
+        }
         function resetCatToRest() {
           clearTimeout(chargeTimer);
           clearTimeout(catBurstTimer);
@@ -1868,7 +1897,7 @@ const P = PROTOTYPE_VISUAL_PARAMETERS,
           catState = "rest";
           resetCatPhysics();
           body.classList.remove("cat-residue-visible");
-          catZone.classList.remove("charged", "burst", "recovering");
+          syncCatState();
           document.getElementById("cat-hint").textContent = homeCopy.cat.hint;
         }
         function recoverCatCompanion(restoreFocus = false, force = false) {
@@ -1883,13 +1912,12 @@ const P = PROTOTYPE_VISUAL_PARAMETERS,
           }
           catState = "recover";
           beginCatPhysics("recovering");
-          catZone.classList.remove("burst");
-          catZone.classList.add("recovering");
+          syncCatState();
           clearTimeout(catRecoverTimer);
           catRecoverTimer = setTimeout(
             () => {
               catState = "rest";
-              catZone.classList.remove("recovering");
+              syncCatState();
               document.getElementById("cat-hint").textContent = homeCopy.cat.hint;
               if (restoreFocus) cat.focus();
             },
@@ -2070,24 +2098,23 @@ const P = PROTOTYPE_VISUAL_PARAMETERS,
           );
         });
         aboutPlanet.addEventListener("mouseenter", () =>
-          catZone.classList.add("revealed"),
+          setCatReveal(true),
         );
         aboutPlanet.addEventListener("mouseleave", () =>
-          catZone.classList.remove("revealed"),
+          setCatReveal(false),
         );
         aboutPlanet.addEventListener("focus", () =>
-          catZone.classList.add("revealed"),
+          setCatReveal(true),
         );
         aboutPlanet.addEventListener("blur", () =>
-          catZone.classList.remove("revealed"),
+          setCatReveal(false),
         );
         function enterAboutFromCat() {
           clearTimeout(chargeTimer);
           clearTimeout(catBurstTimer);
           catState = "burst";
           body.classList.add("cat-residue-visible");
-          catZone.classList.remove("charged", "recovering");
-          catZone.classList.add("burst");
+          syncCatState();
           beginCatPhysics("burst");
           document.getElementById("cat-hint").textContent = homeCopy.cat.hint;
           if (reduce.matches) {
@@ -2113,8 +2140,7 @@ const P = PROTOTYPE_VISUAL_PARAMETERS,
           if (catState === "rest" || catState === "recover") {
             catState = "charged";
             beginCatPhysics("charged");
-            catZone.classList.remove("recovering");
-            catZone.classList.add("charged");
+            syncCatState();
             document.getElementById("cat-hint").textContent =
               homeCopy.cat.chargedHint;
             clearTimeout(chargeTimer);
@@ -2431,9 +2457,9 @@ const P = PROTOTYPE_VISUAL_PARAMETERS,
               const nx = e.clientX / innerWidth - 0.5,
                 ny = e.clientY / innerHeight - 0.5;
               document
-                .querySelectorAll(".signal-wrap[data-state]")
+                .querySelectorAll(".signal-wrap[data-has-state]")
                 .forEach((signal) => {
-                  const state = signal.dataset.state,
+                  const state = signal.dataset.hasState,
                     factor =
                       state === "active" ? 1 : state === "stable" ? 0.55 : 0;
                   signal.style.setProperty(

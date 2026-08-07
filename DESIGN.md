@@ -263,6 +263,16 @@ canonical 视觉 token：
 
 旧版 --cat-warm、--cat-dark、--cat-eye-glow 等过早预设已从 canonical CSS 废弃；豹猫统一使用上述 Klein Blue 光学语义。
 
+豹猫状态词汇（`data-cat-state`）：
+
+- `reveal`：hover / focus 显现态（指针进入 About 引力范围或键盘 focus 时的轮廓与节点显现）；
+- `charged`：第一次点击后的蓄能态；
+- `burst`：第二次点击后的粒子爆开动画态（About 星球绝不爆炸）；
+- `residue`：爆开后的低音量不可交互残余签名（Focus 展开期间）——设计系统保留值（canonical 组件实现已于 2026-08-06 清理，token 保留）；生产以 `body.cat-residue-visible` + 节点 `is-residue` 表达，不写 `data-cat-state="residue"`；
+- `recovering`：从爆开/展开返回的复原态。
+
+状态互斥表达主进程；`reveal` 可由运行时应答 hover 兜底叠加投影，视觉上不得与主态规则冲突（主态优先）。
+
 ### 2.8 鼠标流星尾 Token 家族
 
 建议 token：
@@ -324,6 +334,20 @@ Home 的原“Hero Display”角色更名为 **Entry Display**。它服务宇宙
 | Caption       | 12px      | 12px      | 400             | 1.50               |
 
 Display 至 Heading 必须流式缩放。中文显示字号约为英文的 0.9 倍，不使用负字距。
+
+**Home Focus 面板排版**（生产实现以 `home.css` 的 `.focus-copy`/`.focus-copy h2` 为准；canonical 排版规则已于 2026-08-06 随 dead block 清理，本节为规范记录）：
+
+| 角色 | 参数 | 备注 |
+| --- | --- | --- |
+| Focus 标题 EN | `clamp(36px, 5vw, var(--text-size-heading-md-en))` | 字重 300、行高 1.04、字距 -0.035em |
+| Focus 标题 CN | `clamp(34px, 4.6vw, var(--text-size-heading-md-cn))` | 字重 400、行高 1.3、字距 0 |
+| Focus 正文 | max-width 38em、`--text-size-body` | 行高 `--line-height-body`（CN 用 `--line-height-body-cjk`）、overflow-wrap anywhere |
+| Focus 操作按钮 | `--text-xs`、字重 600、行高 1 | 字距 0.14em、uppercase |
+| 星球标签 | `--star-map-label-size`（11px）、字重 500 | 行高 1.4、字距 0.18em、uppercase、nowrap；index 用 `--star-map-index-size`（10px） |
+| CN 切换 | `:lang(zh)` → `--font-cjk` | 标题/正文/按钮统一切换 |
+| 移动端 | ≤760px 正文降至 `--text-sm` | — |
+
+variables.css 中 canonical Home 视觉契约 token（§2.6/§3.4-3.8：`--home-*`/`--has-*`/`--leopardcat-*`/`--star-map-*`/`--planet-*` 光学参数等）**保留为设计契约参考**，生产实现参数以 `home.css` 为准（双实现 token 已核验等值，2026-08-06）。
 
 ### 3.3 CJK 强制规则
 

@@ -19,7 +19,7 @@ import { homeCopy } from '../../content/copy/home';
 const manifestUrl = import.meta.env.PUBLIC_ACTIVITY_SIGNALS_URL ?? '/activity-signals.json';
 ---
 
-<main>
+<main data-canvas="home">
       <section class="journey" id="entry" aria-label={homeCopy.accessibility.journeyLabel} data-home-manifest-url={manifestUrl}>
         <div class="stage" id="stage">
           <canvas
