@@ -1,5 +1,25 @@
 # 更新记录
 
+## 2026-08-09 — Home and Finance workspace hardening
+
+### Finance
+
+- 重整 Finance 工作区的导航层级与标签命名，区分总览、交易记录、资金与计划、管理记录等入口，并为各工作区补充明确的 active 状态色彩。
+- 改进 Finance 加载状态、ARIA tab 状态、移动端触控尺寸、中文排版和 reduced-motion 行为；单个可选数据接口异常时继续保留其他面板内容。
+
+### Site / Home
+
+- 收敛 Home 的 canvas、HAS、Planet、Cat 状态契约，移除未接入生产的平行 CSS 实现，降低样式覆盖和 design/production contract 漂移风险；视觉表现保持不变。
+
+### Operations / Architecture
+
+- 加强 Feed 与 Finance Worker 的请求认证比较、结构化错误日志和行情异常诊断，并收紧 Worker 配置与 Site SESSION binding 的部署前校验。
+- 同步架构、前端规则和 Phase 8 工作流文档，使其与当前生产模块边界保持一致。
+
+### Added
+
+- 新增 Home CSS structural contract regression 和 Finance UI regression 覆盖，保护关键状态接口、工作区交互和响应式行为。
+
 ## 2026-08-06 — Finance workspace and architecture follow-up
 
 ### Finance
