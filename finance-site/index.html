@@ -37,12 +37,12 @@
       </header>
 
       <nav class="finance-tabs" aria-label="Finance 工作区">
-        <button type="button" class="finance-tab is-active" data-tab="overview">数据面板</button>
-        <button type="button" class="finance-tab" data-tab="entry">交易记录</button>
-        <button type="button" class="finance-tab" data-tab="holdings">持仓</button>
-        <button type="button" class="finance-tab" data-tab="review">复盘与风险</button>
-        <button type="button" class="finance-tab" data-tab="planning">月度与计划</button>
-        <button type="button" class="finance-tab" data-tab="records">记录</button>
+        <button type="button" class="finance-tab is-active" data-tab="overview" aria-pressed="true">数据面板</button>
+        <button type="button" class="finance-tab" data-tab="entry" aria-pressed="false">交易记录</button>
+        <button type="button" class="finance-tab" data-tab="holdings" aria-pressed="false">持仓</button>
+        <button type="button" class="finance-tab" data-tab="review" aria-pressed="false">复盘与风险</button>
+        <button type="button" class="finance-tab" data-tab="planning" aria-pressed="false">月度与计划</button>
+        <button type="button" class="finance-tab" data-tab="records" aria-pressed="false">记录</button>
       </nav>
 
       <section class="circuit-banner" data-circuit-banner role="alert" hidden>
@@ -50,7 +50,7 @@
         <button class="button-secondary" type="button" data-resolve-circuit hidden>解除熔断</button>
       </section>
 
-      <main class="dashboard" data-dashboard>
+      <main class="dashboard" data-dashboard aria-busy="false">
         <section class="summary-grid" data-pane="overview" aria-label="账户摘要">
           <article class="metric metric--wide"><span>当前总市值</span><strong data-total-value>—</strong><small data-market-freshness>等待行情快照</small></article>
           <article class="metric"><span>A股行情</span><strong data-market-summary>—</strong><small data-market-freshness-copy>等待指数涨跌数据</small></article>

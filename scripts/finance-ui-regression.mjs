@@ -216,11 +216,18 @@ try {
     overviewActive: document.querySelector('[data-tab="overview"]').classList.contains('is-active'),
     overviewChartPoints: document.querySelectorAll('[data-net-worth-chart] circle').length,
     overviewChartSvg: document.querySelector('[data-net-worth-chart] svg') instanceof SVGSVGElement && document.querySelectorAll('[data-net-worth-chart] circle title').length === 2,
+    overviewUsesFullGrid: Math.abs(document.querySelector('.overview-grid').getBoundingClientRect().right - document.querySelector('.overview-grid .panel--span-2').getBoundingClientRect().right) < 1,
+    dashboardNotBusy: document.querySelector('[data-dashboard]').getAttribute('aria-busy') === 'false',
+    tabPressedState: [...document.querySelectorAll('[data-tab]')].map((button) => ({ tab: button.dataset.tab, pressed: button.getAttribute('aria-pressed') })),
     holdingsSummary: [...document.querySelectorAll('[data-top-holdings] p')].map((node) => node.textContent.replace(/\s+/g, ' ').trim()),
     categoryDistribution: document.querySelectorAll('[data-category-distribution] article').length,
     fontsLoaded: document.fonts.check('16px Geist') && document.fonts.check('16px "HarmonyOS Sans SC"') && document.fonts.check('16px "JetBrains Mono"'),
   })`);
   await capture('finance-dashboard-desktop-1440.png');
+  await send('Emulation.setDeviceMetricsOverride', { width: 1366, height: 768, deviceScaleFactor: 1, mobile: false });
+  await delay(100);
+  await capture('finance-dashboard-desktop-1366.png');
+  await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
 
   await evaluate(`(() => {
     const row = document.querySelector('[data-import-review-list] article');
@@ -341,8 +348,18 @@ try {
   diagnostics.checks.tabs = [];
   for (const tab of ['overview', 'entry', 'holdings', 'review', 'planning', 'records']) {
     await evaluate(`document.querySelector('[data-tab="${tab}"]').click()`);
-    diagnostics.checks.tabs.push(await evaluate(`({ tab: '${tab}', active: document.querySelector('[data-tab="${tab}"]').classList.contains('is-active'), visible: [...document.querySelectorAll('[data-pane="${tab}"]')].some((node) => !node.hidden) })`));
+    diagnostics.checks.tabs.push(await evaluate(`({ tab: '${tab}', active: document.querySelector('[data-tab="${tab}"]').classList.contains('is-active'), pressed: document.querySelector('[data-tab="${tab}"]').getAttribute('aria-pressed') === 'true', visible: [...document.querySelectorAll('[data-pane="${tab}"]')].some((node) => !node.hidden) })`));
   }
+  await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
+  diagnostics.checks.reducedMotionTab = await evaluate(`(() => {
+    let behavior = null;
+    const original = window.scrollTo;
+    window.scrollTo = (options) => { behavior = options.behavior; };
+    document.querySelector('[data-tab="overview"]').click();
+    window.scrollTo = original;
+    return behavior;
+  })()`);
+  await send('Emulation.setEmulatedMedia', { features: [] });
   await evaluate(`document.querySelector('[data-tab="entry"]').click()`);
   await evaluate(`(() => {
     const form = document.querySelector('[data-trade-filters]');
@@ -436,6 +453,24 @@ try {
     };
   })()`);
   await evaluate(`document.documentElement.style.removeProperty('font-size')`);
+
+  await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+  diagnostics.checks.mobileTextZoom125 = await evaluate(`(() => {
+    document.documentElement.style.fontSize = '125%';
+    const sessionButtons = [...document.querySelectorAll('.session-tools button:not([hidden])')];
+    const sessionTops = sessionButtons.map((button) => button.getBoundingClientRect().top);
+    const result = {
+      noHorizontalOverflow: document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+      sessionControlsAligned: sessionTops.every((top) => Math.abs(top - sessionTops[0]) < 1),
+      sessionControlsReachable: sessionButtons.every((button) => {
+        const rect = button.getBoundingClientRect();
+        return rect.left >= 0 && rect.right <= document.documentElement.clientWidth && rect.height >= 44;
+      }),
+      tabTouchTargets: [...document.querySelectorAll('[data-tab]')].every((button) => button.getBoundingClientRect().height >= 44),
+    };
+    document.documentElement.style.removeProperty('font-size');
+    return result;
+  })()`);
 
   await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
   await evaluate(`document.querySelector('[data-tab="holdings"]').click()`);
@@ -533,6 +568,16 @@ try {
     overviewActive: true,
     overviewChartPoints: 2,
     overviewChartSvg: true,
+    overviewUsesFullGrid: true,
+    dashboardNotBusy: true,
+    tabPressedState: [
+      { tab: 'overview', pressed: 'true' },
+      { tab: 'entry', pressed: 'false' },
+      { tab: 'holdings', pressed: 'false' },
+      { tab: 'review', pressed: 'false' },
+      { tab: 'planning', pressed: 'false' },
+      { tab: 'records', pressed: 'false' },
+    ],
     holdingsSummary: ['沪深300ETF57.1%', '纳斯达克100ETF28.6%', '黄金ETF14.3%'],
     categoryDistribution: 3,
     fontsLoaded: true,
@@ -546,7 +591,8 @@ try {
   assert.deepEqual(diagnostics.checks.assetSnapshots, { rows: 2, hasReadOnlyActions: true });
   assert.deepEqual(diagnostics.checks.riskSignals, { rows: 7, signal: '黄色关注', incomplete: true });
   assert.equal(diagnostics.checks.riskSignalsFailureIsolated, true);
-  assert.equal(diagnostics.checks.tabs.every((item) => item.active && item.visible), true, 'each Finance path must expose its own pane');
+  assert.equal(diagnostics.checks.tabs.every((item) => item.active && item.pressed && item.visible), true, 'each Finance path must expose its own pane and active state');
+  assert.equal(diagnostics.checks.reducedMotionTab, 'auto');
   assert.equal(diagnostics.checks.tradeFilters, true);
   assert.deepEqual(diagnostics.checks.memoTradeLink, { required: true, options: 2, snapshot: '交易日期2026-07-24标的510300 · 沪深300ETF买入或卖出买入成交数量100成交价格¥12.00成交金额¥1,200.00仓位类别A股宽基指数', checkboxCompact: true });
   assert.deepEqual(diagnostics.checks.memoEdit, { tradeLocked: true, snapshotHasAmount: true, cancelVisible: true });
@@ -557,6 +603,7 @@ try {
   assert.equal(diagnostics.checks.viewports.find((item) => item.width === 360)?.dashboardColumns, 1);
   assert.equal(diagnostics.checks.viewports.find((item) => item.width === 1440)?.dashboardColumns, 3);
   assert.deepEqual(diagnostics.checks.textZoom, { noHorizontalOverflow: true, controlsRemainVisible: true });
+  assert.deepEqual(diagnostics.checks.mobileTextZoom125, { noHorizontalOverflow: true, sessionControlsAligned: true, sessionControlsReachable: true, tabTouchTargets: true });
   assert.deepEqual(diagnostics.checks.mobileTradeEntry, { noHorizontalOverflow: true, singleColumnFields: true, scrollableDialog: true, actionButtonsReachable: true });
   assert.deepEqual(diagnostics.checks.viewer, {
     role: 'CATI · READ ONLY',

@@ -102,37 +102,43 @@ function showApp() {
 }
 
 async function loadDashboard() {
+  const dashboard = $('[data-dashboard]');
+  dashboard.setAttribute('aria-busy', 'true');
   setStatus($('[data-dashboard-status]'), '正在读取已持久化的 Finance 数据…');
-  const calls = [
-    request('/api/holdings'), request('/api/trades'), request('/api/pe'), request('/api/circuit'), request('/api/review'),
-    request('/api/notifications'), request('/api/monthly'), request('/api/plan'), request('/api/memos'), request('/api/risk-rules'), request('/api/rebalances'),
-  ];
-  if (isAdmin()) calls.push(request('/api/access-log'), request('/api/import-review'));
-  const results = await Promise.all(calls);
-  [state.holdings, { trades: state.trades, nextCursor: state.tradePaging.nextCursor }, { indexes: state.pe }, { active: state.circuit }, { reviews: state.reviews }, state.notifications,
-    { records: state.monthly }, { plan: state.plan }, { memos: state.memos }, { rules: state.rules }, { rebalances: state.rebalances }] = results.slice(0, 11);
-  if (isAdmin()) {
-    state.accessLog = results[11].access_log;
-    state.accessPaging.nextCursor = results[11].nextCursor;
-    state.importReview = results[12].review;
-  } else {
-    state.accessLog = [];
-    state.importReview = [];
+  try {
+    const calls = [
+      request('/api/holdings'), request('/api/trades'), request('/api/pe'), request('/api/circuit'), request('/api/review'),
+      request('/api/notifications'), request('/api/monthly'), request('/api/plan'), request('/api/memos'), request('/api/risk-rules'), request('/api/rebalances'),
+    ];
+    if (isAdmin()) calls.push(request('/api/access-log'), request('/api/import-review'));
+    const results = await Promise.all(calls);
+    [state.holdings, { trades: state.trades, nextCursor: state.tradePaging.nextCursor }, { indexes: state.pe }, { active: state.circuit }, { reviews: state.reviews }, state.notifications,
+      { records: state.monthly }, { plan: state.plan }, { memos: state.memos }, { rules: state.rules }, { rebalances: state.rebalances }] = results.slice(0, 11);
+    if (isAdmin()) {
+      state.accessLog = results[11].access_log;
+      state.accessPaging.nextCursor = results[11].nextCursor;
+      state.importReview = results[12].review;
+    } else {
+      state.accessLog = [];
+      state.importReview = [];
+    }
+    state.assetSeries = await request(`/api/assets/series?view=${state.assetView}`).catch(() => null);
+    const optional = await Promise.all([
+      request('/api/cash-flows').then((data) => ({ data, error: null })).catch((error) => ({ data: null, error })),
+      request('/api/assets/snapshots').then((data) => ({ data, error: null })).catch((error) => ({ data: null, error })),
+      request('/api/risk/signals').then((data) => ({ data, error: null })).catch((error) => ({ data: null, error })),
+    ]);
+    state.cashFlows = optional[0].data?.cash_flows ?? [];
+    state.cashFlowsError = optional[0].error;
+    state.assetSnapshots = optional[1].data?.snapshots ?? [];
+    state.assetSnapshotsError = optional[1].error;
+    state.riskSignals = optional[2].data;
+    state.riskSignalsError = optional[2].error;
+    renderDashboard();
+    setStatus($('[data-dashboard-status]'), '');
+  } finally {
+    dashboard.setAttribute('aria-busy', 'false');
   }
-  state.assetSeries = await request(`/api/assets/series?view=${state.assetView}`).catch(() => null);
-  const optional = await Promise.all([
-    request('/api/cash-flows').then((data) => ({ data, error: null })).catch((error) => ({ data: null, error })),
-    request('/api/assets/snapshots').then((data) => ({ data, error: null })).catch((error) => ({ data: null, error })),
-    request('/api/risk/signals').then((data) => ({ data, error: null })).catch((error) => ({ data: null, error })),
-  ]);
-  state.cashFlows = optional[0].data?.cash_flows ?? [];
-  state.cashFlowsError = optional[0].error;
-  state.assetSnapshots = optional[1].data?.snapshots ?? [];
-  state.assetSnapshotsError = optional[1].error;
-  state.riskSignals = optional[2].data;
-  state.riskSignalsError = optional[2].error;
-  renderDashboard();
-  setStatus($('[data-dashboard-status]'), '');
 }
 
 function renderDashboard() {
@@ -573,11 +579,15 @@ $('[data-resolve-circuit]').addEventListener('click', async (event) => { if (!st
 for (const tab of $$('[data-tab]')) tab.addEventListener('click', () => setTab(tab.dataset.tab));
 function setTab(tab) {
   const previousTab = $('[data-tab].is-active')?.dataset.tab;
-  for (const button of $$('[data-tab]')) button.classList.toggle('is-active', button.dataset.tab === tab);
+  for (const button of $$('[data-tab]')) {
+    const active = button.dataset.tab === tab;
+    button.classList.toggle('is-active', active);
+    button.setAttribute('aria-pressed', String(active));
+  }
   for (const pane of $$('[data-pane]')) pane.hidden = pane.dataset.pane !== tab;
   if (!isAdmin() && tab === 'holdings') viewerGuidance.hasVisitedHoldings = true;
   if (!isAdmin() && previousTab === 'holdings' && tab !== 'holdings') showPendingNotification();
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  window.scrollTo({ top: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
 }
 $('[data-trade-filters]').addEventListener('submit', (event) => { event.preventDefault(); loadPage('trade', null, true).catch((error) => setStatus($('[data-dashboard-status]'), error.message, 'error')); });
 $('[data-access-filters]').addEventListener('submit', (event) => { event.preventDefault(); loadPage('access', null, true).catch((error) => setStatus($('[data-dashboard-status]'), error.message, 'error')); });
