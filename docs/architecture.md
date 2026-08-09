@@ -3,6 +3,16 @@
 > catstarry.xyz 全站架构总览 — 模块关系图 + 数据流向 + 技术栈映射
 > 当前架构事实来源：主站与 Finance Worker 的 current-state 结构、数据流和边界。
 
+## 使用边界
+
+本文件只提供全站架构边界和主要数据流。按任务分支继续阅读：
+
+- schema、存储、Content Collection 或 API 类型任务：读取 `docs/architecture/data-model.md`；逐表结构以 migrations、字段行为以当前查询和 route 实现为准。
+- 模块边界、seam、目录定位或 scheduled handler 任务：读取 `docs/architecture/modules.md`；目录和实现以当前文件系统与代码为准。
+- session、cookie、角色或认证任务：读取 `docs/architecture/auth.md`；认证行为以当前认证实现为准。
+
+不需要上述分支时，不继续加载子文档。
+
 ---
 
 ## 技术栈映射
@@ -41,7 +51,7 @@
                           │        │
           ┌───────────────┼────────┼───────────────────┐
           │               ▼        ▼                   │
-          │     feed-api.workers.dev                   │
+          │     feed-api Worker                       │
           │     ┌──────────────────────────┐           │
           │     │ /api/feed  /api/views    │           │
           │     │ /api/auth  /api/learn    │           │
@@ -58,7 +68,7 @@
 
                     f.catstarry.xyz (独立 CF Pages)
                     ┌──────────────────────────────────┐
-                    │     finance-api.workers.dev      │
+                    │     finance-api Worker           │
                     │  ┌──────────────────────────┐    │
                     │  │ Finance auth / dashboard  │    │
                     │  │ records / stewardship     │    │
@@ -183,7 +193,7 @@ Finance 使用独立 FINANCE_AUTH_KV 和独立 cookie，不与主站 session 共
 | `docs/adr/003-worker-count.md`              | 2 个 Worker vs 多 Worker                                                        | 3.5       |
 | `docs/adr/004-feed-visibility-two-state.md` | visibility 两状态 vs 三状态                                                     | 3.5       |
 | `docs/adr/005-public-footprint-separate-storage.md` | 原生帖子与 Public Footprint 分存、Public Timeline 统一读取              | accepted |
-| `docs/adr/006-retire-home-aggregation-and-kv-bridge.md` | 退役 Home 聚合与 KV bridge                                           | 定向 3   |
+| `docs/adr/006-retire-home-aggregation-and-kv-bridge.md` | 退役 Home 聚合与 KV bridge                                           | accepted |
 | `docs/adr/007-home-activity-signal-static-projection.md` | Home 最小活动状态的静态投影、刷新与降级                        | accepted |
 | `docs/architecture.md`                      | 本文件（架构总览）                                                              | 汇总      |
 | `DESIGN.md`                                 | 根目录视觉设计系统；目录以文件当前版本为准                                      | 4.1       |

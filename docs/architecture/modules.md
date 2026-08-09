@@ -4,6 +4,8 @@
 > 当前模块、seam、route group 和 scheduled handler 的架构事实。
 > 遵循 codebase-design skill 的 deep module 框架
 
+本文件按需读取：在处理模块边界、seam、route group、scheduled handler 或代码定位任务时进入。目录结构仅作代表性导航，不是完整 inventory；当前文件系统与代码是事实来源。
+
 ---
 
 ## 1. Seam 总览
@@ -53,53 +55,29 @@ catstarry.xyz/
 |  |  |- index.astro              # Home (SSG) — 宇宙入口与星图导航
 |  |  |= blog/                    # 博客板块
 |  |  |  |- index.astro           #   列表页 (SSG)
-|  |  |  |- [slug].astro          #   详情页 (SSG)
-|  |  |  |- category/[cat].astro  #   分类页 (SSG)
-|  |  |  |- tag/[tag].astro       #   标签页 (SSG)
+|  |  |  |- [...slug].astro       #   详情页 (SSG)
+|  |  |  |- category/[...category].astro # 分类页 (SSG)
+|  |  |  |- tag/[...tag].astro    #   标签页 (SSG)
 |  |  |  |- rss.xml.ts            #   RSS 2.0 (SSG)
 |  |  |= feed/                    # 碎碎念板块
 |  |  |  |- index.astro           #   时间线 (SSR)
 |  |  |  |- admin.astro           #   管理后台 (SSR, 需认证)
 |  |  |= learn/                   # 学习笔记板块
 |  |  |  |- index.astro           #   Track 列表 (SSG)
-|  |  |  |- [slug].astro          #   笔记详情 (SSG)
+|  |  |  |- notes/[slug].astro     #   笔记详情 (SSG)
+|  |  |  |- preview/[slug].astro   #   预览页 (SSG)
+|  |  |  |- track/[track].astro    #   Track 页 (SSG)
 |  |  |  |- admin.astro           #   草稿管理 (SSR, 需认证)
 |  |  `- projects/
 |  |     `- index.astro           # 项目展示 (SSG)
 |  |= components/                 # React islands（前端交互 module）
-|  |  |= feed/                    #   /feed 专用组件
-|  |  |  |- FeedApp.tsx           #     公开 Timeline、发布和登录交互
-|  |  |  `- FeedAdmin.tsx         #     Feed 管理后台交互
-|  |  |= home/                    #   Home 专用组件
-|  |  |  |- HomeExperience.astro #     Home island 外壳与固定投影入口
-|  |  |  |- home-client.ts       #     客户端交互
-|  |  |  `- home-runtime.ts       #     星图运行时
-|  |  |= learn/                   #   /learn 专用组件
-|  |  |  |- KnowledgeGraph.astro  #     知识图谱
-|  |  |  |- DirectoryTree.astro   #     目录树
-|  |  |  `- LearnSearch.astro     #     学习内容检索
-|  |  |= shared component files   #   当前位于 components 根目录
-|  |  |  |- ArticleFooter.tsx     #     Giscus + 分享按钮
-|  |  |  |- ViewCounter.tsx       #     阅读量显示
-|  |  `- (no separate shared directory)
-|  |  `- projects/                #   项目卡片与数据展示
-|  |     |- ProjectCard.astro
-|  |     `- project-data.ts
+|  |  |= blog/、feed/、home/、learn/、projects/ # 按板块分组的 islands
+|  |  `- 根目录共享组件与样式入口              # 具体文件以当前目录为准
 |  |= content.config.ts           # Astro Content Collections schema
 |  |= data/                       # Content Collection source
 |  |  |= blog/                    #   Blog：Markdown + MDX
-|  |  `= learn/                    #   Learn：canonical Markdown
-|  |= layouts/                    # 页面布局 module
-|  |  |- Base.astro               #   全站 layout（导航栏 + footer + seo）
-|  |  `- FeedLayout.astro         #   Feed 板块 layout
-|  |= lib/                        # 纯前端工具（无副作用，纯函数优先）
-|  |  |- category.ts              #   分类中文映射
-|  |  |- useViewCount.ts          #   阅读量 fetch hook
-|  |  `- feed-api.ts              #   Feed API base / response helpers
-|  `- styles/
-|     |- main.css                 # CSS canonical entry imported by Base
-|     |- global.css               # shared global rules imported by main.css
-|     `- variables.css / typography.css / components.css / home.css / feed.css / blog.css
+|  |  `- learn/                    #   Learn：canonical Markdown
+|  |= layouts/、lib/、styles/      # 布局、前端工具与样式入口
 |
 |= shared/                        # Seam B - Adapter layer（Workers + Astro 共享）
 |  |- types.ts                    #   全站 API 类型（接口契约）
@@ -112,51 +90,17 @@ catstarry.xyz/
 |  |  |- migrations/               #     DDL: feed_posts, public_footprints, blog_views, auth_sessions
 |  |  `- src/
 |  |     |- index.ts              #     入口: fetch → route dispatch
-|  |     |= routes/               #     路由 handler（按 route group 拆分）
-|  |     |  |- feed.ts            #       /api/feed (GET/POST), /api/feed/:id (PATCH/DELETE)
-|  |     |  |- views.ts           #       /api/views (GET/POST)
-|  |     |  |- auth.ts            #       /api/auth/*
-|  |     |  |- blog.ts            #       Blog publication / view routes
-|  |     |  |- learn.ts           #       Learn publication / completion routes
-|  |     |  |- activity-signals.ts #       /activity-signals.json
-|  |     |  `- upload.ts          #       Feed media upload
-|  |     |= modules/
-|  |     |  |- activity-signals.ts #      最小活动状态计算与投影刷新
-|  |     |  |- footprints.ts      #      Public Footprint candidate / writer seam
-|  |     |  `- passwords.ts       #      bcrypt password comparison
-|  |     |= adapters/
-|  |     |  `- activity-signal-store.ts # D1 最小事件读取 + R2 投影发布
-|  |     |= tasks/
-|  |     |  |- clean-media.ts
-|  |     |  `- clean-view-visitors.ts
+|  |     `- routes/               # feed、views、auth、blog、learn、upload、activity-signals
+|  |     |= modules/              # activity-signals、footprints、passwords
+|  |     |= adapters/             # feed-store、activity-signal-store
+|  |     `- tasks/                 # scheduled cleanup
 |  |
 |  `- finance-api/               #   财务 API Worker（独立）
 |     |- wrangler.jsonc            #     D1: finance-db, KV: FINANCE_AUTH_KV, Cron
 |     |- migrations/               #     Finance current schema and audit tables
-|     `- src/
-|        |- index.ts              #     入口: fetch → route dispatch + market Cron
-|        |= routes/
-|        |  |- auth.ts            #       /api/auth/*
-|        |  |- dashboard.ts       #       market / pe / risk / review / access
-|        |  |- records.ts         #       monthly / plan / cash-flow / asset
-|        |  |- stewardship.ts     #       rules / memos / rebalances / workbook
-|        |  `- trades.ts          #       /api/trades
-|        |= modules/
-|        |  |- calculations.ts
-|        |  |- periods.ts
-|        |  `- xlsx.ts
-|        `- tasks/
-|           `- refresh-market-data.ts # Cron: provider topology → D1 snapshots
+|     `- src/                    # index、routes、modules、tasks；具体文件以当前目录为准
 |
-|- docs/                           # 项目文档（不部署）
-|  |= architecture/               #   current-state architecture
-|  |= adr/                        #   架构决策记录
-|  |= agents/                     #   Agent 协作规范
-|  |- acceptance-*.md             #   验收清单（6 份）
-|  |- final-requirements-*.json   #   需求 JSON（5 份）
-|  |- SITEMAP.md
-|  |- DASHBOARD.md
-|  `- workflow-orchestration.md
+|- docs/                           # 项目文档（不部署）：architecture、adr、agents 等
 |
 |- .scratch/                      # 开发 issue + PRD
 |- teach/                         # Teach skill workspace（不部署，仅生成内容）
@@ -214,10 +158,11 @@ catstarry.xyz/
 ### 5.1 Blog 发布与公开足迹流
 
 ```
-木下 → Markdown（publication_id）→ Git push → astro build → CF Pages production deploy
-                                                         ↓ 仅成功后
-                                              Publication Signal Adapter
-                                                         ↓
+木下 → Blog Markdown（slug；publication_id 可选）→ Git push → astro build → CF Pages production deploy
+                                                        ↓ 首次同步建立 slug 基线
+                                                        ↓ 基线后的新 slug，且仅生产部署成功
+                                             Publication Signal Adapter
+                                                        ↓ first-production-v1
                               Public Footprint Writer → D1 public_footprints
 ```
 
@@ -366,7 +311,7 @@ src/data/learn/         ← Learn canonical Markdown source
 | 规则                        | 设计中的体现                                                                            |
 | --------------------------- | --------------------------------------------------------------------------------------- |
 | **Bindings over REST**      | Worker 通过 `env.DB`（D1 binding）和 `env.VIEW_KV`（KV binding）访问存储，不走 REST API |
-| **Secrets management**      | 密码 hash 存 KV（`wrangler secret put` 初始设置），不在代码/配置中硬编码                |
+| **Credential storage**      | 用户记录（含 bcrypt hash）写入 `AUTH_KV` / `FINANCE_AUTH_KV`；`wrangler secret put` 仅用于 Worker Secret，不等同于 KV 用户记录配置 |
 | **Web Crypto**              | `crypto.randomUUID()` 生成 session token，非 `Math.random()`                            |
 | **No global request state** | 路由 handler 函数不依赖模块级变量，session 从 request cookie 读取                       |
 | **Cron trigger 独立**       | 行情拉取和 R2 清理通过 `[triggers] crons` 配置，不混入 fetch handler                    |

@@ -3,6 +3,8 @@
 > catstarry.xyz 全站数据结构定义 — D1 schema + KV namespace + Content Collection schema + API 类型定义
 > 当前主站与 Finance 数据概念模型；字段和索引以 migrations 与当前查询实现为准。
 
+本文件按需读取：仅在 schema、存储、Content Collection 或 API 类型任务中进入本文件。逐表结构以 migrations、字段行为以当前查询和 route 实现为准。
+
 ---
 
 ## 架构决策：数据库拆分
@@ -104,9 +106,11 @@ CREATE INDEX idx_public_footprints_source ON public_footprints(source_module, so
 
 | 来源 | `source_ref` | `source_version` | `idempotency_key` |
 | --- | --- | --- | --- |
-| Blog | `slug` | 稳定 `publication_id` | `blog:{slug}:{publication_id}` |
+| Blog | `slug` | `first-production-v1` | `blog:{slug}:first-production-v1` |
 | Learn | `track/section` 或等价稳定小节引用 | 明确 `completionId` | `learn:{source_ref}:{completionId}` |
 | Projects | 稳定 `project_id` | 木下显式给出的 `update_id` | `projects:{project_id}:{update_id}` |
+
+Blog collection 仍保留可选的 `publication_id` 字段，但当前生产同步脚本不读取它；首次同步建立已发布 slug 基线，基线之后的新 slug 使用 `first-production-v1` 创建足迹。是否将 `publication_id` 重新定为 Blog 的发布身份，待木下确认。
 
 **来源生命周期**：写入成功后，足迹只依赖自身快照。来源普通编辑不改写快照；来源隐藏、删除或链接失效不级联删除足迹。时间线可将链接显示为暂不可用；木下仍可独立把足迹设为 private。
 
@@ -266,7 +270,7 @@ CREATE TABLE IF NOT EXISTS circuit_breaker_log (
 
 | Namespace   | Key Pattern          | 用途                               | TTL        |
 | ----------- | -------------------- | ---------------------------------- | ---------- |
-| **VIEW_KV** | `view:{slug}:{date}` | 阅读量去重（IP→count）             | 24h        |
+| **VIEW_KV** | `view:{date}:{slug}:{visitorHash}` | 阅读量访问者去重记录             | 24h        |
 | **AUTH_KV** | `user:{username}`    | 用户密码 bcrypt hash               | 永久       |
 | **AUTH_KV** | `session:{token}`    | 主站登录 session                   | 12h        |
 | **AUTH_KV** | `ratelimit:{ip}`     | 主站登录限流计数器                 | 5min       |
@@ -329,20 +333,23 @@ const learnCollection = defineCollection({
 Blog 继续以 Markdown frontmatter 为内容源。Public Footprint 不在构建开始时写入：只有生产部署成功后的受保护信号才可创建一次足迹。
 
 ```
-Markdown（stable publication_id）
+Markdown（slug；publication_id 为可选字段）
     ↓ Git push / build / production deploy
+首次 production sync 建立已发布 slug 基线
+    ↓ 基线之后的新 slug
 部署成功信号（仅 production）
     ↓ 由 Publication Signal Adapter 验证
 Public Footprint Writer
-    ↓ 唯一 idempotency_key
+    ↓ source_version = first-production-v1
 D1 public_footprints
 ```
 
 **约束**：
 
-- 幂等键使用 `blog:{slug}:{publication_id}`，不使用 deployment id 或普通 Git SHA。
+- 当前 Blog 幂等键使用 `blog:{slug}:first-production-v1`，不使用 `publication_id`、deployment id 或普通 Git SHA。
 - 普通编辑、构建开始、部署失败与对同一发布标识的重复部署均不得产生新足迹。
 - 生产部署成功后的受保护 manifest sync 由 repository workflow 与 publication-manifest scripts 触发；架构接口不依赖某个特定供应商回调格式。
+- `publication_id` 是否成为未来 Blog 发布身份，待木下确认；本文件不提前裁决产品契约。
 
 ---
 
@@ -481,8 +488,9 @@ catstarry-db                    finance-db
                                └──────────────────┘
 
 KV:                               R2:
-  view:{slug}:{date} → count        catstarry-media/
-  user:{username} → bcrypt hash       feed/2026-07/uuid.jpg
+  view:{date}:{slug}:{visitorHash}  catstarry-media/
+    → daily dedup record             feed/2026-07/uuid.jpg
+  user:{username} → bcrypt hash
   session:{token} → session data
   ratelimit:{ip} → counter
                                       home-projections/
