@@ -348,7 +348,11 @@ try {
   diagnostics.checks.tabs = [];
   for (const tab of ['overview', 'entry', 'holdings', 'review', 'planning', 'records']) {
     await evaluate(`document.querySelector('[data-tab="${tab}"]').click()`);
-    diagnostics.checks.tabs.push(await evaluate(`({ tab: '${tab}', active: document.querySelector('[data-tab="${tab}"]').classList.contains('is-active'), pressed: document.querySelector('[data-tab="${tab}"]').getAttribute('aria-pressed') === 'true', visible: [...document.querySelectorAll('[data-pane="${tab}"]')].some((node) => !node.hidden) })`));
+    await delay(200);
+    diagnostics.checks.tabs.push(await evaluate(`(() => {
+      const button = document.querySelector('[data-tab="${tab}"]');
+      return { tab: '${tab}', active: button.classList.contains('is-active'), pressed: button.getAttribute('aria-pressed') === 'true', visible: [...document.querySelectorAll('[data-pane="${tab}"]')].some((node) => !node.hidden), activeBackground: getComputedStyle(button).backgroundColor };
+    })()`));
   }
   await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
   diagnostics.checks.reducedMotionTab = await evaluate(`(() => {
@@ -592,6 +596,14 @@ try {
   assert.deepEqual(diagnostics.checks.riskSignals, { rows: 7, signal: '黄色关注', incomplete: true });
   assert.equal(diagnostics.checks.riskSignalsFailureIsolated, true);
   assert.equal(diagnostics.checks.tabs.every((item) => item.active && item.pressed && item.visible), true, 'each Finance path must expose its own pane and active state');
+  assert.deepEqual(diagnostics.checks.tabs.map((item) => [item.tab, item.activeBackground]), [
+    ['overview', 'rgb(53, 86, 253)'],
+    ['entry', 'rgb(94, 175, 158)'],
+    ['holdings', 'rgb(212, 201, 78)'],
+    ['review', 'rgb(255, 184, 41)'],
+    ['planning', 'rgb(183, 130, 242)'],
+    ['records', 'rgb(90, 104, 120)'],
+  ]);
   assert.equal(diagnostics.checks.reducedMotionTab, 'auto');
   assert.equal(diagnostics.checks.tradeFilters, true);
   assert.deepEqual(diagnostics.checks.memoTradeLink, { required: true, options: 2, snapshot: '交易日期2026-07-24标的510300 · 沪深300ETF买入或卖出买入成交数量100成交价格¥12.00成交金额¥1,200.00仓位类别A股宽基指数', checkboxCompact: true });

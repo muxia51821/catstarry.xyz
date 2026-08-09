@@ -17,6 +17,18 @@
   --status-success: #5eaf9e;
   --amber: #ffb829;
   --blue: #6685ff;
+  --tab-overview: #3556fd;
+  --tab-overview-hover: #4566ff;
+  --tab-entry: #5eaf9e;
+  --tab-entry-hover: #73c9b6;
+  --tab-holdings: #d4c94e;
+  --tab-holdings-hover: #e3d863;
+  --tab-review: #ffb829;
+  --tab-review-hover: #ffc65a;
+  --tab-planning: #b782f2;
+  --tab-planning-hover: #cca6ff;
+  --tab-records: #5a6878;
+  --tab-records-hover: #6d7c8d;
   --radius: 8px;
   --space-1: 4px;
   --space-2: 8px;
@@ -114,9 +126,19 @@ p, td, th { text-wrap: pretty; }
 .finance-tabs { display: flex; gap: 2px; overflow-x: auto; margin: 0 0 var(--space-4); padding: 4px; border: 1px solid var(--line); border-radius: var(--radius); background: rgba(255,255,255,.018); }
 .finance-tab { flex: 0 0 auto; min-height: 44px; padding: 10px 14px; border: 1px solid transparent; color: var(--muted); background: transparent; box-shadow: none; font-size: 13px; }
 .finance-tab:hover { color: var(--text); background: rgba(255,255,255,.04); transform: none; }
-.finance-tab.is-active { border-color: color-mix(in srgb, var(--green) 55%, var(--line)); color: #d8fff5; background: rgba(94,175,158,.16); }
-.finance-tab[data-tab="overview"].is-active { border-color: color-mix(in srgb, var(--green) 55%, var(--line)); color: #d8fff5; background: rgba(94,175,158,.16); }
-.finance-tab.is-active:hover, .finance-tab.is-active:focus-visible { border-color: #8fe1ce; background: rgba(94,175,158,.24); }
+.finance-tab.is-active { color: #07110e; }
+.finance-tab[data-tab="overview"].is-active { border-color: var(--tab-overview); color: #fff; background: var(--tab-overview); }
+.finance-tab[data-tab="overview"].is-active:hover, .finance-tab[data-tab="overview"].is-active:focus-visible { border-color: var(--tab-overview-hover); background: var(--tab-overview-hover); }
+.finance-tab[data-tab="entry"].is-active { border-color: var(--tab-entry); background: var(--tab-entry); }
+.finance-tab[data-tab="entry"].is-active:hover, .finance-tab[data-tab="entry"].is-active:focus-visible { border-color: var(--tab-entry-hover); background: var(--tab-entry-hover); }
+.finance-tab[data-tab="holdings"].is-active { border-color: var(--tab-holdings); background: var(--tab-holdings); }
+.finance-tab[data-tab="holdings"].is-active:hover, .finance-tab[data-tab="holdings"].is-active:focus-visible { border-color: var(--tab-holdings-hover); background: var(--tab-holdings-hover); }
+.finance-tab[data-tab="review"].is-active { border-color: var(--tab-review); background: var(--tab-review); }
+.finance-tab[data-tab="review"].is-active:hover, .finance-tab[data-tab="review"].is-active:focus-visible { border-color: var(--tab-review-hover); background: var(--tab-review-hover); }
+.finance-tab[data-tab="planning"].is-active { border-color: var(--tab-planning); background: var(--tab-planning); }
+.finance-tab[data-tab="planning"].is-active:hover, .finance-tab[data-tab="planning"].is-active:focus-visible { border-color: var(--tab-planning-hover); background: var(--tab-planning-hover); }
+.finance-tab[data-tab="records"].is-active { border-color: var(--tab-records); color: #fff; background: var(--tab-records); }
+.finance-tab[data-tab="records"].is-active:hover, .finance-tab[data-tab="records"].is-active:focus-visible { border-color: var(--tab-records-hover); background: var(--tab-records-hover); }
 .role-chip { min-height: 32px; display: inline-grid; place-items: center; padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font: 12px "JetBrains Mono", monospace; }
 .summary-grid { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: var(--space-3); margin-bottom: var(--space-3); }
 .metric, .panel { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); transition: border-color 140ms ease, background-color 140ms ease; }
