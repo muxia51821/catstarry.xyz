@@ -31,7 +31,7 @@ Family consistency 不等于共享 IA、layout、Card、Opening、width、pagina
 
 | Scope | Decision state | Implementation reading |
 | --- | --- | --- |
-| Content Family | RECONCILED；shared rules 可进入 governed sequencing | 仍需 current implementation inventory |
+| Content Family | RECONCILED / FROZEN for implementation | 下一 operational stage 是 current implementation inventory；production code 仍可能存在 drift |
 | Blog | Product / IA / UI CLOSED | Production 存在已登记 drift |
 | Feed | Product / Interaction / Responsive / Visual CLOSED | Production 尚未按 D — Quiet Deposition 实施；Architecture Preflight 必须先完成 |
 | Projects | Product / Visual CLOSED | Production 存在已登记 drift；accepted elevation 必须保留 |
@@ -40,6 +40,8 @@ Family consistency 不等于共享 IA、layout、Card、Opening、width、pagina
 Decision Status 与 Implementation State 必须分开记录。Confirmed 但尚未实现，是 implementation gap；Revalidate 是待复核决策或技术实现；Superseded 不得因旧代码仍存在而恢复；Parked 不是当前承诺。
 
 > **Parked capability is not an implementation gap.**
+
+Wave 0 Governance Freeze 完成后，governed implementation sequencing 可以继续；这不表示 production code 已经 reconciled，也不授权 release 或 deployment。
 
 ## Downstream reading routes
 
@@ -56,4 +58,3 @@ Decision Status 与 Implementation State 必须分开记录。Confirmed 但尚�
 ## Historical evidence boundary
 
 `docs/final-requirements-*.json`、历史 prototype 文档、历史 QA 和旧实现可以保留作为演化证据，但其中可能存在被后期 Closure / Ledger Supersede 的决定。它们不得覆盖本目录的后期治理真相，也不得因为仍存在于仓库或生产代码中就被当作恢复依据。
-

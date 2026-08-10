@@ -2,7 +2,7 @@
 
 # Master Requirements / Capability Ledger
 
-## Pass 7 / Governance Freeze Candidate
+## Pass 7 Complete / Governance Frozen / Canonical
 
 **Version:** v1 — Closed-module reconciliation
 **Date:** 2026-08-10
@@ -10,7 +10,7 @@
 **Modules:** Blog / Feed / Learn / Projects
 **Closed Modules:** Blog / Feed / Projects
 **Provisional Module:** Learn
-**Upstream:** Content Family Contract v1 + Pass 6 Reconciled Amendment Set
+**Upstream:** Reconciled Content Family Contract v1
 **Purpose:** Decision authority registry, implementation sequencing source, acceptance reference
 **Implementation:** Not a code specification by itself
 
@@ -2377,7 +2377,7 @@ RELEASE / DEPLOYMENT
 
 ## Wave 0 — Governance Documentation Freeze
 
-Before production edits:
+Canonical governance package:
 
 1. Persist reconciled Family Contract.
 2. Persist this Master Ledger.
@@ -2385,11 +2385,11 @@ Before production edits:
 4. Persist Implementation Dependency Map.
 5. Update ADR/document truth where already unequivocal or create explicit pending reconciliation tasks.
 
-This should be a:
+This is a:
 
-> **documentation-only Codex task / commit**
+> **documentation-only governance freeze**
 
-not production UI work.
+It does not reconcile production code or authorize deployment. The next operational stage is Current Implementation Inventory.
 
 ---
 
@@ -2584,7 +2584,7 @@ No historical/old-generation residue returns.
 
 # 21. Governance Freeze State
 
-Upon user acceptance of Pass 7:
+The canonical governance state is:
 
 ### Family Shared Product Rules
 
@@ -2628,8 +2628,8 @@ Use progressive disclosure.
 
 Provide:
 
-1. **Pass 6 — Reconciled Family Amendment Set**
-2. **Pass 7 — Master Requirements / Capability Ledger**
+1. **Reconciled Content Family Contract**
+2. **Canonical Master Requirements / Capability Ledger**
 
 These establish the map.
 
@@ -2683,7 +2683,7 @@ Do not dump all historical Learn requirements unless a specific problem requires
 Current Content Family governance state:
 
 ```text
-Family Shared Contract        RECONCILED
+Family Shared Contract        RECONCILED / FROZEN FOR IMPLEMENTATION
 Blog                          CLOSED
 Feed                          CLOSED
 Projects                      CLOSED
@@ -2697,10 +2697,12 @@ Production Implementation     READY TO ENTER GOVERNED SEQUENCING
 Final Content Acceptance      NOT YET
 ```
 
-The next phase is no longer:
+The next operational stage is no longer:
 
 > Product Design.
 
 It is:
 
-> **Governance Persistence → Implementation Sequencing → Codex Implementation → Module Acceptance → Content Integration.**
+> **Current Implementation Inventory → Governed Implementation Sequencing → Module Acceptance → Content Integration.**
+
+Governance Freeze does not mean production code is already reconciled. It establishes the decision baseline from which governed implementation may proceed; release and deployment remain separately authorized stages.
