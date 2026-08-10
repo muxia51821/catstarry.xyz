@@ -112,13 +112,17 @@ CREATE INDEX idx_public_footprints_source ON public_footprints(source_module, so
 
 Blog collection 仍保留可选的 `publication_id` 字段，但当前生产同步脚本不读取它；首次同步建立已发布 slug 基线，基线之后的新 slug 使用 `first-production-v1` 创建足迹。是否将 `publication_id` 重新定为 Blog 的发布身份，待木下确认。
 
-**来源生命周期**：写入成功后，足迹只依赖自身快照。来源普通编辑不改写快照；来源隐藏、删除或链接失效不级联删除足迹。时间线可将链接显示为暂不可用；木下仍可独立把足迹设为 private。
+**来源生命周期**：写入成功后，足迹的存储与 event-time snapshot 独立于来源。来源普通编辑不改写 snapshot；来源隐藏、删除或链接失效不级联删除 Footprint record；木下仍可独立把足迹设为 private。
+
+存储独立不等于公开投影独立。已关闭的 Blog / Feed 产品合同规定：Blog source hidden 时，原 Footprint 与 snapshot 保留，但该 Blog Footprint 不进入 Public Timeline；Blog restore 可恢复原记录的投影而不创建 duplicate。Hard delete 后的 exact tombstone / dead-destination behavior 仍是 Architecture Revalidate。
 
 ### 1.3 Public Timeline 读取投影
 
 `feed_posts` 与 `public_footprints` 不合并为写表。`GET /api/feed` 由 Public Timeline 模块按 `(occurred_at, id)` 统一排序和游标分页，返回访客可读的 `TimelineEntry`。该投影不是 D1 表，也不应被 Home 使用。
 
 当前内部 `TimelineEntry.kind` 仍使用 `system_footprint` 作为稳定代码 discriminator；面向项目共享语言时 canonical term 为 `Public Footprint`。内部类型名不改变产品语义。
+
+当前 `FeedStore.listPublic()` 只对统一投影中的 `visibility = 'public'` 做过滤，尚未 join Blog source visibility，因此 Blog source gate 是已确认产品规则下的 implementation drift，而不是已经实现的 current-state behavior。Exact projection query、source reference 与 tombstone mapping 进入 [`docs/content/master-ledger.md`](../content/master-ledger.md) 的 `ARCH-REV-001`–`ARCH-REV-003` / Feed Architecture Preflight。
 
 ### 1.4 Home Activity Signal 静态投影
 

@@ -74,6 +74,17 @@ catstarry.xyz 是木下的个人网站，用 AI 驱动搭建。非程序员用�
 - Home 不展示最近内容、Public Timeline、标题、摘要、列表或卡片；信号卫星只依据 ADR-007 的最小静态投影表达 `active` / `stable` / `dormant` 三态，视觉和 token 接口已由 Phase 4.1 重锁。
 - Feed 使用单列 Public Timeline；原生碎碎念、剪藏与 Public Footprint 在其中统一呈现，但不暴露底层物理分存差异。
 
+## Content 治理 [治理基线 | Wave 0]
+
+Blog、Feed、Learn、Projects 的 shared semantics、模块 Closure 状态、冲突收敛与实施顺序，统一从 [`docs/content/README.md`](docs/content/README.md) 进入。
+
+- `DESIGN.md` 继续负责全站设计系统、三画布、品牌、token 与通用视觉事实。
+- Reconciled Content Family shared semantics 由 `docs/content/family-contract.md` 与 `docs/content/master-ledger.md` 治理。
+- 已关闭模块的 Closure / Ledger truth 可以 supersede 较早的 Content-specific DESIGN assumption，但不能反向改写 Home、Finance 或全站设计系统职责。
+- Current production implementation 是实现证据，可能落后于 Product Closure；它不会自动覆盖后期 Closure truth。
+- 当前状态：Family RECONCILED；Blog CLOSED；Feed CLOSED；Projects CLOSED；Learn PROVISIONAL / OPEN。
+- Shared Footer 仍为 Revalidate；Global Content Admin 为 Parked；Parked capability 不是 implementation gap。
+
 ### CJK 优先
 
 - 中文正文字号 ≥16px，行高 ≥1.85

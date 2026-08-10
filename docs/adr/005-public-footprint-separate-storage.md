@@ -36,6 +36,24 @@ Public Footprint 创建时必须保留快照，可独立隐藏，且不能被来
 
 **选择 B — 独立 `public_footprints` 存储，Feed 通过统一读取模块混排。**
 
+## Product Projection Amendment
+
+本 ADR 保持 **Accepted**；独立记录、immutable event-time snapshot 与 no cascade delete 的存储决策不变。
+
+后期 Blog / Feed Product Closure 补充了读取投影语义：
+
+> **storage independence ≠ public projection independence**
+
+对于 Blog publication Footprint：
+
+- Blog source hidden 不删除 Footprint record，也不改写 snapshot；
+- Blog source visibility 会 gate 该 Footprint 是否进入 Public Timeline projection；
+- Blog source 仍 public 时，Footprint 自身的 `visibility` 继续可以独立隐藏；
+- Blog restore 可以恢复原 Footprint 的公开投影，不创建 duplicate；
+- Blog hard delete 后的 historical record 可以保留，但 known-dead destination 不应继续保持可操作状态。
+
+Exact query、source reference 与 tombstone behavior 仍属于 [`docs/content/master-ledger.md`](../content/master-ledger.md) 的 Architecture Revalidate / Feed Architecture Preflight。当前 `FeedStore.listPublic()` 尚未实现 Blog source visibility gate；不得把上述产品规则描述成已经实施。
+
 ## Rationale
 
 1. **语义清晰**：原生内容与系统事件不是同一种写模型。前者是可编辑管理的个人发布；后者是来源生命周期的不可变公开记录。
@@ -49,5 +67,6 @@ Public Footprint 创建时必须保留快照，可独立隐藏，且不能被来
 - 主站 D1 新增 `public_footprints` 表和唯一 `idempotency_key`。
 - 新增 Public Timeline 模块：页面只读取统一的时间线投影，不理解两张表。
 - Public Footprint 沿用 `visibility = public | private` 的两态语义；隐藏不影响来源内容。
+- 来源内容隐藏或删除不 cascade-delete Footprint；但来源 visibility 可以按上面的产品规则影响 Public Timeline projection。
 - `feed_posts` 保持 `note | clip`，ADR-004 对它仍然有效。
 - Blog、Learn、Projects 必须以明确的来源版本／事件标识生成幂等键；普通编辑和重复部署不产生新足迹。

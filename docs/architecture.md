@@ -115,10 +115,15 @@ feed_posts + public_footprints
 ### Feed 浏览流（访客）
 
 ```
-访客 → /feed → Astro SSR → fetch GET /api/feed
+访客 → /feed → Astro SSR 输出 Feed 页面壳
+        → FeedApp client:load
+        → 浏览器 useEffect 调用 loadPublicTimeline()
+        → GET /api/feed
         → Public Timeline 模块 → D1 feed_posts + public_footprints
-        → 统一排序、游标分页、可见性过滤 → 渲染时间线
+        → 统一排序、游标分页、当前可见性过滤 → React 渲染时间线
 ```
+
+这是 current-state documentation，不是 SSR / client 的长期架构裁决。首次时间线数据是否改为 Astro SSR fetch，仍属于 [`docs/content/master-ledger.md`](content/master-ledger.md) 的 `ARCH-REV-007` / Feed Architecture Preflight。
 
 ### Home 星图导航流
 

@@ -28,6 +28,20 @@ description: catstarry.xyz 视觉与交互设计系统。Home 是从远处接近
 - Home 只承担空间叙事、导航、About 原地展开和静态 SEO。
 - Blog、Feed、Learn、Projects 保持各自真实功能布局，不被改造成“星球内部页面”。
 
+#### Content authority amendment — Wave 0
+
+`DESIGN.md` 继续是全站设计系统、三画布、品牌、token 和通用视觉约束的 authority。Content Family 的后期 shared semantics、模块状态和例外边界从 [`docs/content/README.md`](docs/content/README.md) 进入，并由 [`docs/content/family-contract.md`](docs/content/family-contract.md) 与 [`docs/content/master-ledger.md`](docs/content/master-ledger.md) 持久化。
+
+以下后期 Content truth supersede 本文件中更早、仅适用于 Content 的冲突表述，但不重写 Design 2.1 的 Home / Finance 或全站设计系统：
+
+- Feed 已关闭为 equal S2 rank 的 **D — Quiet Deposition**；Activity 不使用 full background、full border、shadow、repeated divider、tick 或 rail。§4.8 的“原生内容卡片／系统足迹行或轻卡片”和 §5.2 的旧 Card/radius 假设不得覆盖该 Closure。
+- Blog Closure 规定 Archive 是 frameless editorial index；Reading 是 Tonal Paper，no border / shadow / radius。旧 Blog Card token 或 current implementation 只作为 inventory evidence。
+- Projects Closure 确认 Full Object Card、static shadow、hover lift 与 stronger hover shadow；该 module exception 不得因 Family anti-shadow wording被删除，也不得传播给其他模块。
+- Content Family 共享 Cream Gallery、semantic token 和 hierarchy language，不共享固定 Card、Opening、width、Tag、date、pagination、footer 或 hover treatment。Shared token 不等于 shared appearance；Radius 是 optional material parameter。
+- Learn 仍为 PROVISIONAL / OPEN；Track power、Graph semantics 与 Homepage hierarchy 不由本 amendment 提前裁决。
+
+Current implementation does not automatically override later Product Closure。
+
 ### 0.3 锁定与待验证
 
 本文件锁定：

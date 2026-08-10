@@ -184,15 +184,19 @@ catstarry.xyz/
 
 ```
 访客 → /feed
-    → Astro SSR: index.astro
-        → fetch GET /api/feed?limit=20
+    → Astro SSR: index.astro 输出 FeedLayout + FeedApp island 页面壳
+    → HTML → 浏览器
+    → FeedApp client:load
+        → useEffect 调用 loadPublicTimeline()
+        → GET /api/feed?limit=20
         → Worker: Public Timeline 模块
             → D1: feed_posts + public_footprints
-            → 统一排序、复合游标与 visibility='public' 过滤
+            → 统一排序、复合游标与当前 visibility='public' 过滤
             → Response JSON
-        → Astro/React 渲染 Timeline + 原生 Feed 卡片／Public Footprint 卡片
-    → HTML → 浏览器
+        → React 渲染 Timeline + 原生 Feed / Public Footprint current UI
 ```
+
+以上只描述 current implementation。首次数据继续 client load 还是迁到 Astro SSR，仍是 Feed Architecture Preflight 的 `ARCH-REV-007`，本文件不在 Wave 0 裁决。
 
 ### 5.4 Home 星图导航流
 
