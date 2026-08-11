@@ -228,10 +228,12 @@ try {
       tagsAtPaperEnd: Boolean(paper.querySelector('.blog-article__tags')),
       endingOutsidePaper: !paper.contains(prevNext) && !paper.contains(share),
       previousNextPresent: Boolean(prevNext?.querySelector('a')),
+      articleAdjacentLabels: [...(prevNext?.querySelectorAll('a > span') ?? [])].every((label) => ['上一篇', '下一篇'].includes(label.textContent?.trim() ?? '')),
+      publicViewsAbsent: !document.querySelector('.post-views') && !document.body.textContent?.includes('次阅读'),
       noHorizontalOverflow: document.documentElement.scrollWidth <= document.documentElement.clientWidth,
     };
   })()`);
-  assert.ok(articleDesktop.parentReturn && articleDesktop.tonalPaper && articleDesktop.tagsAtPaperEnd && articleDesktop.endingOutsidePaper && articleDesktop.previousNextPresent && articleDesktop.noHorizontalOverflow);
+  assert.ok(articleDesktop.parentReturn && articleDesktop.tonalPaper && articleDesktop.tagsAtPaperEnd && articleDesktop.endingOutsidePaper && articleDesktop.previousNextPresent && articleDesktop.articleAdjacentLabels && articleDesktop.publicViewsAbsent && articleDesktop.noHorizontalOverflow);
 
   await send('Emulation.setDeviceMetricsOverride', {
     width: 390,
@@ -256,10 +258,11 @@ try {
       tagsPresent: Boolean(paper.querySelector('.blog-article__tags')),
       sharePresent: Boolean(document.querySelector('.blog-share')),
       giscusPresent: Boolean(document.querySelector('.blog-giscus')),
+      publicViewsAbsent: !document.querySelector('.post-views') && !document.body.textContent?.includes('次阅读'),
       noHorizontalOverflow: document.documentElement.scrollWidth <= document.documentElement.clientWidth,
     };
   })()`);
-  assert.ok(articleMobile.readableWidth && articleMobile.metadataVisible && articleMobile.previousNextVertical && articleMobile.tagsPresent && articleMobile.sharePresent && articleMobile.giscusPresent && articleMobile.noHorizontalOverflow);
+  assert.ok(articleMobile.readableWidth && articleMobile.metadataVisible && articleMobile.previousNextVertical && articleMobile.tagsPresent && articleMobile.sharePresent && articleMobile.giscusPresent && articleMobile.publicViewsAbsent && articleMobile.noHorizontalOverflow);
 
   const matrix = [];
   for (const [width, height] of viewports) {

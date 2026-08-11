@@ -30,9 +30,10 @@ assert.doesNotMatch(detail, /返回星图|BLOG \/ READING|blog-reading-nav__word
 assert.match(detail, /class="blog-article__paper"/);
 assert.match(detail, /class="blog-article__tags"/);
 assert.match(detail, /blog-prev-next/);
-assert.match(detail, /较新的文章/);
-assert.match(detail, /更早的文章/);
-assert.doesNotMatch(detail, /<ViewCounter[\s\S]*?blog-article__category/);
+assert.match(detail, />上一篇<\/span>/);
+assert.match(detail, />下一篇<\/span>/);
+assert.doesNotMatch(detail, /较新的文章|更早的文章/);
+assert.doesNotMatch(detail, /ViewCounter|次阅读|post-views/);
 
 for (const marker of [
   '.blog-post-entry',
