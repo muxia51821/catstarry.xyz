@@ -134,6 +134,132 @@ try {
   const { send, evaluate, waitFor } = cdp;
   await send('Runtime.enable');
   await send('Page.enable');
+  await send('Emulation.setEmulatedMedia', { media: '', features: [] });
+
+  await send('Emulation.setDeviceMetricsOverride', {
+    width: 1440,
+    height: 900,
+    deviceScaleFactor: 1,
+    mobile: false,
+  });
+  await send('Page.navigate', { url: `${baseUrl}/blog/` });
+  await waitFor(`document.readyState === 'complete'`, 'Blog archive load');
+  const archiveDefault = await evaluate(`(() => {
+    const entry = document.querySelector('.blog-post-entry');
+    const summary = document.querySelector('.blog-post-entry__description');
+    const title = document.querySelector('.blog-post-entry h2 a');
+    const style = getComputedStyle(entry);
+    return {
+      entry: Boolean(entry),
+      noCard: style.backgroundColor === 'rgba(0, 0, 0, 0)' && style.borderInlineStartWidth === '0px' && style.borderRadius === '0px' && style.boxShadow === 'none',
+      hasDateColumn: getComputedStyle(document.querySelector('.blog-post-entry__date')).display !== 'none',
+      summaryVisible: summary.getBoundingClientRect().height > 0 && getComputedStyle(summary).opacity === '1',
+      titleColor: getComputedStyle(title).color,
+      contentBox: (() => { const box = entry.querySelector('.blog-post-entry__content').getBoundingClientRect(); return { x: box.x, y: box.y, width: box.width, height: box.height }; })(),
+    };
+  })()`);
+  assert.ok(archiveDefault.entry && archiveDefault.noCard && archiveDefault.hasDateColumn);
+  assert.equal(archiveDefault.summaryVisible, false);
+  await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 1, y: 1, pointerType: 'mouse' });
+  await send('Input.dispatchMouseEvent', {
+    type: 'mouseMoved',
+    x: archiveDefault.contentBox.x + Math.min(20, archiveDefault.contentBox.width / 2),
+    y: archiveDefault.contentBox.y + Math.min(20, archiveDefault.contentBox.height / 2),
+    pointerType: 'mouse',
+  });
+  await delay(260);
+  const archiveHover = await evaluate(`(() => {
+    const summary = document.querySelector('.blog-post-entry__description');
+    const title = document.querySelector('.blog-post-entry h2 a');
+    return {
+      summaryVisible: summary.getBoundingClientRect().height > 0 && getComputedStyle(summary).opacity === '1',
+      titleChanged: getComputedStyle(title).color !== ${JSON.stringify(archiveDefault.titleColor)},
+      contentHovered: document.querySelector('.blog-post-entry__content').matches(':hover'),
+    };
+  })()`);
+  assert.ok(archiveHover.contentHovered && archiveHover.summaryVisible && archiveHover.titleChanged);
+  await evaluate(`document.querySelector('.blog-post-entry h2 a').focus()`);
+  const archiveFocus = await evaluate(`(() => {
+    const summary = document.querySelector('.blog-post-entry__description');
+    return document.activeElement === document.querySelector('.blog-post-entry h2 a')
+      && summary.getBoundingClientRect().height > 0
+      && getComputedStyle(summary).opacity === '1';
+  })()`);
+  assert.ok(archiveFocus);
+
+  await send('Emulation.setDeviceMetricsOverride', {
+    width: 390,
+    height: 844,
+    deviceScaleFactor: 1,
+    mobile: true,
+  });
+  await send('Page.navigate', { url: `${baseUrl}/blog/` });
+  await waitFor(`document.readyState === 'complete'`, 'Mobile Blog archive load');
+  const archiveMobile = await evaluate(`(() => {
+    const date = document.querySelector('.blog-post-entry__date');
+    const mobileMeta = document.querySelector('.blog-post-entry__mobile-meta');
+    const summary = document.querySelector('.blog-post-entry__description');
+    return {
+      dateColumnHidden: getComputedStyle(date).display === 'none',
+      mobileMetaVisible: getComputedStyle(mobileMeta).display === 'flex',
+      summaryVisible: summary.getBoundingClientRect().height > 0 && getComputedStyle(summary).opacity === '1',
+      noHorizontalOverflow: document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+    };
+  })()`);
+  assert.ok(archiveMobile.dateColumnHidden && archiveMobile.mobileMetaVisible && archiveMobile.summaryVisible && archiveMobile.noHorizontalOverflow);
+
+  await send('Emulation.setDeviceMetricsOverride', {
+    width: 1440,
+    height: 900,
+    deviceScaleFactor: 1,
+    mobile: false,
+  });
+  await send('Page.navigate', { url: `${baseUrl}/blog/start-writing/` });
+  await waitFor(`document.readyState === 'complete'`, 'Blog article load');
+  const articleDesktop = await evaluate(`(() => {
+    const paper = document.querySelector('.blog-article__paper');
+    const returnLink = document.querySelector('.blog-reading-nav__return');
+    const prevNext = document.querySelector('.blog-prev-next');
+    const share = document.querySelector('.blog-share');
+    const paperStyle = getComputedStyle(paper);
+    return {
+      parentReturn: returnLink?.getAttribute('href') === '/blog/' && !paper.contains(returnLink),
+      tonalPaper: paperStyle.borderRadius === '0px' && paperStyle.boxShadow === 'none' && paperStyle.borderTopWidth === '0px',
+      tagsAtPaperEnd: Boolean(paper.querySelector('.blog-article__tags')),
+      endingOutsidePaper: !paper.contains(prevNext) && !paper.contains(share),
+      previousNextPresent: Boolean(prevNext?.querySelector('a')),
+      noHorizontalOverflow: document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+    };
+  })()`);
+  assert.ok(articleDesktop.parentReturn && articleDesktop.tonalPaper && articleDesktop.tagsAtPaperEnd && articleDesktop.endingOutsidePaper && articleDesktop.previousNextPresent && articleDesktop.noHorizontalOverflow);
+
+  await send('Emulation.setDeviceMetricsOverride', {
+    width: 390,
+    height: 844,
+    deviceScaleFactor: 1,
+    mobile: true,
+  });
+  await send('Page.navigate', { url: `${baseUrl}/blog/start-writing/` });
+  await waitFor(`document.readyState === 'complete'`, 'Mobile Blog article load');
+  const articleMobile = await evaluate(`(() => {
+    const paper = document.querySelector('.blog-article__paper');
+    const meta = document.querySelector('.blog-article__meta');
+    const prevNext = document.querySelector('.blog-prev-next');
+    const older = document.querySelector('.blog-prev-next__older');
+    const paperBox = paper.getBoundingClientRect();
+    const prevNextBox = prevNext.getBoundingClientRect();
+    const olderBox = older.getBoundingClientRect();
+    return {
+      readableWidth: paperBox.width <= document.documentElement.clientWidth,
+      metadataVisible: getComputedStyle(meta).display === 'flex',
+      previousNextVertical: Math.abs(olderBox.left - prevNextBox.left) < 1 && olderBox.width <= prevNextBox.width,
+      tagsPresent: Boolean(paper.querySelector('.blog-article__tags')),
+      sharePresent: Boolean(document.querySelector('.blog-share')),
+      giscusPresent: Boolean(document.querySelector('.blog-giscus')),
+      noHorizontalOverflow: document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+    };
+  })()`);
+  assert.ok(articleMobile.readableWidth && articleMobile.metadataVisible && articleMobile.previousNextVertical && articleMobile.tagsPresent && articleMobile.sharePresent && articleMobile.giscusPresent && articleMobile.noHorizontalOverflow);
 
   const matrix = [];
   for (const [width, height] of viewports) {
@@ -202,6 +328,10 @@ try {
 
   await send('Page.navigate', { url: `${baseUrl}/blog/` });
   await waitFor(`location.pathname === '/blog/'`, 'Blog history origin');
+  const archiveReducedMotion = await evaluate(`(() => {
+    const summary = document.querySelector('.blog-post-entry__description');
+    return summary.getBoundingClientRect().height > 0 && getComputedStyle(summary).opacity === '1';
+  })()`);
   await send('Page.navigate', { url: `${baseUrl}/learn/` });
   await waitFor(`location.pathname === '/learn/'`, 'Learn history destination');
   await evaluate('history.back()');
@@ -242,6 +372,7 @@ try {
   assert.ok(textZoom.noHorizontalOverflow && textZoom.drawerToggleVisible);
   assert.ok(keyboard.focused && keyboard.focusVisible);
   assert.equal(reducedMotion, true);
+  assert.ok(archiveReducedMotion);
   assert.ok(notFound.title && notFound.hasMain && notFound.hasH1 && notFound.hasHomeLink);
 
   console.log(JSON.stringify({
@@ -251,6 +382,13 @@ try {
     textZoom,
     keyboard,
     reducedMotion,
+    archiveDefault,
+    archiveHover,
+    archiveFocus,
+    archiveMobile,
+    articleDesktop,
+    articleMobile,
+    archiveReducedMotion,
     notFound,
     consoleProblems,
   }, null, 2));

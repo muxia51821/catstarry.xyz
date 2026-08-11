@@ -31,9 +31,7 @@ const { tag, tagPosts, currentPage, pageCount } = Astro.props as {
 <Base title={`标签：${tag}`} description={`带有「${tag}」标签的已发布文章。`}>
   <BlogArchive
     title={`标签：${tag}`}
-    intro={`带有「${tag}」标签的已发布文章。`}
     posts={getPagePosts(tagPosts, currentPage)}
-    allPosts={tagPosts}
     currentPage={currentPage}
     pageCount={pageCount}
     basePath={`/blog/tag/${encodeURIComponent(tag)}`}

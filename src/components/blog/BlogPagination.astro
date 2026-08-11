@@ -8,31 +8,15 @@ interface Props {
 }
 
 const { basePath, currentPage, pageCount } = Astro.props;
-const pages = Array.from({ length: pageCount }, (_, index) => index + 1);
 ---
 
 {pageCount > 1 && (
   <nav class="blog-pagination" aria-label="文章分页">
     {currentPage > 1 ? (
-      <a class="blog-pagination__control" href={getPageUrl(basePath, currentPage - 1)}>上一页</a>
-    ) : (
-      <span class="blog-pagination__control" aria-disabled="true">上一页</span>
-    )}
-    <ol class="blog-pagination__pages">
-      {pages.map((page) => (
-        <li>
-          {page === currentPage ? (
-            <span class="blog-pagination__current" aria-current="page">{page}</span>
-          ) : (
-            <a href={getPageUrl(basePath, page)} aria-label={`第 ${page} 页`}>{page}</a>
-          )}
-        </li>
-      ))}
-    </ol>
+      <a href={getPageUrl(basePath, currentPage - 1)}>← 较新的文章</a>
+    ) : null}
     {currentPage < pageCount ? (
-      <a class="blog-pagination__control" href={getPageUrl(basePath, currentPage + 1)}>下一页</a>
-    ) : (
-      <span class="blog-pagination__control" aria-disabled="true">下一页</span>
-    )}
+      <a href={getPageUrl(basePath, currentPage + 1)}>更早的文章 →</a>
+    ) : null}
   </nav>
 )}

@@ -11,12 +11,9 @@ const posts = sortPostsByDate(await getCollection('blog', ({ data }) => !data.dr
   <link slot="head" rel="alternate" type="application/rss+xml" title="catstarry.xyz · 博客 RSS" href="/blog/rss.xml" />
   <BlogArchive
     title="博客"
-    intro="技术、生活与观点：把正在形成的想法留在这里。"
     posts={getPagePosts(posts, 1)}
-    allPosts={posts}
     currentPage={1}
     pageCount={getPageCount(posts.length)}
     basePath="/blog"
-    showTaxonomy={true}
   />
 </Base>

@@ -23,6 +23,7 @@
     "signal:footprint": "node scripts/public-footprint-signal.mjs",
     "blog:sync-publications": "node scripts/blog-publication-manifest.mjs",
     "test:blog:publications": "node scripts/blog-publication-contract-test.mjs",
+    "test:blog:reconciliation": "node scripts/blog-reconciliation-contract-test.mjs",
     "project:add": "node scripts/project-entry.mjs",
     "project:capture": "node scripts/capture-project-screenshots.mjs",
     "test:projects": "node scripts/project-contract-test.mjs",

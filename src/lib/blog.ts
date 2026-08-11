@@ -34,6 +34,16 @@ export function formatBlogDate(date: Date): string {
   });
 }
 
+export function formatBlogArchiveDate(date: Date): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    month: '2-digit',
+    day: '2-digit',
+    timeZone: 'Asia/Shanghai',
+  }).formatToParts(date);
+  const value = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
+  return `${value.month}.${value.day}`;
+}
+
 export function getPageUrl(basePath: string, page: number): string {
   return page === 1 ? `${basePath}/` : `${basePath}/${page}/`;
 }

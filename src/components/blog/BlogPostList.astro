@@ -1,7 +1,6 @@
 ---
-import { formatBlogDate, getPostUrl, type BlogPost } from '../../lib/blog';
+import { formatBlogArchiveDate, getPostUrl, type BlogPost } from '../../lib/blog';
 import { getCategoryLabel } from '../../lib/category';
-import BatchViewHydrator from './BatchViewHydrator';
 
 interface Props {
   posts: BlogPost[];
@@ -9,7 +8,6 @@ interface Props {
 }
 
 const { posts, emptyMessage } = Astro.props;
-const slugs = posts.map(getPostUrl).map((url) => url.split('/').filter(Boolean).at(-1) ?? '');
 ---
 
 {posts.length === 0 ? (
@@ -17,24 +15,18 @@ const slugs = posts.map(getPostUrl).map((url) => url.split('/').filter(Boolean).
 ) : (
   <div class="blog-post-list">
     {posts.map((post) => (
-      <article class="blog-post-card">
-        <div class="blog-post-card__meta">
-          <time datetime={post.data.date.toISOString().slice(0, 10)}>{formatBlogDate(post.data.date)}</time>
-          <span aria-hidden="true">·</span>
-          <a href={`/blog/category/${post.data.category}/`}>{getCategoryLabel(post.data.category)}</a>
-          {post.data.tags.map((tag) => (
-            <>
-              <span aria-hidden="true">·</span>
-              <a href={`/blog/tag/${encodeURIComponent(tag)}/`}>#{tag}</a>
-            </>
-          ))}
-          <span aria-hidden="true">·</span>
-          <span class="post-views" data-blog-view-count={getPostUrl(post).split('/').filter(Boolean).at(-1)} hidden></span>
+      <article class="blog-post-entry">
+        <time class="blog-post-entry__date" datetime={post.data.date.toISOString().slice(0, 10)}>{formatBlogArchiveDate(post.data.date)}</time>
+        <div class="blog-post-entry__content">
+          <div class="blog-post-entry__mobile-meta">
+            <time datetime={post.data.date.toISOString().slice(0, 10)}>{formatBlogArchiveDate(post.data.date)}</time>
+            <a href={`/blog/category/${post.data.category}/`}>{getCategoryLabel(post.data.category)}</a>
+          </div>
+          <h2><a href={getPostUrl(post)}>{post.data.title}</a></h2>
+          <p class="blog-post-entry__description">{post.data.description}</p>
+          <a class="blog-post-entry__category" href={`/blog/category/${post.data.category}/`}>{getCategoryLabel(post.data.category)}</a>
         </div>
-        <h2><a href={getPostUrl(post)}>{post.data.title}</a></h2>
-        <p class="blog-post-card__description">{post.data.description}</p>
       </article>
     ))}
-    <BatchViewHydrator slugs={slugs} client:load />
   </div>
 )}

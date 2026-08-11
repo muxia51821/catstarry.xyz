@@ -33,9 +33,7 @@ const label = getCategoryLabel(category);
 <Base title={`分类：${label}`} description={`${label}分类下的已发布文章。`}>
   <BlogArchive
     title={`分类：${label}`}
-    intro={`${label}分类下的已发布文章。`}
     posts={getPagePosts(categoryPosts, currentPage)}
-    allPosts={categoryPosts}
     currentPage={currentPage}
     pageCount={pageCount}
     basePath={`/blog/category/${category}`}

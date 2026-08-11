@@ -2,22 +2,18 @@
 import '../../styles/blog.css';
 import BlogPagination from './BlogPagination.astro';
 import BlogPostList from './BlogPostList.astro';
-import BlogTaxonomy from './BlogTaxonomy.astro';
 import type { BlogPost } from '../../lib/blog';
 
 interface Props {
   title: string;
-  intro: string;
   posts: BlogPost[];
-  allPosts: BlogPost[];
   currentPage: number;
   pageCount: number;
   basePath: string;
-  showTaxonomy?: boolean;
   showBackLink?: boolean;
 }
 
-const { title, intro, posts, allPosts, currentPage, pageCount, basePath, showTaxonomy = false, showBackLink = false } = Astro.props;
+const { title, posts, currentPage, pageCount, basePath, showBackLink = false } = Astro.props;
 ---
 
 <main class="blog-page" data-canvas="content">
@@ -27,18 +23,12 @@ const { title, intro, posts, allPosts, currentPage, pageCount, basePath, showTax
       <span>返回星图</span>
     </a>
   </nav>
-  <div class:list={['blog-archive', { 'blog-archive--with-taxonomy': showTaxonomy }]}>
-    <section class="blog-archive__content">
-      <header class="blog-archive__header">
-        <p class="blog-eyebrow">catstarry.xyz</p>
-        <h1>{title}</h1>
-        {showBackLink && <a class="blog-article__back" href="/blog/">← 返回全部文章</a>}
-        <p>{intro}</p>
-      </header>
-      <BlogPagination basePath={basePath} currentPage={currentPage} pageCount={pageCount} />
-      <BlogPostList posts={posts} emptyMessage="还没有已发布文章。" />
-      <BlogPagination basePath={basePath} currentPage={currentPage} pageCount={pageCount} />
-    </section>
-    {showTaxonomy && <BlogTaxonomy posts={allPosts} />}
-  </div>
+  <section class="blog-archive">
+    <header class="blog-archive__header">
+      <h1>{title}</h1>
+      {showBackLink && <a class="blog-article__back" href="/blog/">← 返回全部文章</a>}
+    </header>
+    <BlogPostList posts={posts} emptyMessage="还没有已发布文章。" />
+    <BlogPagination basePath={basePath} currentPage={currentPage} pageCount={pageCount} />
+  </section>
 </main>
