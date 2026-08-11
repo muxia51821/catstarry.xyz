@@ -1,8 +1,7 @@
 export function selectVisibleProjects(entries) {
   return [...entries]
     .filter((entry) => entry.visibility === 'public')
-    .sort((a, b) => Date.parse(b.date) - Date.parse(a.date))
-    .slice(0, 2);
+    .sort((a, b) => Date.parse(b.date) - Date.parse(a.date));
 }
 
 export function isIsoCalendarDate(value) {

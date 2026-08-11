@@ -8,22 +8,23 @@ import {
 
 const projects = JSON.parse(await readFile('src/data/projects/index.json', 'utf8'));
 const publicProjects = projects.filter((project) => project.visibility === 'public');
-assert.ok(publicProjects.length > 0 && publicProjects.length <= 2, 'Projects must expose one or two current public entries');
+assert.ok(publicProjects.length > 0, 'Projects must expose current public entries');
 assert.equal(new Set(projects.map((project) => project.projectId)).size, projects.length, 'projectId values must be unique');
 assert.deepEqual(selectVisibleProjects([]), [], 'Projects must preserve the explicit empty state');
 assert.equal(isIsoCalendarDate('2026-02-31'), false);
 assert.equal(isIsoCalendarDate('2026-02-28'), true);
 assert.equal(isCredentialFreeHttpsUrl('https://user:password@example.com/'), false);
+const projectsWithOlderEntry = [
+  ...projects,
+  { ...projects[0], projectId: 'older-contract', date: '2000-01-01' },
+];
 assert.deepEqual(
-  selectVisibleProjects([
-    ...projects,
-    { ...projects[0], projectId: 'older-contract', date: '2000-01-01' },
-  ]).map((project) => project.projectId),
-  publicProjects
+  selectVisibleProjects(projectsWithOlderEntry).map((project) => project.projectId),
+  projectsWithOlderEntry
+    .filter((project) => project.visibility === 'public')
     .toSorted((a, b) => Date.parse(b.date) - Date.parse(a.date))
-    .slice(0, 2)
     .map((project) => project.projectId),
-  'Projects must show at most the two newest public entries',
+  'Projects must show every public entry in newest-first order',
 );
 
 for (const project of publicProjects) {

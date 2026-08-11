@@ -47,7 +47,7 @@
 
 .projects-page__eyebrow {
   margin: 0 0 var(--space-sm);
-  color: var(--category-project);
+  color: color-mix(in srgb, var(--category-project) 45%, var(--content-text-secondary));
   font-family: var(--font-mono);
   font-size: var(--text-xs);
   letter-spacing: 0.14em;
@@ -96,9 +96,8 @@
   transition: transform var(--duration-fast) var(--ease-hover), box-shadow var(--duration-fast) var(--ease-hover);
 }
 
-.project-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 16px 32px color-mix(in srgb, var(--content-text-primary) 12%, transparent);
+.project-card:focus-visible .project-card__heading span {
+  color: var(--klein-500);
 }
 
 .project-card__visual {
@@ -115,23 +114,8 @@
 }
 
 .project-card__visual-placeholder {
-  display: grid;
   height: 100%;
-  place-content: center;
-  gap: var(--space-sm);
-  color: var(--content-text-secondary);
-  text-align: center;
-}
-
-.project-card__visual-placeholder span {
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  letter-spacing: 0.12em;
-}
-
-.project-card__visual-placeholder strong {
-  font-size: var(--text-lg);
-  font-weight: 500;
+  background: var(--content-surface-soft);
 }
 
 .project-card__body {
@@ -153,9 +137,10 @@
 }
 
 .project-card__heading span {
-  color: var(--category-project);
+  color: var(--content-text-secondary);
   font-size: var(--text-xl);
   line-height: 1;
+  transition: color var(--duration-fast) var(--ease-hover);
 }
 
 .project-card__body p {
@@ -184,22 +169,7 @@
 }
 
 .projects-empty {
-  padding: clamp(var(--space-xl), 5vw, var(--space-4xl));
-  background: var(--content-surface-card);
-  border: 1px dashed var(--content-hairline);
-  border-radius: var(--radius-content);
-}
-
-.projects-empty .projects-page__eyebrow {
-  margin-block-start: 0;
-}
-
-.projects-empty h2 {
-  max-width: 28rem;
-  margin-block-end: var(--space-md);
-  font-size: clamp(var(--text-xl), 4vw, var(--text-2xl));
-  font-weight: 500;
-  line-height: 1.35;
+  padding-block: var(--space-md);
 }
 
 @media (max-width: 700px) {
@@ -212,12 +182,20 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .project-card {
-    transition: none;
+@media (hover: hover) and (pointer: fine) {
+  .project-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 16px 32px color-mix(in srgb, var(--content-text-primary) 12%, transparent);
   }
 
-  .project-card:hover {
-    transform: none;
+  .project-card:hover .project-card__heading span {
+    color: var(--klein-500);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .project-card,
+  .project-card__heading span {
+    transition: none;
   }
 }
