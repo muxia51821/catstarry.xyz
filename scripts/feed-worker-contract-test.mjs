@@ -141,12 +141,16 @@ try {
   assert.equal((await request('/api/feed/clip-preview', { method: 'POST', headers: { Cookie: cookie, 'Content-Type': 'application/json' }, body: JSON.stringify({ link_url: 'https://user:secret@developer.mozilla.org/' }) })).status, 400);
 
   const firstView = await request('/api/views', { method: 'POST', headers: { 'Content-Type': 'application/json', 'CF-Connecting-IP': '198.51.100.10' }, body: JSON.stringify({ slug: 'contract' }) });
-  assert.deepEqual(await firstView.json(), { slug: 'contract', count: 1 });
+  assert.deepEqual(await firstView.json(), { slug: 'contract' });
   const duplicateView = await request('/api/views', { method: 'POST', headers: { 'Content-Type': 'application/json', 'CF-Connecting-IP': '198.51.100.10' }, body: JSON.stringify({ slug: 'contract' }) });
-  assert.deepEqual(await duplicateView.json(), { slug: 'contract', count: 1 });
+  assert.deepEqual(await duplicateView.json(), { slug: 'contract' });
   const nextView = await request('/api/views', { method: 'POST', headers: { 'Content-Type': 'application/json', 'CF-Connecting-IP': '198.51.100.11' }, body: JSON.stringify({ slug: 'contract' }) });
-  assert.deepEqual(await nextView.json(), { slug: 'contract', count: 2 });
-  const batchViews = await request('/api/views?slugs=contract,missing');
+  assert.deepEqual(await nextView.json(), { slug: 'contract' });
+  assert.equal((await request('/api/views?slug=contract')).status, 401);
+  const ownerView = await request('/api/views?slug=contract', { headers: { Cookie: cookie } });
+  assert.equal(ownerView.status, 200);
+  assert.deepEqual(await ownerView.json(), { slug: 'contract', count: 2 });
+  const batchViews = await request('/api/views?slugs=contract,missing', { headers: { Cookie: cookie } });
   assert.deepEqual(await batchViews.json(), { views: [{ slug: 'contract', count: 2 }, { slug: 'missing', count: 0 }] });
 
   assert.equal((await request(`/api/feed/${firstFootprint.footprint.id}`, { method: 'DELETE', headers: { Cookie: cookie } })).status, 404);

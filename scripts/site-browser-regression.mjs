@@ -13,12 +13,29 @@ if (!existsSync(path.join(distRoot, 'index.html'))) {
 }
 
 const localFailures = [];
+const viewFixture = { records: 0, ownerReads: 0 };
 const server = createServer(async (request, response) => {
   const url = new URL(request.url, 'http://local.test');
-  if (url.pathname === '/api/views') {
-    response.statusCode = 503;
+  if (url.pathname === '/api/auth/session') {
+    const authenticated = (request.headers.cookie ?? '').includes('owner-fixture=1');
     response.setHeader('content-type', 'application/json; charset=utf-8');
-    response.end('{"error":{"code":"fixture_unavailable","message":"fixture"}}');
+    response.end(JSON.stringify({ authenticated, username: authenticated ? 'owner' : null }));
+    return;
+  }
+  if (url.pathname === '/api/views') {
+    response.setHeader('content-type', 'application/json; charset=utf-8');
+    if (request.method === 'POST') {
+      viewFixture.records += 1;
+      response.end('{"slug":"start-writing"}');
+      return;
+    }
+    if (!(request.headers.cookie ?? '').includes('owner-fixture=1')) {
+      response.statusCode = 401;
+      response.end('{"error":{"code":"unauthorized"}}');
+      return;
+    }
+    viewFixture.ownerReads += 1;
+    response.end('{"slug":"start-writing","count":73}');
     return;
   }
   if (url.pathname === '/activity-signals.json') {
@@ -134,6 +151,7 @@ try {
   const { send, evaluate, waitFor } = cdp;
   await send('Runtime.enable');
   await send('Page.enable');
+  await send('Network.enable');
   await send('Emulation.setEmulatedMedia', { media: '', features: [] });
 
   await send('Emulation.setDeviceMetricsOverride', {
@@ -216,6 +234,7 @@ try {
   });
   await send('Page.navigate', { url: `${baseUrl}/blog/start-writing/` });
   await waitFor(`document.readyState === 'complete'`, 'Blog article load');
+  await delay(500);
   const articleDesktop = await evaluate(`(() => {
     const paper = document.querySelector('.blog-article__paper');
     const returnLink = document.querySelector('.blog-reading-nav__return');
@@ -234,6 +253,8 @@ try {
     };
   })()`);
   assert.ok(articleDesktop.parentReturn && articleDesktop.tonalPaper && articleDesktop.tagsAtPaperEnd && articleDesktop.endingOutsidePaper && articleDesktop.previousNextPresent && articleDesktop.articleAdjacentLabels && articleDesktop.publicViewsAbsent && articleDesktop.noHorizontalOverflow);
+  assert.equal(viewFixture.records, 1, 'anonymous Article visit must record exactly once');
+  assert.equal(viewFixture.ownerReads, 0, 'anonymous Article must not read a view count');
 
   await send('Emulation.setDeviceMetricsOverride', {
     width: 390,
@@ -243,6 +264,7 @@ try {
   });
   await send('Page.navigate', { url: `${baseUrl}/blog/start-writing/` });
   await waitFor(`document.readyState === 'complete'`, 'Mobile Blog article load');
+  await delay(500);
   const articleMobile = await evaluate(`(() => {
     const paper = document.querySelector('.blog-article__paper');
     const meta = document.querySelector('.blog-article__meta');
@@ -263,6 +285,26 @@ try {
     };
   })()`);
   assert.ok(articleMobile.readableWidth && articleMobile.metadataVisible && articleMobile.previousNextVertical && articleMobile.tagsPresent && articleMobile.sharePresent && articleMobile.giscusPresent && articleMobile.publicViewsAbsent && articleMobile.noHorizontalOverflow);
+  assert.equal(viewFixture.records, 2, 'each public Article navigation has one recording path');
+  assert.equal(viewFixture.ownerReads, 0, 'anonymous mobile Article must not read a view count');
+
+  await send('Network.setCookie', { url: baseUrl, name: 'owner-fixture', value: '1' });
+  await send('Emulation.setDeviceMetricsOverride', {
+    width: 1440,
+    height: 900,
+    deviceScaleFactor: 1,
+    mobile: false,
+  });
+  await send('Page.navigate', { url: `${baseUrl}/blog/start-writing/` });
+  await waitFor(`document.readyState === 'complete'`, 'Owner Blog article load');
+  await waitFor(`document.querySelector('.post-views')?.textContent?.trim() === '73 次阅读'`, 'Owner Blog view count');
+  const ownerArticle = await evaluate(`(() => ({
+    viewText: document.querySelector('.post-views')?.textContent?.trim() ?? null,
+    noHorizontalOverflow: document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+  }))()`);
+  assert.deepEqual(ownerArticle, { viewText: '73 次阅读', noHorizontalOverflow: true });
+  assert.equal(viewFixture.records, 3, 'owner Article visit must record exactly once');
+  assert.equal(viewFixture.ownerReads, 1, 'authenticated owner reads the private view count once');
 
   const matrix = [];
   for (const [width, height] of viewports) {

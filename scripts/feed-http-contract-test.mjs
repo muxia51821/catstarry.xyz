@@ -386,9 +386,14 @@ for (const invalidBody of ['null', '[]', '"slug"']) {
 
 const d1FailureEnv = createEnv();
 d1FailureEnv.DB = { prepare() { throw new Error('SQL secret-marker'); } };
+const d1FailureToken = crypto.randomUUID();
+d1FailureEnv.AUTH_KV.values.set(`session:${d1FailureToken}`, {
+  username: 'contract',
+  expires_at: new Date(Date.now() + 60_000).toISOString(),
+});
 console.error = () => {};
 try {
-  const response = await fetchWorker(d1FailureEnv, 'https://api.test/api/views?slugs=contract-post');
+  const response = await fetchWorker(d1FailureEnv, 'https://api.test/api/views?slugs=contract-post', { headers: { Cookie: `token=${d1FailureToken}` } });
   assert.equal(response.status, 500);
   const body = await response.text();
   assert.doesNotMatch(body, /SQL|secret-marker|stack/i, 'D1 errors must use a bounded public envelope');
@@ -543,7 +548,7 @@ const firstView = await fetchWorker(env, 'https://api.test/api/views', {
   body: JSON.stringify({ slug: 'contract-post' }),
 });
 assert.equal(firstView.status, 200);
-assert.deepEqual(await firstView.json(), { slug: 'contract-post', count: 1 });
+assert.deepEqual(await firstView.json(), { slug: 'contract-post' });
 assert.equal((await fetchWorker(env, 'https://api.test/api/views', {
   method: 'POST',
   headers: viewHeaders,
@@ -565,7 +570,7 @@ try {
     body: JSON.stringify({ slug: 'marker-failure' }),
   });
   assert.equal(response.status, 200, 'KV marker failure must not obscure the durable view');
-  assert.equal((await response.json()).count, 1);
+  assert.deepEqual(await response.json(), { slug: 'marker-failure' });
 } finally {
   console.error = savedConsoleError;
 }
@@ -575,14 +580,14 @@ const duplicateView = await fetchWorker(env, 'https://api.test/api/views', {
   headers: viewHeaders,
   body: JSON.stringify({ slug: 'contract-post' }),
 });
-assert.deepEqual(await duplicateView.json(), { slug: 'contract-post', count: 1 });
+assert.deepEqual(await duplicateView.json(), { slug: 'contract-post' });
 
 const secondVisitor = await fetchWorker(env, 'https://api.test/api/views', {
   method: 'POST',
   headers: { ...viewHeaders, 'CF-Connecting-IP': '203.0.113.11' },
   body: JSON.stringify({ slug: 'contract-post' }),
 });
-assert.deepEqual(await secondVisitor.json(), { slug: 'contract-post', count: 2 });
+assert.deepEqual(await secondVisitor.json(), { slug: 'contract-post' });
 
 const rateLimitedHeaders = { ...viewHeaders, 'CF-Connecting-IP': '203.0.113.12' };
 for (let index = 0; index < 120; index += 1) {
@@ -599,7 +604,17 @@ assert.equal((await fetchWorker(env, 'https://api.test/api/views', {
   body: JSON.stringify({ slug: 'rate-limit-contract' }),
 })).status, 429);
 
-const batch = await fetchWorker(env, 'https://api.test/api/views?slugs=contract-post,missing-post');
+assert.equal((await fetchWorker(env, 'https://api.test/api/views?slug=contract-post')).status, 401);
+const ownerToken = crypto.randomUUID();
+env.AUTH_KV.values.set(`session:${ownerToken}`, {
+  username: 'contract',
+  expires_at: new Date(Date.now() + 60_000).toISOString(),
+});
+const ownerHeaders = { Cookie: `token=${ownerToken}` };
+const ownerSingle = await fetchWorker(env, 'https://api.test/api/views?slug=contract-post', { headers: ownerHeaders });
+assert.equal(ownerSingle.status, 200);
+assert.deepEqual(await ownerSingle.json(), { slug: 'contract-post', count: 2 });
+const batch = await fetchWorker(env, 'https://api.test/api/views?slugs=contract-post,missing-post', { headers: ownerHeaders });
 assert.equal(batch.status, 200);
 assert.deepEqual(await batch.json(), {
   views: [

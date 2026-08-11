@@ -1,4 +1,5 @@
 import { apiError, json, readJson } from '../lib/http';
+import { requireMainSession } from './auth';
 import { logWorkerError } from '../../../../shared/worker-log';
 
 const MAX_SLUGS = 50;
@@ -6,7 +7,11 @@ const MAX_RECORDS_PER_MINUTE = 120;
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 export async function handleViews(request: Request, env: Env): Promise<Response> {
-  if (request.method === 'GET') return readViews(request, env.DB);
+  if (request.method === 'GET') {
+    const session = await requireMainSession(request, env);
+    if (session instanceof Response) return session;
+    return readViews(request, env.DB);
+  }
   if (request.method === 'POST') return recordView(request, env);
   return apiError(405, 'method_not_allowed', 'Method is not allowed');
 }
@@ -51,7 +56,7 @@ async function recordView(request: Request, env: Env): Promise<Response> {
   }
   const cacheKey = `view:${viewDate}:${slug}:${visitorHash}`;
   const alreadyCounted = await env.VIEW_KV.get(cacheKey);
-  if (alreadyCounted) return json({ slug, count: await totalViews(env.DB, slug) });
+  if (alreadyCounted) return json({ slug });
 
   await env.DB
     .prepare('INSERT OR IGNORE INTO blog_view_visitors (slug, view_date, visitor_hash, created_at) VALUES (?, ?, ?, ?)')
@@ -62,7 +67,7 @@ async function recordView(request: Request, env: Env): Promise<Response> {
   } catch (error) {
     logWorkerError('blog_view_cache_marker_failed_after_durable_record', { slug }, error);
   }
-  return json({ slug, count: await totalViews(env.DB, slug) });
+  return json({ slug });
 }
 
 async function allowViewRecord(cache: KVNamespace, visitorHash: string): Promise<boolean> {

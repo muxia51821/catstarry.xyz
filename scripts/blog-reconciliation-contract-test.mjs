@@ -2,12 +2,16 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const read = (file) => readFile(file, 'utf8');
-const [archive, list, pagination, detail, css] = await Promise.all([
+const [archive, list, pagination, detail, css, viewCounter, viewTracker, viewsRoute, viewHooks] = await Promise.all([
   read('src/components/blog/BlogArchive.astro'),
   read('src/components/blog/BlogPostList.astro'),
   read('src/components/blog/BlogPagination.astro'),
   read('src/pages/blog/[...slug].astro'),
   read('src/styles/blog.css'),
+  read('src/components/ViewCounter.tsx'),
+  read('src/components/ViewTracker.tsx'),
+  read('workers/feed-api/src/routes/views.ts'),
+  read('src/lib/useViewCount.ts'),
 ]);
 
 assert.match(archive, /<h1>\{title\}<\/h1>/);
@@ -33,7 +37,15 @@ assert.match(detail, /blog-prev-next/);
 assert.match(detail, />上一篇<\/span>/);
 assert.match(detail, />下一篇<\/span>/);
 assert.doesNotMatch(detail, /较新的文章|更早的文章/);
-assert.doesNotMatch(detail, /ViewCounter|次阅读|post-views/);
+assert.match(detail, /<ViewTracker[\s\S]*?client:load/);
+assert.match(detail, /<ViewCounter[\s\S]*?client:load/);
+assert.doesNotMatch(archive, /ViewCounter|ViewTracker|次阅读|post-views/);
+assert.match(viewTracker, /useViewTracker/);
+assert.match(viewCounter, /useOwnerViewCount/);
+assert.match(viewsRoute, /requireMainSession/);
+assert.match(viewsRoute, /if \(request\.method === 'GET'\)[\s\S]*?requireMainSession/);
+assert.match(viewsRoute, /return json\(\{ slug \}\)/);
+assert.doesNotMatch(viewHooks, /useBatchViewCount|recordView\(slug\)\.then/);
 
 for (const marker of [
   '.blog-post-entry',

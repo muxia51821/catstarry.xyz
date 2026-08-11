@@ -1,6 +1,8 @@
 ---
 import { getCollection, render } from 'astro:content';
 import ArticleFooter from '../../components/ArticleFooter';
+import ViewCounter from '../../components/ViewCounter';
+import ViewTracker from '../../components/ViewTracker';
 import BlogArchive from '../../components/blog/BlogArchive.astro';
 import Base from '../../layouts/Base.astro';
 import '../../styles/blog.css';
@@ -56,6 +58,8 @@ const olderPost = postIndex >= 0 ? orderedPosts[postIndex + 1] : undefined;
             <p class="blog-article__deck">{post.data.description}</p>
             <div class="blog-article__meta" aria-label="文章信息">
               <time datetime={post.data.date.toISOString().slice(0, 10)}>{formatBlogDate(post.data.date)}</time>
+              <ViewTracker slug={getPostSlug(post)} client:load />
+              <ViewCounter slug={getPostSlug(post)} client:load />
             </div>
           </header>
           <div class="blog-prose"><rendered.Content /></div>

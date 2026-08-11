@@ -559,8 +559,9 @@ Blog Closure 明确将其产品决策面关闭，同时明确生产实现仍存�
 | -------------- | ----------------------------------------- | ---------- |
 | BLOG-AMETA-001 | Category appears once                     | Confirmed  |
 | BLOG-AMETA-002 | Summary/Deck remains                      | Confirmed  |
-| BLOG-AMETA-003 | Date remains public Article metadata; public Views superseded / removed | Confirmed  |
+| BLOG-AMETA-003 | Date remains public Article metadata; anonymous users cannot read Views | Confirmed  |
 | BLOG-AMETA-004 | Public Views display                      | Superseded |
+| BLOG-AMETA-009 | Owner-only Article Views reuse main-site auth | Confirmed / Implemented |
 | BLOG-AMETA-005 | Tags move to Paper ending                 | Confirmed  |
 | BLOG-AMETA-006 | Article Tags = plain-text clickable links | Confirmed  |
 | BLOG-AMETA-007 | Duplicate Category removed                | Superseded |
@@ -580,7 +581,7 @@ Blog Closure 明确将其产品决策面关闭，同时明确生产实现仍存�
 | BLOG-CAP-006 | Image                        | Confirmed |
 | BLOG-CAP-007 | Table                        | Confirmed |
 | BLOG-CAP-008 | SEO / canonical URL / OG     | Confirmed |
-| BLOG-CAP-009 | View-count capability remains internal; future owner-only presentation is private / not implemented | Confirmed |
+| BLOG-CAP-009 | Public View recording remains; owner-only Article display uses main-site auth with no Blog-specific admin/auth surface | Confirmed / Implemented |
 | BLOG-CAP-010 | Static publication           | Confirmed |
 | BLOG-CAP-011 | draft/publication protection | Confirmed |
 

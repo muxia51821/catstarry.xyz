@@ -1,7 +1,7 @@
-﻿import { useViewCount } from '../lib/useViewCount';
+import { useOwnerViewCount } from '../lib/useViewCount';
 
 export default function ViewCounter({ slug }: { slug: string }) {
-  const count = useViewCount(slug);
+  const count = useOwnerViewCount(slug);
 
   if (count === null) {
     return null;
