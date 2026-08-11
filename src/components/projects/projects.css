@@ -198,4 +198,8 @@
   .project-card__heading span {
     transition: none;
   }
+
+  .project-card:hover {
+    transform: none;
+  }
 }
