@@ -70,28 +70,28 @@
 - **历史冲突**：Feed 已有 Owner/Manage workflow，曾可能被泛化为全站 `/admin`。
 - **Reconciled rule**：Owner tooling 保持 module-local，直到重复的跨模块 workflow 证明 shared administration 的必要性；Global Content Admin 为 **Parked**。
 - **Scope**：Feed owner tooling / Family administration。
-- **Downstream guard**：Feed Architecture Preflight 可决定 route mapping，但不得借此提前建立 Global Content Admin；Parked 不得报告为 gap。
+- **Downstream guard**：已完成的 Feed Architecture Preflight 已确认 route mapping；不得借此提前建立 Global Content Admin；Parked 不得报告为 gap。
 
 ## 11. Blog → Feed visibility
 
 - **历史冲突**：ADR-005 的 storage independence / no cascade delete 曾可能被误读为 source hidden 后 Footprint 仍必须公开投影。
 - **Reconciled rule**：`storage independence ≠ public projection independence`。Blog source hidden 时，Footprint record 与 immutable snapshot 保留，但 Public Timeline projection 隐藏；source 仍 public 时，Footprint 自身 visibility 仍可独立控制。
 - **Scope**：Blog publication Footprint、Public Timeline、ADR-005。
-- **Downstream guard**：不得 cascade-delete 或重写 snapshot；也不得仅凭 Footprint 自身 public 就继续投影 hidden Blog。Exact query、reference 与 tombstone behavior 属于 Feed Architecture Preflight。
+- **Downstream guard**：不得 cascade-delete 或重写 snapshot；也不得仅凭 Footprint 自身 public 就继续投影 hidden Blog。已完成的 Feed Architecture Preflight 提供相应 technical handoff，不得以旧 open 状态重开该产品冲突。
 
 ## 12. Projects → Feed event ownership
 
 - **历史冲突**：曾可能从 copy、screenshot、tags 或 deploy 字段变化自动推断一次 `Project update`。
 - **Reconciled rule**：Projects/source-side workflow owns event semantics；只有被明确确认具有公开记录价值的更新才产生 `PROJECT · 更新`，Feed 负责消费和展示。
 - **Scope**：Projects source lifecycle、Feed Footprint。
-- **Downstream guard**：不得从字段 diff 自动产生产品语义；event entry、idempotency、`updateId` 与 description storage 进入 Architecture Revalidate。
+- **Downstream guard**：不得从字段 diff 自动产生产品语义；event entry、idempotency、`updateId` 与 description storage 依已完成的 Architecture Preflight 进入 implementation handoff，不得升级为 Family/Product 新规则。
 
 ## 13. Intentional ending
 
 - **历史冲突**：页面完整性曾被等同于添加 Footer、CTA、统计、推荐或 filler section。
 - **Reconciled rule**：每个 Content surface 需要 intentional ending，但 ending 可以来自自然留白、pagination end、navigation、discussion 或其他语义上合理的结论。
 - **Scope**：全部 Content modules。
-- **Downstream guard**：不得用 invented capabilities 制造“完整感”；Blog、Feed、Projects 的 Parked feature 都不能作为 ending filler，Learn ending 等待 Closure。
+- **Downstream guard**：不得用 invented capabilities 制造“完整感”；Blog、Feed、Projects 的 Parked feature 都不能作为 ending filler；Learn 以 Architecture Final 为准，Visual Reality Check 不得被用来恢复旧设计。
 
 ## Closed boundary
 

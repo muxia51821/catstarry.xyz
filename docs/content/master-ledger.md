@@ -9,7 +9,7 @@
 **Scope:** Content Family / Cream Gallery
 **Modules:** Blog / Feed / Learn / Projects
 **Closed Modules:** Blog / Feed / Projects
-**Provisional Module:** Learn
+**Learn decision baseline:** Product Synthesis / Architecture Final COMPLETE; Visual Reality Check IN PROGRESS
 **Upstream:** Reconciled Content Family Contract v1
 **Purpose:** Decision authority registry, implementation sequencing source, acceptance reference
 **Implementation:** Not a code specification by itself
@@ -30,15 +30,15 @@ Blog、Feed、Projects 已完成：
 
 > **Blog / Feed / Projects 已不存在待重新讨论的 Family-level 产品冲突。**
 
-Learn 尚未完成 Module Closure。
+Learn 的 Product Synthesis 与 Architecture Final 已完成，当前正在进行 Visual Reality Check；尚未达到 production implementation 或 acceptance。
 
 所以当前 Content Family 状态不是：
 
-> 四模块全部最终冻结。
+> 四模块全部已实施并最终验收。
 
 而是：
 
-> **Family shared contract 已 reconciliation；三个已关闭模块已冻结；Learn 保留 provisional/open product decisions。**
+> **Family shared contract 已 reconciliation；Projects / Blog 已 ACCEPTED 并 FROZEN；Feed 已完成 Closure、Stage 4、F0 与 Architecture Preflight，正在形成实施任务包；Learn 已完成 Product / Architecture decision baseline，Visual Reality Check 仍在进行。**
 
 这是本 Ledger 最重要的状态边界。
 
@@ -399,11 +399,13 @@ Tech Tags 可使用：
 ## Module State
 
 **Product / IA / UI:** CLOSED
-**Implementation:** PENDING
+**Implementation:** ACCEPTED
+**Owner visual acceptance:** PASS
+**State:** FROZEN
 **Family Reconciliation:** COMPLETE
 **Primary Identity:** Archive + Reading
 
-Blog Closure 明确将其产品决策面关闭，同时明确生产实现仍存在大量 drift，因此 Product Closure 不等同于代码完成。
+Blog Closure 后的 accepted implementation（包括 owner-only Views）已构成当前事实；FROZEN 表示不再主动优化或重开模块内部设计，除非出现明确 integration regression 或新的用户裁决。
 
 ---
 
@@ -750,11 +752,14 @@ Closure text outranks that frame.
 **Responsive:** CLOSED
 **Visual:** CLOSED
 **Accepted Direction:** D — Quiet Deposition
-**Prototype Validation:** PASSED
-**Production:** NOT STARTED
-**Architecture Preflight:** REQUIRED
+**Stage 4 Browser Visual Lab / stress validation:** COMPLETE
+**F0 current-state architecture / runtime evidence inventory:** COMPLETE
+**Architecture Preflight:** COMPLETE
+**Codex Production Implementation Task Package:** IN PROGRESS
+**Production Implementation:** PENDING
+**Production Acceptance:** PENDING
 
-Feed Closure 明确自身不是 Delta 摘要，而是专项后形成的最终模块级 decision authority；Visual Lab 已完成 39 个浏览器 case，但生产 implementation 仍未开始。
+Feed Closure 明确自身不是 Delta 摘要，而是专项后形成的最终模块级 decision authority。Stage 4 收敛并验证 D — Quiet Deposition；F0 只恢复 current production architecture / runtime evidence，不形成新的 Product rule。Architecture Preflight 已完成，当前尚未开始 production implementation。
 
 ---
 
@@ -1133,6 +1138,8 @@ Remove/supersede:
 
 ## FEED-ARCHITECTURE-REVALIDATE
 
+Architecture Preflight 已完成；以下保留为 implementation handoff / technical traceability，不再表示 Preflight 未完成或可重开 Feed Product Truth。
+
 ### AR-FEED-01
 
 Blog visibility / ADR-005 mapping.
@@ -1229,10 +1236,12 @@ Do not delete merely for Git cleanup.
 
 **Product / Visual:** CLOSED
 **Family Reconciliation:** COMPLETE
-**Implementation:** PENDING
+**Implementation:** ACCEPTED
+**Owner visual acceptance:** PASS
+**State:** FROZEN
 **Identity:** Project Objects
 
-Projects Closure explicitly calls for targeted reconciliation rather than redesign and expressly forbids later agents from removing the accepted shadow/hover treatment merely because an earlier review suggested reducing it.
+Projects Closure explicitly calls for targeted reconciliation rather than redesign and expressly forbids later agents from removing the accepted shadow/hover treatment merely because an earlier review suggested reducing it. FROZEN 表示不再主动优化或重开模块内部设计，除非出现明确 integration regression 或新的用户裁决。
 
 ---
 
@@ -1741,15 +1750,17 @@ Exact Learn source lifecycle:
 
 ---
 
-# 10. Learn Provisional Ledger
+# 10. Learn State Ledger
 
-## IMPORTANT: NOT A CLOSURE
+## Current state boundary
 
-Learn currently remains:
+**Product Synthesis:** COMPLETE
+**Architecture Final:** COMPLETE
+**Visual Reality Check:** IN PROGRESS
+**Stage 0:** COMPLETE / pushed
+**Production Implementation:** PENDING
 
-> **Reconciled Current State / Product Decisions Open**
-
-Do not represent this section as equivalent to Blog / Feed / Projects Closure.
+Do not represent Visual Reality Check as completed implementation or acceptance. Do not restore old implementation structure superseded by the Architecture Final.
 
 ---
 
@@ -1912,21 +1923,19 @@ Recently Revised exists but homepage authority remains:
 
 ---
 
-## LEARN-PROV-019 — OPEN PRODUCT DECISION A
+## LEARN-PROV-019 — Historical Track Power question
 
 ### Track Power
 
 Track exists as current data relation/routes/cards.
 
-Still unresolved:
+The Architecture Final closes this decision; this historical wording must not be used to reopen it.
 
-> Is Track the primary long-term public browsing skeleton, or one important grouping among multiple knowledge relations?
-
-**Open / Revalidate**
+**Superseded by Architecture Final**
 
 ---
 
-## LEARN-PROV-020 — OPEN PRODUCT DECISION B
+## LEARN-PROV-020 — Historical Graph Semantics question
 
 ### Graph Semantics
 
@@ -1938,17 +1947,13 @@ Current:
 
 > nodes = Notes + Wikilinks.
 
-Working recommendation:
+The Architecture Final closes this decision; this historical wording must not be used to reopen it.
 
-> Note relation graph primary; Track grouping/context.
-
-But this is not yet Closure-final.
-
-**Open / Revalidate**
+**Superseded by Architecture Final**
 
 ---
 
-## LEARN-PROV-021 — OPEN PRODUCT DECISION C
+## LEARN-PROV-021 — Historical Homepage Main Entry question
 
 ### Homepage Main Entry
 
@@ -1959,9 +1964,9 @@ Current:
 * Recently Revised
 * Tracks
 
-Need hierarchy.
+The Architecture Final closes this decision; this historical wording must not be used to reopen it.
 
-**Open / Revalidate**
+**Superseded by Architecture Final**
 
 ---
 
@@ -2022,14 +2027,9 @@ Feed display grammar:
 
 is accepted Feed presentation.
 
-Learn Closure still needs to define:
+Exact source-event implementation remains a downstream implementation concern; it must follow the Architecture Final rather than restore this historical open state.
 
-* source object
-* trigger
-* update description
-* relationship to current completion action
-
-**Cross-module dependency**
+**Downstream implementation dependency**
 
 ---
 
@@ -2319,6 +2319,8 @@ Do not productionize Learn's final IA before Learn Closure resolves:
 
 # 16. Implementation Dependency Map
 
+The following diagram and wave order are historical sequencing evidence. Current operational sequencing is maintained in [`implementation-dependency-map.md`](implementation-dependency-map.md) and is authoritative for completed, current-parallel and next work.
+
 ```text
 MASTER LEDGER / GOVERNANCE FREEZE
                 │
@@ -2374,7 +2376,11 @@ RELEASE / DEPLOYMENT
 
 ---
 
-# 17. Recommended Implementation Wave Order
+# 17. Historical wave order
+
+The original Wave 0 → Projects → Blog → Feed / parallel Learn plan is complete or superseded by the current operational map. It must not be used to reopen completed Projects, Blog, Feed Preflight, or Learn Product / Architecture work.
+
+---
 
 ## Wave 0 — Governance Documentation Freeze
 
@@ -2509,7 +2515,7 @@ Verify:
 
 ## Learn
 
-Acceptance Gate generated only after Learn Closure.
+Visual Reality Check / closure confirmation must complete before downstream implementation and Acceptance.
 
 ---
 
@@ -2609,9 +2615,9 @@ subject only to:
 
 > **FROZEN**
 
-### Learn Product Truth
+### Learn decision baseline
 
-> **NOT YET FROZEN**
+> **Product Synthesis / Architecture Final COMPLETE; Visual Reality Check IN PROGRESS**
 
 ### Production Code
 
@@ -2684,17 +2690,18 @@ Do not dump all historical Learn requirements unless a specific problem requires
 Current Content Family governance state:
 
 ```text
-Family Shared Contract        RECONCILED / FROZEN FOR IMPLEMENTATION
-Blog                          CLOSED
-Feed                          CLOSED
-Projects                      CLOSED
-Learn                         PROVISIONAL / OPEN
+Family Shared Contract         RECONCILED / FROZEN FOR IMPLEMENTATION
+Blog                           CLOSED / IMPLEMENTATION ACCEPTED / FROZEN
+Feed                           CLOSED; Stage 4 / F0 / Preflight COMPLETE; Task Package IN PROGRESS
+Projects                       CLOSED / IMPLEMENTATION ACCEPTED / FROZEN
+Learn                          Product Synthesis / Architecture Final COMPLETE; Visual Reality Check IN PROGRESS
 Cross-module Blog→Feed        PRODUCT RESOLVED
 Cross-module Project→Feed     PRODUCT RESOLVED
 Cross-module Learn→Feed       PARTIAL / AWAIT LEARN
 Shared Footer                 REVALIDATE
 Global Content Admin          PARKED
-Production Implementation     READY TO ENTER GOVERNED SEQUENCING
+Feed Production Implementation PENDING
+Learn Production Implementation PENDING
 Final Content Acceptance      NOT YET
 ```
 
@@ -2704,6 +2711,6 @@ The next operational stage is no longer:
 
 It is:
 
-> **Current Implementation Inventory → Governed Implementation Sequencing → Module Acceptance → Content Integration.**
+> **Feed Task Package / Learn Visual Reality Check → Module Acceptance → Content Integration.**
 
 Governance Freeze does not mean production code is already reconciled. It establishes the decision baseline from which governed implementation may proceed; release and deployment remain separately authorized stages.

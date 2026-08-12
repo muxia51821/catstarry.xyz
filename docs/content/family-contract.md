@@ -5,7 +5,7 @@
 **Scope:** Blog / Feed / Learn / Projects
 **Family state:** RECONCILED / FROZEN for implementation
 **Closed modules:** Blog / Feed / Projects
-**Provisional module:** Learn
+**Learn decision baseline:** Product Synthesis / Architecture Final COMPLETE; Visual Reality Check IN PROGRESS
 **Purpose:** Govern shared Content Family semantics, module exceptions, and cross-module product boundaries
 
 > 本合同描述当前 canonical governance state。它不证明 production implementation 已完成，也不单独授权 deployment。
@@ -35,8 +35,8 @@
 - Blog：CLOSED。
 - Feed：CLOSED。
 - Projects：CLOSED。
-- Learn：PROVISIONAL / OPEN。
-- Production implementation：可在 current implementation inventory 后进入 governed sequencing；现状仍可能存在 drift。
+- Learn：Product Synthesis / Architecture Final COMPLETE；Visual Reality Check IN PROGRESS，production implementation PENDING。
+- Production implementation：Blog / Projects 已 ACCEPTED 并 FROZEN；Feed 正在形成 Codex Production Implementation Task Package；Learn 尚未进入 production implementation。
 - Production deployment：不由本合同授权。
 
 > **Current implementation does not automatically override later Product Closure.**
@@ -86,7 +86,7 @@ Content Family 共享 opening rhythm、hierarchy language、copy discipline 与 
 - Projects：Eyebrow + Title + Intro 合法。
 - Eyebrow 是 optional semantic element，不是 Opening mandatory slot。
 
-Top-level Content module 使用 `返回星图` 作为 global exit。Nested child 优先返回 parent；Blog Article → Blog 已确认。Learn 的最终 route hierarchy 等待 Learn Closure，不由本合同补写。
+Top-level Content module 使用 `返回星图` 作为 global exit。Nested child 优先返回 parent；Blog Article → Blog 已确认。Learn 的具体 route hierarchy 以已完成的 Architecture Final 为准，本合同不重述其细节。
 
 ### 1.4 Width follows surface function
 
