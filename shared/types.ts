@@ -44,6 +44,7 @@ export interface TimelineEntry {
   kind: 'native_post' | 'system_footprint';
   occurred_at: string;
   visibility: Visibility;
+  projection_state?: 'public' | 'own_private' | 'source_hidden';
   payload: FeedPost | PublicFootprint;
 }
 

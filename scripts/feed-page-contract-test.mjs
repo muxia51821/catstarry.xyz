@@ -4,9 +4,10 @@ import { readFile } from 'node:fs/promises';
 import { groupTimelineByShanghai } from '../src/lib/feed-chronology.ts';
 import { loadPublicTimeline, previewCandidateUrl } from '../src/lib/feed-api.ts';
 
-const [page, app] = await Promise.all([
+const [page, app, admin] = await Promise.all([
   readFile('src/pages/feed/index.astro', 'utf8'),
   readFile('src/components/feed/FeedApp.tsx', 'utf8'),
+  readFile('src/components/feed/FeedAdmin.tsx', 'utf8'),
 ]);
 
 assert.doesNotMatch(page, /loadPublicTimeline|Astro\.url\.origin/, 'Feed page must not fetch the timeline during SSR');
@@ -21,6 +22,14 @@ assert.match(app, /访问来源 ↗/);
 assert.match(app, /BLOG · 发布/);
 assert.match(app, /LEARN · 更新/);
 assert.match(app, /PROJECT · 更新/);
+assert.match(app, /post\.type === 'clip' \? 'CLIP' : 'NOTE'/, 'Native Activities must expose NOTE and CLIP identities');
+assert.match(app, /<div className="feed-activity-meta">[\s\S]*feed-activity-identity[\s\S]*feed-activity-time[\s\S]*<\/div>/, 'identity and time must share the Activity meta row');
+assert.match(app, /blog_published: '阅读文章 →'/);
+assert.match(app, /learn_note_published: '查看内容 →'/);
+assert.match(app, /project_updated: '查看项目 →'/);
+assert.match(admin, /source_hidden[\s\S]*随来源隐藏/, 'Manage must distinguish source-hidden Blog footprints');
+assert.match(app, /try \{ duration = await videoDuration\(videoFiles\[0\]\); \}[\s\S]*catch \{ setMessage\('无法读取视频信息，请选择其他视频。'\); return; \}/, 'video metadata failures must become visible authoring errors');
+assert.match(app, /!Number\.isFinite\(duration\)/, 'non-finite video duration must be rejected');
 assert.doesNotMatch(app, /items: \[entry, \.\.\.current\.items\]/, 'publish must not optimistically prepend an activity');
 assert.match(app, /window\.location\.reload\(\)/, 'publish success must return to the canonical Feed state');
 assert.match(app, /const candidate = previewCandidateUrl\(linkUrl\);[\s\S]*if \(!candidate\) return;/, 'Clip preview must ignore invalid URL candidates');

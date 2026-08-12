@@ -260,7 +260,13 @@ try {
           occurred_at: new Date(base + index * 1000).toISOString(), idempotency_key: 'browser:' + eventType + ':' + suffix }),
       }));
     }
-    return { clip: clip.status, manifest: manifest.status, footprints: responses.map((response) => response.status) };
+    const hiddenBlog = await fetch(apiOrigin + '/api/feed/internal/footprints', {
+      method: 'POST', headers,
+      body: JSON.stringify({ source_module: 'blog', source_ref: 'browser-hidden', source_version: 'v1', event_type: 'blog_published',
+        snapshot_json: JSON.stringify({ title: 'Browser hidden Blog', summary: 'Browser source-hidden Manage fixture.', link: '/blog/browser-hidden/' }),
+        occurred_at: new Date(base - 1000).toISOString(), idempotency_key: 'browser:blog-hidden:v1' }),
+    });
+    return { clip: clip.status, manifest: manifest.status, hiddenBlog: hiddenBlog.status, footprints: responses.map((response) => response.status) };
   })()`);
   await send('Page.reload');
   await waitFor(`document.readyState === 'complete' && document.querySelector('.feed-owner-actions')?.dataset.sessionReady === 'true' && document.querySelectorAll('.feed-activity').length === 20`, 'representative first page', 10_000);
@@ -280,12 +286,26 @@ try {
   await waitFor(`document.querySelectorAll('.feed-activity').length > 20 && document.querySelector('.feed-timeline-end')?.textContent.includes('止步于此。')`, 'merged same-day pagination', 10_000);
   diagnostics.checks.timelineGrammar = await evaluate(`(() => {
     const clip = [...document.querySelectorAll('.feed-activity--clip')].find((entry) => entry.textContent.includes(${JSON.stringify(clipText)}));
+    const note = [...document.querySelectorAll('.feed-activity--note')].find((entry) => entry.textContent.includes(${JSON.stringify(text)}));
     const comment = clip?.querySelector('.feed-content');
     const external = clip?.querySelector('.feed-external-object');
     const activity = document.querySelector('.feed-activity');
     const style = activity ? getComputedStyle(activity) : null;
     const dates = [...document.querySelectorAll('.feed-date-heading h3')].map((node) => node.textContent.trim());
-    const labels = [...document.querySelectorAll('.feed-activity-identity')].map((node) => node.textContent.trim());
+    const footprintLabels = [...document.querySelectorAll('.feed-footprint .feed-activity-identity')].map((node) => node.textContent.trim());
+    const metaGrammar = (entry) => {
+      const meta = entry?.querySelector('.feed-activity-meta');
+      const identity = meta?.querySelector('.feed-activity-identity');
+      const time = meta?.querySelector('.feed-activity-time');
+      if (!meta || !identity || !time || identity.parentElement !== meta || time.parentElement !== meta) return false;
+      const identityRect = identity.getBoundingClientRect();
+      const timeRect = time.getBoundingClientRect();
+      return Math.abs(identityRect.top - timeRect.top) <= 2 && identityRect.left < timeRect.left;
+    };
+    const destinations = Object.fromEntries([...document.querySelectorAll('.feed-footprint')].map((entry) => [
+      entry.querySelector('.feed-activity-identity')?.textContent.trim(),
+      entry.querySelector('.feed-destination')?.textContent.trim(),
+    ]));
     return {
       year: document.querySelector('.feed-year-label')?.textContent?.trim(),
       datePattern: dates.every((date) => /^\\d{2}\\.\\d{2}$/.test(date)),
@@ -293,7 +313,10 @@ try {
       sameDayMerged: new Set(dates).size === dates.length,
       clipCommentFirst: Boolean(comment && external && (comment.compareDocumentPosition(external) & Node.DOCUMENT_POSITION_FOLLOWING)),
       clipAction: clip?.textContent.includes('访问来源 ↗') ?? false,
-      labels: [...new Set(labels)],
+      nativeIdentities: { note: note?.querySelector('.feed-activity-identity')?.textContent.trim(), clip: clip?.querySelector('.feed-activity-identity')?.textContent.trim() },
+      metaRows: { note: metaGrammar(note), clip: metaGrammar(clip), footprints: [...document.querySelectorAll('.feed-footprint')].every(metaGrammar) },
+      footprintLabels: [...new Set(footprintLabels)],
+      destinations,
       noCardWall: style ? style.backgroundColor === 'rgba(0, 0, 0, 0)' && style.boxShadow === 'none' && parseFloat(style.borderTopWidth) === 0 : false,
       end: document.querySelector('.feed-timeline-end')?.textContent.includes('止步于此。') ?? false,
     };
@@ -375,6 +398,20 @@ try {
     for (const entry of entries) statuses.push((await fetch(${JSON.stringify(`${apiOrigin}/api/feed/`)} + encodeURIComponent(entry.id), { method: 'DELETE', credentials: 'include' })).status);
     return { ok: statuses.every((status) => status === 204), stage: 'delete', statuses };
   })()`);
+  await evaluate(`(() => {
+    const select = document.querySelectorAll('.feed-admin-filters select')[1];
+    const set = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set;
+    set.call(select, 'blog');
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+  })()`);
+  await delay(50);
+  await click('.feed-admin-filters .feed-button');
+  await waitFor(`[...document.querySelectorAll('.feed-admin-row')].some((row) => row.textContent.includes('Browser hidden Blog'))`, 'source-hidden Blog Manage row', 10_000);
+  diagnostics.checks.sourceHiddenManage = await evaluate(`(() => {
+    const row = [...document.querySelectorAll('.feed-admin-row')].find((entry) => entry.textContent.includes('Browser hidden Blog'));
+    const state = row?.querySelector('.feed-eyebrow')?.textContent ?? '';
+    return { sourceHidden: state.includes('随来源隐藏'), ordinaryPublic: state.includes(' · 公开') };
+  })()`);
   cleanupCompleted = diagnostics.checks.cleanup.ok;
 
   await send('Network.setBlockedURLs', { urls: [`${apiOrigin}/api/feed?limit=20`] });
@@ -423,17 +460,22 @@ try {
   assert.deepEqual(diagnostics.checks.imageViewer, { open: true, activeInside: true });
   assert.equal(diagnostics.checks.representativeSeed.clip, 201);
   assert.equal(diagnostics.checks.representativeSeed.manifest, 200);
+  assert.equal([200, 201].includes(diagnostics.checks.representativeSeed.hiddenBlog), true);
   assert.equal(diagnostics.checks.representativeSeed.footprints.every((status) => status === 200 || status === 201), true);
   assert.deepEqual(diagnostics.checks.firstPage, { activities: 20, hasEarlier: true });
   assert.deepEqual(diagnostics.checks.paginationError, { retained: 20, retry: true });
   assert.equal(diagnostics.checks.timelineGrammar.datePattern && diagnostics.checks.timelineGrammar.timePattern && diagnostics.checks.timelineGrammar.sameDayMerged, true);
   assert.equal(diagnostics.checks.timelineGrammar.clipCommentFirst && diagnostics.checks.timelineGrammar.clipAction && diagnostics.checks.timelineGrammar.noCardWall && diagnostics.checks.timelineGrammar.end, true);
-  assert.deepEqual(diagnostics.checks.timelineGrammar.labels.sort(), ['BLOG · 发布', 'LEARN · 更新', 'PROJECT · 更新'].sort());
+  assert.deepEqual(diagnostics.checks.timelineGrammar.nativeIdentities, { note: 'NOTE', clip: 'CLIP' });
+  assert.deepEqual(diagnostics.checks.timelineGrammar.metaRows, { note: true, clip: true, footprints: true });
+  assert.deepEqual(diagnostics.checks.timelineGrammar.footprintLabels.sort(), ['BLOG · 发布', 'LEARN · 更新', 'PROJECT · 更新'].sort());
+  assert.deepEqual(diagnostics.checks.timelineGrammar.destinations, { 'BLOG · 发布': '阅读文章 →', 'LEARN · 更新': '查看内容 →', 'PROJECT · 更新': '查看项目 →' });
   assert.equal(diagnostics.checks.backgroundRestored, true, 'modal close must restore the page background');
   assert.deepEqual(diagnostics.checks.unsavedProtection, { stillOpen: true, content: 'unsaved browser draft', confirmCalls: 1 });
   assert.equal(diagnostics.checks.escapeClose, true);
   assert.equal(diagnostics.checks.viewports.every((item) => item.noHorizontalOverflow && item.actionVisible && item.multiImageColumns === 2), true);
   assert.deepEqual(diagnostics.checks.adminReturn, { href: '/feed/', visible: true, focusable: true });
+  assert.deepEqual(diagnostics.checks.sourceHiddenManage, { sourceHidden: true, ordinaryPublic: false });
   assert.equal(diagnostics.checks.cleanup.ok, true);
   assert.deepEqual(diagnostics.checks.initialError, { alert: 'alert', retry: true, activities: 0 });
   assert.equal(diagnostics.checks.initialErrorRecovered, true);

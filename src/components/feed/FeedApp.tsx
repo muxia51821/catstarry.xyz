@@ -29,7 +29,7 @@ const EMPTY_TIMELINE: PaginatedResponse<TimelineEntry> = { items: [], cursor: nu
 const mediaUrl = (apiBase: string, key: string) => `${normalizeApiBase(apiBase)}/api/feed/media/${encodeURIComponent(key)}`;
 const isVideoKey = (key: string) => /\.(?:mp4|webm|mov)$/i.test(key);
 
-function footprintCopy(entry: TimelineEntry): { label: string; title: string; summary: string | null; link: string | null } {
+function footprintCopy(entry: TimelineEntry): { label: string; title: string; summary: string | null; link: string | null; destination: string } {
   const data = entry.payload as unknown as Record<string, unknown>;
   let snapshot: Record<string, unknown> = {};
   try { snapshot = JSON.parse(String(data.snapshot_json ?? '{}')) as Record<string, unknown>; } catch { /* legacy snapshot */ }
@@ -40,11 +40,19 @@ function footprintCopy(entry: TimelineEntry): { label: string; title: string; su
     learn_note_revised: 'LEARN · 更新',
     project_updated: 'PROJECT · 更新',
   };
+  const destinations: Record<string, string> = {
+    blog_published: '阅读文章 →',
+    learn_section_completed: '查看内容 →',
+    learn_note_published: '查看内容 →',
+    learn_note_revised: '查看内容 →',
+    project_updated: '查看项目 →',
+  };
   return {
     label: labels[String(data.event_type)] ?? '系统足迹',
     title: String(snapshot.title ?? snapshot.label ?? data.source_ref ?? '公开足迹'),
     summary: typeof snapshot.summary === 'string' ? snapshot.summary : null,
     link: typeof snapshot.link === 'string' ? snapshot.link : null,
+    destination: destinations[String(data.event_type)] ?? '查看内容 →',
   };
 }
 
@@ -67,12 +75,14 @@ function ActivityEntry({
   if (entry.kind === 'system_footprint') {
     const copy = footprintCopy(entry);
     return <article className="feed-activity feed-footprint">
-      <time className="feed-activity-time" dateTime={entry.occurred_at}>{time}</time>
-      <div className="feed-activity-content">
+      <div className="feed-activity-meta">
         <p className="feed-activity-identity">{copy.label}</p>
+        <time className="feed-activity-time" dateTime={entry.occurred_at}>{time}</time>
+      </div>
+      <div className="feed-activity-content">
         <h2>{copy.title}</h2>
         {copy.summary && <p className="feed-supporting-copy">{copy.summary}</p>}
-        {copy.link && <a className="feed-destination" href={copy.link}>查看内容 →</a>}
+        {copy.link && <a className="feed-destination" href={copy.link}>{copy.destination}</a>}
       </div>
     </article>;
   }
@@ -82,7 +92,10 @@ function ActivityEntry({
   try { media = post.media_json ? JSON.parse(post.media_json) as string[] : []; } catch { media = []; }
   const domain = externalDomain(post.link_url);
   return <article className={`feed-activity feed-activity--${post.type}`}>
-    <time className="feed-activity-time" dateTime={entry.occurred_at}>{time}</time>
+    <div className="feed-activity-meta">
+      <p className="feed-activity-identity">{post.type === 'clip' ? 'CLIP' : 'NOTE'}</p>
+      <time className="feed-activity-time" dateTime={entry.occurred_at}>{time}</time>
+    </div>
     <div className="feed-activity-content">
       {post.content && <p className="feed-content">{post.content}</p>}
       {post.type === 'clip' && post.link_url && <div className="feed-external-object">
@@ -329,7 +342,13 @@ function PublishDialog({ apiBase, onClose }: { apiBase: string; onClose: () => v
     const imageFiles = combined.filter((file) => file.type.startsWith('image/'));
     const videoFiles = combined.filter((file) => file.type.startsWith('video/'));
     if ((imageFiles.length && videoFiles.length) || imageFiles.length > 6 || videoFiles.length > 1) { setMessage('图片和视频不能混用；最多 6 张图片或 1 个视频。'); return; }
-    if (videoFiles[0] && await videoDuration(videoFiles[0]) > 60) { setMessage('视频不得超过 1 分钟。'); return; }
+    if (videoFiles[0]) {
+      let duration: number;
+      try { duration = await videoDuration(videoFiles[0]); }
+      catch { setMessage('无法读取视频信息，请选择其他视频。'); return; }
+      if (!Number.isFinite(duration)) { setMessage('无法读取视频信息，请选择其他视频。'); return; }
+      if (duration > 60) { setMessage('视频不得超过 1 分钟。'); return; }
+    }
     setMessage('');
     const items = selected.map((file) => ({ id: crypto.randomUUID(), file, status: 'uploading' as const, progress: 0 }));
     setUploads((current) => [...current, ...items]);
@@ -400,6 +419,6 @@ function uploadFeedFile(apiBase: string, file: File, onProgress: (progress: numb
 
 async function videoDuration(file: File): Promise<number> {
   const url = URL.createObjectURL(file);
-  try { return await new Promise((resolve, reject) => { const video = document.createElement('video'); video.preload = 'metadata'; video.onloadedmetadata = () => resolve(video.duration); video.onerror = () => reject(new Error('无法读取视频时长')); video.src = url; }); }
+  try { return await new Promise((resolve, reject) => { const video = document.createElement('video'); video.preload = 'metadata'; video.onloadedmetadata = () => Number.isFinite(video.duration) ? resolve(video.duration) : reject(new Error('无法读取视频时长')); video.onerror = () => reject(new Error('无法读取视频时长')); video.src = url; }); }
   finally { URL.revokeObjectURL(url); }
 }

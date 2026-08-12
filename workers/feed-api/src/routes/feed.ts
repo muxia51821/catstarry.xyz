@@ -1,4 +1,4 @@
-import type { FeedPostInput, PublicFootprintCandidate, Visibility } from '../../../../shared/types';
+import type { FeedPostInput, PublicFootprint, PublicFootprintCandidate, TimelineEntry, Visibility } from '../../../../shared/types';
 import { timingSafeEqualText } from '../../../../shared/security';
 import { FeedStore, decodeCursor } from '../adapters/feed-store';
 import { apiError, json, parseBoundedLimit, readJson } from '../lib/http';
@@ -52,12 +52,7 @@ async function listPublic(request: Request, env: FeedEnv, store: FeedStore): Pro
   const rawCursor = url.searchParams.get('cursor');
   const cursor = rawCursor ? decodeCursor(rawCursor) ?? undefined : undefined;
   if (rawCursor && !cursor) return apiError(400, 'invalid_cursor', 'cursor is invalid');
-  const manifest = await env.AUTH_KV.get<unknown>('blog:published-manifest', 'json');
-  const publishedBlogSlugs = Array.isArray(manifest)
-    ? [...new Set(manifest.filter((slug): slug is string => (
-      typeof slug === 'string' && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)
-    )))]
-    : [];
+  const publishedBlogSlugs = await loadPublishedBlogSlugs(env);
   return json(await store.listPublic(cursor, limit, publishedBlogSlugs));
 }
 
@@ -83,14 +78,37 @@ async function listAdmin(request: Request, env: FeedEnv, store: FeedStore): Prom
   if (from === null || to === null || (from && to && from >= to)) {
     return apiError(400, 'invalid_date_range', 'from and to must be valid dates with from before to');
   }
-  return json(await store.listAdmin({
+  const [page, publishedBlogSlugs] = await Promise.all([store.listAdmin({
     visibility: visibility ?? undefined,
     type: type ?? undefined,
     from: from ?? undefined,
     to: to ?? undefined,
     cursor,
     limit,
-  }));
+  }), loadPublishedBlogSlugs(env)]);
+  const publishedBlogSlugSet = new Set(publishedBlogSlugs);
+  return json({
+    ...page,
+    items: page.items.map((entry) => withProjectionState(entry, publishedBlogSlugSet)),
+  });
+}
+
+async function loadPublishedBlogSlugs(env: FeedEnv): Promise<string[]> {
+  const manifest = await env.AUTH_KV.get<unknown>('blog:published-manifest', 'json');
+  return Array.isArray(manifest)
+    ? [...new Set(manifest.filter((slug): slug is string => (
+      typeof slug === 'string' && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)
+    )))]
+    : [];
+}
+
+function withProjectionState(entry: TimelineEntry, publishedBlogSlugs: Set<string>): TimelineEntry {
+  if (entry.visibility === 'private') return { ...entry, projection_state: 'own_private' };
+  const footprint = entry.kind === 'system_footprint' ? entry.payload as PublicFootprint : null;
+  if (footprint?.source_module === 'blog' && !publishedBlogSlugs.has(footprint.source_ref)) {
+    return { ...entry, projection_state: 'source_hidden' };
+  }
+  return { ...entry, projection_state: 'public' };
 }
 
 async function createPost(

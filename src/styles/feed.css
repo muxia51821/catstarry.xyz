@@ -27,14 +27,15 @@
 .feed-date-heading h3 { margin: 0; color: var(--text-primary); font: 500 .8125rem/1.4 var(--font-mono); letter-spacing: .08em; }
 .feed-date-heading span { height: 1px; background: var(--border-default); opacity: .58; }
 .feed-day-activities { display: grid; }
-.feed-activity { display: grid; grid-template-columns: 3.75rem minmax(0, 1fr); gap: var(--space-md); padding-block: 1.625rem 3rem; }
+.feed-activity { min-width: 0; padding-block: 1.625rem 3rem; }
 .feed-activity + .feed-activity { padding-block-start: 0; }
 .feed-activity-time, .feed-activity-identity, .feed-external-source { font-family: var(--font-mono); }
+.feed-activity-meta { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-lg); margin-block-end: var(--space-sm); }
 .feed-activity-time { color: var(--text-secondary); font-size: .6875rem; font-variant-numeric: tabular-nums; letter-spacing: .07em; opacity: .8; }
 .feed-activity-content { min-width: 0; }
 .feed-activity-content > :first-child { margin-block-start: 0; }
 .feed-activity-content > :last-child { margin-block-end: 0; }
-.feed-activity-identity { margin: 0 0 var(--space-sm); color: var(--footprint-source); font-size: .6875rem; font-weight: 600; letter-spacing: .09em; }
+.feed-activity-identity { margin: 0; color: var(--footprint-source); font-size: .6875rem; font-weight: 600; letter-spacing: .09em; }
 .feed-content { margin: 0; color: var(--text-primary); font-size: 1.0625rem; line-height: 1.9; white-space: pre-wrap; }
 .feed-footprint h2, .feed-external-object h2 { margin: 0; color: var(--text-primary); font: 500 clamp(1.1875rem, 3vw, 1.4375rem)/1.45 var(--font-display); }
 .feed-supporting-copy { margin: var(--space-sm) 0 0; color: var(--text-secondary); font-size: .875rem; line-height: 1.75; }
@@ -111,7 +112,6 @@
   .feed-header h1 { font-size: clamp(3.125rem, 16vw, 4.25rem); }
   .feed-year + .feed-year { margin-block-start: 5rem; }
   .feed-day + .feed-day { margin-block-start: 4.25rem; }
-  .feed-activity { grid-template-columns: 3.25rem minmax(0, 1fr); gap: var(--space-sm); }
   .feed-pagination-error { align-items: flex-start; flex-direction: column; }
   .feed-external-object { grid-template-columns: 1fr; }
   .feed-external-object > h2, .feed-external-object > .feed-supporting-copy, .feed-link-image { grid-column: 1; }
