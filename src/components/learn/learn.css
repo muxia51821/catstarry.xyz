@@ -200,11 +200,19 @@
   position: relative;
   height: clamp(320px, 24vw, 350px);
   overflow: clip;
-  background:
-    linear-gradient(109deg, transparent 0 31%, color-mix(in srgb, var(--geo-graphite) 6%, transparent) 31.08%, transparent 31.3%),
-    linear-gradient(71deg, transparent 0 64%, color-mix(in srgb, var(--geo-mineral) 9%, transparent) 64.08%, transparent 64.4%),
-    color-mix(in srgb, var(--learn-field-deep) 68%, transparent);
+  background: var(--learn-field-deep);
   border-block: 1px solid color-mix(in srgb, var(--content-hairline) 82%, transparent);
+}
+.learn-graph::before {
+  position: absolute;
+  inset: 0;
+  content: '';
+  pointer-events: none;
+  background:
+    linear-gradient(109deg, transparent 0 31%, color-mix(in srgb, var(--geo-graphite) 3%, transparent) 31.08%, transparent 31.3%),
+    linear-gradient(71deg, transparent 0 64%, color-mix(in srgb, var(--geo-mineral) 4%, transparent) 64.08%, transparent 64.4%);
+  -webkit-mask-image: linear-gradient(to bottom, #000 0 5%, transparent 16% 84%, #000 95% 100%);
+  mask-image: linear-gradient(to bottom, #000 0 5%, transparent 16% 84%, #000 95% 100%);
 }
 .learn-graph__edges { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 .learn-graph__edges line {

@@ -81,6 +81,28 @@ try {
   const point = (selector) => evaluate(`(() => { const n=document.querySelector(${JSON.stringify(selector)}); if(!n)return null; const r=n.getBoundingClientRect(); return {x:r.x+r.width/2,y:r.y+r.height/2}; })()`);
   const noOverflow = () => evaluate(`document.documentElement.scrollWidth <= document.documentElement.clientWidth`);
 
+  if (process.argv.includes('--graph-optical-only')) {
+    await viewport(1440, 1000);
+    await navigate('/learn/');
+    await waitFor(`document.querySelectorAll('.learn-graph__edges line').length > 0`, 'desktop graph edges');
+    await evaluate(`document.querySelector('astro-dev-toolbar')?.remove()`);
+    await screenshot('knowledge-map-resting.png', '.learn-knowledge-map');
+
+    await viewport(390, 844, true);
+    await navigate('/learn/');
+    await waitFor(`document.querySelectorAll('.learn-graph__edges line').length > 0`, 'mobile graph edges');
+    await evaluate(`document.querySelector('astro-dev-toolbar')?.remove()`);
+    await screenshot('knowledge-map-mobile-portrait.png', '.learn-knowledge-map');
+
+    observations.graphOpticalCorrection = await evaluate(`(() => ({
+      nodes: document.querySelectorAll('[data-graph-node]').length,
+      relations: document.querySelectorAll('.learn-graph__edges line').length,
+      noOverflow: document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+      consoleProblems: ${JSON.stringify(consoleProblems)},
+      failedRequests: ${JSON.stringify(failedRequests)},
+    }))()`);
+    console.log(JSON.stringify(observations, null, 2));
+  } else {
   await viewport(1440, 1000);
   await navigate('/learn/');
   await waitFor(`document.querySelectorAll('.learn-graph__edges line').length > 0`, 'desktop graph edges');
@@ -290,6 +312,7 @@ try {
   observations.failedRequests = failedRequests;
   await writeFile(path.join(outputRoot,'implementation-reality.json'),JSON.stringify(observations,null,2));
   console.log(JSON.stringify(observations,null,2));
+  }
 } finally {
   cdp?.close();
   await browser?.close();
