@@ -16,6 +16,12 @@ assert.doesNotThrow(() => assertEligibleSignal('blog', {
 }));
 assert.throws(() => assertEligibleSignal('learn', {}), /EXPLICIT_FOOTPRINT_CONFIRMATION/);
 assert.doesNotThrow(() => assertEligibleSignal('projects', { EXPLICIT_FOOTPRINT_CONFIRMATION: 'true' }));
+assert.throws(() => createFootprintCandidate('learn', {
+  source_ref: 'legacy-note',
+  source_version: 'legacy-completion',
+  title: 'Legacy completion',
+  link: '/learn/notes/legacy-note/',
+}), /Unsupported footprint source/, 'generic signal helper must not produce legacy Learn events');
 
 const candidate = createFootprintCandidate('blog', {
   source_ref: 'new-post',

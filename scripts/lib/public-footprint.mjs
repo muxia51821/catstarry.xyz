@@ -1,6 +1,5 @@
 const EVENT_BY_SOURCE = {
   blog: 'blog_published',
-  learn: 'learn_section_completed',
   projects: 'project_updated',
 };
 

@@ -33,7 +33,7 @@ export async function handleFeed(
   pathname: string,
 ): Promise<Response> {
   const store = new FeedStore(env.DB);
-  if (pathname === '/api/feed' && request.method === 'GET') return listPublic(request, store);
+  if (pathname === '/api/feed' && request.method === 'GET') return listPublic(request, env, store);
   if (pathname === '/api/feed' && request.method === 'POST') return createPost(request, env, ctx, store);
   if (pathname === '/api/feed/admin' && request.method === 'GET') return listAdmin(request, env, store);
   if (pathname === '/api/feed/clip-preview' && request.method === 'POST') return previewClip(request, env);
@@ -45,14 +45,20 @@ export async function handleFeed(
   return apiError(404, 'not_found', 'Feed route not found');
 }
 
-async function listPublic(request: Request, store: FeedStore): Promise<Response> {
+async function listPublic(request: Request, env: FeedEnv, store: FeedStore): Promise<Response> {
   const url = new URL(request.url);
   const limit = parseBoundedLimit(url.searchParams.get('limit'));
   if (limit === null) return apiError(400, 'invalid_limit', 'limit must be between 1 and 50');
   const rawCursor = url.searchParams.get('cursor');
   const cursor = rawCursor ? decodeCursor(rawCursor) ?? undefined : undefined;
   if (rawCursor && !cursor) return apiError(400, 'invalid_cursor', 'cursor is invalid');
-  return json(await store.listPublic(cursor, limit));
+  const manifest = await env.AUTH_KV.get<unknown>('blog:published-manifest', 'json');
+  const publishedBlogSlugs = Array.isArray(manifest)
+    ? [...new Set(manifest.filter((slug): slug is string => (
+      typeof slug === 'string' && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)
+    )))]
+    : [];
+  return json(await store.listPublic(cursor, limit, publishedBlogSlugs));
 }
 
 async function listAdmin(request: Request, env: FeedEnv, store: FeedStore): Promise<Response> {
@@ -204,6 +210,9 @@ async function ingestFootprint(request: Request, env: FeedEnv, ctx: ExecutionCon
   if (value instanceof Response) return value;
   const candidate = parseFootprintCandidate(value);
   if (!candidate) return apiError(400, 'invalid_footprint', 'Footprint candidate is invalid');
+  if (candidate.event_type === 'learn_section_completed') {
+    return apiError(410, 'legacy_event_retired', 'learn_section_completed is read-only legacy history');
+  }
   const result = await recordPublicFootprint(env.DB, candidate);
   if (result.created) refreshAfterMutation(env, ctx, 'public footprint recorded');
   return json(result, result.created ? 201 : 200);

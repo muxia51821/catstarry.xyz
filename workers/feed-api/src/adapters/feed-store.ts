@@ -95,8 +95,12 @@ function entryFromRow(row: TimelineRow): TimelineEntry {
 export class FeedStore {
   constructor(private readonly database: D1Database) {}
 
-  async listPublic(cursor: Cursor | undefined, limit: number): Promise<PaginatedResponse<TimelineEntry>> {
-    const page = await this.listTimeline({ cursor, limit, visibility: 'public' });
+  async listPublic(
+    cursor: Cursor | undefined,
+    limit: number,
+    publishedBlogSlugs: string[],
+  ): Promise<PaginatedResponse<TimelineEntry>> {
+    const page = await this.listTimeline({ cursor, limit, visibility: 'public' }, publishedBlogSlugs);
     return page;
   }
 
@@ -222,12 +226,17 @@ export class FeedStore {
     return referenced;
   }
 
-  private async listTimeline(filters: AdminFilters): Promise<PaginatedResponse<TimelineEntry>> {
+  private async listTimeline(filters: AdminFilters, publishedBlogSlugs?: string[]): Promise<PaginatedResponse<TimelineEntry>> {
     const where: string[] = [];
     const values: (string | number)[] = [];
     if (filters.visibility) {
       where.push('visibility = ?');
       values.push(filters.visibility);
+    }
+    if (publishedBlogSlugs) {
+      where.push(`(kind != 'system_footprint' OR source_module != 'blog'
+        OR source_ref IN (SELECT value FROM json_each(?)))`);
+      values.push(JSON.stringify(publishedBlogSlugs));
     }
     if (filters.type && ['note', 'clip'].includes(filters.type)) {
       where.push("(kind = 'native_post' AND type = ?)");

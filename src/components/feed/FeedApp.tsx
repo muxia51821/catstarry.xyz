@@ -1,25 +1,44 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+} from 'react';
+import { createPortal } from 'react-dom';
 import type { FeedPost, PaginatedResponse, SessionStatus, TimelineEntry } from '../../../shared/types';
 import { loadPublicTimeline, normalizeApiBase, previewCandidateUrl } from '../../lib/feed-api';
+import { groupTimelineByShanghai } from '../../lib/feed-chronology';
 
 interface FeedAppProps {
   apiBase: string;
   initial?: PaginatedResponse<TimelineEntry>;
 }
 
+interface UploadItem {
+  id: string;
+  file: File;
+  status: 'uploading' | 'success' | 'failed';
+  progress: number;
+  key?: string;
+  error?: string;
+}
+
 const EMPTY_TIMELINE: PaginatedResponse<TimelineEntry> = { items: [], cursor: null, has_more: false };
 const mediaUrl = (apiBase: string, key: string) => `${normalizeApiBase(apiBase)}/api/feed/media/${encodeURIComponent(key)}`;
-
-function formatDate(value: string): string {
-  return new Intl.DateTimeFormat('zh-CN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
-}
+const isVideoKey = (key: string) => /\.(?:mp4|webm|mov)$/i.test(key);
 
 function footprintCopy(entry: TimelineEntry): { label: string; title: string; summary: string | null; link: string | null } {
   const data = entry.payload as unknown as Record<string, unknown>;
   let snapshot: Record<string, unknown> = {};
-  try { snapshot = JSON.parse(String(data.snapshot_json ?? '{}')) as Record<string, unknown>; } catch { /* immutable snapshot may be legacy */ }
+  try { snapshot = JSON.parse(String(data.snapshot_json ?? '{}')) as Record<string, unknown>; } catch { /* legacy snapshot */ }
   const labels: Record<string, string> = {
-    blog_published: 'Blog 发布', learn_section_completed: 'Learn 完成小节', project_updated: 'Projects 实质更新',
+    blog_published: 'BLOG · 发布',
+    learn_section_completed: 'LEARN · 更新',
+    learn_note_published: 'LEARN · 更新',
+    learn_note_revised: 'LEARN · 更新',
+    project_updated: 'PROJECT · 更新',
   };
   return {
     label: labels[String(data.event_type)] ?? '系统足迹',
@@ -29,81 +48,127 @@ function footprintCopy(entry: TimelineEntry): { label: string; title: string; su
   };
 }
 
-function EntryCard({ entry, apiBase }: { entry: TimelineEntry; apiBase: string }) {
+function externalDomain(value: string | null): string | null {
+  if (!value) return null;
+  try { return new URL(value).hostname.replace(/^www\./, ''); } catch { return null; }
+}
+
+function ActivityEntry({
+  entry,
+  time,
+  apiBase,
+  onViewImage,
+}: {
+  entry: TimelineEntry;
+  time: string;
+  apiBase: string;
+  onViewImage: (url: string) => void;
+}) {
   if (entry.kind === 'system_footprint') {
     const copy = footprintCopy(entry);
-    return <article className="feed-card feed-footprint">
-      <p className="feed-eyebrow">{copy.label}</p>
-      <h2>{copy.link ? <a href={copy.link}>{copy.title}</a> : copy.title}</h2>
-      {copy.summary && <p>{copy.summary}</p>}
-      <time dateTime={entry.occurred_at}>{formatDate(entry.occurred_at)}</time>
+    return <article className="feed-activity feed-footprint">
+      <time className="feed-activity-time" dateTime={entry.occurred_at}>{time}</time>
+      <div className="feed-activity-content">
+        <p className="feed-activity-identity">{copy.label}</p>
+        <h2>{copy.title}</h2>
+        {copy.summary && <p className="feed-supporting-copy">{copy.summary}</p>}
+        {copy.link && <a className="feed-destination" href={copy.link}>查看内容 →</a>}
+      </div>
     </article>;
   }
+
   const post = entry.payload as FeedPost;
   let media: string[] = [];
   try { media = post.media_json ? JSON.parse(post.media_json) as string[] : []; } catch { media = []; }
-  return <article className={`feed-card feed-card--${post.type}`}>
-    <p className="feed-eyebrow">{post.type === 'clip' ? '剪藏' : '碎碎念'}</p>
-    {post.type === 'clip' && post.link_url && <h2><a href={post.link_url} rel="noreferrer">{post.link_title ?? post.link_url}</a></h2>}
-    {post.type === 'clip' && post.link_summary && <p className="feed-clip-summary">{post.link_summary}</p>}
-    {post.content && <p className="feed-content">{post.content}</p>}
-    {post.link_image && <img className="feed-link-image" src={post.link_image} alt="" loading="lazy" />}
-    {media.length > 0 && <div className={`feed-media-grid feed-media-grid--${Math.min(media.length, 6)}`}>
-      {media.map((key) => key.endsWith('.mp4') || key.endsWith('.webm') || key.endsWith('.mov')
-        ? <video key={key} controls preload="metadata" src={mediaUrl(apiBase, key)} />
-        : <a key={key} href={mediaUrl(apiBase, key)} target="_blank" rel="noreferrer"><img src={mediaUrl(apiBase, key)} alt="Feed 附图" loading="lazy" /></a>)}
-    </div>}
-    <time dateTime={entry.occurred_at}>{formatDate(entry.occurred_at)}</time>
+  const domain = externalDomain(post.link_url);
+  return <article className={`feed-activity feed-activity--${post.type}`}>
+    <time className="feed-activity-time" dateTime={entry.occurred_at}>{time}</time>
+    <div className="feed-activity-content">
+      {post.content && <p className="feed-content">{post.content}</p>}
+      {post.type === 'clip' && post.link_url && <div className="feed-external-object">
+        {post.link_image && <img className="feed-link-image" src={post.link_image} alt="" loading="lazy" />}
+        <h2>{post.link_title ?? post.link_url}</h2>
+        {post.link_summary && <p className="feed-supporting-copy">{post.link_summary}</p>}
+        {domain && <p className="feed-external-source">{domain}</p>}
+        <a className="feed-destination" href={post.link_url} target="_blank" rel="noreferrer">访问来源 ↗</a>
+      </div>}
+      {media.length > 0 && <div className={`feed-media-grid feed-media-grid--${Math.min(media.length, 6)}`}>
+        {media.map((key) => isVideoKey(key)
+          ? <video key={key} controls preload="metadata" src={mediaUrl(apiBase, key)} />
+          : <button className="feed-media-button" key={key} type="button" onClick={() => onViewImage(mediaUrl(apiBase, key))} aria-label="查看 Feed 附图">
+            <img src={mediaUrl(apiBase, key)} alt="Feed 附图" loading="lazy" />
+          </button>)}
+      </div>}
+    </div>
   </article>;
 }
 
 export default function FeedApp({ apiBase, initial = EMPTY_TIMELINE }: FeedAppProps) {
   const [timeline, setTimeline] = useState(initial);
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [initialError, setInitialError] = useState('');
+  const [paginationLoading, setPaginationLoading] = useState(false);
+  const [paginationError, setPaginationError] = useState('');
   const [session, setSession] = useState<SessionStatus | null>(null);
   const [showLogin, setShowLogin] = useState(false);
   const [showPublish, setShowPublish] = useState(false);
+  const [viewerImage, setViewerImage] = useState<string | null>(null);
 
-  useEffect(() => {
-    let active = true;
-    setLoading(true);
-    setError('');
-    async function loadInitial() {
-      try {
-        const next = await loadPublicTimeline(apiBase);
-        if (active) setTimeline(next);
-      } catch (cause) {
-        if (active) setError(cause instanceof Error ? cause.message : 'Feed 时间线暂时不可用');
-      } finally {
-        if (active) setLoading(false);
-      }
-    }
-    void loadInitial();
-    return () => { active = false; };
+  const refreshTimeline = useCallback(async () => {
+    setInitialLoading(true);
+    setInitialError('');
+    try { setTimeline(await loadPublicTimeline(apiBase)); }
+    catch (cause) { setInitialError(cause instanceof Error ? cause.message : 'Feed 时间线暂时不可用'); }
+    finally { setInitialLoading(false); }
   }, [apiBase]);
 
+  useEffect(() => { void refreshTimeline(); }, [refreshTimeline]);
+
   async function loadMore() {
-    if (!timeline.cursor || loading) return;
-    setLoading(true); setError('');
+    if (!timeline.cursor || paginationLoading) return;
+    setPaginationLoading(true);
+    setPaginationError('');
     try {
-      const response = await fetch(`${apiBase}/api/feed?limit=20&cursor=${encodeURIComponent(timeline.cursor)}`, { credentials: 'include' });
-      if (!response.ok) throw new Error('无法加载更早的足迹');
-      const next = await response.json() as PaginatedResponse<TimelineEntry>;
-      setTimeline((current) => ({ ...next, items: [...current.items, ...next.items.filter((item) => !current.items.some((known) => known.id === item.id))] }));
-    } catch (cause) { setError(cause instanceof Error ? cause.message : '加载失败'); }
-    finally { setLoading(false); }
+      const next = await loadPublicTimeline(apiBase, timeline.cursor);
+      setTimeline((current) => ({
+        ...next,
+        items: [...current.items, ...next.items.filter((item) => !current.items.some((known) => known.id === item.id))],
+      }));
+    } catch (cause) {
+      setPaginationError(cause instanceof Error ? cause.message : '无法加载更早的内容');
+    } finally { setPaginationLoading(false); }
   }
 
-  const entries = useMemo(() => timeline.items, [timeline.items]);
+  const chronology = useMemo(() => groupTimelineByShanghai(timeline.items), [timeline.items]);
   return <>
     <section className="feed-timeline" aria-live="polite">
-      {entries.map((entry) => <EntryCard key={`${entry.kind}:${entry.id}`} entry={entry} apiBase={apiBase} />)}
-      {!entries.length && !error && !loading && <p className="feed-state">还没有公开足迹。</p>}
-      {error && <p className="feed-state feed-state--error" role="alert">{error}</p>}
-      {timeline.has_more && <button className="feed-button" type="button" onClick={loadMore} disabled={loading}>{loading ? '加载中…' : '加载更多'}</button>}
+      {initialLoading && !timeline.items.length && <p className="feed-state" role="status">正在读取时间线…</p>}
+      {initialError && !timeline.items.length && <div className="feed-state feed-state--error" role="alert">
+        <p>{initialError}</p><button className="feed-button" type="button" onClick={() => void refreshTimeline()}>重试</button>
+      </div>}
+      {!initialLoading && !initialError && !timeline.items.length && <p className="feed-state">还没有公开活动。</p>}
+      {chronology.map((year) => <section className="feed-year" key={year.year} aria-labelledby={`feed-year-${year.year}`}>
+        <h2 className="feed-year-label" id={`feed-year-${year.year}`}>{year.year}</h2>
+        {year.days.map((day) => <section className="feed-day" key={`${year.year}-${day.date}`}>
+          <div className="feed-date-heading"><h3>{day.date}</h3><span aria-hidden="true" /></div>
+          <div className="feed-day-activities">
+            {day.activities.map(({ entry, time }) => <ActivityEntry
+              key={`${entry.kind}:${entry.id}`}
+              entry={entry}
+              time={time}
+              apiBase={apiBase}
+              onViewImage={setViewerImage}
+            />)}
+          </div>
+        </section>)}
+      </section>)}
+      {timeline.items.length > 0 && <div className="feed-timeline-end">
+        {paginationError && <div className="feed-pagination-error" role="alert"><p>{paginationError}</p><button className="feed-button" type="button" onClick={() => void loadMore()}>重试</button></div>}
+        {!paginationError && timeline.has_more && <button className="feed-button" type="button" onClick={() => void loadMore()} disabled={paginationLoading}>{paginationLoading ? '正在加载…' : '更早的内容'}</button>}
+        {!timeline.has_more && <p>止步于此。</p>}
+      </div>}
     </section>
-    <FeedAuthAndPublish
+    <FeedOwnerControls
       apiBase={apiBase}
       session={session}
       setSession={setSession}
@@ -111,170 +176,230 @@ export default function FeedApp({ apiBase, initial = EMPTY_TIMELINE }: FeedAppPr
       setShowLogin={setShowLogin}
       showPublish={showPublish}
       setShowPublish={setShowPublish}
-      onCreated={(entry) => setTimeline((current) => ({ ...current, items: [entry, ...current.items] }))}
     />
+    {viewerImage && <ImageViewer image={viewerImage} onClose={() => setViewerImage(null)} />}
   </>;
 }
 
-function FeedAuthAndPublish(props: {
-  apiBase: string; session: SessionStatus | null; setSession: (session: SessionStatus | null) => void;
-  showLogin: boolean; setShowLogin: (show: boolean) => void; showPublish: boolean; setShowPublish: (show: boolean) => void;
-  onCreated: (entry: TimelineEntry) => void;
+function FeedOwnerControls(props: {
+  apiBase: string;
+  session: SessionStatus | null;
+  setSession: (session: SessionStatus | null) => void;
+  showLogin: boolean;
+  setShowLogin: (show: boolean) => void;
+  showPublish: boolean;
+  setShowPublish: (show: boolean) => void;
 }) {
-  const { apiBase, session, setSession, showLogin, setShowLogin, showPublish, setShowPublish, onCreated } = props;
+  const { apiBase, session, setSession, showLogin, setShowLogin, showPublish, setShowPublish } = props;
   const [checked, setChecked] = useState(false);
-  const [message, setMessage] = useState('');
-  const requestSession = async () => {
-    const response = await fetch(`${apiBase}/api/auth/session`, { credentials: 'include' });
-    const next = await response.json() as SessionStatus;
-    setSession(next); setChecked(true); return next;
-  };
-  useEffect(() => { void requestSession().catch(() => { setSession({ authenticated: false, username: null }); setChecked(true); }); }, []);
-  const loggedIn = !!session?.authenticated;
+  const [mount, setMount] = useState<HTMLElement | null>(null);
+  useEffect(() => setMount(document.getElementById('feed-owner-controls')), []);
+  useEffect(() => {
+    void fetch(`${apiBase}/api/auth/session`, { credentials: 'include' })
+      .then((response) => response.json() as Promise<SessionStatus>)
+      .then(setSession)
+      .catch(() => setSession({ authenticated: false, username: null }))
+      .finally(() => setChecked(true));
+  }, [apiBase, setSession]);
+  const controls = <div className="feed-owner-actions" data-session-ready={checked ? 'true' : 'false'}>
+    {session?.authenticated ? <>
+      <a className="feed-owner-action" href="/feed/admin">管理</a>
+      <button className="feed-owner-action feed-owner-publish" type="button" onClick={() => setShowPublish(true)}>＋ 发布</button>
+    </> : <button className="feed-owner-action" type="button" disabled={!checked} onClick={() => setShowLogin(true)}>管理</button>}
+  </div>;
   return <>
-    <div className="feed-fab-wrap">
-      {loggedIn ? <>
-        <button className="feed-admin-link" type="button" onClick={() => void fetch(`${apiBase}/api/auth/logout`, { method: 'POST', credentials: 'include' }).then(() => { setSession({ authenticated: false, username: null }); setShowPublish(false); })}>退出</button>
-        <a className="feed-admin-link" href="/feed/admin">管理</a>
-        <button className="feed-fab" type="button" onClick={() => setShowPublish(true)} aria-label="发布 Feed">+</button>
-      </> : <button
-        className="feed-fab feed-fab--login"
-        type="button"
-        disabled={!checked}
-        data-session-ready={checked ? 'true' : 'false'}
-        onClick={() => setShowLogin(true)}
-      >登录</button>}
-    </div>
-    {showLogin && <LoginDialog apiBase={apiBase} onClose={() => setShowLogin(false)} onLoggedIn={(next) => { setSession(next); setShowLogin(false); setShowPublish(true); }} />}
-    {showPublish && <PublishDialog apiBase={apiBase} onClose={() => setShowPublish(false)} onCreated={(entry) => { onCreated(entry); setShowPublish(false); setMessage('已发布'); }} />}
-    {message && <p className="feed-toast" role="status">{message}</p>}
+    {mount && createPortal(controls, mount)}
+    {showLogin && <LoginDialog apiBase={apiBase} onClose={() => setShowLogin(false)} onLoggedIn={(next) => { setSession(next); setShowLogin(false); }} />}
+    {showPublish && <PublishDialog apiBase={apiBase} onClose={() => setShowPublish(false)} />}
   </>;
 }
 
-function useModalDialog(onClose: () => void) {
-  const panelRef = useRef<HTMLFormElement>(null);
-
+function useModalDialog<T extends HTMLElement>(onClose: () => void) {
+  const panelRef = useRef<T>(null);
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-
     const panel = panelRef.current;
     const dialog = panel?.closest<HTMLElement>('.feed-dialog');
     const background = dialog?.parentElement
-      ? Array.from(dialog.parentElement.children).filter((element): element is HTMLElement => (
-        element instanceof HTMLElement && element !== dialog
-      ))
+      ? Array.from(dialog.parentElement.children).filter((element): element is HTMLElement => element instanceof HTMLElement && element !== dialog)
       : [];
-    const backgroundState = background.map((element) => ({
-      element,
-      inert: element.inert,
-      ariaHidden: element.getAttribute('aria-hidden'),
-    }));
-    for (const element of background) {
-      element.inert = true;
-      element.setAttribute('aria-hidden', 'true');
-    }
-    const focusables = () => Array.from(
-      panel?.querySelectorAll<HTMLElement>(
-        'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), a[href]'
-      ) ?? []
-    );
-
+    const backgroundState = background.map((element) => ({ element, inert: element.inert, ariaHidden: element.getAttribute('aria-hidden') }));
+    for (const element of background) { element.inert = true; element.setAttribute('aria-hidden', 'true'); }
+    const focusables = () => Array.from(panel?.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), a[href]') ?? []);
     focusables()[0]?.focus();
-
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        onClose();
-        return;
-      }
-
+      if (event.key === 'Escape') { event.preventDefault(); closeRef.current(); return; }
       if (event.key !== 'Tab') return;
       const items = focusables();
       if (!items.length) return;
-
-      const first = items[0];
-      const last = items[items.length - 1];
-
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
+      const first = items[0]; const last = items.at(-1)!;
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
     };
-
     document.addEventListener('keydown', onKeyDown);
-
     return () => {
       document.removeEventListener('keydown', onKeyDown);
       document.body.style.overflow = previousOverflow;
       for (const state of backgroundState) {
         state.element.inert = state.inert;
-        if (state.ariaHidden === null) state.element.removeAttribute('aria-hidden');
-        else state.element.setAttribute('aria-hidden', state.ariaHidden);
+        if (state.ariaHidden === null) state.element.removeAttribute('aria-hidden'); else state.element.setAttribute('aria-hidden', state.ariaHidden);
       }
       previous?.focus();
     };
-  }, [onClose]);
-
+  }, []);
   return panelRef;
 }
 
 function LoginDialog({ apiBase, onClose, onLoggedIn }: { apiBase: string; onClose: () => void; onLoggedIn: (session: SessionStatus) => void }) {
-  const [username, setUsername] = useState(''); const [password, setPassword] = useState(''); const [error, setError] = useState(''); const [busy, setBusy] = useState(false);
-  const panelRef = useModalDialog(onClose);
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const panelRef = useModalDialog<HTMLFormElement>(onClose);
   async function login(event: FormEvent) {
     event.preventDefault(); setBusy(true); setError('');
     try {
       const response = await fetch(`${apiBase}/api/auth/login`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) });
       if (!response.ok) throw new Error((await response.json() as { error?: { message?: string } }).error?.message ?? '登录失败');
       onLoggedIn({ authenticated: true, username });
-    } catch (cause) { setError(cause instanceof Error ? cause.message : '登录失败'); } finally { setBusy(false); }
+    } catch (cause) { setError(cause instanceof Error ? cause.message : '登录失败'); }
+    finally { setBusy(false); }
   }
-  return <div className="feed-dialog" role="dialog" aria-modal="true" aria-label="登录"><form ref={panelRef} className="feed-panel" onSubmit={login}><button type="button" className="feed-close" onClick={onClose} aria-label="关闭">×</button><h2>登录后发布</h2><label>用户名<input value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="username" required /></label><label>密码<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" required /></label>{error && <p className="feed-state--error" role="alert">{error}</p>}<button className="feed-button" disabled={busy}>{busy ? '验证中…' : '登录'}</button></form></div>;
+  return <div className="feed-dialog" role="dialog" aria-modal="true" aria-label="登录"><form ref={panelRef} className="feed-panel" onSubmit={login}>
+    <button type="button" className="feed-close" onClick={onClose} aria-label="关闭">×</button><h2>管理 Feed</h2>
+    <label>用户名<input value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="username" required /></label>
+    <label>密码<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" required /></label>
+    {error && <p className="feed-state--error" role="alert">{error}</p>}<button className="feed-button" disabled={busy}>{busy ? '验证中…' : '登录'}</button>
+  </form></div>;
 }
 
-function PublishDialog({ apiBase, onClose, onCreated }: { apiBase: string; onClose: () => void; onCreated: (entry: TimelineEntry) => void }) {
-  const [type, setType] = useState<'note' | 'clip'>('note'); const [content, setContent] = useState(''); const [linkUrl, setLinkUrl] = useState(''); const [title, setTitle] = useState(''); const [summary, setSummary] = useState(''); const [image, setImage] = useState(''); const [keys, setKeys] = useState<string[]>([]); const [uploading, setUploading] = useState(false); const [submitting, setSubmitting] = useState(false); const [uploadProgress, setUploadProgress] = useState(0); const [message, setMessage] = useState(''); const idempotency = useRef<string | null>(null); const publishing = useRef(false);
-  const panelRef = useModalDialog(onClose);
-  const noteIsValid = Boolean(content.trim() || keys.length);
+function PublishDialog({ apiBase, onClose }: { apiBase: string; onClose: () => void }) {
+  const [type, setType] = useState<'note' | 'clip'>('note');
+  const [content, setContent] = useState('');
+  const [linkUrl, setLinkUrl] = useState('');
+  const [title, setTitle] = useState('');
+  const [summary, setSummary] = useState('');
+  const [image, setImage] = useState('');
+  const [uploads, setUploads] = useState<UploadItem[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [message, setMessage] = useState('');
+  const idempotency = useRef<string | null>(null);
+  const publishing = useRef(false);
+  const successfulKeys = uploads.flatMap((item) => item.status === 'success' && item.key ? [item.key] : []);
+  const hasSubstantialDraft = Boolean(content.trim() || linkUrl.trim() || title.trim() || summary.trim() || image.trim() || uploads.length);
+  const closeSafely = useCallback(() => {
+    if (!hasSubstantialDraft || window.confirm('尚有未发布的内容，确定关闭吗？')) onClose();
+  }, [hasSubstantialDraft, onClose]);
+  const panelRef = useModalDialog<HTMLFormElement>(closeSafely);
+  const uploading = uploads.some((item) => item.status === 'uploading');
+  const noteIsValid = Boolean(content.trim() || successfulKeys.length);
   const clipIsValid = Boolean(linkUrl.trim() && title.trim());
   const publishIsValid = type === 'note' ? noteIsValid : clipIsValid;
   const canPublish = publishIsValid && !uploading && !submitting;
   const publishReason = !publishIsValid ? (type === 'note' ? '请输入文字，或上传图片或视频。' : '请填写链接和标题。') : uploading ? '上传完成后才能发布。' : submitting ? '正在发布，请稍候。' : '';
-  async function preview() { const candidate = previewCandidateUrl(linkUrl); if (!candidate) return; setMessage(''); const response = await fetch(`${normalizeApiBase(apiBase)}/api/feed/clip-preview`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ link_url: candidate }) }); if (!response.ok) { setMessage('无法获取链接信息，请手动填写。'); return; } const data = await response.json() as { link_title: string | null; link_summary: string | null; link_image: string | null }; setTitle(data.link_title ?? ''); setSummary(data.link_summary ?? ''); setImage(data.link_image ?? ''); }
-  async function chooseFiles(files: FileList | null) {
-    if (!files?.length) return; const selected = Array.from(files); const imageFiles = selected.filter((file) => file.type.startsWith('image/')); const videoFiles = selected.filter((file) => file.type.startsWith('video/'));
-    if ((imageFiles.length && videoFiles.length) || imageFiles.length > 6 || videoFiles.length > 1 || keys.length + selected.length > 6 || (keys.length && ((imageFiles.length && keys.some((key) => /\.(mp4|webm|mov)$/.test(key))) || (videoFiles.length && keys.some((key) => !/\.(mp4|webm|mov)$/.test(key)))))) { setMessage('图片和视频不能混用；最多 6 张图片或 1 个视频。'); return; }
-    if (videoFiles[0] && await videoDuration(videoFiles[0]) > 60) { setMessage('视频不得超过 1 分钟。'); return; }
-    setUploading(true); setUploadProgress(0); setMessage('上传中 0%');
-    try { const next: string[] = []; for (const [index, file] of selected.entries()) { next.push((await uploadFeedFile(apiBase, file, (progress) => { const total = Math.round(((index + progress / 100) / selected.length) * 100); setUploadProgress(total); setMessage(`上传中 ${total}%`); })).key); } setKeys((current) => [...current, ...next]); setUploadProgress(100); setMessage('上传完成'); } catch (cause) { setMessage(cause instanceof Error ? cause.message : '上传失败'); } finally { setUploading(false); }
+
+  async function preview() {
+    const candidate = previewCandidateUrl(linkUrl); if (!candidate) return;
+    setMessage('');
+    const response = await fetch(`${normalizeApiBase(apiBase)}/api/feed/clip-preview`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ link_url: candidate }) });
+    if (!response.ok) { setMessage(response.status === 401 ? '登录已过期，请重新认证；当前内容已保留。' : '无法获取链接信息，请手动填写。'); return; }
+    const data = await response.json() as { link_title: string | null; link_summary: string | null; link_image: string | null };
+    setTitle(data.link_title ?? ''); setSummary(data.link_summary ?? ''); setImage(data.link_image ?? '');
   }
-  async function publish(event: FormEvent) { event.preventDefault(); if (!canPublish || publishing.current) return; publishing.current = true; setSubmitting(true); setMessage(''); idempotency.current ??= crypto.randomUUID(); try { const body = type === 'note' ? { type, content, media_keys: keys } : { type, content, media_keys: keys, link_url: linkUrl, link_title: title, link_summary: summary, link_image: image }; const response = await fetch(`${apiBase}/api/feed`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotency.current }, body: JSON.stringify(body) }); if (!response.ok) { setMessage((await response.json() as { error?: { message?: string } }).error?.message ?? '发布失败'); return; } const post = (await response.json() as { post: FeedPost }).post; onCreated({ id: post.id, kind: 'native_post', occurred_at: post.created_at, visibility: post.visibility, payload: post }); } catch (cause) { setMessage(cause instanceof Error ? cause.message : '发布失败'); } finally { publishing.current = false; setSubmitting(false); } }
-  return <div className="feed-dialog" role="dialog" aria-modal="true" aria-label="发布 Feed"><form ref={panelRef} className="feed-panel feed-publish-panel" onSubmit={publish}><button type="button" className="feed-close" onClick={onClose} aria-label="关闭">×</button><div className="feed-tabs"><button type="button" aria-pressed={type === 'note'} onClick={() => setType('note')}>碎碎念</button><button type="button" aria-pressed={type === 'clip'} onClick={() => setType('clip')}>剪藏</button></div>{type === 'clip' && <><label>链接<input type="url" value={linkUrl} onBlur={() => void preview()} onChange={(event) => setLinkUrl(event.target.value)} required /></label><label>标题<input value={title} onChange={(event) => setTitle(event.target.value)} required /></label><label>摘要<textarea value={summary} onChange={(event) => setSummary(event.target.value)} /></label><label>封面图 URL（可选）<input type="url" value={image} onChange={(event) => setImage(event.target.value)} /></label></>}<label>{type === 'clip' ? '点评（可选）' : '文字'}<textarea value={content} onChange={(event) => setContent(event.target.value)} required={!keys.length && type === 'note'} /></label><label>图片或视频<input type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,video/mp4,video/webm,video/quicktime" multiple disabled={uploading} onChange={(event) => void chooseFiles(event.target.files)} /></label>{uploading && <progress value={uploadProgress} max="100" aria-label="上传进度">{uploadProgress}%</progress>}{keys.length > 0 && <p>已上传 {keys.length} 个文件 <button type="button" onClick={() => setKeys([])}>清空</button></p>}{publishReason && <p className="feed-state" role="status">{publishReason}</p>}{message && <p className={message.includes('失败') ? 'feed-state--error' : ''} role="status">{message}</p>}<button className="feed-button" type="submit" disabled={!canPublish} aria-disabled={!canPublish}>{submitting ? '正在发布…' : uploading ? '正在上传…' : '发布'}</button></form></div>;
+
+  async function startUpload(item: UploadItem) {
+    setUploads((current) => current.map((known) => known.id === item.id ? { ...known, status: 'uploading', progress: 0, error: undefined } : known));
+    try {
+      const result = await uploadFeedFile(apiBase, item.file, (progress) => setUploads((current) => current.map((known) => known.id === item.id ? { ...known, progress } : known)));
+      setUploads((current) => current.map((known) => known.id === item.id ? { ...known, status: 'success', progress: 100, key: result.key } : known));
+    } catch (cause) {
+      setUploads((current) => current.map((known) => known.id === item.id ? { ...known, status: 'failed', error: cause instanceof Error ? cause.message : '上传失败' } : known));
+    }
+  }
+
+  async function chooseFiles(files: FileList | null) {
+    if (!files?.length) return;
+    const selected = Array.from(files);
+    const existingFiles = uploads.map((item) => item.file);
+    const combined = [...existingFiles, ...selected];
+    const imageFiles = combined.filter((file) => file.type.startsWith('image/'));
+    const videoFiles = combined.filter((file) => file.type.startsWith('video/'));
+    if ((imageFiles.length && videoFiles.length) || imageFiles.length > 6 || videoFiles.length > 1) { setMessage('图片和视频不能混用；最多 6 张图片或 1 个视频。'); return; }
+    if (videoFiles[0] && await videoDuration(videoFiles[0]) > 60) { setMessage('视频不得超过 1 分钟。'); return; }
+    setMessage('');
+    const items = selected.map((file) => ({ id: crypto.randomUUID(), file, status: 'uploading' as const, progress: 0 }));
+    setUploads((current) => [...current, ...items]);
+    await Promise.all(items.map(startUpload));
+  }
+
+  async function removeUpload(item: UploadItem) {
+    setUploads((current) => current.filter((known) => known.id !== item.id));
+    if (item.key) {
+      await fetch(`${apiBase}/api/feed/media/${encodeURIComponent(item.key)}`, { method: 'DELETE', credentials: 'include' }).catch(() => undefined);
+    }
+  }
+
+  async function publish(event: FormEvent) {
+    event.preventDefault(); if (!canPublish || publishing.current) return;
+    publishing.current = true; setSubmitting(true); setMessage(''); idempotency.current ??= crypto.randomUUID();
+    try {
+      const body = type === 'note'
+        ? { type, content, media_keys: successfulKeys }
+        : { type, content, media_keys: successfulKeys, link_url: linkUrl, link_title: title, link_summary: summary, link_image: image };
+      const response = await fetch(`${apiBase}/api/feed`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotency.current }, body: JSON.stringify(body) });
+      if (!response.ok) {
+        setMessage(response.status === 401 ? '登录已过期，请重新认证；当前内容与已上传文件已保留。' : (await response.json() as { error?: { message?: string } }).error?.message ?? '发布失败');
+        return;
+      }
+      window.location.reload();
+    } catch (cause) { setMessage(cause instanceof Error ? cause.message : '发布失败'); }
+    finally { publishing.current = false; setSubmitting(false); }
+  }
+
+  return <div className="feed-dialog" role="dialog" aria-modal="true" aria-label="发布 Feed"><form ref={panelRef} className="feed-panel feed-publish-panel" onSubmit={publish}>
+    <button type="button" className="feed-close" onClick={closeSafely} aria-label="关闭">×</button>
+    <h2>发布</h2>
+    <div className="feed-tabs" role="tablist"><button type="button" aria-pressed={type === 'note'} onClick={() => setType('note')}>碎碎念</button><button type="button" aria-pressed={type === 'clip'} onClick={() => setType('clip')}>剪藏</button></div>
+    {type === 'clip' && <><label>链接<input type="url" value={linkUrl} onBlur={() => void preview()} onChange={(event) => setLinkUrl(event.target.value)} required /></label><label>标题<input value={title} onChange={(event) => setTitle(event.target.value)} required /></label><label>摘要<textarea value={summary} onChange={(event) => setSummary(event.target.value)} /></label><label>封面图 URL（可选）<input type="url" value={image} onChange={(event) => setImage(event.target.value)} /></label></>}
+    <label>{type === 'clip' ? '点评（可选）' : '文字'}<textarea value={content} onChange={(event) => setContent(event.target.value)} required={!successfulKeys.length && type === 'note'} /></label>
+    <label>图片或视频<input type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,video/mp4,video/webm,video/quicktime" multiple onChange={(event) => { void chooseFiles(event.target.files); event.currentTarget.value = ''; }} /></label>
+    {uploads.length > 0 && <ul className="feed-upload-list">{uploads.map((item) => <li key={item.id}>
+      <span>{item.file.name}</span><span>{item.status === 'uploading' ? `${item.progress}%` : item.status === 'success' ? '已上传' : item.error ?? '上传失败'}</span>
+      {item.status === 'failed' && <button type="button" onClick={() => void startUpload(item)}>重试</button>}
+      {item.status !== 'uploading' && <button type="button" onClick={() => void removeUpload(item)}>移除</button>}
+    </li>)}</ul>}
+    {publishReason && <p className="feed-state" role="status">{publishReason}</p>}{message && <p className={message.includes('失败') || message.includes('过期') ? 'feed-state--error' : ''} role="status">{message}</p>}
+    <button className="feed-button" type="submit" disabled={!canPublish}>{submitting ? '正在发布…' : '发布'}</button>
+  </form></div>;
+}
+
+function ImageViewer({ image, onClose }: { image: string; onClose: () => void }) {
+  const panelRef = useModalDialog<HTMLDivElement>(onClose);
+  return <div className="feed-dialog feed-viewer" role="dialog" aria-modal="true" aria-label="查看 Feed 图片">
+    <div ref={panelRef} className="feed-viewer-panel"><button type="button" className="feed-viewer-close" onClick={onClose} aria-label="关闭图片">关闭</button><img src={image} alt="Feed 附图大图" /></div>
+  </div>;
 }
 
 function uploadFeedFile(apiBase: string, file: File, onProgress: (progress: number) => void): Promise<{ key: string }> {
   return new Promise((resolve, reject) => {
-    const request = new XMLHttpRequest();
-    request.open('POST', `${apiBase}/api/feed/upload`);
-    request.withCredentials = true;
+    const form = new FormData(); form.set('file', file); const request = new XMLHttpRequest();
+    request.open('POST', `${apiBase}/api/feed/upload`); request.withCredentials = true;
     request.upload.onprogress = (event) => { if (event.lengthComputable) onProgress(Math.round((event.loaded / event.total) * 100)); };
     request.onerror = () => reject(new Error('文件上传失败'));
     request.onload = () => {
-      if (request.status < 200 || request.status >= 300) { reject(new Error('文件上传失败')); return; }
+      if (request.status < 200 || request.status >= 300) { reject(new Error(request.status === 401 ? '登录已过期，请重新认证；当前内容已保留。' : '文件上传失败')); return; }
       try { resolve(JSON.parse(request.responseText) as { key: string }); } catch { reject(new Error('上传响应无效')); }
     };
-    const form = new FormData();
-    form.set('file', file);
     request.send(form);
   });
 }
 
 async function videoDuration(file: File): Promise<number> {
   const url = URL.createObjectURL(file);
-  try { return await new Promise((resolve, reject) => { const video = document.createElement('video'); video.preload = 'metadata'; video.onloadedmetadata = () => resolve(video.duration); video.onerror = () => reject(new Error('无法读取视频时长')); video.src = url; }); } finally { URL.revokeObjectURL(url); }
+  try { return await new Promise((resolve, reject) => { const video = document.createElement('video'); video.preload = 'metadata'; video.onloadedmetadata = () => resolve(video.duration); video.onerror = () => reject(new Error('无法读取视频时长')); video.src = url; }); }
+  finally { URL.revokeObjectURL(url); }
 }

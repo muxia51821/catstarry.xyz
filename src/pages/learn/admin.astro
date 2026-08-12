@@ -32,7 +32,7 @@ const notes = (authenticated ? await getCollection('learn') : []).map(noteFromEn
 const clientApiBase = publicFeedApiBase();
 ---
 
-<Base title="Learn 管理" description="学习笔记发布与完成标记。">
+<Base title="Learn 管理" description="学习笔记发布管理。">
   <meta slot="head" name="robots" content="noindex,nofollow,noarchive" />
   <main class="learn-page" data-canvas="content" data-learn-admin data-api-base={clientApiBase}>
     <div class="learn-page__shell">
@@ -41,7 +41,7 @@ const clientApiBase = publicFeedApiBase();
           <a class="learn-page__back" href="/learn/">← 返回 Learn</a>
           <p class="learn-page__eyebrow">PRIVATE CONTENT CONTROL</p>
           <h1>Learn 管理</h1>
-          <p class="learn-page__intro">发布只改变公开可见性；只有单独的“完成小节”动作才写入 Feed 足迹。</p>
+          <p class="learn-page__intro">管理公开学习笔记的发布与撤回。Feed 的新版 Learn 更新事件由后续发布流程接入。</p>
         </div>
         <span class="learn-page__count">{notes.length} NOTES</span>
       </header>
@@ -65,17 +65,6 @@ const clientApiBase = publicFeedApiBase();
               <button type="button" data-publication-action={note.draft ? 'publish' : 'retract'}>
                 {note.draft ? '发布' : '撤回'}
               </button>
-              {!note.draft && (
-                <form data-complete-form>
-                  <label>
-                    稳定 completion ID
-                    <input name="completion_id" pattern="[a-z0-9]+(?:-[a-z0-9]+)*" required placeholder="section-2026-07-v1" />
-                  </label>
-                  <input type="hidden" name="title" value={note.title} />
-                  <input type="hidden" name="excerpt" value={note.excerpt} />
-                  <button type="submit">完成小节</button>
-                </form>
-              )}
             </div>
             <p class="learn-admin-row__status" data-row-status role="status"></p>
           </article>
@@ -118,24 +107,6 @@ const clientApiBase = publicFeedApiBase();
           show('发布适配器已接受；完成仓库变更和生产部署后页面才会更新。');
         } catch (error) { show(error instanceof Error ? error.message : '操作失败', true); }
         finally { action.disabled = false; }
-      });
-      const complete = row.querySelector('[data-complete-form]');
-      complete?.addEventListener('submit', async (event) => {
-        event.preventDefault();
-        if (!(complete instanceof HTMLFormElement)) return;
-        const button = complete.querySelector('button');
-        if (button) button.disabled = true;
-        const data = new FormData(complete);
-        try {
-          const result = await send('/api/learn/complete', {
-            slug: row.dataset.noteSlug,
-            completion_id: data.get('completion_id'),
-            title: data.get('title'),
-            excerpt: data.get('excerpt'),
-          });
-          show(result.created ? '完成足迹已创建。' : '相同 completion ID 已存在，未重复创建。');
-        } catch (error) { show(error instanceof Error ? error.message : '操作失败', true); }
-        finally { if (button) button.disabled = false; }
       });
     }
   }

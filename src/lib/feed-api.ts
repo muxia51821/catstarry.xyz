@@ -12,12 +12,13 @@ export function publicFeedApiBase(): string {
   return normalizeApiBase(import.meta.env.PUBLIC_FEED_API_URL ?? '');
 }
 
-export async function loadPublicTimeline(apiBase: string): Promise<PaginatedResponse<TimelineEntry>> {
-  const response = await fetch(`${normalizeApiBase(apiBase)}/api/feed?limit=20`, {
+export async function loadPublicTimeline(apiBase: string, cursor?: string): Promise<PaginatedResponse<TimelineEntry>> {
+  const query = new URLSearchParams({ limit: '20', ...(cursor ? { cursor } : {}) });
+  const response = await fetch(`${normalizeApiBase(apiBase)}/api/feed?${query}`, {
     credentials: 'include',
     headers: { Accept: 'application/json' },
   });
-  if (!response.ok) throw new Error('Feed 时间线暂时不可用');
+  if (!response.ok) throw new Error(cursor ? '无法加载更早的内容' : 'Feed 时间线暂时不可用');
   return response.json() as Promise<PaginatedResponse<TimelineEntry>>;
 }
 
