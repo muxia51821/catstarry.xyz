@@ -1,8 +1,8 @@
 # Learn LHF-001–214 Implementation Coverage Matrix
 
-> Implementation baseline: `task/learn-visual-reality-check @ 393c9cb`
+> Implementation baseline: `task/learn-visual-reality-check @ fc92f06`
 > Authority: `catstarry.xyz — Learn Closure Package — 2026-08-11` from private `main @ e86993de9521b074f902e3cefe8be643b609d056`  
-> Scope: Accepted Delta local implementation coverage; final production migration remains separately gated.
+> Scope: Final Accepted Delta local implementation coverage after Web Visual Acceptance PASS / CLOSED; final production migration remains separately gated.
 
 ## Status summary
 
@@ -33,8 +33,11 @@
 - `E-MOBILE` / `E-INTERACTION`：mobile screenshots + `current-reality.json`
 - `S-*`：报告 Route / Source Matrix 中对应 source evidence。
 - `I-SCREEN`：`implementation-evidence/*.png`
-- `I-JSON`：`implementation-evidence/implementation-reality.json`
+- `I-GRAPH-FINAL`：`implementation-evidence/knowledge-map-resting.png`、`implementation-evidence/knowledge-map-mobile-portrait.png`（`fc92f06` final optical evidence）
+- `I-JSON`：`implementation-evidence/implementation-reality.json`（full-capture snapshot through `992e508`; final Graph optical state is evidenced by `I-GRAPH-FINAL`）
 - `S-IMPLEMENTATION`：当前 Learn pages/components/data/Worker source。
+
+`I-JSON` 的 controlled sparse fixture 中 `2 nodes / 4 edges` 是 ResizeObserver 按原 relation dataset 重绘造成的旧证据计数漂移，不用于证明 sparse relation 数量；LHF 判定依赖对应截图、非 fixture Graph 证据及 source/tests。该漂移不改变任何 LHF 状态。
 
 ## Atomic coverage
 
