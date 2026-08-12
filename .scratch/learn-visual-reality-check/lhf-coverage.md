@@ -8,8 +8,8 @@
 
 | Status | Count |
 |---|---:|
-| PASS | 211 |
-| SUPERSEDED | 1 |
+| PASS | 209 |
+| SUPERSEDED | 3 |
 | BLOCKED | 1 |
 | REVALIDATE | 1 |
 | **Total** | **214** |
@@ -43,8 +43,8 @@
 | LHF-001 | Opening | `/learn` top-level exit = `← 返回星图` | 实现与 Accepted Delta 及当前代码／渲染／交互证据一致 | I-JSON / I-SCREEN / S-IMPLEMENTATION | **PASS** | 已实现；见 implementation evidence |
 | LHF-002 | Opening | No `LEARNING RECORDS` | 实现与 Accepted Delta 及当前代码／渲染／交互证据一致 | I-JSON / I-SCREEN / S-IMPLEMENTATION | **PASS** | 已实现；见 implementation evidence |
 | LHF-003 | Opening | H1 = `Learn` | 实现与 Accepted Delta 及当前代码／渲染／交互证据一致 | I-JSON / I-SCREEN / S-IMPLEMENTATION | **PASS** | 已实现；见 implementation evidence |
-| LHF-004 | Opening | Intro explains durable knowledge, not learning process log | 实现与 Accepted Delta 及当前代码／渲染／交互证据一致 | I-JSON / I-SCREEN / S-IMPLEMENTATION | **PASS** | 已实现；见 implementation evidence |
-| LHF-005 | Opening | Recommended copy: `这里放的是经过系统学习后，值得长期保留、以后还会回来看的一些理解。` | 实现与 Accepted Delta 及当前代码／渲染／交互证据一致 | I-JSON / I-SCREEN / S-IMPLEMENTATION | **PASS** | 已实现；见 implementation evidence |
+| LHF-004 | Opening | Intro explains durable knowledge, not learning process log | A0 不再要求 explanatory durable-knowledge intro；Opening 使用 accepted two-line motto | I-JSON / I-SCREEN / S-IMPLEMENTATION | **SUPERSEDED** | SUPERSEDED BY A0 |
+| LHF-005 | Opening | Recommended copy: `这里放的是经过系统学习后，值得长期保留、以后还会回来看的一些理解。` | A0 以固定两行 `循此苦旅，可抵繁星。` / `Per aspera ad astra` 替换旧推荐文案 | I-JSON / I-SCREEN / S-IMPLEMENTATION | **SUPERSEDED** | SUPERSEDED BY A0 |
 | LHF-006 | Opening | No header count pill | 实现与 Accepted Delta 及当前代码／渲染／交互证据一致 | I-JSON / I-SCREEN / S-IMPLEMENTATION | **PASS** | 已实现；见 implementation evidence |
 | LHF-007 | Opening | No category-colored eyebrow required | 实现与 Accepted Delta 及当前代码／渲染／交互证据一致 | I-JSON / I-SCREEN / S-IMPLEMENTATION | **PASS** | 已实现；见 implementation evidence |
 | LHF-008 | Opening | Opening remains Cream Canvas | 实现与 Accepted Delta 及当前代码／渲染／交互证据一致 | I-JSON / I-SCREEN / S-IMPLEMENTATION | **PASS** | 已实现；见 implementation evidence |

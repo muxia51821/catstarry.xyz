@@ -1,15 +1,16 @@
 {
   "homeDesktop": {
     "motto": "循此苦旅，可抵繁星。Per aspera ad astra",
-    "openingHeight": 226.390625,
-    "mapHeight": 620,
-    "recentTop": 846.390625,
+    "mottoTwoLineLockup": true,
+    "openingHeight": 232.859375,
+    "mapHeight": 524.59375,
+    "recentTop": 763.453125,
     "tracks": 3,
     "nodes": 5,
     "edges": 4,
     "recentRows": 5,
     "searchPosition": "relative",
-    "graphBackground": "rgba(0, 0, 0, 0)",
+    "graphBackground": "color(srgb 0.959686 0.946353 0.91749 / 0.68)",
     "graphRadius": "0px",
     "legacyCards": 0,
     "noOverflow": true
@@ -25,7 +26,7 @@
   },
   "trackHover": {
     "width": 158.046875,
-    "countOpacity": "0.979608",
+    "countOpacity": "0.979594",
     "activeTrack": "programming",
     "activeEdges": 0,
     "widthBefore": 158.046875
@@ -50,6 +51,11 @@
       "noOverflow": true
     },
     {
+      "width": 1440,
+      "rows": 3,
+      "noOverflow": true
+    },
+    {
       "width": 1000,
       "rows": 3,
       "noOverflow": true
@@ -66,7 +72,7 @@
     }
   ],
   "noteRelated": {
-    "bodyWidth": 720,
+    "bodyWidth": 760,
     "related": 3,
     "relatedSticky": "sticky",
     "directory": 0,
@@ -124,7 +130,7 @@
   },
   "sparseControlled": {
     "nodes": 2,
-    "edges": 1,
+    "edges": 4,
     "noOverflow": true
   },
   "consoleProblems": [],

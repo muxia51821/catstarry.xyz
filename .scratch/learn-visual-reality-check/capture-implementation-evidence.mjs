@@ -89,8 +89,11 @@ try {
     const map=document.querySelector('.learn-knowledge-map').getBoundingClientRect();
     const recent=document.querySelector('.learn-recent').getBoundingClientRect();
     const graph=getComputedStyle(document.querySelector('.learn-graph'));
+    const mottoCn=document.querySelector('.learn-opening__motto-cn').getBoundingClientRect();
+    const mottoLatin=document.querySelector('.learn-opening__motto-latin').getBoundingClientRect();
     return {
       motto: document.querySelector('.learn-opening__motto')?.textContent.trim(),
+      mottoTwoLineLockup: mottoLatin.top >= mottoCn.bottom,
       openingHeight: opening.height,
       mapHeight: map.height,
       recentTop: recent.top,
@@ -158,7 +161,7 @@ try {
   await screenshot('home-mobile-390x844.png');
   await screenshot('knowledge-map-mobile-portrait.png', '.learn-knowledge-map');
 
-  const trackViewports = [[1760,1000],[1000,900],[768,900],[390,844]];
+  const trackViewports = [[1760,1000],[1440,1000],[1000,900],[768,900],[390,844]];
   observations.track = [];
   for (const [width,height] of trackViewports) {
     await viewport(width,height,width<640);
