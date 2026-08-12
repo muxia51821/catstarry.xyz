@@ -288,7 +288,7 @@ try {
       ['blog', 'blog_published', 'browser-acceptance', '/blog/browser-acceptance/'],
       ['learn', 'learn_note_published', 'browser-published', '/learn/notes/browser-published/'],
       ['learn', 'learn_note_revised', 'browser-revised', '/learn/notes/browser-revised/'],
-      ['projects', 'project_updated', 'browser-project', '/projects/browser-project/'],
+      ['projects', 'project_updated', 'browser-project', '/projects/'],
     ];
     const base = Date.now() - 2 * 60 * 60 * 1000;
     const responses = [];
@@ -311,7 +311,7 @@ try {
     const crossYear = await fetch(apiOrigin + '/api/feed/internal/footprints', {
       method: 'POST', headers,
       body: JSON.stringify({ source_module: 'projects', source_ref: 'browser-cross-year', source_version: 'v1', event_type: 'project_updated',
-        snapshot_json: JSON.stringify({ title: 'Cross-year Project', link: '/projects/browser-cross-year/' }),
+        snapshot_json: JSON.stringify({ title: 'Cross-year Project', link: '/projects/' }),
         occurred_at: '2025-12-30T15:59:00.000Z', idempotency_key: 'browser:project-cross-year:v1' }),
     });
     return { clip: clip.status, minimalClip: minimalClip.status, imageClip: imageClip.status, media: mediaResponses.map((response) => response.status), manifest: manifest.status, hiddenBlog: hiddenBlog.status, crossYear: crossYear.status, footprints: responses.map((response) => response.status) };
@@ -365,6 +365,10 @@ try {
       entry.querySelector('.feed-activity-identity')?.textContent.trim(),
       entry.querySelector('.feed-destination')?.textContent.trim(),
     ]));
+    const destinationHrefs = Object.fromEntries([...document.querySelectorAll('.feed-footprint')].map((entry) => [
+      entry.querySelector('.feed-activity-identity')?.textContent.trim(),
+      entry.querySelector('.feed-destination')?.getAttribute('href'),
+    ]));
     return {
       year: document.querySelector('.feed-year-label')?.textContent?.trim(),
       years,
@@ -377,6 +381,7 @@ try {
       metaRows: { note: metaGrammar(note), clip: metaGrammar(clip), footprints: [...document.querySelectorAll('.feed-footprint')].every(metaGrammar) },
       footprintLabels: [...new Set(footprintLabels)],
       destinations,
+      destinationHrefs,
       noCardWall: style ? style.backgroundColor === 'rgba(0, 0, 0, 0)' && style.boxShadow === 'none' && parseFloat(style.borderTopWidth) === 0 : false,
       end: document.querySelector('.feed-timeline-end')?.textContent.includes('止步于此。') ?? false,
     };
@@ -622,6 +627,7 @@ try {
   assert.deepEqual(diagnostics.checks.timelineGrammar.metaRows, { note: true, clip: true, footprints: true });
   assert.deepEqual(diagnostics.checks.timelineGrammar.footprintLabels.sort(), ['BLOG · 发布', 'LEARN · 更新', 'PROJECT · 更新'].sort());
   assert.deepEqual(diagnostics.checks.timelineGrammar.destinations, { 'BLOG · 发布': '阅读文章 →', 'LEARN · 更新': '查看内容 →', 'PROJECT · 更新': '查看项目 →' });
+  assert.equal(diagnostics.checks.timelineGrammar.destinationHrefs['PROJECT · 更新'], '/projects/');
   assert.deepEqual(diagnostics.checks.clipVariants, { minimalHasComment: false, minimalHasSummary: false, minimalAction: '访问来源 ↗', previewImagePresent: true, previewImageOpensViewer: false, longTitleContained: true });
   assert.deepEqual(diagnostics.checks.destinationFocus, { focused: true, outlineStyle: 'solid', outlineWidth: '2px' });
   assert.equal(diagnostics.checks.mediaFailure.activityRetained && diagnostics.checks.mediaFailure.buttonWidth > 0 && diagnostics.checks.mediaFailure.buttonHeight > 0 && diagnostics.checks.mediaFailure.alt === 'Feed 附图', true);

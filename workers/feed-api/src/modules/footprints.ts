@@ -38,7 +38,7 @@ export function parseFootprintCandidate(value: unknown): PublicFootprintCandidat
     const snapshot = JSON.parse(candidate.snapshot_json);
     if (!isPlainObject(snapshot) || !isLength(snapshot.title, 1, 200)) return null;
     if (snapshot.summary !== undefined && (typeof snapshot.summary !== 'string' || snapshot.summary.length > 2_000)) return null;
-    if (typeof snapshot.link !== 'string' || !isInternalSnapshotLink(snapshot.link)) return null;
+    if (typeof snapshot.link !== 'string' || !isInternalSnapshotLink(snapshot.link, candidate.source_module)) return null;
     if (!isValidIsoTimestamp(candidate.occurred_at)) return null;
     const occurredAt = new Date(candidate.occurred_at);
     if (occurredAt.getTime() > Date.now() + 5 * 60 * 1_000) return null;
@@ -74,8 +74,12 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return prototype === Object.prototype || prototype === null;
 }
 
-function isInternalSnapshotLink(value: string): boolean {
-  return /^\/(?:blog|learn|projects)\/.+/.test(value) && !value.startsWith('//');
+function isInternalSnapshotLink(value: string, sourceModule: unknown): boolean {
+  if (value.startsWith('//')) return false;
+  if (sourceModule === 'blog') return /^\/blog\/.+/.test(value);
+  if (sourceModule === 'learn') return /^\/learn\/.+/.test(value);
+  if (sourceModule === 'projects') return value === '/projects/' || /^\/projects\/.+/.test(value);
+  return false;
 }
 
 function isValidIsoTimestamp(value: string): boolean {

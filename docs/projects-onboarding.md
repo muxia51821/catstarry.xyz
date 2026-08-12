@@ -14,4 +14,5 @@ Projects 只保存独立项目的公开索引，不接管项目源码或部署�
 - 普通索引编辑、截图替换、构建、部署失败与重复部署不创建 Feed 足迹。
 - 只有木下明确确认“这是一次实质更新”时，才向该条目加入新的稳定 `updateId`。
 - 生产更新确认后，用该 `projectId`、`updateId` 和创建时快照运行 `npm run signal:footprint -- <payload.json>`，并设置 `EXPLICIT_FOOTPRINT_CONFIRMATION=true`。
+- Footprint snapshot 的 canonical Feed destination 固定为 `/projects/`；进入 Projects 索引后，Project Card 继续使用各自的 external `project.url`。
 - Feed Worker 以 `projects:<projectId>:<updateId>` 去重；旧项目与历史更新不回填。

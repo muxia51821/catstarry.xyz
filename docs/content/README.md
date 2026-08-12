@@ -33,9 +33,9 @@ Family consistency 不等于共享 IA、layout、Card、Opening、width、pagina
 | --- | --- | --- |
 | Content Family | RECONCILED / FROZEN for implementation | 决策状态与实施状态分开；release / deployment 仍需独立授权 |
 | Blog | Product / IA / UI CLOSED | Implementation ACCEPTED；Owner visual acceptance PASS；FROZEN |
-| Feed | Product / Interaction / Responsive / Visual CLOSED | Stage 4 Browser Visual Lab、F0 evidence inventory、Architecture Preflight COMPLETE；Codex Production Implementation Task Package IN PROGRESS；production implementation / acceptance PENDING |
+| Feed | Product / Interaction / Responsive / Visual CLOSED | Implementation ACCEPTED / MERGED；与 Learn 的 semantic integration CLOSED |
 | Projects | Product / Visual CLOSED | Implementation ACCEPTED；Owner visual acceptance PASS；FROZEN；accepted elevation 必须保留 |
-| Learn | Product Synthesis / Architecture Final COMPLETE | Visual Reality Check IN PROGRESS（Stage 0 COMPLETE / pushed）；production implementation PENDING |
+| Learn | Product / Architecture / Visual Reality Check COMPLETE | Implementation ACCEPTED / MERGED；与 Feed 的 semantic integration CLOSED |
 
 Decision Status 与 Implementation State 必须分开记录。Confirmed 但尚未实现，是 implementation gap；Revalidate 是待复核决策或技术实现；Superseded 不得因旧代码仍存在而恢复；Parked 不是当前承诺。
 
@@ -49,9 +49,9 @@ Wave 0 Governance Freeze 完成后，governed implementation sequencing 可以�
 | --- | --- | --- |
 | Shared Content | 本索引、`family-contract.md`、`master-ledger.md` §3–5、§11–16 | `DESIGN.md`、`src/styles/variables.css`、current implementation inventory |
 | Blog | Family sources + `master-ledger.md` §6 | Blog Closure evidence（如单独提供）、Blog current source；跨 Feed 工作另读 ADR-005 与 architecture revalidate |
-| Feed | Family sources + `master-ledger.md` §7、§9、§12 | Feed Closure / Stage 4 / F0 / Preflight evidence、ADR-005、current architecture 与 source；当前进入 Codex Production Implementation Task Package |
+| Feed | Family sources + `master-ledger.md` §7、§9、§12 | Feed Closure / Stage 4 / F0 / Preflight evidence、ADR-005、accepted implementation 与 current source |
 | Projects | Family sources + `master-ledger.md` §8、§9 | Projects Closure evidence（如单独提供）、Projects current source |
-| Learn | Family sources + `master-ledger.md` §10、ADR-008 | Learn Product Synthesis / Architecture Final evidence 与当前 Visual Reality Check；其 closure confirmation 后才进入 downstream implementation 与 Acceptance |
+| Learn | Family sources + `master-ledger.md` §10、ADR-008 | Learn Product / Architecture / Visual Reality evidence、accepted implementation 与 current source |
 
 不要一次性把全部历史文档交给下游 Agent。以本目录建立地图，再按模块逐步补充 Closure、ADR、architecture 和 current source。
 

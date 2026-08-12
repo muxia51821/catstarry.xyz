@@ -16,25 +16,22 @@ Feed F0 Evidence Inventory
 Feed Architecture Preflight
 Learn Product Synthesis
 Learn Architecture Final
-
-CURRENT / PARALLEL
-──────────────────
 Learn Visual Reality Check
 Feed Codex Production Implementation Task Package
-
-NEXT
-────
 Feed Production Implementation
-→ Feed Acceptance
-
-Learn Visual Reality Check / Closure confirmation
-→ Learn downstream implementation work
-→ Learn Acceptance
-
-THEN
-────
+Feed Acceptance
+Learn Production Implementation
+Learn Acceptance
+Feed × Learn semantic integration → CLOSED
 Content Integration Preview / regression
-→ Final Content Integration & Acceptance
+
+CURRENT
+───────
+Final Content Integration evidence review
+
+NEXT (SEPARATELY AUTHORIZED)
+────────────────────────────
+Final Content Integration acceptance
 → Release / deployment
 ```
 
@@ -50,7 +47,7 @@ Content Integration Preview / regression
 
 - Projects 与 Blog 已实施、验收并 FROZEN；不得把它们作为 current implementation 前置条件重开。
 - Feed 的 Product / Visual Closure、Stage 4、F0 与 Architecture Preflight 已完成。Stage 4 是 Browser Visual Lab / stress validation，不是 F0、Preflight 或 production implementation；F0 是 current production architecture / runtime evidence，不是 Product Closure。
-- Learn Product Synthesis 与 Architecture Final 已完成；其 Visual Reality Check 仍在进行。
+- Learn Product Synthesis、Architecture Final 与 Visual Reality Check 已完成；implementation 已 accepted / merged。
 
 ### Content Integration Preview
 
@@ -58,11 +55,11 @@ Content Integration Preview / regression 在 Feed 与 Learn 各自 Acceptance �
 
 该 Preview 只用于提前发现 cross-module regression，不是 Final Content Family Acceptance，也不授权 release。
 
-### Current parallel work
+### Current integration work
 
-- Feed 正在形成 Codex Production Implementation Task Package；它不等于 production implementation 已开始或已 PASS。
-- Learn Visual Reality Check 不无条件阻塞 Feed Task Package：影响 Feed 的 Learn Architecture 已 Final。
-- Learn Visual Reality Check / closure confirmation 后，才进入 Learn downstream implementation 与 Acceptance。
+- Feed implementation 与 Learn implementation 均已 accepted / merged。
+- Feed × Learn semantic integration 已 CLOSED，不得作为本轮 Projects destination 修复重新打开。
+- Final Content Integration 尚待上游 Web Session 根据本 branch evidence 作最终 acceptance；本文件不提前声明 PASS。
 
 ### Final Content Integration & Acceptance
 
@@ -85,5 +82,5 @@ Release / deployment 是 Final Content Integration & Acceptance 之后的独立�
 | Projects | ACCEPTED / FROZEN；后续仅处理明确 integration regression 或新的用户裁决 |
 | Blog | ACCEPTED / FROZEN；后续仅处理明确 integration regression 或新的用户裁决 |
 | Feed | D not Card Feed、equal Activity rank、three grammars、chronology、labels/actions、media、Clip states、Blog projection、Owner states、authoring、Loading/Error/Empty/Pagination、Mobile、visual evidence parity |
-| Learn | Visual Reality Check / closure confirmation 后，进入 downstream implementation 与 Acceptance |
+| Learn | ACCEPTED / MERGED；Feed × Learn semantic integration CLOSED |
 

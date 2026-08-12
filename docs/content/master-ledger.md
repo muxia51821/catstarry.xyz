@@ -8,8 +8,8 @@
 **Date:** 2026-08-10
 **Scope:** Content Family / Cream Gallery
 **Modules:** Blog / Feed / Learn / Projects
-**Closed Modules:** Blog / Feed / Projects
-**Learn decision baseline:** Product Synthesis / Architecture Final COMPLETE; Visual Reality Check IN PROGRESS
+**Closed Modules:** Blog / Feed / Learn / Projects
+**Learn decision baseline:** Product / Architecture / Visual Reality Check COMPLETE; implementation ACCEPTED / MERGED
 **Upstream:** Reconciled Content Family Contract v1
 **Purpose:** Decision authority registry, implementation sequencing source, acceptance reference
 **Implementation:** Not a code specification by itself
@@ -30,7 +30,7 @@ Blog、Feed、Projects 已完成：
 
 > **Blog / Feed / Projects 已不存在待重新讨论的 Family-level 产品冲突。**
 
-Learn 的 Product Synthesis 与 Architecture Final 已完成，当前正在进行 Visual Reality Check；尚未达到 production implementation 或 acceptance。
+Learn 的 Product Synthesis、Architecture Final 与 Visual Reality Check 已完成；implementation 已 accepted / merged。
 
 所以当前 Content Family 状态不是：
 
@@ -38,7 +38,7 @@ Learn 的 Product Synthesis 与 Architecture Final 已完成，当前正在进�
 
 而是：
 
-> **Family shared contract 已 reconciliation；Projects / Blog 已 ACCEPTED 并 FROZEN；Feed 已完成 Closure、Stage 4、F0 与 Architecture Preflight，正在形成实施任务包；Learn 已完成 Product / Architecture decision baseline，Visual Reality Check 仍在进行。**
+> **Family shared contract 已 reconciliation；Projects / Blog 已 ACCEPTED 并 FROZEN；Feed / Learn implementation 已 ACCEPTED / MERGED；Feed × Learn semantic integration 已 CLOSED。**
 
 这是本 Ledger 最重要的状态边界。
 
@@ -195,7 +195,7 @@ Production 尚未实现不能把 Confirmed 需求重新变成 Revalidate。
 | FAMILY-043 | Visual completeness cannot be created by invented capabilities          | Confirmed            |
 | FAMILY-044 | Design for plausible growth without premature scale machinery           | Confirmed            |
 | FAMILY-045 | Every Content surface needs intentional ending                          | Confirmed            |
-| FAMILY-046 | Exact Shared Content Footer                                             | Revalidate           |
+| FAMILY-046 | Exact Shared Content Footer                                             | Parked               |
 | FAMILY-047 | Owner tooling stays module-local until shared need is proven            | Confirmed            |
 | FAMILY-048 | Global Content Admin                                                    | Parked               |
 | FAMILY-049 | Accessibility cannot be weakened for visual quietness                   | Confirmed            |
@@ -755,11 +755,11 @@ Closure text outranks that frame.
 **Stage 4 Browser Visual Lab / stress validation:** COMPLETE
 **F0 current-state architecture / runtime evidence inventory:** COMPLETE
 **Architecture Preflight:** COMPLETE
-**Codex Production Implementation Task Package:** IN PROGRESS
-**Production Implementation:** PENDING
-**Production Acceptance:** PENDING
+**Codex Production Implementation Task Package:** COMPLETE
+**Production Implementation:** ACCEPTED / MERGED
+**Production Acceptance:** ACCEPTED
 
-Feed Closure 明确自身不是 Delta 摘要，而是专项后形成的最终模块级 decision authority。Stage 4 收敛并验证 D — Quiet Deposition；F0 只恢复 current production architecture / runtime evidence，不形成新的 Product rule。Architecture Preflight 已完成，当前尚未开始 production implementation。
+Feed Closure 明确自身不是 Delta 摘要，而是专项后形成的最终模块级 decision authority。Stage 4 收敛并验证 D — Quiet Deposition；F0 只恢复 current production architecture / runtime evidence，不形成新的 Product rule。Architecture Preflight、implementation 与 acceptance 均已完成，且实现已 merged。
 
 ---
 
@@ -934,7 +934,7 @@ No platform-specific embed systems for:
 | FEED-LEARN-004 | Destination = `查看内容 →`                                                 | Confirmed Feed-side            |
 | FEED-LEARN-005 | Supporting text should explain what changed                            | Confirmed Feed-side            |
 | FEED-LEARN-006 | Do not invent a “major update” threshold merely to control Feed volume | Confirmed Feed-side constraint |
-| FEED-LEARN-007 | Exact Learn source lifecycle                                           | Await Learn Closure            |
+| FEED-LEARN-007 | Public Note publish/revise lifecycle                                    | Confirmed / Implemented        |
 
 ### Boundary
 
@@ -942,9 +942,7 @@ Feed 已确认：
 
 > 它希望接收“有公开价值的 Learn 更新”，而不是只接受旧的 Section Completion。
 
-但：
-
-> Learn 最终由什么对象、什么行为、什么 source event 产生该 Activity，仍由 Learn Closure 决定。
+Accepted Learn lifecycle 由 Public Note publication manifest v2 产生 `learn_note_published` / `learn_note_revised`；`learn_section_completed` 仅保留 legacy readable compatibility。
 
 ---
 
@@ -960,6 +958,7 @@ Feed 已确认：
 | FEED-PROJ-006 | Supporting “what changed” description strongly preferred    | Confirmed  |
 | FEED-PROJ-007 | No Project Card tech stack/gallery/stats/status duplication | Confirmed  |
 | FEED-PROJ-008 | Destination = `查看项目 →`                                      | Confirmed  |
+| FEED-PROJ-009 | Canonical destination href = `/projects/`；Project Card 继续使用 external `project.url` | Confirmed |
 
 ---
 
@@ -1592,7 +1591,8 @@ No filler:
 | PROJ-FEED-004 | Tag tweak alone does not automatically emit             | Confirmed               |
 | PROJ-FEED-005 | Repeated deployment does not automatically emit         | Confirmed               |
 | PROJ-FEED-006 | Source-side Project workflow owns event semantics       | Confirmed               |
-| PROJ-FEED-007 | Exact trigger/idempotency/description storage           | Architecture Revalidate |
+| PROJ-FEED-007 | Source-side meaningful update + `updateId` idempotency   | Confirmed / Implemented  |
+| PROJ-FEED-008 | Feed destination = `/projects/`; Card destination = external `project.url` | Confirmed |
 
 Important:
 
@@ -1720,6 +1720,14 @@ Supporting “what changed” description strongly preferred.
 
 ---
 
+## XMOD-PROJ-04
+
+Feed destination is `/projects/`; the Projects index then exposes each Project Card's external `project.url`.
+
+**Confirmed**
+
+---
+
 ## XMOD-LEARN-01
 
 Feed presentation:
@@ -1744,9 +1752,9 @@ as final public semantics.
 
 ## XMOD-LEARN-03
 
-Exact Learn source lifecycle:
+Exact Learn source lifecycle uses Public Note publication manifest v2: first publish emits `learn_note_published`, later explicit revision emits `learn_note_revised`; `learn_section_completed` is legacy readable compatibility only.
 
-> **Await Learn Closure**
+**Confirmed / Implemented**
 
 ---
 
@@ -1756,11 +1764,11 @@ Exact Learn source lifecycle:
 
 **Product Synthesis:** COMPLETE
 **Architecture Final:** COMPLETE
-**Visual Reality Check:** IN PROGRESS
+**Visual Reality Check:** COMPLETE
 **Stage 0:** COMPLETE / pushed
-**Production Implementation:** PENDING
+**Production Implementation:** ACCEPTED / MERGED
 
-Do not represent Visual Reality Check as completed implementation or acceptance. Do not restore old implementation structure superseded by the Architecture Final.
+Do not restore old implementation structure superseded by the Architecture Final or reopen the CLOSED Feed × Learn semantic integration.
 
 ---
 
@@ -2037,7 +2045,7 @@ Exact source-event implementation remains a downstream implementation concern; i
 
 | ID             | Item                                           | Status                                                  |
 | -------------- | ---------------------------------------------- | ------------------------------------------------------- |
-| FAMILY-REV-001 | Exact Shared Content Footer / Ending component | Revalidate                                              |
+| FAMILY-REV-001 | Exact Shared Content Footer / Ending component | Parked                                                  |
 | FAMILY-REV-002 | Exact shared radius token values               | Revalidate                                              |
 | FAMILY-REV-003 | Exact focus token implementation               | Revalidate                                              |
 | FAMILY-REV-004 | Exact elevation/shadow token model             | Revalidate                                              |
@@ -2305,9 +2313,9 @@ Use the cross-module contract.
 
 ---
 
-## IR-10 — Learn premature implementation
+## IR-10 — Learn accepted implementation
 
-Do not productionize Learn's final IA before Learn Closure resolves:
+Do not reopen or replace Learn's accepted final IA and implementation:
 
 * Track power
 * Graph semantics
@@ -2396,7 +2404,7 @@ This is a:
 
 > **documentation-only governance freeze**
 
-It does not reconcile production code or authorize deployment. The next operational stage is Current Implementation Inventory.
+At the time of Wave 0 this did not reconcile production code or authorize deployment. That historical inventory / implementation sequence is now complete; current work is Final Content Integration evidence review.
 
 ---
 
@@ -2448,11 +2456,11 @@ Then implement D — Quiet Deposition and product contract.
 
 ---
 
-## Parallel Product Track — Learn
+## Historical Parallel Product Track — Learn
 
-Learn Product Closure proceeds separately.
+Learn Product Closure proceeded separately and is now complete.
 
-It must not be rushed because other modules enter implementation.
+This historical sequencing must not be used to reopen the accepted Learn implementation or CLOSED Feed × Learn integration.
 
 ---
 
@@ -2600,7 +2608,6 @@ The canonical governance state is:
 subject only to:
 
 * explicit Revalidate items;
-* Learn Closure;
 * genuinely new evidence.
 
 ### Blog Product Truth
@@ -2617,11 +2624,11 @@ subject only to:
 
 ### Learn decision baseline
 
-> **Product Synthesis / Architecture Final COMPLETE; Visual Reality Check IN PROGRESS**
+> **Product / Architecture / Visual Reality Check COMPLETE; implementation ACCEPTED / MERGED**
 
 ### Production Code
 
-> **Implementation may begin after Wave 0 documentation freeze + implementation inventory.**
+> **Feed / Learn implementation is accepted / merged; Feed × Learn semantic integration is CLOSED.**
 
 ---
 
@@ -2676,8 +2683,8 @@ And when architecture work begins:
 
 Provide:
 
-9. Learn Delta / current reconciliation state
-10. later Learn Closure Sheet
+9. Learn accepted Product / Architecture / Visual Reality evidence
+10. current Learn implementation and Feed × Learn integration evidence
 
 Do not dump all historical Learn requirements unless a specific problem requires drill-down.
 
@@ -2692,16 +2699,16 @@ Current Content Family governance state:
 ```text
 Family Shared Contract         RECONCILED / FROZEN FOR IMPLEMENTATION
 Blog                           CLOSED / IMPLEMENTATION ACCEPTED / FROZEN
-Feed                           CLOSED; Stage 4 / F0 / Preflight COMPLETE; Task Package IN PROGRESS
+Feed                           CLOSED / IMPLEMENTATION ACCEPTED / MERGED
 Projects                       CLOSED / IMPLEMENTATION ACCEPTED / FROZEN
-Learn                          Product Synthesis / Architecture Final COMPLETE; Visual Reality Check IN PROGRESS
+Learn                          CLOSED / IMPLEMENTATION ACCEPTED / MERGED
 Cross-module Blog→Feed        PRODUCT RESOLVED
 Cross-module Project→Feed     PRODUCT RESOLVED
-Cross-module Learn→Feed       PARTIAL / AWAIT LEARN
-Shared Footer                 REVALIDATE
+Cross-module Learn→Feed       CLOSED
+Shared Footer                 PARKED
 Global Content Admin          PARKED
-Feed Production Implementation PENDING
-Learn Production Implementation PENDING
+Feed Production Implementation ACCEPTED / MERGED
+Learn Production Implementation ACCEPTED / MERGED
 Final Content Acceptance      NOT YET
 ```
 
@@ -2711,6 +2718,6 @@ The next operational stage is no longer:
 
 It is:
 
-> **Feed Task Package / Learn Visual Reality Check → Module Acceptance → Content Integration.**
+> **Final Content Integration evidence review → upstream acceptance.**
 
 Governance Freeze does not mean production code is already reconciled. It establishes the decision baseline from which governed implementation may proceed; release and deployment remain separately authorized stages.
