@@ -64,8 +64,11 @@ for (const filename of learnSources) {
   const meta = frontmatter(await readFile(filename, 'utf8'));
   const slug = field(meta, 'slug');
   assert.ok(slug, `${filename} needs a stable slug`);
-  if (/^draft:\s*true\s*$/m.test(meta)) draftSlugs.push(`/learn/notes/${slug}/`);
-  else publishedLearn.push(`/learn/notes/${slug}/`);
+  const explicitState = field(meta, 'state');
+  const legacyState = /^draft:\s*false\s*$/m.test(meta) ? 'published' : 'draft';
+  const state = explicitState ?? legacyState;
+  if (state === 'published') publishedLearn.push(`/learn/notes/${slug}/`);
+  else draftSlugs.push(`/learn/notes/${slug}/`);
 }
 
 for (const pathname of [...publishedBlog, ...publishedLearn]) {
