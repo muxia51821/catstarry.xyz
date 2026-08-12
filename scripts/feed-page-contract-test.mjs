@@ -30,6 +30,7 @@ assert.match(app, /project_updated: '查看项目 →'/);
 assert.match(admin, /source_hidden[\s\S]*随来源隐藏/, 'Manage must distinguish source-hidden Blog footprints');
 assert.match(app, /try \{ duration = await videoDuration\(videoFiles\[0\]\); \}[\s\S]*catch \{ setMessage\('无法读取视频信息，请选择其他视频。'\); return; \}/, 'video metadata failures must become visible authoring errors');
 assert.match(app, /!Number\.isFinite\(duration\)/, 'non-finite video duration must be rejected');
+assert.match(app, /response\.status === 401\) onAuthExpired\(\)/, 'authoring 401 responses must clear misleading owner controls');
 assert.doesNotMatch(app, /items: \[entry, \.\.\.current\.items\]/, 'publish must not optimistically prepend an activity');
 assert.match(app, /window\.location\.reload\(\)/, 'publish success must return to the canonical Feed state');
 assert.match(app, /const candidate = previewCandidateUrl\(linkUrl\);[\s\S]*if \(!candidate\) return;/, 'Clip preview must ignore invalid URL candidates');
@@ -38,13 +39,15 @@ const grouped = groupTimelineByShanghai([
   { id: 'one', kind: 'native_post', occurred_at: '2026-08-11T16:30:00.000Z', visibility: 'public', payload: {} },
   { id: 'two', kind: 'native_post', occurred_at: '2026-08-11T02:20:00.000Z', visibility: 'public', payload: {} },
   { id: 'three', kind: 'native_post', occurred_at: '2025-12-31T16:01:00.000Z', visibility: 'public', payload: {} },
+  { id: 'four', kind: 'native_post', occurred_at: '2025-12-30T15:59:00.000Z', visibility: 'public', payload: {} },
 ]);
 assert.deepEqual(grouped.map((year) => ({
   year: year.year,
   days: year.days.map((day) => ({ date: day.date, times: day.activities.map(({ time }) => time) })),
 })), [
   { year: '2026', days: [{ date: '08.12', times: ['00:30'] }, { date: '08.11', times: ['10:20'] }, { date: '01.01', times: ['00:01'] }] },
-], 'accumulated entries must merge into Shanghai year/day groups');
+  { year: '2025', days: [{ date: '12.30', times: ['23:59'] }] },
+], 'accumulated entries must preserve ordered Shanghai year/day groups across year boundaries');
 
 const originalFetch = globalThis.fetch;
 let request;

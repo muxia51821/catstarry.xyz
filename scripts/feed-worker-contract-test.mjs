@@ -213,8 +213,16 @@ try {
   const spare = await spareUpload.json();
   assert.equal((await request(`/api/feed/media/${encodeURIComponent(spare.key)}`, { method: 'DELETE', headers: { Cookie: cookie } })).status, 204);
 
-  const invalidMedia = await request('/api/feed', { method: 'POST', headers: authHeaders, body: JSON.stringify({ type: 'note', content: 'bad media', media_keys: [uploadedMedia.key, uploadedMedia.key.replace('.png', '.mp4')] }) });
-  assert.equal(invalidMedia.status, 400);
+  const validWebm = new Uint8Array([0x1a, 0x45, 0xdf, 0xa3, 0x01, 0x00, 0x00, 0x00]);
+  const uploadedVideo = await upload(cookie, validWebm, 'short.webm', 'video/webm');
+  assert.equal(uploadedVideo.status, 201);
+  const videoMedia = await uploadedVideo.json();
+  const videoPost = await request('/api/feed', { method: 'POST', headers: { ...authHeaders, 'Idempotency-Key': 'contract-video-0001' }, body: JSON.stringify({ type: 'note', media_keys: [videoMedia.key] }) });
+  assert.equal(videoPost.status, 201, 'one browser-validated video must be accepted without server duration parsing');
+  const mixedMedia = await request('/api/feed', { method: 'POST', headers: authHeaders, body: JSON.stringify({ type: 'note', content: 'bad mixed media', media_keys: [uploadedMedia.key, videoMedia.key] }) });
+  assert.equal(mixedMedia.status, 400);
+  const tooManyImages = await request('/api/feed', { method: 'POST', headers: authHeaders, body: JSON.stringify({ type: 'note', content: 'too many images', media_keys: Array(7).fill(uploadedMedia.key) }) });
+  assert.equal(tooManyImages.status, 400);
   assert.equal((await request('/api/feed/clip-preview', { method: 'POST', headers: { Cookie: cookie, 'Content-Type': 'application/json' }, body: JSON.stringify({ link_url: 'https://example.com/' }) })).status, 422);
   assert.equal((await request('/api/feed/clip-preview', { method: 'POST', headers: { Cookie: cookie, 'Content-Type': 'application/json' }, body: JSON.stringify({ link_url: 'http://172.16.0.1/' }) })).status, 400);
   assert.equal((await request('/api/feed/clip-preview', { method: 'POST', headers: { Cookie: cookie, 'Content-Type': 'application/json' }, body: JSON.stringify({ link_url: 'http://[::1]/' }) })).status, 400);

@@ -24,6 +24,7 @@ const diagnostics = {
 };
 let createdText = '';
 const createdNativeContents = [];
+const createdNativeTitles = [];
 let cleanupCompleted = false;
 
 function consoleText(args) {
@@ -71,12 +72,20 @@ try {
     const nativeFetch = window.fetch.bind(window);
     window.fetch = (input, init) => {
       const url = typeof input === 'string' ? input : input.url;
+      const method = (init?.method ?? (typeof input === 'string' ? 'GET' : input.method) ?? 'GET').toUpperCase();
+      if (localStorage.getItem('feed-ui-empty') === '1' && url.endsWith('/api/feed?limit=20')) {
+        return Promise.resolve(new Response(JSON.stringify({ items: [], cursor: null, has_more: false }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+      }
+      if (window.__feedDelayPagination && url.includes('/api/feed?limit=20&cursor=')) {
+        return new Promise((resolve) => setTimeout(() => resolve(nativeFetch(input, init)), 400));
+      }
       if (url.endsWith('/api/feed?limit=20')) {
         return new Promise((resolve) => setTimeout(() => resolve(nativeFetch(input, init)), 400));
       }
       return nativeFetch(input, init);
     };
   })();` });
+  await send('Network.clearBrowserCookies');
   await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
   await send('Page.navigate', { url: `${baseUrl}/feed/` });
   await waitFor(
@@ -87,6 +96,8 @@ try {
   diagnostics.checks.publicSemantics = await evaluate(`(() => ({
     opening: document.querySelector('.feed-header > p')?.textContent?.trim(),
     hasEyebrow: Boolean(document.querySelector('.feed-eyebrow')),
+    ownerActions: [...document.querySelectorAll('.feed-owner-actions .feed-owner-action')].map((node) => node.textContent.trim()),
+    hasManageRows: Boolean(document.querySelector('.feed-admin-row')),
   }))()`);
 
   const alreadyAuthenticated = await evaluate(`Boolean(document.querySelector('.feed-owner-publish'))`);
@@ -202,7 +213,7 @@ try {
       textarea: textarea.value,
     };
   })()`);
-  await click('.feed-dialog[aria-label="发布 Feed"] .feed-button[type="submit"]');
+  await evaluate(`document.querySelector('.feed-dialog[aria-label="发布 Feed"] .feed-button[type="submit"]')?.click()`);
   await waitFor(
     `document.readyState === 'complete' && !document.querySelector('.feed-dialog[aria-label="发布 Feed"]') && Boolean(document.querySelector('.feed-owner-publish'))`,
     'canonical publish refresh',
@@ -231,7 +242,16 @@ try {
 
   const apiOrigin = new URL(diagnostics.requests.find((request) => request.method === 'POST' && /\/api\/feed(?:\?|$)/.test(request.url)).url).origin;
   const clipText = `browser-clip:${crypto.randomUUID()}`;
-  createdNativeContents.push(clipText);
+  const minimalClipTitle = `最小剪藏:${crypto.randomUUID()}`;
+  const imageClipTitle = `这是一条用于验证长中文标题在安静时间线中自然换行且不会挤压明确访问动作的剪藏:${crypto.randomUUID()}`;
+  const mediaTexts = {
+    landscape: `browser-landscape:${crypto.randomUUID()}`,
+    portrait: `browser-portrait:${crypto.randomUUID()}`,
+    four: `browser-four-images:${crypto.randomUUID()}`,
+    six: `browser-six-images:${crypto.randomUUID()}`,
+  };
+  createdNativeContents.push(clipText, ...Object.values(mediaTexts));
+  createdNativeTitles.push(minimalClipTitle, imageClipTitle);
   diagnostics.checks.representativeSeed = await evaluate(`(async () => {
     const apiOrigin = ${JSON.stringify(apiOrigin)};
     const headers = { 'Content-Type': 'application/json', 'Authorization': 'Bearer local-preview-token' };
@@ -239,6 +259,28 @@ try {
       method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': crypto.randomUUID() },
       body: JSON.stringify({ type: 'clip', content: ${JSON.stringify(clipText)}, link_url: 'https://developer.mozilla.org/', link_title: 'MDN Web Docs', link_summary: 'Browser acceptance Clip metadata.' }),
     });
+    const minimalClip = await fetch(apiOrigin + '/api/feed', {
+      method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': crypto.randomUUID() },
+      body: JSON.stringify({ type: 'clip', link_url: 'https://example.com/minimal', link_title: ${JSON.stringify(minimalClipTitle)} }),
+    });
+    const imageClip = await fetch(apiOrigin + '/api/feed', {
+      method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': crypto.randomUUID() },
+      body: JSON.stringify({ type: 'clip', link_url: 'https://example.com/with-image', link_title: ${JSON.stringify(imageClipTitle)}, link_image: 'https://example.com/feed-preview.jpg' }),
+    });
+    const adminPage = await fetch(apiOrigin + '/api/feed/admin?limit=50', { credentials: 'include' }).then((response) => response.json());
+    const publishedMedia = adminPage.items.find((item) => item.kind === 'native_post' && item.payload?.content === ${JSON.stringify(text)});
+    const mediaKeys = JSON.parse(publishedMedia?.payload?.media_json ?? '[]');
+    const mediaFixtures = [
+      [${JSON.stringify(mediaTexts.landscape)}, [mediaKeys[0]]],
+      [${JSON.stringify(mediaTexts.portrait)}, [mediaKeys[1]]],
+      [${JSON.stringify(mediaTexts.four)}, [mediaKeys[0], mediaKeys[1], mediaKeys[0], mediaKeys[1]]],
+      [${JSON.stringify(mediaTexts.six)}, [mediaKeys[0], mediaKeys[1], mediaKeys[0], mediaKeys[1], mediaKeys[0], mediaKeys[1]]],
+    ];
+    const mediaResponses = [];
+    for (const [content, media_keys] of mediaFixtures) mediaResponses.push(await fetch(apiOrigin + '/api/feed', {
+      method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': crypto.randomUUID() },
+      body: JSON.stringify({ type: 'note', content, media_keys }),
+    }));
     const manifest = await fetch(apiOrigin + '/api/blog/internal/publications', {
       method: 'POST', headers, body: JSON.stringify({ entries: [{ slug: 'browser-acceptance', title: 'Browser acceptance Blog', summary: 'Public source projection.' }], deployed_at: new Date().toISOString() }),
     });
@@ -266,7 +308,13 @@ try {
         snapshot_json: JSON.stringify({ title: 'Browser hidden Blog', summary: 'Browser source-hidden Manage fixture.', link: '/blog/browser-hidden/' }),
         occurred_at: new Date(base - 1000).toISOString(), idempotency_key: 'browser:blog-hidden:v1' }),
     });
-    return { clip: clip.status, manifest: manifest.status, hiddenBlog: hiddenBlog.status, footprints: responses.map((response) => response.status) };
+    const crossYear = await fetch(apiOrigin + '/api/feed/internal/footprints', {
+      method: 'POST', headers,
+      body: JSON.stringify({ source_module: 'projects', source_ref: 'browser-cross-year', source_version: 'v1', event_type: 'project_updated',
+        snapshot_json: JSON.stringify({ title: 'Cross-year Project', link: '/projects/browser-cross-year/' }),
+        occurred_at: '2025-12-30T15:59:00.000Z', idempotency_key: 'browser:project-cross-year:v1' }),
+    });
+    return { clip: clip.status, minimalClip: minimalClip.status, imageClip: imageClip.status, media: mediaResponses.map((response) => response.status), manifest: manifest.status, hiddenBlog: hiddenBlog.status, crossYear: crossYear.status, footprints: responses.map((response) => response.status) };
   })()`);
   await send('Page.reload');
   await waitFor(`document.readyState === 'complete' && document.querySelector('.feed-owner-actions')?.dataset.sessionReady === 'true' && document.querySelectorAll('.feed-activity').length === 20`, 'representative first page', 10_000);
@@ -274,6 +322,16 @@ try {
     activities: document.querySelectorAll('.feed-activity').length,
     hasEarlier: [...document.querySelectorAll('.feed-timeline-end button')].some((button) => button.textContent.trim() === '更早的内容'),
   }))()`);
+  await evaluate(`window.__feedDelayPagination = true`);
+  await evaluate(`[...document.querySelectorAll('.feed-timeline-end button')].find((button) => button.textContent.trim() === '更早的内容')?.click()`);
+  diagnostics.checks.paginationLoading = await evaluate(`(() => ({
+    retained: document.querySelectorAll('.feed-activity').length,
+    copy: document.querySelector('.feed-timeline-end button')?.textContent.trim(),
+    disabled: document.querySelector('.feed-timeline-end button')?.disabled ?? false,
+  }))()`);
+  await waitFor(`document.querySelectorAll('.feed-activity').length > 20`, 'delayed pagination completion', 10_000);
+  await send('Page.reload');
+  await waitFor(`document.readyState === 'complete' && document.querySelectorAll('.feed-activity').length === 20`, 'representative first page reset', 10_000);
   await send('Network.setBlockedURLs', { urls: [`${apiOrigin}/api/feed?limit=20&cursor=*`] });
   await evaluate(`[...document.querySelectorAll('.feed-timeline-end button')].find((button) => button.textContent.trim() === '更早的内容')?.click()`);
   await waitFor(`Boolean(document.querySelector('.feed-pagination-error'))`, 'pagination error state', 10_000);
@@ -291,6 +349,7 @@ try {
     const external = clip?.querySelector('.feed-external-object');
     const activity = document.querySelector('.feed-activity');
     const style = activity ? getComputedStyle(activity) : null;
+    const years = [...document.querySelectorAll('.feed-year-label')].map((node) => node.textContent.trim());
     const dates = [...document.querySelectorAll('.feed-date-heading h3')].map((node) => node.textContent.trim());
     const footprintLabels = [...document.querySelectorAll('.feed-footprint .feed-activity-identity')].map((node) => node.textContent.trim());
     const metaGrammar = (entry) => {
@@ -308,6 +367,7 @@ try {
     ]));
     return {
       year: document.querySelector('.feed-year-label')?.textContent?.trim(),
+      years,
       datePattern: dates.every((date) => /^\\d{2}\\.\\d{2}$/.test(date)),
       timePattern: [...document.querySelectorAll('.feed-activity-time')].every((node) => /^\\d{2}:\\d{2}$/.test(node.textContent.trim())),
       sameDayMerged: new Set(dates).size === dates.length,
@@ -321,8 +381,58 @@ try {
       end: document.querySelector('.feed-timeline-end')?.textContent.includes('止步于此。') ?? false,
     };
   })()`);
+  diagnostics.checks.clipVariants = await evaluate(`(() => {
+    const entries = [...document.querySelectorAll('.feed-activity--clip')];
+    const minimal = entries.find((entry) => entry.textContent.includes(${JSON.stringify(minimalClipTitle)}));
+    const withImage = entries.find((entry) => entry.textContent.includes(${JSON.stringify(imageClipTitle)}));
+    const image = withImage?.querySelector('.feed-link-image');
+    image?.click();
+    const titleRect = withImage?.querySelector('h2')?.getBoundingClientRect();
+    return {
+      minimalHasComment: Boolean(minimal?.querySelector('.feed-content')),
+      minimalHasSummary: Boolean(minimal?.querySelector('.feed-supporting-copy')),
+      minimalAction: minimal?.querySelector('.feed-destination')?.textContent.trim(),
+      previewImagePresent: Boolean(image),
+      previewImageOpensViewer: Boolean(document.querySelector('.feed-viewer')),
+      longTitleContained: Boolean(titleRect && titleRect.right <= withImage.getBoundingClientRect().right + 1),
+    };
+  })()`);
+  await evaluate(`(() => {
+    const destinations = [...document.querySelectorAll('.feed-destination')];
+    destinations[0]?.setAttribute('data-focus-target', 'true');
+    destinations[1]?.focus();
+  })()`);
+  await key('Tab', 8);
+  diagnostics.checks.destinationFocus = await evaluate(`(() => {
+    const destination = document.querySelector('[data-focus-target="true"]');
+    const style = destination ? getComputedStyle(destination) : null;
+    return { focused: document.activeElement === destination, outlineStyle: style?.outlineStyle, outlineWidth: style?.outlineWidth };
+  })()`);
+  diagnostics.checks.mediaFailure = await evaluate(`(() => {
+    const button = document.querySelector('.feed-media-button');
+    const image = button?.querySelector('img');
+    if (!button || !image) return null;
+    image.src = '/feed-intentionally-missing-media.jpg';
+    const rect = button.getBoundingClientRect();
+    return { activityRetained: Boolean(button.closest('.feed-activity')), buttonWidth: rect.width, buttonHeight: rect.height, alt: image.alt };
+  })()`);
+  diagnostics.checks.mediaReality = await evaluate(`(() => {
+    const find = (content) => [...document.querySelectorAll('.feed-activity--note')].find((entry) => entry.textContent.includes(content));
+    const measure = (content) => {
+      const entry = find(content);
+      const grid = entry?.querySelector('.feed-media-grid');
+      const images = [...(grid?.querySelectorAll('img') ?? [])];
+      return { count: images.length, columns: grid ? getComputedStyle(grid).gridTemplateColumns.split(' ').length : 0, intrinsic: images.map((image) => [image.naturalWidth, image.naturalHeight]) };
+    };
+    return {
+      landscape: measure(${JSON.stringify(mediaTexts.landscape)}),
+      portrait: measure(${JSON.stringify(mediaTexts.portrait)}),
+      four: measure(${JSON.stringify(mediaTexts.four)}),
+      six: measure(${JSON.stringify(mediaTexts.six)}),
+    };
+  })()`);
 
-  await click('.feed-owner-publish');
+  await evaluate(`document.querySelector('.feed-owner-publish')?.click()`);
   await waitFor(`Boolean(document.querySelector('.feed-dialog[aria-label="发布 Feed"]'))`, 'second publish dialog');
   await evaluate(`(() => {
     window.__feedConfirmCalls = 0;
@@ -343,6 +453,8 @@ try {
   await key('Escape');
   await waitFor(`!document.querySelector('.feed-dialog[aria-label="发布 Feed"]')`, 'Escape modal close');
   diagnostics.checks.escapeClose = true;
+  await send('Page.reload');
+  await waitFor(`document.readyState === 'complete' && Boolean(document.querySelector('.feed-owner-publish')) && Boolean(document.querySelector('.feed-media-grid'))`, 'owner session and timeline recovery after reload', 10_000);
 
   diagnostics.checks.viewports = [];
   for (const { width, height } of [
@@ -382,6 +494,30 @@ try {
       focusable: link.tabIndex >= 0,
     };
   })()`);
+  diagnostics.checks.manageSemantics = await evaluate(`(() => {
+    const native = [...document.querySelectorAll('.feed-admin-row')].find((row) => row.querySelector('.feed-eyebrow')?.textContent.includes('碎碎念'));
+    const footprint = [...document.querySelectorAll('.feed-admin-row')].find((row) => row.querySelector('.feed-eyebrow')?.textContent.includes('系统足迹'));
+    const actions = (row) => [...(row?.querySelectorAll('button') ?? [])].map((button) => button.textContent.trim());
+    return { nativeActions: actions(native), footprintActions: actions(footprint) };
+  })()`);
+  const footprintTitleForVisibility = await evaluate(`(() => {
+    const row = [...document.querySelectorAll('.feed-admin-row')].find((entry) => entry.querySelector('.feed-eyebrow')?.textContent.includes('系统足迹') && entry.querySelector('button')?.textContent.trim() === '隐藏');
+    return row?.querySelector('p')?.textContent ?? null;
+  })()`);
+  assert.ok(footprintTitleForVisibility, 'Manage must expose a public Footprint for hide/restore verification');
+  await evaluate(`(() => {
+    const title = ${JSON.stringify(footprintTitleForVisibility)};
+    const row = [...document.querySelectorAll('.feed-admin-row')].find((entry) => entry.querySelector('p')?.textContent === title);
+    [...(row?.querySelectorAll('button') ?? [])].find((button) => button.textContent.trim() === '隐藏')?.click();
+  })()`);
+  await waitFor(`[...document.querySelectorAll('.feed-admin-row')].some((entry) => entry.querySelector('p')?.textContent === ${JSON.stringify(footprintTitleForVisibility)} && entry.querySelector('.feed-eyebrow')?.textContent.includes('仅我可见'))`, 'Footprint hide', 10_000);
+  await evaluate(`(() => {
+    const title = ${JSON.stringify(footprintTitleForVisibility)};
+    const row = [...document.querySelectorAll('.feed-admin-row')].find((entry) => entry.querySelector('p')?.textContent === title);
+    [...(row?.querySelectorAll('button') ?? [])].find((button) => button.textContent.trim() === '恢复')?.click();
+  })()`);
+  await waitFor(`[...document.querySelectorAll('.feed-admin-row')].some((entry) => entry.querySelector('p')?.textContent === ${JSON.stringify(footprintTitleForVisibility)} && !entry.querySelector('.feed-eyebrow')?.textContent.includes('仅我可见'))`, 'Footprint restore', 10_000);
+  diagnostics.checks.footprintHideRestore = true;
 
   const postRequest = diagnostics.requests.find((request) => (
     request.method === 'POST' && /\/api\/feed(?:\?|$)/.test(request.url)
@@ -392,8 +528,9 @@ try {
     if (!list.ok) return { ok: false, stage: 'list', status: list.status };
     const page = await list.json();
     const contents = ${JSON.stringify(createdNativeContents)};
-    const entries = page.items.filter((item) => item.kind === 'native_post' && contents.includes(item.payload?.content));
-    if (entries.length !== contents.length) return { ok: false, stage: 'find', count: entries.length };
+    const titles = ${JSON.stringify(createdNativeTitles)};
+    const entries = page.items.filter((item) => item.kind === 'native_post' && (contents.includes(item.payload?.content) || titles.includes(item.payload?.link_title)));
+    if (entries.length !== contents.length + titles.length) return { ok: false, stage: 'find', count: entries.length };
     const statuses = [];
     for (const entry of entries) statuses.push((await fetch(${JSON.stringify(`${apiOrigin}/api/feed/`)} + encodeURIComponent(entry.id), { method: 'DELETE', credentials: 'include' })).status);
     return { ok: statuses.every((status) => status === 204), stage: 'delete', statuses };
@@ -428,6 +565,15 @@ try {
   await evaluate(`document.querySelector('.feed-state--error button')?.click()`);
   await waitFor(`!document.querySelector('.feed-state--error') && document.querySelectorAll('.feed-activity').length > 0`, 'initial error retry recovery', 10_000);
   diagnostics.checks.initialErrorRecovered = true;
+  await evaluate(`localStorage.setItem('feed-ui-empty', '1')`);
+  await send('Page.reload');
+  await waitFor(`document.querySelector('.feed-state')?.textContent.includes('还没有公开活动。')`, 'empty timeline state', 10_000);
+  diagnostics.checks.empty = await evaluate(`(() => ({
+    activities: document.querySelectorAll('.feed-activity').length,
+    opening: document.querySelector('.feed-header > p')?.textContent.trim(),
+    ownerActions: [...document.querySelectorAll('.feed-owner-actions .feed-owner-action')].map((node) => node.textContent.trim()),
+  }))()`);
+  await evaluate(`localStorage.removeItem('feed-ui-empty')`);
 
   console.log(JSON.stringify({
     ...diagnostics,
@@ -441,7 +587,7 @@ try {
   assert.equal(diagnostics.checks.loginKeyboard ?? true, true, 'keyboard focus must remain in the login modal');
   assert.equal(diagnostics.checks.initialLoading, true);
   assert.equal(diagnostics.checks.loginDoesNotOpenComposer ?? true, true, 'login must enter owner browsing without opening the composer');
-  assert.deepEqual(diagnostics.checks.publicSemantics, { opening: '碎碎念、剪藏，以及一路积累下来的创作足迹。', hasEyebrow: false });
+  assert.deepEqual(diagnostics.checks.publicSemantics, { opening: '碎碎念、剪藏，以及一路积累下来的创作足迹。', hasEyebrow: false, ownerActions: ['管理'], hasManageRows: false });
   assert.deepEqual(diagnostics.checks.publishModal, {
     activeInside: true,
     backgroundInert: true,
@@ -459,26 +605,46 @@ try {
   assert.deepEqual(diagnostics.checks.multiImage, { count: 2 });
   assert.deepEqual(diagnostics.checks.imageViewer, { open: true, activeInside: true });
   assert.equal(diagnostics.checks.representativeSeed.clip, 201);
+  assert.equal(diagnostics.checks.representativeSeed.minimalClip, 201);
+  assert.equal(diagnostics.checks.representativeSeed.imageClip, 201);
+  assert.equal(diagnostics.checks.representativeSeed.media.every((status) => status === 201), true);
+  assert.equal([200, 201].includes(diagnostics.checks.representativeSeed.crossYear), true);
   assert.equal(diagnostics.checks.representativeSeed.manifest, 200);
   assert.equal([200, 201].includes(diagnostics.checks.representativeSeed.hiddenBlog), true);
   assert.equal(diagnostics.checks.representativeSeed.footprints.every((status) => status === 200 || status === 201), true);
   assert.deepEqual(diagnostics.checks.firstPage, { activities: 20, hasEarlier: true });
+  assert.deepEqual(diagnostics.checks.paginationLoading, { retained: 20, copy: '正在加载…', disabled: true });
   assert.deepEqual(diagnostics.checks.paginationError, { retained: 20, retry: true });
   assert.equal(diagnostics.checks.timelineGrammar.datePattern && diagnostics.checks.timelineGrammar.timePattern && diagnostics.checks.timelineGrammar.sameDayMerged, true);
+  assert.deepEqual(diagnostics.checks.timelineGrammar.years, ['2026', '2025']);
   assert.equal(diagnostics.checks.timelineGrammar.clipCommentFirst && diagnostics.checks.timelineGrammar.clipAction && diagnostics.checks.timelineGrammar.noCardWall && diagnostics.checks.timelineGrammar.end, true);
   assert.deepEqual(diagnostics.checks.timelineGrammar.nativeIdentities, { note: 'NOTE', clip: 'CLIP' });
   assert.deepEqual(diagnostics.checks.timelineGrammar.metaRows, { note: true, clip: true, footprints: true });
   assert.deepEqual(diagnostics.checks.timelineGrammar.footprintLabels.sort(), ['BLOG · 发布', 'LEARN · 更新', 'PROJECT · 更新'].sort());
   assert.deepEqual(diagnostics.checks.timelineGrammar.destinations, { 'BLOG · 发布': '阅读文章 →', 'LEARN · 更新': '查看内容 →', 'PROJECT · 更新': '查看项目 →' });
+  assert.deepEqual(diagnostics.checks.clipVariants, { minimalHasComment: false, minimalHasSummary: false, minimalAction: '访问来源 ↗', previewImagePresent: true, previewImageOpensViewer: false, longTitleContained: true });
+  assert.deepEqual(diagnostics.checks.destinationFocus, { focused: true, outlineStyle: 'solid', outlineWidth: '2px' });
+  assert.equal(diagnostics.checks.mediaFailure.activityRetained && diagnostics.checks.mediaFailure.buttonWidth > 0 && diagnostics.checks.mediaFailure.buttonHeight > 0 && diagnostics.checks.mediaFailure.alt === 'Feed 附图', true);
+  assert.deepEqual({
+    landscape: diagnostics.checks.mediaReality.landscape.count,
+    portrait: diagnostics.checks.mediaReality.portrait.count,
+    four: diagnostics.checks.mediaReality.four.count,
+    six: diagnostics.checks.mediaReality.six.count,
+  }, { landscape: 1, portrait: 1, four: 4, six: 6 });
+  assert.deepEqual({ four: diagnostics.checks.mediaReality.four.columns, six: diagnostics.checks.mediaReality.six.columns }, { four: 2, six: 2 });
   assert.equal(diagnostics.checks.backgroundRestored, true, 'modal close must restore the page background');
   assert.deepEqual(diagnostics.checks.unsavedProtection, { stillOpen: true, content: 'unsaved browser draft', confirmCalls: 1 });
   assert.equal(diagnostics.checks.escapeClose, true);
   assert.equal(diagnostics.checks.viewports.every((item) => item.noHorizontalOverflow && item.actionVisible && item.multiImageColumns === 2), true);
   assert.deepEqual(diagnostics.checks.adminReturn, { href: '/feed/', visible: true, focusable: true });
+  assert.equal(diagnostics.checks.manageSemantics.nativeActions.includes('删除'), true);
+  assert.equal(diagnostics.checks.manageSemantics.footprintActions.includes('删除'), false);
+  assert.equal(diagnostics.checks.footprintHideRestore, true);
   assert.deepEqual(diagnostics.checks.sourceHiddenManage, { sourceHidden: true, ordinaryPublic: false });
   assert.equal(diagnostics.checks.cleanup.ok, true);
   assert.deepEqual(diagnostics.checks.initialError, { alert: 'alert', retry: true, activities: 0 });
   assert.equal(diagnostics.checks.initialErrorRecovered, true);
+  assert.deepEqual(diagnostics.checks.empty, { activities: 0, opening: '碎碎念、剪藏，以及一路积累下来的创作足迹。', ownerActions: ['管理', '＋ 发布'] });
   assert.deepEqual(diagnostics.consoleProblems, []);
   assert.deepEqual(diagnostics.exceptions, []);
 } finally {
@@ -493,7 +659,8 @@ try {
           if (!list.ok) continue;
           const page = await list.json();
           const contents = ${JSON.stringify(createdNativeContents)};
-          for (const entry of page.items.filter((item) => item.kind === 'native_post' && contents.includes(item.payload?.content))) {
+          const titles = ${JSON.stringify(createdNativeTitles)};
+          for (const entry of page.items.filter((item) => item.kind === 'native_post' && (contents.includes(item.payload?.content) || titles.includes(item.payload?.link_title)))) {
             await fetch(origin + '/api/feed/' + encodeURIComponent(entry.id), { method: 'DELETE', credentials: 'include' });
           }
         }

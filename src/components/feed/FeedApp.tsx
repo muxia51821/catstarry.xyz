@@ -106,9 +106,9 @@ function ActivityEntry({
         <a className="feed-destination" href={post.link_url} target="_blank" rel="noreferrer">访问来源 ↗</a>
       </div>}
       {media.length > 0 && <div className={`feed-media-grid feed-media-grid--${Math.min(media.length, 6)}`}>
-        {media.map((key) => isVideoKey(key)
-          ? <video key={key} controls preload="metadata" src={mediaUrl(apiBase, key)} />
-          : <button className="feed-media-button" key={key} type="button" onClick={() => onViewImage(mediaUrl(apiBase, key))} aria-label="查看 Feed 附图">
+        {media.map((key, index) => isVideoKey(key)
+          ? <video key={`${key}:${index}`} controls preload="metadata" src={mediaUrl(apiBase, key)} />
+          : <button className="feed-media-button" key={`${key}:${index}`} type="button" onClick={() => onViewImage(mediaUrl(apiBase, key))} aria-label="查看 Feed 附图">
             <img src={mediaUrl(apiBase, key)} alt="Feed 附图" loading="lazy" />
           </button>)}
       </div>}
@@ -223,7 +223,11 @@ function FeedOwnerControls(props: {
   return <>
     {mount && createPortal(controls, mount)}
     {showLogin && <LoginDialog apiBase={apiBase} onClose={() => setShowLogin(false)} onLoggedIn={(next) => { setSession(next); setShowLogin(false); }} />}
-    {showPublish && <PublishDialog apiBase={apiBase} onClose={() => setShowPublish(false)} />}
+    {showPublish && <PublishDialog
+      apiBase={apiBase}
+      onClose={() => setShowPublish(false)}
+      onAuthExpired={() => setSession({ authenticated: false, username: null })}
+    />}
   </>;
 }
 
@@ -290,7 +294,7 @@ function LoginDialog({ apiBase, onClose, onLoggedIn }: { apiBase: string; onClos
   </form></div>;
 }
 
-function PublishDialog({ apiBase, onClose }: { apiBase: string; onClose: () => void }) {
+function PublishDialog({ apiBase, onClose, onAuthExpired }: { apiBase: string; onClose: () => void; onAuthExpired: () => void }) {
   const [type, setType] = useState<'note' | 'clip'>('note');
   const [content, setContent] = useState('');
   const [linkUrl, setLinkUrl] = useState('');
@@ -319,7 +323,11 @@ function PublishDialog({ apiBase, onClose }: { apiBase: string; onClose: () => v
     const candidate = previewCandidateUrl(linkUrl); if (!candidate) return;
     setMessage('');
     const response = await fetch(`${normalizeApiBase(apiBase)}/api/feed/clip-preview`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ link_url: candidate }) });
-    if (!response.ok) { setMessage(response.status === 401 ? '登录已过期，请重新认证；当前内容已保留。' : '无法获取链接信息，请手动填写。'); return; }
+    if (!response.ok) {
+      if (response.status === 401) onAuthExpired();
+      setMessage(response.status === 401 ? '登录已过期，请重新认证；当前内容已保留。' : '无法获取链接信息，请手动填写。');
+      return;
+    }
     const data = await response.json() as { link_title: string | null; link_summary: string | null; link_image: string | null };
     setTitle(data.link_title ?? ''); setSummary(data.link_summary ?? ''); setImage(data.link_image ?? '');
   }
@@ -330,6 +338,7 @@ function PublishDialog({ apiBase, onClose }: { apiBase: string; onClose: () => v
       const result = await uploadFeedFile(apiBase, item.file, (progress) => setUploads((current) => current.map((known) => known.id === item.id ? { ...known, progress } : known)));
       setUploads((current) => current.map((known) => known.id === item.id ? { ...known, status: 'success', progress: 100, key: result.key } : known));
     } catch (cause) {
+      if (cause instanceof Error && cause.message.includes('登录已过期')) onAuthExpired();
       setUploads((current) => current.map((known) => known.id === item.id ? { ...known, status: 'failed', error: cause instanceof Error ? cause.message : '上传失败' } : known));
     }
   }
@@ -371,6 +380,7 @@ function PublishDialog({ apiBase, onClose }: { apiBase: string; onClose: () => v
         : { type, content, media_keys: successfulKeys, link_url: linkUrl, link_title: title, link_summary: summary, link_image: image };
       const response = await fetch(`${apiBase}/api/feed`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotency.current }, body: JSON.stringify(body) });
       if (!response.ok) {
+        if (response.status === 401) onAuthExpired();
         setMessage(response.status === 401 ? '登录已过期，请重新认证；当前内容与已上传文件已保留。' : (await response.json() as { error?: { message?: string } }).error?.message ?? '发布失败');
         return;
       }
