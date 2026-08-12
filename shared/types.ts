@@ -4,6 +4,8 @@ export type FootprintSource = 'blog' | 'learn' | 'projects';
 export type FootprintEventType =
   | 'blog_published'
   | 'learn_section_completed'
+  | 'learn_note_published'
+  | 'learn_note_revised'
   | 'project_updated';
 export type ActivityState = 'active' | 'stable' | 'dormant';
 

@@ -3,8 +3,12 @@ export const prerender = false;
 
 import { getCollection } from 'astro:content';
 import Base from '../../layouts/Base.astro';
-import { feedApiBase, publicFeedApiBase } from '../../lib/feed-api';
-import { noteFromEntry } from '../../components/learn/learn-data';
+import { feedApiBase } from '../../lib/feed-api';
+import {
+  getTrackDefinition,
+  lifecycleLabel,
+  noteFromEntry,
+} from '../../components/learn/learn-data';
 import '../../components/learn/learn.css';
 
 const apiBase = feedApiBase(Astro.url.origin);
@@ -21,139 +25,44 @@ try {
   });
   if (sessionResponse.ok) authenticated = Boolean((await sessionResponse.json()).authenticated);
   else if (sessionResponse.status >= 500) unavailable = '管理服务暂时不可用，请稍后重试。';
-} catch {
-  unavailable = '管理服务暂时不可用，请稍后重试。';
-}
+} catch { unavailable = '管理服务暂时不可用，请稍后重试。'; }
 if (!unavailable && !authenticated) return Astro.redirect('/feed/');
 if (unavailable) Astro.response.status = 503;
 
 const notes = (authenticated ? await getCollection('learn') : []).map(noteFromEntry)
-  .sort((a, b) => Date.parse(b.lastModified) - Date.parse(a.lastModified));
-const clientApiBase = publicFeedApiBase();
+  .sort((a, b) => a.title.localeCompare(b.title, 'zh-CN'));
 ---
 
-<Base title="Learn 管理" description="学习笔记发布与完成标记。">
+<Base title="Learn 管理" description="管理公开 Learn Note 的预览与状态。">
   <meta slot="head" name="robots" content="noindex,nofollow,noarchive" />
-  <main class="learn-page" data-canvas="content" data-learn-admin data-api-base={clientApiBase}>
+  <main class="learn-page learn-admin-page" data-canvas="content" data-learn-admin>
     <div class="learn-page__shell">
-      <header class="learn-page__header">
-        <div>
-          <a class="learn-page__back" href="/learn/">← 返回 Learn</a>
-          <p class="learn-page__eyebrow">PRIVATE CONTENT CONTROL</p>
-          <h1>Learn 管理</h1>
-          <p class="learn-page__intro">发布只改变公开可见性；只有单独的“完成小节”动作才写入 Feed 足迹。</p>
-        </div>
-        <span class="learn-page__count">{notes.length} NOTES</span>
+      <header class="learn-admin-header">
+        <a class="learn-page__back" href="/learn/">← 返回 Learn</a>
+        <h1>Learn 管理</h1>
+        <p>管理公开 Learn Note 的预览与状态。</p>
       </header>
 
       {unavailable ? (
         <p class="learn-admin-error" role="alert">{unavailable}</p>
-      ) : <section class="learn-admin-list" aria-label="学习笔记管理列表">
-        {notes.map((note) => (
-          <article class="learn-admin-row" data-note-slug={note.slug}>
-            <div>
-              <p class="learn-page__eyebrow">{note.track} / {note.section ?? 'UNSECTIONED'}</p>
-              <h2>{note.title}</h2>
-              <p>{note.excerpt}</p>
-            </div>
-            <div class="learn-admin-row__state">
-              <span>{note.draft ? 'Draft' : 'Published'}</span>
-              <time datetime={note.lastModified}>{new Date(note.lastModified).toLocaleDateString('zh-CN')}</time>
-            </div>
-            <div class="learn-admin-row__actions">
-              <a href={`/learn/preview/${note.slug}/`}>预览</a>
-              <button type="button" data-publication-action={note.draft ? 'publish' : 'retract'}>
-                {note.draft ? '发布' : '撤回'}
-              </button>
-              {!note.draft && (
-                <form data-complete-form>
-                  <label>
-                    稳定 completion ID
-                    <input name="completion_id" pattern="[a-z0-9]+(?:-[a-z0-9]+)*" required placeholder="section-2026-07-v1" />
-                  </label>
-                  <input type="hidden" name="title" value={note.title} />
-                  <input type="hidden" name="excerpt" value={note.excerpt} />
-                  <button type="submit">完成小节</button>
-                </form>
-              )}
-            </div>
-            <p class="learn-admin-row__status" data-row-status role="status"></p>
-          </article>
-        ))}
-      </section>}
+      ) : (
+        <section class="learn-admin-list" aria-label="Learn Note 管理列表">
+          {notes.map((note) => {
+            const track = getTrackDefinition(note.track);
+            return (
+              <article class="learn-admin-row" data-note-slug={note.slug}>
+                <div>
+                  <h2>{note.title}</h2>
+                  <p class="learn-admin-row__context">{track.name}{note.section ? ` · ${note.section}` : ''}</p>
+                  <p class="learn-admin-row__excerpt">{note.excerpt}</p>
+                </div>
+                <span class="learn-admin-row__state">{lifecycleLabel(note.state)}</span>
+                <a class="learn-admin-row__preview" href={`/learn/preview/${note.slug}/`}>预览</a>
+              </article>
+            );
+          })}
+        </section>
+      )}
     </div>
   </main>
 </Base>
-
-<script>
-  const root = document.querySelector('[data-learn-admin]');
-  if (root instanceof HTMLElement) {
-    const apiBase = root.dataset.apiBase ?? '';
-    const send = async (path, body) => {
-      const response = await fetch(`${apiBase}${path}`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result?.error?.message ?? `Request failed (${response.status})`);
-      return result;
-    };
-
-    for (const row of root.querySelectorAll('[data-note-slug]')) {
-      if (!(row instanceof HTMLElement)) continue;
-      const status = row.querySelector('[data-row-status]');
-      const show = (message, error = false) => {
-        if (!(status instanceof HTMLElement)) return;
-        status.textContent = message;
-        status.dataset.error = String(error);
-      };
-      const action = row.querySelector('[data-publication-action]');
-      action?.addEventListener('click', async () => {
-        if (!(action instanceof HTMLButtonElement)) return;
-        action.disabled = true;
-        try {
-          await send('/api/learn/publish', { slug: row.dataset.noteSlug, action: action.dataset.publicationAction });
-          show('发布适配器已接受；完成仓库变更和生产部署后页面才会更新。');
-        } catch (error) { show(error instanceof Error ? error.message : '操作失败', true); }
-        finally { action.disabled = false; }
-      });
-      const complete = row.querySelector('[data-complete-form]');
-      complete?.addEventListener('submit', async (event) => {
-        event.preventDefault();
-        if (!(complete instanceof HTMLFormElement)) return;
-        const button = complete.querySelector('button');
-        if (button) button.disabled = true;
-        const data = new FormData(complete);
-        try {
-          const result = await send('/api/learn/complete', {
-            slug: row.dataset.noteSlug,
-            completion_id: data.get('completion_id'),
-            title: data.get('title'),
-            excerpt: data.get('excerpt'),
-          });
-          show(result.created ? '完成足迹已创建。' : '相同 completion ID 已存在，未重复创建。');
-        } catch (error) { show(error instanceof Error ? error.message : '操作失败', true); }
-        finally { if (button) button.disabled = false; }
-      });
-    }
-  }
-</script>
-
-<style>
-  .learn-admin-list { display: grid; gap: var(--space-md); }
-  .learn-admin-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-lg); padding: var(--space-xl); border: 1px solid var(--content-hairline); border-radius: var(--radius-content); background: var(--content-surface-card); }
-  .learn-admin-row h2 { margin-block: 0 var(--space-sm); font-size: var(--text-xl); }
-  .learn-admin-row p { color: var(--content-text-secondary); }
-  .learn-admin-row__state { display: grid; align-content: start; gap: var(--space-xs); text-align: end; }
-  .learn-admin-row__actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: end; gap: var(--space-md); }
-  .learn-admin-row__actions > a { display: inline-flex; align-items: center; min-block-size: var(--interaction-hit-size); }
-  .learn-admin-row__actions form { display: flex; flex-wrap: wrap; align-items: end; gap: var(--space-sm); }
-  .learn-admin-row__actions input { min-block-size: var(--interaction-hit-size); padding: var(--space-sm); }
-  .learn-admin-row__actions button { min-block-size: var(--interaction-hit-size); }
-  .learn-admin-row__status { grid-column: 1 / -1; min-block-size: 1.5em; margin: 0; }
-  .learn-admin-row__status[data-error="true"] { color: #a12d39; }
-  .learn-admin-error { padding: var(--space-lg); border: 1px solid #a12d39; color: #a12d39; }
-  @media (max-width: 640px) { .learn-admin-row { grid-template-columns: 1fr; } .learn-admin-row__state { text-align: start; } }
-</style>

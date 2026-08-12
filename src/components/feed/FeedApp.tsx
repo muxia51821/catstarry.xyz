@@ -19,7 +19,11 @@ function footprintCopy(entry: TimelineEntry): { label: string; title: string; su
   let snapshot: Record<string, unknown> = {};
   try { snapshot = JSON.parse(String(data.snapshot_json ?? '{}')) as Record<string, unknown>; } catch { /* immutable snapshot may be legacy */ }
   const labels: Record<string, string> = {
-    blog_published: 'Blog 发布', learn_section_completed: 'Learn 完成小节', project_updated: 'Projects 实质更新',
+    blog_published: 'Blog 发布',
+    learn_section_completed: 'Learn 历史足迹',
+    learn_note_published: 'LEARN · 更新',
+    learn_note_revised: 'LEARN · 更新',
+    project_updated: 'Projects 实质更新',
   };
   return {
     label: labels[String(data.event_type)] ?? '系统足迹',

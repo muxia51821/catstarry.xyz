@@ -1,142 +1,88 @@
 ---
 import type { LearnNote } from './learn-data';
-import NoteCard from './NoteCard.astro';
+import { getTrackDefinition } from './learn-data';
 
-interface Props {
-  notes: LearnNote[];
-}
-
+interface Props { notes: LearnNote[]; }
 const { notes } = Astro.props;
+const searchNotes = notes.map((note) => ({ ...note, trackName: getTrackDefinition(note.track).name }));
 ---
 
-<section class="learn-search" data-learn-search>
-  <form class="learn-search__form" role="search" onsubmit="return false">
-    <label for="learn-search-input">搜索学习笔记</label>
-    <div class="learn-search__field">
-      <input
-        id="learn-search-input"
-        class="input-text"
-        type="search"
-        placeholder="搜索标题、标签或轨道"
-        autocomplete="off"
-        aria-controls="learn-search-suggestions"
-        aria-autocomplete="list"
-        aria-expanded="false"
-        aria-haspopup="listbox"
-        role="combobox"
-      />
-      <span aria-hidden="true">⌕</span>
-    </div>
-    <div id="learn-search-suggestions" class="learn-search__suggestions" data-search-suggestions role="listbox" hidden></div>
-  </form>
-
-  <div id="learn-search-results" class="learn-search-results" data-search-results aria-live="polite">
-    {notes.map((note) => <NoteCard note={note} compact searchItem />)}
-    <p class="learn-search__empty" data-search-empty hidden>没有找到相关笔记</p>
+<form class="learn-search" role="search" data-learn-search onsubmit="return false">
+  <label class="visually-hidden" for="learn-search-input">搜索学习笔记</label>
+  <div class="learn-search__field">
+    <input
+      id="learn-search-input"
+      type="search"
+      placeholder="搜索 Learn"
+      autocomplete="off"
+      aria-controls="learn-search-suggestions"
+      aria-autocomplete="list"
+      aria-expanded="false"
+      role="combobox"
+    />
+    <span aria-hidden="true">⌕</span>
   </div>
-</section>
+  <div id="learn-search-suggestions" class="learn-search__suggestions" role="listbox" hidden></div>
+  <script type="application/json" data-search-index set:html={JSON.stringify(searchNotes)}></script>
+</form>
 
 <script>
-  const searchRoot = document.querySelector('[data-learn-search]');
-
-  if (searchRoot instanceof HTMLElement) {
-    const page = searchRoot.closest('[data-learn-page]');
-    const input = searchRoot.querySelector('input');
-    const suggestions = searchRoot.querySelector('[data-search-suggestions]');
-    const empty = searchRoot.querySelector('[data-search-empty]');
-    const items = Array.from(searchRoot.querySelectorAll('[data-search-item]'));
-    let timer;
-    let activeSuggestion = -1;
-
-    const normalize = (value) => value.trim().toLocaleLowerCase('zh-CN');
-    const fuzzyIncludes = (value, query) => {
-      if (value.includes(query)) return true;
-      let cursor = 0;
-      for (const character of value) if (character === query[cursor]) cursor += 1;
-      return cursor === query.length;
-    };
-    const matches = (item, query) => {
-      const title = normalize(item.dataset.title ?? '');
-      const track = normalize(item.dataset.track ?? '');
-      const trackName = normalize(item.dataset.trackName ?? '');
-      const tags = (item.dataset.tags ?? '').split('|').map(normalize);
-      return fuzzyIncludes(title, query) || track === query || trackName === query || tags.includes(query);
-    };
-
-    const clearSuggestions = () => {
-      if (!suggestions) return;
+  for (const root of document.querySelectorAll('[data-learn-search]')) {
+    if (!(root instanceof HTMLFormElement)) continue;
+    const input = root.querySelector('input');
+    const suggestions = root.querySelector('.learn-search__suggestions');
+    const indexNode = root.querySelector('[data-search-index]');
+    if (!(input instanceof HTMLInputElement) || !(suggestions instanceof HTMLElement)) continue;
+    const notes = JSON.parse(indexNode?.textContent ?? '[]');
+    let active = -1;
+    const normalize = (value) => String(value ?? '').trim().toLocaleLowerCase('zh-CN');
+    const matches = (note, query) => [note.title, note.track, note.trackName, note.section, ...(note.tags ?? [])]
+      .some((value) => normalize(value).includes(query));
+    const clear = () => {
       suggestions.replaceChildren();
       suggestions.hidden = true;
-      activeSuggestion = -1;
-      input?.removeAttribute('aria-activedescendant');
-      input?.setAttribute('aria-expanded', 'false');
+      active = -1;
+      input.removeAttribute('aria-activedescendant');
+      input.setAttribute('aria-expanded', 'false');
     };
-
-    const showSuggestions = (query) => {
-      if (!suggestions || !query) {
-        clearSuggestions();
-        return;
-      }
-
-      const matched = items.filter((item) => matches(item, query)).slice(0, 5);
-      suggestions.replaceChildren();
-      for (const [index, item] of matched.entries()) {
-        const originalLink = item.querySelector('a');
-        if (!originalLink) continue;
+    const update = () => {
+      const query = normalize(input.value);
+      clear();
+      if (!query) return;
+      for (const [index, note] of notes.filter((note) => matches(note, query)).slice(0, 5).entries()) {
         const link = document.createElement('a');
-        link.href = originalLink.href;
-        link.setAttribute('role', 'option');
+        link.href = `/learn/notes/${note.slug}/`;
         link.id = `learn-suggestion-${index}`;
-        link.textContent = item.dataset.title ?? '';
+        link.role = 'option';
+        const title = document.createElement('strong');
+        title.textContent = note.title;
+        const context = document.createElement('span');
+        context.textContent = [note.trackName, note.section].filter(Boolean).join(' · ');
+        link.append(title, context);
         suggestions.append(link);
       }
-      activeSuggestion = -1;
-      suggestions.hidden = matched.length === 0;
-      input?.setAttribute('aria-expanded', String(matched.length > 0));
+      suggestions.hidden = suggestions.childElementCount === 0;
+      input.setAttribute('aria-expanded', String(suggestions.childElementCount > 0));
     };
-
-    const update = () => {
-      if (!(input instanceof HTMLInputElement)) return;
-      const query = normalize(input.value);
-      page?.setAttribute('data-search-active', query ? 'true' : 'false');
-      let visibleCount = 0;
-      for (const item of items) {
-        const visible = !query || matches(item, query);
-        item.hidden = !visible;
-        if (visible) visibleCount += 1;
-      }
-      if (empty instanceof HTMLElement) empty.hidden = !query || visibleCount > 0;
-      showSuggestions(query);
-    };
-
-    input?.addEventListener('input', () => {
-      window.clearTimeout(timer);
-      timer = window.setTimeout(update, 300);
-    });
-    input?.addEventListener('focus', update);
-    input?.addEventListener('keydown', (event) => {
-      const options = Array.from(suggestions?.querySelectorAll('[role="option"]') ?? []);
-      if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && options.length > 0) {
+    input.addEventListener('input', update);
+    input.addEventListener('focus', update);
+    input.addEventListener('keydown', (event) => {
+      const options = [...suggestions.querySelectorAll('[role="option"]')];
+      if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && options.length) {
         event.preventDefault();
-        activeSuggestion = event.key === 'ArrowDown'
-          ? (activeSuggestion + 1) % options.length
-          : (activeSuggestion - 1 + options.length) % options.length;
-        options.forEach((option, index) => option.setAttribute('aria-selected', String(index === activeSuggestion)));
-        input.setAttribute('aria-activedescendant', options[activeSuggestion].id);
-        return;
-      }
-      if (event.key === 'Enter' && activeSuggestion >= 0 && options[activeSuggestion] instanceof HTMLAnchorElement) {
+        active = event.key === 'ArrowDown' ? (active + 1) % options.length : (active - 1 + options.length) % options.length;
+        options.forEach((option, index) => option.setAttribute('aria-selected', String(index === active)));
+        input.setAttribute('aria-activedescendant', options[active].id);
+      } else if (event.key === 'Enter' && active >= 0 && options[active] instanceof HTMLAnchorElement) {
         event.preventDefault();
-        options[activeSuggestion].click();
-        return;
-      }
-      if (event.key === 'Escape') {
-        clearSuggestions();
+        options[active].click();
+      } else if (event.key === 'Escape') {
+        clear();
         input.blur();
       }
     });
     document.addEventListener('click', (event) => {
-      if (event.target instanceof Node && !searchRoot.contains(event.target)) clearSuggestions();
+      if (event.target instanceof Node && !root.contains(event.target)) clear();
     });
   }
 </script>

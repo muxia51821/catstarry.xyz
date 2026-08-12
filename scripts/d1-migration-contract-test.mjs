@@ -18,6 +18,13 @@ const feedTables = feed.prepare("SELECT name FROM sqlite_master WHERE type = 'ta
 for (const table of ['auth_sessions', 'blog_view_visitors', 'blog_views', 'feed_posts', 'public_footprints']) {
   assert.ok(feedTables.includes(table), `Feed migration must create ${table}`);
 }
+for (const eventType of ['learn_section_completed', 'learn_note_published', 'learn_note_revised']) {
+  assert.doesNotThrow(() => feed.prepare(`INSERT INTO public_footprints (
+    id, source_module, source_ref, source_version, event_type, snapshot_json,
+    occurred_at, visibility, idempotency_key, created_at
+  ) VALUES (?, 'learn', 'fixture', ?, ?, '{}', '2026-08-12T00:00:00.000Z', 'public', ?, '2026-08-12T00:00:00.000Z')`)
+    .run(`fixture-${eventType}`, eventType, eventType, `fixture:${eventType}`));
+}
 assert.ok(feed.prepare("SELECT 1 FROM sqlite_master WHERE type = 'index' AND name = 'idx_blog_view_visitors_created'").get());
 feed.prepare(`INSERT INTO blog_view_visitors (slug, view_date, visitor_hash, created_at)
   VALUES (?, ?, ?, ?), (?, ?, ?, ?)`)

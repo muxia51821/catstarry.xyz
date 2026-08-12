@@ -30,13 +30,14 @@ const learn = defineCollection({
     track: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
     section: z.string().optional(),
     tags: z.array(z.string()).default([]),
-    draft: z.boolean().default(true),
-    publishDate: z.coerce.date(),
-    lastModified: z.coerce.date(),
+    state: z.enum(['draft', 'published', 'superseded', 'withdrawn']).optional(),
+    publishedAt: z.coerce.date().optional(),
+    revisedAt: z.coerce.date().optional(),
+    // Transitional readers only. New Learn content must use state/publishedAt/revisedAt.
+    draft: z.boolean().optional(),
+    publishDate: z.coerce.date().optional(),
+    lastModified: z.coerce.date().optional(),
     excerpt: z.string().optional(),
-    completionId: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).optional(),
-    parentSlug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).optional(),
-    sourceUrl: z.string().url().optional(),
   }),
 });
 

@@ -8,11 +8,8 @@ tags:
   - dns
   - http
   - browser
-draft: true
-publishDate: 2026-08-02
-lastModified: 2026-08-02
+state: draft
 excerpt: "从 URL、DNS、HTTPS 到 HTTP Request / Response，理解浏览器访问 catstarry.xyz 时最基础的一条 Web 请求链。"
-sourceUrl: "https://developer.mozilla.org/en-US/docs/Learn_web_development/Getting_started/Web_standards/How_the_web_works"
 ---
 
 # 域名、DNS 与 HTTP：浏览器如何找到 catstarry.xyz

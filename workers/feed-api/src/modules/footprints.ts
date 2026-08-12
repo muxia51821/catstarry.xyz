@@ -17,16 +17,22 @@ export function parseFootprintCandidate(value: unknown): PublicFootprintCandidat
   if (!value || typeof value !== 'object') return null;
   const candidate = value as Partial<PublicFootprintCandidate>;
   const sourceModules = new Set(['blog', 'learn', 'projects']);
-  const eventTypes = new Set(['blog_published', 'learn_section_completed', 'project_updated']);
-  const expectedEvent = {
-    blog: 'blog_published',
-    learn: 'learn_section_completed',
-    projects: 'project_updated',
+  const eventTypes = new Set([
+    'blog_published',
+    'learn_section_completed',
+    'learn_note_published',
+    'learn_note_revised',
+    'project_updated',
+  ]);
+  const eventsBySource = {
+    blog: new Set(['blog_published']),
+    learn: new Set(['learn_section_completed', 'learn_note_published', 'learn_note_revised']),
+    projects: new Set(['project_updated']),
   } as const;
   if (
     !sourceModules.has(candidate.source_module ?? '') ||
     !eventTypes.has(candidate.event_type ?? '') ||
-    expectedEvent[candidate.source_module as keyof typeof expectedEvent] !== candidate.event_type ||
+    !eventsBySource[candidate.source_module as keyof typeof eventsBySource]?.has(candidate.event_type ?? '') ||
     !isLength(candidate.source_ref, 1, 256) ||
     !isLength(candidate.source_version, 1, 128) ||
     !isNonEmpty(candidate.snapshot_json) ||

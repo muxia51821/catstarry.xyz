@@ -3,11 +3,8 @@ export const prerender = false;
 
 import { getCollection, render } from 'astro:content';
 import Base from '../../../layouts/Base.astro';
-import {
-  formatLearnDate,
-  getTrackDefinition,
-  noteFromEntry,
-} from '../../../components/learn/learn-data';
+import LearnNoteView from '../../../components/learn/LearnNoteView.astro';
+import { noteFromEntry } from '../../../components/learn/learn-data';
 import { feedApiBase } from '../../../lib/feed-api';
 import '../../../components/learn/learn.css';
 
@@ -28,78 +25,28 @@ try {
   });
   if (sessionResponse.ok) authenticated = Boolean((await sessionResponse.json()).authenticated);
   else if (sessionResponse.status >= 500) unavailable = true;
-} catch {
-  unavailable = true;
-}
+} catch { unavailable = true; }
 if (!unavailable && !authenticated) {
-  return new Response(null, {
-    status: 302,
-    headers: { ...previewHeaders, Location: '/feed/' },
-  });
+  return new Response(null, { status: 302, headers: { ...previewHeaders, Location: '/feed/' } });
 }
 if (unavailable) Astro.response.status = 503;
 
-const entry = authenticated
-  ? (await getCollection('learn')).find((candidate) => candidate.data.slug === Astro.params.slug)
-  : undefined;
+const entries = authenticated ? await getCollection('learn') : [];
+const entry = entries.find((candidate) => candidate.data.slug === Astro.params.slug);
 if (authenticated && !entry) Astro.response.status = 404;
-
 const note = entry ? noteFromEntry(entry) : null;
-const track = note ? getTrackDefinition(note.track) : null;
-const rendered = entry ? await render(entry) : null;
-const Content = rendered?.Content;
-const pageTitle = note ? `${note.title} · Private Preview` : 'Learn Private Preview';
-const pageDescription = note?.excerpt ?? '私有 Learn 内容预览。';
+const Content = entry ? (await render(entry)).Content : null;
 ---
 
-<Base title={pageTitle} description={pageDescription}>
+<Base title={note ? `${note.title} · Private Preview` : 'Learn Private Preview'} description={note?.excerpt ?? '私有 Learn 内容预览。'}>
   <meta slot="head" name="robots" content="noindex,nofollow,noarchive" />
-
   {unavailable ? (
-    <main class="learn-page" data-canvas="content">
-      <div class="learn-page__shell">
-        <p class="learn-page__eyebrow">PRIVATE PREVIEW</p>
-        <h1>预览服务暂时不可用</h1>
-        <p>认证服务暂时不可用，请稍后重试。</p>
-      </div>
-    </main>
-  ) : !note || !track || !Content ? (
-    <main class="learn-page" data-canvas="content">
-      <div class="learn-page__shell">
-        <a class="learn-page__back" href="/learn/admin/">← 返回 Learn 管理</a>
-        <p class="learn-page__eyebrow">PRIVATE PREVIEW</p>
-        <h1>没有找到这篇 Learn 笔记</h1>
-        <p>请检查 slug，或从 Learn 管理进入预览。</p>
-      </div>
-    </main>
+    <main class="learn-page learn-private-state" data-canvas="content"><h1>预览服务暂时不可用</h1><p>认证服务暂时不可用，请稍后重试。</p></main>
+  ) : !note || !Content ? (
+    <main class="learn-page learn-private-state" data-canvas="content"><a href="/learn/admin/">← 返回 Learn 管理</a><h1>没有找到这篇 Learn 笔记</h1></main>
   ) : (
     <main class="learn-detail-page" data-canvas="content">
-      <div class="learn-detail-page__shell">
-        <a class="learn-detail-page__back" href="/learn/admin/">← 返回 Learn 管理</a>
-
-        <header class="learn-detail-page__header">
-          <p class="learn-page__eyebrow">PRIVATE PREVIEW · {note.draft ? 'DRAFT' : 'PUBLISHED'}</p>
-          <div class="learn-detail-page__meta">
-            <span>{track.name}</span>
-            <time datetime={note.publishDate}>{formatLearnDate(note.publishDate)}</time>
-            <time datetime={note.lastModified}>更新于 {formatLearnDate(note.lastModified)}</time>
-            {note.sourceUrl && (
-              <a href={note.sourceUrl} target="_blank" rel="noreferrer">查看公开来源 ↗</a>
-            )}
-          </div>
-          <h1>{note.title}</h1>
-          <p>{note.excerpt}</p>
-          {note.tags.length > 0 && (
-            <ul class="learn-detail-page__tags" aria-label="笔记标签">
-              {note.tags.map((tag) => <li>{tag}</li>)}
-            </ul>
-          )}
-        </header>
-
-        <article class="learn-note-body">
-          <Content />
-        </article>
-      </div>
+      <LearnNoteView note={note} allNotes={entries.map(noteFromEntry)} Content={Content} preview />
     </main>
   )}
 </Base>

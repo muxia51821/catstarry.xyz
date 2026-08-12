@@ -1,7 +1,7 @@
 ﻿import type { APIRoute } from 'astro';
 import { getCollection } from 'astro:content';
 import { getPostSlug, type BlogPost } from '../../lib/blog';
-import { noteFromEntry, type LearnEntry } from '../../components/learn/learn-data';
+import { getPublishedNotes, type LearnEntry } from '../../components/learn/learn-data';
 
 const SITE_URL = 'https://catstarry.xyz';
 const BLOG_TITLE = 'catstarry.xyz · Blog + Learn';
@@ -46,7 +46,7 @@ function truncateMd(text: string, maxLen: number): string {
 
 export const GET: APIRoute = async () => {
   const posts: BlogPost[] = await getCollection('blog', ({ data }: BlogPost) => !data.draft);
-  const learnEntries: LearnEntry[] = await getCollection('learn', ({ data }: LearnEntry) => !data.draft);
+  const learnEntries: LearnEntry[] = await getCollection('learn');
   const entries = [
     ...posts.map((post) => ({
       title: post.data.title,
@@ -54,12 +54,11 @@ export const GET: APIRoute = async () => {
       date: post.data.date,
       url: `${SITE_URL}/blog/${getPostSlug(post)}/`,
     })),
-    ...learnEntries.map((entry) => {
-      const note = noteFromEntry(entry);
+    ...getPublishedNotes(learnEntries).map((note) => {
       return {
         title: note.title,
         description: note.excerpt,
-        date: new Date(note.publishDate),
+        date: new Date(note.revisedAt ?? note.publishedAt ?? '1970-01-01'),
         url: `${SITE_URL}/learn/notes/${note.slug}/`,
       };
     }),

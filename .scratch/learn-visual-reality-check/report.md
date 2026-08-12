@@ -11,6 +11,8 @@
 
 ## 0. Verdict
 
+> 2026-08-13 implementation note：本文件保留 Stage 0 历史快照；Accepted Delta 的实现结果与纠正后的 214 项账本见 `implementation-report.md` 和 `lhf-coverage.md`。Stage 0 当时的正确统计为 PASS 121 / DRIFT 92 / BLOCKED 1；不要以本节判断当前实现。
+
 当前 Learn implementation 与 Closure Truth **存在系统性 drift**，不是少量视觉 polish。
 
 高置信度 factual conclusion：

@@ -4,11 +4,9 @@ title: "英语：阅读技术文档与日常输入"
 track: english
 section: 阅读
 tags: ["English", "技术文档", "MDN", "JavaScript.info", "DeepL"]
-draft: false
-publishDate: 2026-07-03
-lastModified: 2026-07-03
+state: published
+publishedAt: 2026-07-03
 excerpt: "通过技术文档、文章、书籍与交流工具，建立持续的英语输入。"
-sourceUrl: "https://raw.githubusercontent.com/muxia51821/catstarry.xyz/main/teach/MISSION.md"
 ---
 
 目标：提升交流能力和阅读能力。

@@ -1,20 +1,14 @@
 ---
 import { getCollection, render } from 'astro:content';
 import Base from '../../../layouts/Base.astro';
-import DirectoryTree from '../../../components/learn/DirectoryTree.astro';
-import {
-  formatLearnDate,
-  getPublishedNotes,
-  getTrackDefinition,
-  getTrackNotes,
-  noteFromEntry,
-} from '../../../components/learn/learn-data';
+import LearnNoteView from '../../../components/learn/LearnNoteView.astro';
+import { getPublishedNotes, noteFromEntry } from '../../../components/learn/learn-data';
 import '../../../components/learn/learn.css';
-import { serializeJsonForInlineScript } from '../../../lib/safe-json.mjs';
 
 export async function getStaticPaths() {
-  const entries = await getCollection('learn', ({ data }) => !data.draft);
-  return entries.map((entry) => ({
+  const entries = await getCollection('learn');
+  const publishedSlugs = new Set(getPublishedNotes(entries).map((note) => note.slug));
+  return entries.filter((entry) => publishedSlugs.has(entry.data.slug)).map((entry) => ({
     params: { slug: entry.data.slug },
     props: { entry },
   }));
@@ -22,193 +16,12 @@ export async function getStaticPaths() {
 
 const { entry } = Astro.props;
 const note = noteFromEntry(entry);
-const allEntries = await getCollection('learn', ({ data }) => !data.draft);
-const allPublishedNotes = getPublishedNotes(allEntries);
-const track = getTrackDefinition(note.track);
-const treeNotes = getTrackNotes(allPublishedNotes, note.track);
+const allPublishedNotes = getPublishedNotes(await getCollection('learn'));
 const { Content } = await render(entry);
-const previewData = Object.fromEntries(allPublishedNotes.map((item) => [item.slug, {
-  title: item.title,
-  excerpt: item.excerpt,
-  href: `/learn/notes/${item.slug}/`,
-}]));
-const previewJson = serializeJsonForInlineScript(previewData);
-const dateValue = formatLearnDate(note.publishDate);
 ---
 
 <Base title={`${note.title} · Learn`} description={note.excerpt}>
   <main class="learn-detail-page" data-canvas="content">
-    <div class="learn-detail-page__shell">
-      <a class="learn-detail-page__back" href={`/learn/track/${track.slug}/#track-notes`}>← 返回 {track.name}</a>
-
-      <header class="learn-detail-page__header">
-        <div class="learn-detail-page__meta">
-          <a href={`/learn/track/${track.slug}/`}>{track.name}</a>
-          <time datetime={note.publishDate}>{dateValue}</time>
-          <time datetime={note.lastModified}>更新于 {formatLearnDate(note.lastModified)}</time>
-          {note.sourceUrl && (
-            <a href={note.sourceUrl} target="_blank" rel="noreferrer">查看公开来源 ↗</a>
-          )}
-        </div>
-        <h1>{note.title}</h1>
-        <p>{note.excerpt}</p>
-        {note.tags.length > 0 && (
-          <ul class="learn-detail-page__tags" aria-label="笔记标签">
-            {note.tags.map((tag) => <li>{tag}</li>)}
-          </ul>
-        )}
-      </header>
-
-      <div class="learn-detail-layout">
-        <button class="learn-drawer-toggle" type="button" data-tree-open aria-expanded="false">
-          ☰ 打开目录
-        </button>
-        <aside class="learn-tree-drawer" data-tree-drawer data-open="false">
-          <button class="learn-drawer-close" type="button" data-tree-close>← 关闭目录</button>
-          <DirectoryTree notes={treeNotes} currentSlug={note.slug} />
-        </aside>
-
-        <article class="learn-note-body" data-wikilinks>
-          <Content />
-        </article>
-        <script id="learn-preview-data" type="application/json" set:html={previewJson}></script>
-      </div>
-    </div>
+    <LearnNoteView note={note} allNotes={allPublishedNotes} Content={Content} />
   </main>
 </Base>
-
-<script>
-  const drawer = document.querySelector('[data-tree-drawer]');
-  const openButton = document.querySelector('[data-tree-open]');
-  const closeButtons = document.querySelectorAll('[data-tree-close]');
-
-  if (drawer instanceof HTMLElement && openButton instanceof HTMLButtonElement) {
-    const mobileDrawer = matchMedia('(max-width: 820px)');
-    const backgroundNodes = Array.from(document.querySelectorAll(
-      'body > header, body > footer, .learn-detail-page__back, .learn-detail-page__header, [data-tree-open], .learn-note-body',
-    )).filter((node) => node instanceof HTMLElement);
-    const focusableSelector = 'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])';
-
-    const setBackgroundInert = (inert) => {
-      for (const node of backgroundNodes) node.inert = inert;
-    };
-
-    const syncDrawerMode = () => {
-      if (!mobileDrawer.matches) {
-        drawer.inert = false;
-        drawer.removeAttribute('aria-hidden');
-        drawer.removeAttribute('aria-modal');
-        drawer.removeAttribute('role');
-        setBackgroundInert(false);
-        return;
-      }
-      const open = drawer.dataset.open === 'true';
-      drawer.inert = !open;
-      drawer.setAttribute('aria-hidden', String(!open));
-      drawer.setAttribute('aria-modal', 'true');
-      drawer.setAttribute('role', 'dialog');
-      drawer.setAttribute('aria-label', '学习笔记目录');
-      setBackgroundInert(open);
-    };
-
-    const setDrawerOpen = (open, restoreFocus = true) => {
-      drawer.dataset.open = String(open);
-      openButton.setAttribute('aria-expanded', String(open));
-      syncDrawerMode();
-      if (open) drawer.querySelector('[data-tree-close]')?.focus();
-      else if (restoreFocus) openButton.focus();
-    };
-
-    openButton.addEventListener('click', () => setDrawerOpen(true));
-    closeButtons.forEach((button) => button.addEventListener('click', () => setDrawerOpen(false)));
-    document.addEventListener('keydown', (event) => {
-      if (drawer.dataset.open !== 'true') return;
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        setDrawerOpen(false);
-        return;
-      }
-      if (event.key !== 'Tab') return;
-      const focusable = Array.from(drawer.querySelectorAll(focusableSelector))
-        .filter((node) => node instanceof HTMLElement && node.getClientRects().length > 0);
-      if (focusable.length === 0) return;
-      const first = focusable[0];
-      const last = focusable.at(-1);
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last?.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    });
-    drawer.addEventListener('click', (event) => {
-      if (event.target === drawer && drawer.dataset.open === 'true') setDrawerOpen(false);
-    });
-    mobileDrawer.addEventListener('change', () => {
-      if (!mobileDrawer.matches && drawer.dataset.open === 'true') setDrawerOpen(false, false);
-      else syncDrawerMode();
-    });
-    syncDrawerMode();
-  }
-
-  const wikiRoot = document.querySelector('[data-wikilinks]');
-  if (wikiRoot instanceof HTMLElement) {
-    const dataNode = document.getElementById('learn-preview-data');
-    const previews = JSON.parse(dataNode?.textContent ?? '{}');
-    for (const trigger of wikiRoot.querySelectorAll('[data-wikilink-trigger]')) {
-      if (!(trigger instanceof HTMLAnchorElement)) continue;
-      const slug = trigger.dataset.wikilinkSlug;
-      const target = slug ? previews[slug] : undefined;
-      if (!target) continue;
-      const wrapper = document.createElement('span');
-      wrapper.className = 'learn-wikilink';
-      const preview = document.createElement('span');
-      preview.className = 'learn-wikilink__preview';
-      preview.dataset.wikilinkPreview = '';
-      preview.hidden = true;
-      const title = document.createElement('strong');
-      title.textContent = target.title;
-      const excerpt = document.createElement('p');
-      excerpt.textContent = target.excerpt;
-      const link = document.createElement('a');
-      link.href = target.href;
-      link.textContent = '打开笔记 →';
-      preview.append(title, excerpt, link);
-      trigger.replaceWith(wrapper);
-      wrapper.append(trigger, preview);
-    }
-
-    const closeAll = () => {
-      for (const preview of wikiRoot.querySelectorAll('[data-wikilink-preview]')) {
-        preview.hidden = true;
-      }
-      for (const trigger of wikiRoot.querySelectorAll('[data-wikilink-trigger]')) {
-        trigger.setAttribute('aria-expanded', 'false');
-      }
-    };
-
-    for (const trigger of wikiRoot.querySelectorAll('[data-wikilink-trigger]')) {
-      const wrapper = trigger.closest('.learn-wikilink');
-      const preview = wrapper?.querySelector('[data-wikilink-preview]');
-      if (!(trigger instanceof HTMLAnchorElement) || !(preview instanceof HTMLElement)) continue;
-
-      const show = () => {
-        closeAll();
-        preview.hidden = false;
-        trigger.setAttribute('aria-expanded', 'true');
-      };
-
-      trigger.addEventListener('mouseenter', show);
-      trigger.addEventListener('focus', show);
-      trigger.addEventListener('click', (event) => {
-        event.preventDefault();
-        show();
-      });
-    }
-
-    document.addEventListener('click', (event) => {
-      if (event.target instanceof Node && !wikiRoot.contains(event.target)) closeAll();
-    });
-  }
-</script>
