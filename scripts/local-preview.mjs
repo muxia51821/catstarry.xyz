@@ -396,7 +396,12 @@ async function main() {
       created_at: new Date().toISOString(),
       ports: { site: sitePort, feed: feedPort, finance: financePort },
     }));
-    const feedEnv = { ...process.env, XDG_CONFIG_HOME: path.join(persist, 'xdg') };
+    const feedEnv = {
+      ...process.env,
+      WRANGLER_HIDE_BANNER: 'true',
+      WRANGLER_SEND_METRICS: 'false',
+      XDG_CONFIG_HOME: path.join(persist, 'xdg'),
+    };
     await prepareLocalFeedDatabase(persist, feedEnv);
     const localAuth = await prepareLocalPreviewAuth(persist, feedEnv);
     const feed = startService('Feed Worker', node, [

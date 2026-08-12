@@ -10,8 +10,9 @@ import { publicFeedApiBase } from '../../lib/feed-api';
   <header class="feed-header">
     <nav class="feed-page-nav page-home-nav" aria-label="Feed 页面导航">
       <a class="page-home-link feed-home-link" href="/" aria-label="返回星图"><span aria-hidden="true">←</span><span>返回星图</span></a>
+      <div id="feed-owner-controls" class="feed-owner-controls" aria-label="Feed 管理入口"></div>
     </nav>
-    <p class="feed-eyebrow">PUBLIC FOOTPRINTS</p><h1>Feed</h1><p>碎碎念、剪藏，以及值得留下的创作足迹。</p>
+    <h1>Feed</h1><p>碎碎念、剪藏，以及一路积累下来的创作足迹。</p>
   </header>
   <FeedApp client:load apiBase={publicFeedApiBase()} />
 </FeedLayout>

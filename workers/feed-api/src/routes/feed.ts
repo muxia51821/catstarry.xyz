@@ -1,4 +1,4 @@
-import type { FeedPostInput, PublicFootprintCandidate, Visibility } from '../../../../shared/types';
+import type { FeedPostInput, PublicFootprint, PublicFootprintCandidate, TimelineEntry, Visibility } from '../../../../shared/types';
 import { timingSafeEqualText } from '../../../../shared/security';
 import { FeedStore, decodeCursor } from '../adapters/feed-store';
 import { apiError, json, parseBoundedLimit, readJson } from '../lib/http';
@@ -33,7 +33,7 @@ export async function handleFeed(
   pathname: string,
 ): Promise<Response> {
   const store = new FeedStore(env.DB);
-  if (pathname === '/api/feed' && request.method === 'GET') return listPublic(request, store);
+  if (pathname === '/api/feed' && request.method === 'GET') return listPublic(request, env, store);
   if (pathname === '/api/feed' && request.method === 'POST') return createPost(request, env, ctx, store);
   if (pathname === '/api/feed/admin' && request.method === 'GET') return listAdmin(request, env, store);
   if (pathname === '/api/feed/clip-preview' && request.method === 'POST') return previewClip(request, env);
@@ -45,14 +45,15 @@ export async function handleFeed(
   return apiError(404, 'not_found', 'Feed route not found');
 }
 
-async function listPublic(request: Request, store: FeedStore): Promise<Response> {
+async function listPublic(request: Request, env: FeedEnv, store: FeedStore): Promise<Response> {
   const url = new URL(request.url);
   const limit = parseBoundedLimit(url.searchParams.get('limit'));
   if (limit === null) return apiError(400, 'invalid_limit', 'limit must be between 1 and 50');
   const rawCursor = url.searchParams.get('cursor');
   const cursor = rawCursor ? decodeCursor(rawCursor) ?? undefined : undefined;
   if (rawCursor && !cursor) return apiError(400, 'invalid_cursor', 'cursor is invalid');
-  return json(await store.listPublic(cursor, limit));
+  const publishedBlogSlugs = await loadPublishedBlogSlugs(env);
+  return json(await store.listPublic(cursor, limit, publishedBlogSlugs));
 }
 
 async function listAdmin(request: Request, env: FeedEnv, store: FeedStore): Promise<Response> {
@@ -77,14 +78,37 @@ async function listAdmin(request: Request, env: FeedEnv, store: FeedStore): Prom
   if (from === null || to === null || (from && to && from >= to)) {
     return apiError(400, 'invalid_date_range', 'from and to must be valid dates with from before to');
   }
-  return json(await store.listAdmin({
+  const [page, publishedBlogSlugs] = await Promise.all([store.listAdmin({
     visibility: visibility ?? undefined,
     type: type ?? undefined,
     from: from ?? undefined,
     to: to ?? undefined,
     cursor,
     limit,
-  }));
+  }), loadPublishedBlogSlugs(env)]);
+  const publishedBlogSlugSet = new Set(publishedBlogSlugs);
+  return json({
+    ...page,
+    items: page.items.map((entry) => withProjectionState(entry, publishedBlogSlugSet)),
+  });
+}
+
+async function loadPublishedBlogSlugs(env: FeedEnv): Promise<string[]> {
+  const manifest = await env.AUTH_KV.get<unknown>('blog:published-manifest', 'json');
+  return Array.isArray(manifest)
+    ? [...new Set(manifest.filter((slug): slug is string => (
+      typeof slug === 'string' && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)
+    )))]
+    : [];
+}
+
+function withProjectionState(entry: TimelineEntry, publishedBlogSlugs: Set<string>): TimelineEntry {
+  if (entry.visibility === 'private') return { ...entry, projection_state: 'own_private' };
+  const footprint = entry.kind === 'system_footprint' ? entry.payload as PublicFootprint : null;
+  if (footprint?.source_module === 'blog' && !publishedBlogSlugs.has(footprint.source_ref)) {
+    return { ...entry, projection_state: 'source_hidden' };
+  }
+  return { ...entry, projection_state: 'public' };
 }
 
 async function createPost(
@@ -204,6 +228,9 @@ async function ingestFootprint(request: Request, env: FeedEnv, ctx: ExecutionCon
   if (value instanceof Response) return value;
   const candidate = parseFootprintCandidate(value);
   if (!candidate) return apiError(400, 'invalid_footprint', 'Footprint candidate is invalid');
+  if (candidate.event_type === 'learn_section_completed') {
+    return apiError(410, 'legacy_event_retired', 'learn_section_completed is read-only legacy history');
+  }
   const result = await recordPublicFootprint(env.DB, candidate);
   if (result.created) refreshAfterMutation(env, ctx, 'public footprint recorded');
   return json(result, result.created ? 201 : 200);

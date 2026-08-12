@@ -19,6 +19,37 @@ for (const table of ['auth_sessions', 'blog_view_visitors', 'blog_views', 'feed_
   assert.ok(feedTables.includes(table), `Feed migration must create ${table}`);
 }
 assert.ok(feed.prepare("SELECT 1 FROM sqlite_master WHERE type = 'index' AND name = 'idx_blog_view_visitors_created'").get());
+for (const eventType of [
+  'blog_published',
+  'learn_section_completed',
+  'learn_note_published',
+  'learn_note_revised',
+  'project_updated',
+]) {
+  feed.prepare(`INSERT INTO public_footprints (
+    id, source_module, source_ref, source_version, event_type, snapshot_json,
+    occurred_at, visibility, idempotency_key, created_at
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+    .run(
+      `id-${eventType}`,
+      eventType.startsWith('learn_') ? 'learn' : eventType === 'blog_published' ? 'blog' : 'projects',
+      `ref-${eventType}`,
+      'v1',
+      eventType,
+      JSON.stringify({ title: eventType, link: eventType.startsWith('learn_') ? '/learn/notes/test/' : eventType === 'blog_published' ? '/blog/test/' : '/projects/test/' }),
+      '2026-08-12T00:00:00.000Z',
+      eventType === 'learn_section_completed' ? 'private' : 'public',
+      `key-${eventType}`,
+      '2026-08-12T00:00:01.000Z',
+    );
+}
+assert.equal(feed.prepare('SELECT COUNT(*) AS count FROM public_footprints').get().count, 5);
+assert.equal(
+  feed.prepare('SELECT visibility FROM public_footprints WHERE event_type = ?').get('learn_section_completed').visibility,
+  'private',
+  'migration must preserve legacy visibility semantics',
+);
+assert.ok(feed.prepare("SELECT 1 FROM sqlite_master WHERE type = 'index' AND name = 'idx_public_footprints_public'").get());
 feed.prepare(`INSERT INTO blog_view_visitors (slug, view_date, visitor_hash, created_at)
   VALUES (?, ?, ?, ?), (?, ?, ?, ?)`)
   .run(

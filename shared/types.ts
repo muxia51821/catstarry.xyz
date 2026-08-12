@@ -4,6 +4,8 @@ export type FootprintSource = 'blog' | 'learn' | 'projects';
 export type FootprintEventType =
   | 'blog_published'
   | 'learn_section_completed'
+  | 'learn_note_published'
+  | 'learn_note_revised'
   | 'project_updated';
 export type ActivityState = 'active' | 'stable' | 'dormant';
 
@@ -42,6 +44,7 @@ export interface TimelineEntry {
   kind: 'native_post' | 'system_footprint';
   occurred_at: string;
   visibility: Visibility;
+  projection_state?: 'public' | 'own_private' | 'source_hidden';
   payload: FeedPost | PublicFootprint;
 }
 

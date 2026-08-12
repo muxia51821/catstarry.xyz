@@ -14,7 +14,13 @@ const config = path.join(cwd, 'workers', 'feed-api', 'wrangler.jsonc');
 const persist = await mkdtemp(path.join(os.tmpdir(), 'catstarry-feed-contract-'));
 const port = await availablePort();
 const base = `http://127.0.0.1:${port}`;
-const childEnv = { ...process.env, XDG_CONFIG_HOME: path.join(persist, 'xdg') };
+const childEnv = {
+  ...process.env,
+  CI: 'true',
+  WRANGLER_HIDE_BANNER: 'true',
+  WRANGLER_SEND_METRICS: 'false',
+  XDG_CONFIG_HOME: path.join(persist, 'xdg'),
+};
 const validPng = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
 const password = `contract-${crypto.randomUUID()}`;
 const footprintToken = `footprint-${crypto.randomUUID()}`;
@@ -106,8 +112,83 @@ try {
   const duplicateFootprint = await rawRequest('/api/feed/internal/footprints', { method: 'POST', headers: { Authorization: `Bearer ${footprintToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify(footprintBody()) });
   assert.equal(duplicateFootprint.status, 200);
   assert.equal((await duplicateFootprint.json()).created, false);
+  const publicationHeaders = { Authorization: `Bearer ${footprintToken}`, 'Content-Type': 'application/json' };
+  const syncBlog = (entries, deployedAt) => rawRequest('/api/blog/internal/publications', {
+    method: 'POST', headers: publicationHeaders, body: JSON.stringify({ entries, deployed_at: deployedAt }),
+  });
+  assert.equal((await syncBlog([{ slug: 'contract', title: 'Contract blog', summary: 'snapshot' }], '2026-07-25T12:00:00.000Z')).status, 200);
+  let publicPage = await rawRequest('/api/feed?limit=20').then((response) => response.json());
+  assert.equal(publicPage.items.some((item) => item.id === firstFootprint.footprint.id), true, 'public Blog source and public footprint must project');
+  assert.equal((await syncBlog([], '2026-07-25T12:01:00.000Z')).status, 200);
+  publicPage = await rawRequest('/api/feed?limit=20').then((response) => response.json());
+  assert.equal(publicPage.items.some((item) => item.id === firstFootprint.footprint.id), false, 'removed Blog source must suppress its historical footprint');
+  const adminHistory = await request('/api/feed/admin?limit=20', { headers: { Cookie: cookie } }).then((response) => response.json());
+  const sourceHiddenFootprint = adminHistory.items.find((item) => item.id === firstFootprint.footprint.id);
+  assert.equal(Boolean(sourceHiddenFootprint), true, 'admin history must retain source-hidden Blog footprints');
+  assert.equal(sourceHiddenFootprint.projection_state, 'source_hidden', 'admin must derive the effective source-hidden state');
+  assert.equal((await request(`/api/feed/${firstFootprint.footprint.id}`, { method: 'PATCH', headers: { Cookie: cookie, 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'system_footprint', visibility: 'public' }) })).status, 200);
+  publicPage = await rawRequest('/api/feed?limit=20').then((response) => response.json());
+  assert.equal(publicPage.items.some((item) => item.id === firstFootprint.footprint.id), false, 'own-public must not bypass a hidden Blog source gate');
+  assert.equal((await syncBlog([{ slug: 'contract', title: 'Contract blog', summary: 'restored source' }], '2026-07-25T12:02:00.000Z')).status, 200);
+  publicPage = await rawRequest('/api/feed?limit=20').then((response) => response.json());
+  assert.equal(publicPage.items.filter((item) => item.id === firstFootprint.footprint.id).length, 1, 'restoring the source must reproject the same immutable footprint');
+  let adminProjection = await request('/api/feed/admin?limit=20', { headers: { Cookie: cookie } }).then((response) => response.json());
+  assert.equal(adminProjection.items.find((item) => item.id === firstFootprint.footprint.id).projection_state, 'public');
+  assert.equal((await request(`/api/feed/${firstFootprint.footprint.id}`, { method: 'PATCH', headers: { Cookie: cookie, 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'system_footprint', visibility: 'private' }) })).status, 200);
+  publicPage = await rawRequest('/api/feed?limit=20').then((response) => response.json());
+  assert.equal(publicPage.items.some((item) => item.id === firstFootprint.footprint.id), false, 'footprint visibility remains an independent public gate');
+  adminProjection = await request('/api/feed/admin?limit=20', { headers: { Cookie: cookie } }).then((response) => response.json());
+  assert.equal(adminProjection.items.find((item) => item.id === firstFootprint.footprint.id).projection_state, 'own_private');
+  assert.equal((await request(`/api/feed/${firstFootprint.footprint.id}`, { method: 'PATCH', headers: { Cookie: cookie, 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'system_footprint', visibility: 'public' }) })).status, 200);
   const dangerous = await rawRequest('/api/feed/internal/footprints', { method: 'POST', headers: { Authorization: `Bearer ${footprintToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify(footprintBody({ idempotency_key: 'blog:danger:v1', snapshot_json: JSON.stringify({ title: 'Bad', link: 'javascript:alert(1)' }) })) });
   assert.equal(dangerous.status, 400);
+
+  const footprintEvents = [
+    ['learn', 'learn_note_published', 'published-note'],
+    ['learn', 'learn_note_revised', 'revised-note'],
+    ['projects', 'project_updated', 'project-update'],
+  ];
+  for (const [source, eventType, sourceRef] of footprintEvents) {
+    const response = await rawRequest('/api/feed/internal/footprints', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${footprintToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(footprintBody({
+        source_module: source,
+        source_ref: sourceRef,
+        event_type: eventType,
+        idempotency_key: `${source}:${sourceRef}:v1`,
+        snapshot_json: JSON.stringify({ title: sourceRef, link: source === 'learn' ? `/learn/notes/${sourceRef}/` : `/projects/${sourceRef}/` }),
+      })),
+    });
+    assert.equal(response.status, 201, `${eventType} must be writable through the canonical ingestion boundary`);
+  }
+  const retiredLearn = await rawRequest('/api/feed/internal/footprints', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${footprintToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(footprintBody({
+      source_module: 'learn',
+      source_ref: 'legacy-completion',
+      event_type: 'learn_section_completed',
+      idempotency_key: 'learn:legacy-completion:v1',
+      snapshot_json: JSON.stringify({ title: 'Legacy', link: '/learn/notes/legacy-completion/' }),
+    })),
+  });
+  assert.equal(retiredLearn.status, 410, 'legacy Learn events must no longer be produced');
+
+  await command('d1', 'execute', 'catstarry-db', '--local', '--persist-to', persist, '--config', config, '--command', `INSERT INTO public_footprints (
+    id, source_module, source_ref, source_version, event_type, snapshot_json, occurred_at, visibility, idempotency_key, created_at
+  ) VALUES ('00000000-0000-4000-8000-000000000099', 'learn', 'legacy-reader', 'v1', 'learn_section_completed',
+    '{"title":"Legacy reader","link":"/learn/notes/legacy-reader/"}', '2026-07-25T12:01:00.000Z', 'public', 'learn:legacy-reader:v1', '2026-07-25T12:01:00.000Z')`);
+  const publicEvents = await rawRequest('/api/feed?limit=20').then((response) => response.json());
+  assert.equal(publicEvents.items.some((item) => item.payload?.event_type === 'learn_section_completed'), true, 'legacy rows remain readable');
+  assert.equal(publicEvents.items.some((item) => item.payload?.event_type === 'learn_note_published'), true);
+  assert.equal(publicEvents.items.some((item) => item.payload?.event_type === 'learn_note_revised'), true);
+  assert.equal(publicEvents.items.some((item) => item.payload?.event_type === 'project_updated'), true);
+  const firstCursorPage = await rawRequest('/api/feed?limit=2').then((response) => response.json());
+  assert.equal(firstCursorPage.items.length, 2);
+  assert.equal(firstCursorPage.has_more, true);
+  const secondCursorPage = await rawRequest(`/api/feed?limit=2&cursor=${encodeURIComponent(firstCursorPage.cursor)}`).then((response) => response.json());
+  assert.equal(firstCursorPage.items.some((firstItem) => secondCursorPage.items.some((secondItem) => secondItem.id === firstItem.id)), false, 'stable cursor pages must not duplicate entries');
 
   const dateFiltered = await request('/api/feed/admin?from=2026-07-25&to=2026-07-25', { headers: { Cookie: cookie } });
   assert.equal(dateFiltered.status, 200);
@@ -132,8 +213,16 @@ try {
   const spare = await spareUpload.json();
   assert.equal((await request(`/api/feed/media/${encodeURIComponent(spare.key)}`, { method: 'DELETE', headers: { Cookie: cookie } })).status, 204);
 
-  const invalidMedia = await request('/api/feed', { method: 'POST', headers: authHeaders, body: JSON.stringify({ type: 'note', content: 'bad media', media_keys: [uploadedMedia.key, uploadedMedia.key.replace('.png', '.mp4')] }) });
-  assert.equal(invalidMedia.status, 400);
+  const validWebm = new Uint8Array([0x1a, 0x45, 0xdf, 0xa3, 0x01, 0x00, 0x00, 0x00]);
+  const uploadedVideo = await upload(cookie, validWebm, 'short.webm', 'video/webm');
+  assert.equal(uploadedVideo.status, 201);
+  const videoMedia = await uploadedVideo.json();
+  const videoPost = await request('/api/feed', { method: 'POST', headers: { ...authHeaders, 'Idempotency-Key': 'contract-video-0001' }, body: JSON.stringify({ type: 'note', media_keys: [videoMedia.key] }) });
+  assert.equal(videoPost.status, 201, 'one browser-validated video must be accepted without server duration parsing');
+  const mixedMedia = await request('/api/feed', { method: 'POST', headers: authHeaders, body: JSON.stringify({ type: 'note', content: 'bad mixed media', media_keys: [uploadedMedia.key, videoMedia.key] }) });
+  assert.equal(mixedMedia.status, 400);
+  const tooManyImages = await request('/api/feed', { method: 'POST', headers: authHeaders, body: JSON.stringify({ type: 'note', content: 'too many images', media_keys: Array(7).fill(uploadedMedia.key) }) });
+  assert.equal(tooManyImages.status, 400);
   assert.equal((await request('/api/feed/clip-preview', { method: 'POST', headers: { Cookie: cookie, 'Content-Type': 'application/json' }, body: JSON.stringify({ link_url: 'https://example.com/' }) })).status, 422);
   assert.equal((await request('/api/feed/clip-preview', { method: 'POST', headers: { Cookie: cookie, 'Content-Type': 'application/json' }, body: JSON.stringify({ link_url: 'http://172.16.0.1/' }) })).status, 400);
   assert.equal((await request('/api/feed/clip-preview', { method: 'POST', headers: { Cookie: cookie, 'Content-Type': 'application/json' }, body: JSON.stringify({ link_url: 'http://[::1]/' }) })).status, 400);

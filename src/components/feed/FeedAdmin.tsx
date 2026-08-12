@@ -25,6 +25,12 @@ function summary(entry: TimelineEntry): string {
   }
 }
 
+function projectionLabel(entry: TimelineEntry): string {
+  if (entry.projection_state === 'source_hidden') return '随来源隐藏';
+  if (entry.projection_state === 'own_private' || entry.visibility === 'private') return '仅我可见';
+  return '公开';
+}
+
 export default function FeedAdmin({ apiBase, initial, initialError = '' }: Props) {
   const [page, setPage] = useState(initial);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -152,7 +158,7 @@ export default function FeedAdmin({ apiBase, initial, initialError = '' }: Props
           const next = new Set(current);
           next.has(entry.id) ? next.delete(entry.id) : next.add(entry.id);
           return next;
-        })} /><span className="feed-eyebrow">{label(entry)} · {entry.visibility === 'public' ? '公开' : '仅我可见'}</span></label>
+        })} /><span className="feed-eyebrow">{label(entry)} · {projectionLabel(entry)}</span></label>
         <p>{summary(entry).slice(0, 50)}</p>
         <time dateTime={entry.occurred_at}>{new Date(entry.occurred_at).toLocaleString('zh-CN')}</time>
         <div><button type="button" onClick={() => void update([entry], entry.visibility === 'public' ? 'private' : 'public')}>{entry.visibility === 'public' ? '隐藏' : '恢复'}</button>{entry.kind === 'native_post' && <button type="button" onClick={() => void remove(entry)}>删除</button>}</div>
