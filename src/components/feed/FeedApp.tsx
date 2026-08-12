@@ -109,7 +109,11 @@ function ActivityEntry({
         {media.map((key, index) => isVideoKey(key)
           ? <video key={`${key}:${index}`} controls preload="metadata" src={mediaUrl(apiBase, key)} />
           : <button className="feed-media-button" key={`${key}:${index}`} type="button" onClick={() => onViewImage(mediaUrl(apiBase, key))} aria-label="查看 Feed 附图">
-            <img src={mediaUrl(apiBase, key)} alt="Feed 附图" loading="lazy" />
+            <img src={mediaUrl(apiBase, key)} alt="Feed 附图" loading="lazy" onLoad={(event) => {
+              if (media.length === 1 && event.currentTarget.naturalHeight > event.currentTarget.naturalWidth) {
+                event.currentTarget.closest('.feed-media-grid')?.classList.add('feed-media-grid--portrait');
+              }
+            }} />
           </button>)}
       </div>}
     </div>

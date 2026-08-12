@@ -422,7 +422,7 @@ try {
       const entry = find(content);
       const grid = entry?.querySelector('.feed-media-grid');
       const images = [...(grid?.querySelectorAll('img') ?? [])];
-      return { count: images.length, columns: grid ? getComputedStyle(grid).gridTemplateColumns.split(' ').length : 0, intrinsic: images.map((image) => [image.naturalWidth, image.naturalHeight]) };
+      return { count: images.length, columns: grid ? getComputedStyle(grid).gridTemplateColumns.split(' ').length : 0, width: grid?.getBoundingClientRect().width ?? 0, intrinsic: images.map((image) => [image.naturalWidth, image.naturalHeight]) };
     };
     return {
       landscape: measure(${JSON.stringify(mediaTexts.landscape)}),
@@ -632,6 +632,7 @@ try {
     six: diagnostics.checks.mediaReality.six.count,
   }, { landscape: 1, portrait: 1, four: 4, six: 6 });
   assert.deepEqual({ four: diagnostics.checks.mediaReality.four.columns, six: diagnostics.checks.mediaReality.six.columns }, { four: 2, six: 2 });
+  assert.equal(diagnostics.checks.mediaReality.portrait.width <= 360, true, 'single portrait media must not expand across the full timeline');
   assert.equal(diagnostics.checks.backgroundRestored, true, 'modal close must restore the page background');
   assert.deepEqual(diagnostics.checks.unsavedProtection, { stillOpen: true, content: 'unsaved browser draft', confirmCalls: 1 });
   assert.equal(diagnostics.checks.escapeClose, true);

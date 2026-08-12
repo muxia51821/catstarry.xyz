@@ -52,6 +52,8 @@
 .feed-media-grid--2, .feed-media-grid--3, .feed-media-grid--4, .feed-media-grid--5, .feed-media-grid--6 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .feed-media-button { min-width: 0; padding: 0; overflow: hidden; cursor: zoom-in; background: var(--bg-surface-card); border: 0; border-radius: var(--img-radius); }
 .feed-media-grid img, .feed-media-grid video { display: block; width: 100%; max-height: 32rem; object-fit: cover; border-radius: var(--img-radius); }
+.feed-media-grid--portrait { width: min(100%, 22.5rem); }
+.feed-media-grid--portrait img { height: auto; object-fit: contain; }
 .feed-media-grid--4 img, .feed-media-grid--6 img { aspect-ratio: 4 / 3; }
 
 .feed-timeline-end { margin-block-start: 4.5rem; padding-block-start: var(--space-xl); border-block-start: 1px solid var(--border-default); }
