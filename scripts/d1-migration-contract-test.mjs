@@ -50,6 +50,7 @@ assert.equal(
   'migration must preserve legacy visibility semantics',
 );
 assert.ok(feed.prepare("SELECT 1 FROM sqlite_master WHERE type = 'index' AND name = 'idx_public_footprints_public'").get());
+assert.ok(feed.prepare("SELECT 1 FROM sqlite_master WHERE type = 'index' AND name = 'idx_public_footprints_source'").get());
 feed.prepare(`INSERT INTO blog_view_visitors (slug, view_date, visitor_hash, created_at)
   VALUES (?, ?, ?, ?), (?, ?, ?, ?)`)
   .run(

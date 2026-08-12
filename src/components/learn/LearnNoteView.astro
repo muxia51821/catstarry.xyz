@@ -1,0 +1,113 @@
+---
+import type { AstroComponentFactory } from 'astro/runtime/server/index.js';
+import type { LearnNote } from './learn-data';
+import {
+  formatLearnDate,
+  getRelatedNotes,
+  getTrackDefinition,
+} from './learn-data';
+import { serializeJsonForInlineScript } from '../../lib/safe-json.mjs';
+
+interface Props {
+  note: LearnNote;
+  allNotes: LearnNote[];
+  Content: AstroComponentFactory;
+  preview?: boolean;
+}
+
+const { note, allNotes, Content, preview = false } = Astro.props;
+const track = getTrackDefinition(note.track);
+const related = getRelatedNotes(note, allNotes);
+const previewData = Object.fromEntries(allNotes.map((item) => [item.slug, {
+  title: item.title,
+  excerpt: item.excerpt,
+}]));
+const previewJson = serializeJsonForInlineScript(previewData);
+const sectionHref = note.section
+  ? `/learn/track/${track.slug}/#section-${note.section.toLocaleLowerCase('zh-CN').replace(/[^a-z0-9\u3400-\u9fff]+/g, '-')}`
+  : `/learn/track/${track.slug}/`;
+---
+
+<div class="learn-detail-page__shell">
+  {preview ? (
+    <div class="learn-preview-chrome">
+      <strong>PRIVATE PREVIEW · {note.state.toUpperCase()}</strong>
+      <a href="/learn/admin/">← 返回 Learn 管理</a>
+    </div>
+  ) : (
+    <a class="learn-detail-page__back" href="/learn/">← 返回 Learn</a>
+  )}
+
+  <header class="learn-detail-page__header">
+    <p class="learn-detail-page__context">
+      <a href={`/learn/track/${track.slug}/`}>{track.name}</a>
+      {note.section && <><span aria-hidden="true"> · </span><a href={sectionHref}>{note.section}</a></>}
+    </p>
+    <div class="learn-detail-page__dates">
+      {note.publishedAt && <time datetime={note.publishedAt}>发布于 {formatLearnDate(note.publishedAt)}</time>}
+      {note.revisedAt && <time datetime={note.revisedAt}>修订于 {formatLearnDate(note.revisedAt)}</time>}
+    </div>
+    <h1>{note.title}</h1>
+    <p class="learn-detail-page__excerpt">{note.excerpt}</p>
+  </header>
+
+  <div class:list={['learn-reading-layout', { 'learn-reading-layout--related': related.length > 0 }]}>
+    {related.length > 0 && (
+      <aside class="learn-related" aria-labelledby="learn-related-title">
+        <h2 id="learn-related-title">关联笔记</h2>
+        <ul>
+          {related.map((item) => {
+            const itemTrack = getTrackDefinition(item.track);
+            return (
+              <li>
+                <a href={`/learn/notes/${item.slug}/`}>{item.title}</a>
+                {item.track !== note.track && <span>{itemTrack.name}</span>}
+              </li>
+            );
+          })}
+        </ul>
+      </aside>
+    )}
+
+    <article class="learn-note-body" data-wikilinks>
+      <Content />
+    </article>
+    <script id="learn-preview-data" type="application/json" set:html={previewJson}></script>
+  </div>
+
+  <div class="learn-note-ending">
+    <a class="learn-detail-page__back" href="/learn/">← 返回 Learn</a>
+  </div>
+</div>
+
+<script>
+  const root = document.querySelector('[data-wikilinks]');
+  if (root instanceof HTMLElement) {
+    const dataNode = document.getElementById('learn-preview-data');
+    const previews = JSON.parse(dataNode?.textContent ?? '{}');
+    for (const trigger of root.querySelectorAll('[data-wikilink-trigger]')) {
+      if (!(trigger instanceof HTMLAnchorElement)) continue;
+      const target = previews[trigger.dataset.wikilinkSlug ?? ''];
+      if (!target) continue;
+      const wrapper = document.createElement('span');
+      wrapper.className = 'learn-wikilink';
+      const preview = document.createElement('span');
+      preview.className = 'learn-wikilink__preview';
+      preview.hidden = true;
+      preview.setAttribute('role', 'tooltip');
+      const title = document.createElement('strong');
+      title.textContent = target.title;
+      const excerpt = document.createElement('span');
+      excerpt.textContent = target.excerpt;
+      preview.append(title, excerpt);
+      trigger.replaceWith(wrapper);
+      wrapper.append(trigger, preview);
+      const show = () => { preview.hidden = false; };
+      const hide = () => { preview.hidden = true; };
+      trigger.addEventListener('mouseenter', show);
+      trigger.addEventListener('mouseleave', hide);
+      trigger.addEventListener('focus', show);
+      trigger.addEventListener('blur', hide);
+    }
+  }
+</script>

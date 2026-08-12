@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS public_footprints_next (
+CREATE TABLE IF NOT EXISTS public_footprints_learn_v2 (
   id TEXT PRIMARY KEY,
   source_module TEXT NOT NULL CHECK (source_module IN ('blog', 'learn', 'projects')),
   source_ref TEXT NOT NULL,
@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS public_footprints_next (
   created_at TEXT NOT NULL
 );
 
-INSERT INTO public_footprints_next (
+INSERT INTO public_footprints_learn_v2 (
   id, source_module, source_ref, source_version, event_type, snapshot_json,
   occurred_at, visibility, idempotency_key, created_at
 )
@@ -27,7 +27,7 @@ SELECT
 FROM public_footprints;
 
 DROP TABLE public_footprints;
-ALTER TABLE public_footprints_next RENAME TO public_footprints;
+ALTER TABLE public_footprints_learn_v2 RENAME TO public_footprints;
 
 CREATE INDEX IF NOT EXISTS idx_public_footprints_public
   ON public_footprints (visibility, occurred_at DESC, id DESC);

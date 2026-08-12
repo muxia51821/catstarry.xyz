@@ -62,6 +62,15 @@ function footprintBody(overrides = {}) {
     occurred_at: '2026-07-25T12:00:00.000Z', idempotency_key: 'blog:contract:v1', ...overrides,
   };
 }
+function learnManifest(entries, deployedAt = '2026-08-12T10:00:00.000Z') {
+  return { schema_version: 2, deployed_at: deployedAt, entries };
+}
+function learnEntry(overrides = {}) {
+  return {
+    slug: 'learn-contract', title: 'Learn contract', excerpt: 'A durable note.',
+    published_at: '2026-08-11T10:00:00.000Z', revised_at: null, ...overrides,
+  };
+}
 
 let server;
 let serverOutput = '';
@@ -190,6 +199,23 @@ try {
   const secondCursorPage = await rawRequest(`/api/feed?limit=2&cursor=${encodeURIComponent(firstCursorPage.cursor)}`).then((response) => response.json());
   assert.equal(firstCursorPage.items.some((firstItem) => secondCursorPage.items.some((secondItem) => secondItem.id === firstItem.id)), false, 'stable cursor pages must not duplicate entries');
 
+  const baseline = await rawRequest('/api/learn/internal/publications', { method: 'POST', headers: publicationHeaders, body: JSON.stringify(learnManifest([learnEntry()])) });
+  assert.deepEqual(await baseline.json(), { initialized: true, synced: 1, created: 0 });
+  const published = await rawRequest('/api/learn/internal/publications', { method: 'POST', headers: publicationHeaders, body: JSON.stringify(learnManifest([learnEntry(), learnEntry({ slug: 'new-note', title: 'New note' })], '2026-08-12T11:00:00.000Z')) });
+  assert.deepEqual(await published.json(), { initialized: false, synced: 2, created: 1 });
+  const revised = await rawRequest('/api/learn/internal/publications', { method: 'POST', headers: publicationHeaders, body: JSON.stringify(learnManifest([learnEntry({ revised_at: '2026-08-12T12:00:00.000Z' }), learnEntry({ slug: 'new-note', title: 'New note' })], '2026-08-12T12:30:00.000Z')) });
+  assert.deepEqual(await revised.json(), { initialized: false, synced: 2, created: 1 });
+  const maintenanceRetry = await rawRequest('/api/learn/internal/publications', { method: 'POST', headers: publicationHeaders, body: JSON.stringify(learnManifest([learnEntry({ revised_at: '2026-08-12T12:00:00.000Z' }), learnEntry({ slug: 'new-note', title: 'New note' })], '2026-08-12T13:00:00.000Z')) });
+  assert.deepEqual(await maintenanceRetry.json(), { initialized: false, synced: 2, created: 0 });
+  const lifecycleRegression = await rawRequest('/api/learn/internal/publications', { method: 'POST', headers: publicationHeaders, body: JSON.stringify(learnManifest([learnEntry(), learnEntry({ slug: 'new-note', title: 'New note' })], '2026-08-12T13:30:00.000Z')) });
+  assert.equal(lifecycleRegression.status, 409);
+
+  const retiredComplete = await request('/api/learn/complete', { method: 'POST', headers: { Cookie: cookie } });
+  assert.equal(retiredComplete.status, 410);
+  assert.equal((await retiredComplete.json()).error.code, 'legacy_writer_retired');
+  const removedPublicationRoute = await request('/api/learn/publish', { method: 'POST', headers: { Cookie: cookie } });
+  assert.equal(removedPublicationRoute.status, 404, 'superseded Web publication route must remain removed');
+
   const dateFiltered = await request('/api/feed/admin?from=2026-07-25&to=2026-07-25', { headers: { Cookie: cookie } });
   assert.equal(dateFiltered.status, 200);
   assert.equal((await dateFiltered.json()).items.some((item) => item.id === firstFootprint.footprint.id), true, 'to date must include the entire selected day');
@@ -252,9 +278,13 @@ try {
   throw error;
 } finally {
   if (server) {
-    const stopped = server.exitCode === null ? new Promise((resolve) => server.once('exit', resolve)) : Promise.resolve();
-    server.kill('SIGTERM');
-    await stopped;
+    if (server.exitCode === null && process.platform === 'win32') {
+      await run('taskkill.exe', ['/PID', String(server.pid), '/T', '/F'], { windowsHide: true }).catch(() => {});
+    } else if (server.exitCode === null) {
+      const stopped = new Promise((resolve) => server.once('exit', resolve));
+      server.kill('SIGTERM');
+      await stopped;
+    }
   }
   await rm(persist, { recursive: true, force: true, maxRetries: 8, retryDelay: 250 }).catch((error) => {
     console.warn(`Local Feed contract state retained at ${persist}: ${error.code ?? error.message}`);

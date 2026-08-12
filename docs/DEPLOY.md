@@ -92,7 +92,6 @@ MARKET_PROVIDER_URL=<approved HTTPS adapter endpoint; omit until selected>
 ## Secrets 与用户记录
 
 - Feed Worker secret：`FOOTPRINT_INGEST_TOKEN`
-- 可选 Learn 发布 webhook：`LEARN_PUBLISH_WEBHOOK_URL`（非 secret）、`LEARN_PUBLISH_WEBHOOK_TOKEN`（secret）
 - 可选 Finance 行情：`MARKET_PROVIDER_TOKEN`
 - GitHub production environment secret：`FOOTPRINT_INGEST_TOKEN`
 - GitHub production environment variable：`FEED_API_URL=https://catstarry.xyz`

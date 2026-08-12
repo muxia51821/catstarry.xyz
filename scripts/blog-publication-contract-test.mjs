@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 
 import { readBlogPublicationEntries } from './lib/blog-publications.mjs';
+import { readLearnPublicationEntries } from './lib/learn-publications.mjs';
 
 for (const script of ['scripts/blog-publication-manifest.mjs', 'scripts/learn-publication-manifest.mjs']) {
   const result = spawnSync(process.execPath, [script], {
@@ -23,5 +24,11 @@ assert.ok(entries.length > 0);
 assert.equal(entries.some((entry) => entry.slug === 'draft-preview'), false);
 assert.equal(new Set(entries.map((entry) => entry.slug)).size, entries.length);
 assert.ok(entries.every((entry) => entry.title && entry.summary));
+
+const learnEntries = await readLearnPublicationEntries();
+assert.ok(learnEntries.length > 0);
+assert.equal(learnEntries.some((entry) => entry.slug === 'domain-dns-http'), false);
+assert.ok(learnEntries.every((entry) => entry.title && entry.published_at));
+assert.equal(new Set(learnEntries.map((entry) => entry.slug)).size, learnEntries.length);
 
 console.log('Blog publication manifest contract passed.');
