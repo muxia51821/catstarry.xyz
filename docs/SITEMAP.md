@@ -140,7 +140,8 @@
 | `/api/feed`     | feed-api    | GET/POST | Public Timeline 读取与原生 Feed 发布；时间线统一呈现原生 Feed 记录和 Public Footprint |
 | `/api/auth/*`   | feed-api    | GET/POST | session、登录/登出，bcrypt + KV/D1 session |
 | `/api/blog/internal/publications` | feed-api | POST | 受保护的 Blog 首次生产发布 manifest |
-| `/api/learn/*`  | feed-api    | POST     | Learn 发布适配器、完成足迹与发布 manifest |
+| `/api/learn/internal/publications` | feed-api | POST | 受保护的 Learn publication manifest v2；仅生产部署后的新增／修订产生 Feed 足迹 |
+| `/api/learn/complete` | feed-api | POST | 已认证的 legacy writer retirement boundary；固定返回 `410 legacy_writer_retired` |
 
 ### 非公开 Finance API
 

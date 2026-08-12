@@ -21,7 +21,7 @@ production 合同和必须从 Cloudflare 账户只读核验的事实。`待账�
 
 | Worker | Route | 预期 binding / resource | 预期 Cron | 外部 vars / secret 名称 | 当前状态 |
 | --- | --- | --- | --- | --- | --- |
-| Production Feed Worker | `catstarry.xyz/api/*`、`/activity-signals.json` | `DB` → `catstarry-db`；`VIEW_KV`、`AUTH_KV`；`MEDIA_BUCKET` → `catstarry-media`；`HOME_PROJECTIONS` → `home-projections` | 当前 Feed 合同为 `0 * * * *` | `SITE_ORIGIN`、`CLIP_PREVIEW_ALLOWED_HOSTS`、`FOOTPRINT_INGEST_TOKEN`；可选 Learn webhook 名称 | Worker 名称、实际 IDs、Cron、observability 和 routes 待账户核验 |
+| Production Feed Worker | `catstarry.xyz/api/*`、`/activity-signals.json` | `DB` → `catstarry-db`；`VIEW_KV`、`AUTH_KV`；`MEDIA_BUCKET` → `catstarry-media`；`HOME_PROJECTIONS` → `home-projections` | 当前 Feed 合同为 `0 * * * *` | `SITE_ORIGIN`、`CLIP_PREVIEW_ALLOWED_HOSTS`、`FOOTPRINT_INGEST_TOKEN` | Worker 名称、实际 IDs、Cron、observability 和 routes 待账户核验 |
 | Production Finance Worker | `f.catstarry.xyz/api/*` | `DB` → `finance-db`；`FINANCE_AUTH_KV` | 当前 Finance 合同为 `*/15 * * * *`、`30 7 * * 1-5` | `FINANCE_SITE_ORIGIN`、可选 `MARKET_PROVIDER_URL`、`MARKET_PROVIDER_TOKEN` | Worker 名称、实际 IDs、Cron、observability 和 routes 待账户核验 |
 
 Staging 的 `2026-07-22` compatibility date、observability 开关和上述 binding 集合是
@@ -92,7 +92,6 @@ MARKET_PROVIDER_URL=<approved HTTPS adapter endpoint; omit until selected>
 ## Secrets 与用户记录
 
 - Feed Worker secret：`FOOTPRINT_INGEST_TOKEN`
-- 可选 Learn 发布 webhook：`LEARN_PUBLISH_WEBHOOK_URL`（非 secret）、`LEARN_PUBLISH_WEBHOOK_TOKEN`（secret）
 - 可选 Finance 行情：`MARKET_PROVIDER_TOKEN`
 - GitHub production environment secret：`FOOTPRINT_INGEST_TOKEN`
 - GitHub production environment variable：`FEED_API_URL=https://catstarry.xyz`

@@ -1,5 +1,6 @@
 ---
 import type { TrackDefinition, LearnNote } from './learn-data';
+import { getNormalizedRelations, getTrackNotes } from './learn-data';
 
 interface Props {
   tracks: TrackDefinition[];
@@ -8,53 +9,106 @@ interface Props {
 
 const { tracks, notes } = Astro.props;
 const graphNotes = notes.slice(0, 200);
-const noteBySlug = new Map(graphNotes.map((note) => [note.slug, note]));
-const positions = new Map(graphNotes.map((note, index) => {
-  const angle = (index / Math.max(graphNotes.length, 1)) * Math.PI * 2 - Math.PI / 2;
-  const radius = 24 + (index % 3) * 8;
-  return [note.slug, { x: 50 + Math.cos(angle) * radius, y: 50 + Math.sin(angle) * radius }];
-}));
-const links = graphNotes.flatMap((note) => note.links
-  .filter((target) => noteBySlug.has(target))
-  .map((target) => ({ source: note.slug, target })));
+const relations = getNormalizedRelations(graphNotes);
+const trackCount = Math.max(tracks.length, 1);
+const positions = new Map<string, { dx: number; dy: number; mx: number; my: number }>();
+
+for (const [trackIndex, track] of tracks.entries()) {
+  const trackNotes = getTrackNotes(graphNotes, track.slug);
+  for (const [noteIndex, note] of trackNotes.entries()) {
+    const column = noteIndex % 2;
+    const row = Math.floor(noteIndex / 2);
+    positions.set(note.slug, {
+      dx: 12 + ((trackIndex + 0.5) / trackCount) * 76 + (column ? 5 : -5),
+      dy: 28 + row * 24 + column * 10,
+      mx: 22 + column * 47,
+      my: 13 + ((trackIndex + 0.5) / trackCount) * 72 + row * 10 + column * 4,
+    });
+  }
+}
 ---
 
-<section class="learn-graph" aria-labelledby="learn-graph-title">
-  <div class="learn-graph__copy">
-    <p class="learn-page__eyebrow">KNOWLEDGE GRAPH</p>
-    <h2 id="learn-graph-title">学习不是一条直线</h2>
-    <p>轨道提供入口，笔记之间的关联会在内容积累后逐渐显形。</p>
-  </div>
+<div class="learn-graph" data-learn-graph data-relations={JSON.stringify(relations)}>
+  <svg class="learn-graph__edges" aria-hidden="true"></svg>
+  {tracks.map((track, index) => (
+    <span
+      class="learn-graph__region-label"
+      data-graph-region={track.slug}
+      style={`--desktop-x:${12 + ((index + 0.5) / trackCount) * 76}%;--mobile-y:${8 + ((index + 0.5) / trackCount) * 78}%;`}
+    >
+      {track.name}
+    </span>
+  ))}
+  {graphNotes.map((note) => {
+    const position = positions.get(note.slug) ?? { dx: 50, dy: 50, mx: 50, my: 50 };
+    return (
+      <a
+        class="learn-graph__node"
+        data-graph-node={note.slug}
+        data-track={note.track}
+        href={`/learn/notes/${note.slug}/`}
+        style={`--desktop-x:${position.dx}%;--desktop-y:${position.dy}%;--mobile-x:${position.mx}%;--mobile-y:${position.my}%;`}
+      >
+        <span class="learn-graph__hit" aria-hidden="true"><span class="learn-graph__dot"></span></span>
+        <span class="learn-graph__label">{note.title}</span>
+      </a>
+    );
+  })}
+</div>
 
-  {graphNotes.length > 0 ? (
-    <svg class="learn-graph__map" viewBox="0 0 100 100" role="img" aria-label="学习笔记关系图">
-      <g class="learn-graph__links" aria-hidden="true">
-        {links.map(({ source, target }) => (
-          <line
-            x1={positions.get(source)?.x}
-            y1={positions.get(source)?.y}
-            x2={positions.get(target)?.x}
-            y2={positions.get(target)?.y}
-          />
-        ))}
-      </g>
-      {graphNotes.map((note) => {
-        const position = positions.get(note.slug)!;
-        return (
-          <a class="learn-graph__node" data-track={note.track} href={`/learn/notes/${note.slug}/`}>
-            <circle cx={position.x} cy={position.y} r="4.2" />
-            <text x={position.x} y={position.y + 9} text-anchor="middle">{note.title.slice(0, 8)}</text>
-            <title>{note.title}：{note.excerpt}</title>
-          </a>
-        );
-      })}
-    </svg>
-  ) : (
-    <div class="learn-graph__empty">
-      <span aria-hidden="true">○ — ○ — ○</span>
-      <p>发布第一篇学习笔记后，知识图谱会从这里开始生长。</p>
-    </div>
-  )}
+<script>
+  for (const graph of document.querySelectorAll('[data-learn-graph]')) {
+    if (!(graph instanceof HTMLElement)) continue;
+    const edgeLayer = graph.querySelector('.learn-graph__edges');
+    if (!(edgeLayer instanceof SVGSVGElement)) continue;
+    const relations = JSON.parse(graph.dataset.relations ?? '[]');
+    const nodes = new Map([...graph.querySelectorAll('[data-graph-node]')]
+      .filter((node) => node instanceof HTMLAnchorElement)
+      .map((node) => [node.dataset.graphNode, node]));
 
-  <span class="learn-graph__count">{notes.length} published notes · {tracks.length} tracks · {links.length} links</span>
-</section>
+    const drawEdges = () => {
+      edgeLayer.replaceChildren();
+      const graphBox = graph.getBoundingClientRect();
+      edgeLayer.setAttribute('viewBox', `0 0 ${graphBox.width} ${graphBox.height}`);
+      for (const relation of relations) {
+        const source = nodes.get(relation.source);
+        const target = nodes.get(relation.target);
+        if (!source || !target) continue;
+        const sourceDot = source.querySelector('.learn-graph__dot')?.getBoundingClientRect();
+        const targetDot = target.querySelector('.learn-graph__dot')?.getBoundingClientRect();
+        if (!sourceDot || !targetDot) continue;
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.dataset.source = relation.source;
+        line.dataset.target = relation.target;
+        line.setAttribute('x1', String(sourceDot.left + sourceDot.width / 2 - graphBox.left));
+        line.setAttribute('y1', String(sourceDot.top + sourceDot.height / 2 - graphBox.top));
+        line.setAttribute('x2', String(targetDot.left + targetDot.width / 2 - graphBox.left));
+        line.setAttribute('y2', String(targetDot.top + targetDot.height / 2 - graphBox.top));
+        edgeLayer.append(line);
+      }
+    };
+
+    const setNodeActive = (slug, active) => {
+      graph.dataset.activeNode = active ? slug : '';
+      for (const line of edgeLayer.querySelectorAll('line')) {
+        line.classList.toggle('is-active', active && (line.dataset.source === slug || line.dataset.target === slug));
+      }
+    };
+    for (const [slug, node] of nodes) {
+      node.addEventListener('mouseenter', () => setNodeActive(slug, true));
+      node.addEventListener('mouseleave', () => setNodeActive(slug, false));
+      node.addEventListener('focus', () => setNodeActive(slug, true));
+      node.addEventListener('blur', () => setNodeActive(slug, false));
+    }
+    for (const trackLink of document.querySelectorAll('[data-track-link]')) {
+      if (!(trackLink instanceof HTMLAnchorElement)) continue;
+      const setTrack = (active) => { graph.dataset.activeTrack = active ? trackLink.dataset.trackLink ?? '' : ''; };
+      trackLink.addEventListener('mouseenter', () => setTrack(true));
+      trackLink.addEventListener('mouseleave', () => setTrack(false));
+      trackLink.addEventListener('focus', () => setTrack(true));
+      trackLink.addEventListener('blur', () => setTrack(false));
+    }
+    new ResizeObserver(drawEdges).observe(graph);
+    requestAnimationFrame(drawEdges);
+  }
+</script>

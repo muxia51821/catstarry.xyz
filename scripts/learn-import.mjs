@@ -15,7 +15,6 @@ const slug = await uniqueLearnSlug(baseSlug);
 const { markdown, interactiveCount } = lessonHtmlToMarkdown(html);
 const outputDir = path.join('src/data/learn', options.track);
 const output = path.join(outputDir, `${slug}.md`);
-const today = new Date().toISOString().slice(0, 10);
 const tags = (options.tags ?? '').split(',').map((tag) => tag.trim()).filter(Boolean);
 const frontmatter = [
   '---',
@@ -23,16 +22,14 @@ const frontmatter = [
   `title: ${JSON.stringify(title)}`,
   `track: ${options.track}`,
   `tags: ${JSON.stringify(tags)}`,
-  'draft: true',
-  `publishDate: ${today}`,
-  `lastModified: ${today}`,
+  'state: draft',
   `excerpt: ${JSON.stringify(options.excerpt ?? '')}`,
   '---',
   '',
 ].join('\n');
 await mkdir(outputDir, { recursive: true });
 await writeFile(output, `${frontmatter}${markdown}`, { encoding: 'utf8', flag: 'wx' });
-console.log(JSON.stringify({ output, slug, draft: true, interactiveCount }, null, 2));
+console.log(JSON.stringify({ output, slug, state: 'draft', interactiveCount }, null, 2));
 
 function parseArgs(args) {
   const options = {};

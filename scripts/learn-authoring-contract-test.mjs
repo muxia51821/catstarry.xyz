@@ -9,8 +9,9 @@ import { lessonHtmlToMarkdown, slugifyTitle } from './lib/learn-authoring.mjs';
 import { serializeJsonForInlineScript } from '../src/lib/safe-json.mjs';
 import {
   getActiveTracks,
+  getNormalizedRelations,
   getPublishedNotes,
-  getTreeRows,
+  getRelatedNotes,
 } from '../src/components/learn/learn-data.ts';
 
 assert.equal(slugifyTitle('TypeScript 类型体操', 'TypeScript type gymnastics'), 'typescript-type-gymnastics');
@@ -40,23 +41,32 @@ assert.deepEqual(JSON.parse(inlineJson), {
 });
 assert.deepEqual(getPublishedNotes([]), []);
 assert.deepEqual(getActiveTracks([]), []);
-assert.deepEqual(getTreeRows([]), []);
+assert.deepEqual(getNormalizedRelations([]), []);
 const learnFixture = {
   slug: 'published-note',
   title: 'Published',
   track: 'programming',
   tags: [],
-  draft: false,
-  publishDate: '2026-01-01T00:00:00.000Z',
-  lastModified: '2026-01-02T00:00:00.000Z',
+  state: 'published',
+  publishedAt: '2026-01-01T00:00:00.000Z',
   excerpt: 'fixture',
   links: [],
 };
 assert.deepEqual(getPublishedNotes([
-  { ...learnFixture, slug: 'draft-note', draft: true },
+  { ...learnFixture, slug: 'draft-note', state: 'draft' },
   learnFixture,
 ]).map((note) => note.slug), ['published-note']);
+assert.throws(
+  () => getPublishedNotes([{ ...learnFixture, links: ['missing-note'] }]),
+  /Broken public Learn relation/,
+);
 assert.deepEqual(getActiveTracks([learnFixture]).map((track) => track.slug), ['programming']);
+const linkedFixture = { ...learnFixture, slug: 'linked-note', links: ['published-note'] };
+assert.deepEqual(getNormalizedRelations([
+  { ...learnFixture, links: ['linked-note'] },
+  linkedFixture,
+]), [{ source: 'linked-note', target: 'published-note' }]);
+assert.deepEqual(getRelatedNotes(learnFixture, [learnFixture, linkedFixture]).map((note) => note.slug), ['linked-note']);
 
 await runLearnImportContract();
 
@@ -99,7 +109,7 @@ async function runLearnImportContract() {
     ], temporaryRoot);
     assert.equal(result.code, 0, result.stderr);
     assert.equal(result.signal, null);
-    assert.match(result.stdout, /"draft": true/);
+    assert.match(result.stdout, /"state": "draft"/);
     assert.match(result.stdout, /importer-fixture\.md/);
 
     const output = path.join(temporaryRoot, 'src', 'data', 'learn', 'programming', 'importer-fixture.md');
@@ -108,7 +118,7 @@ async function runLearnImportContract() {
     await assert.rejects(readFile(legacyOutput, 'utf8'), { code: 'ENOENT' });
     assert.match(generated, /^slug: importer-fixture$/m);
     assert.match(generated, /^track: programming$/m);
-    assert.match(generated, /^draft: true$/m);
+    assert.match(generated, /^state: draft$/m);
     assert.match(generated, /# Importer Fixture/);
     assert.match(generated, /```js\nconst value = 1 < 2;\n```/);
     assert.match(generated, /<!-- INTERACTIVE: quiz -->/);

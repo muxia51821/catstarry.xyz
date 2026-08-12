@@ -27,7 +27,6 @@ function transform(node) {
             className: ['learn-wikilink__link'],
             'data-wikilink-trigger': '',
             'data-wikilink-slug': slug,
-            'aria-expanded': 'false',
           },
         },
       });

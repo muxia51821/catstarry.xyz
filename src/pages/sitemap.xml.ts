@@ -11,7 +11,7 @@ const SITE = 'https://catstarry.xyz';
 export async function GET() {
   const [blogEntries, learnEntries]: [BlogPost[], LearnEntry[]] = await Promise.all([
     getCollection('blog', ({ data }: BlogPost) => !data.draft),
-    getCollection('learn', ({ data }: LearnEntry) => !data.draft),
+    getCollection('learn'),
   ]);
   const notes = getPublishedNotes(learnEntries);
   const urls = new Set([

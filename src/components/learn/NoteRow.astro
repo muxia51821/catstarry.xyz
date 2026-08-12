@@ -1,0 +1,22 @@
+---
+import type { LearnNote } from './learn-data';
+import { formatLearnShortDate, getTrackDefinition } from './learn-data';
+
+interface Props { note: LearnNote; showEvent?: boolean; }
+const { note, showEvent = false } = Astro.props;
+const track = getTrackDefinition(note.track);
+const eventDate = note.revisedAt ?? note.publishedAt;
+---
+
+<article class:list={['learn-note-row', { 'learn-note-row--recent': showEvent }]}>
+  {showEvent && eventDate && (
+    <p class="learn-note-row__event">
+      {note.revisedAt ? '修订' : '发布'} · <time datetime={eventDate}>{formatLearnShortDate(eventDate)}</time>
+    </p>
+  )}
+  <div class="learn-note-row__content">
+    <h3><a href={`/learn/notes/${note.slug}/`}>{note.title}</a></h3>
+    <p class="learn-note-row__excerpt">{note.excerpt}</p>
+    {showEvent && <p class="learn-note-row__context">{track.name}{note.section ? ` · ${note.section}` : ''}</p>}
+  </div>
+</article>

@@ -4,12 +4,10 @@ title: "catstarry.xyz 项目上下文与术语"
 track: programming
 section: 项目基础
 tags: ["Astro", "React", "shadcn/ui", "Cloudflare", "Learn", "Projects"]
-draft: false
-publishDate: 2026-07-03
-lastModified: 2026-07-24
+state: published
+publishedAt: 2026-07-03
+revisedAt: 2026-07-24
 excerpt: "从项目简介、技术架构与板块职责进入 catstarry.xyz 的上下文。"
-parentSlug: vibe-coding-mission
-sourceUrl: "https://raw.githubusercontent.com/muxia51821/catstarry.xyz/main/CONTEXT.md"
 ---
 
 ## 项目简介

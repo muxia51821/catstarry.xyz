@@ -96,6 +96,9 @@ try {
   const adminSource = await readFile(path.join(root, 'src', 'pages', 'learn', 'admin.astro'), 'utf8');
   assert.match(adminSource, /learn\/preview\/\$\{note\.slug\}/);
   assert.match(adminSource, />预览<\/a>/);
+  assert.doesNotMatch(adminSource, /data-publication-action|data-complete-form|完成小节|撤回/);
+  const learnRouteSource = await readFile(path.join(root, 'workers', 'feed-api', 'src', 'routes', 'learn.ts'), 'utf8');
+  assert.doesNotMatch(learnRouteSource, /completeSection|requestPublication|learn_section_completed/);
   console.log('Learn preview contract passed.');
 } catch (error) {
   if (site && site.exitCode === null) console.error(siteOutput(site));
