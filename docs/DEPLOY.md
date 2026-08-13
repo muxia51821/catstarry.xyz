@@ -111,6 +111,22 @@ npm run finance:user -- cati viewer
 
 ## 迁移与部署顺序
 
+Production Feed D1 migration 的正式入口是 `scripts/apply-feed-production-migrations.ps1`。
+它从进程环境变量 `CATSTARRY_PRODUCTION_D1_ID` 读取 production database ID，在 `.scratch`
+中生成临时 Wrangler 配置，并依次执行 `d1 migrations list --remote` 和
+`d1 migrations apply --remote`。不要把 production ID 写入仓库，也不要用 staging
+`workers/feed-api/wrangler.jsonc` 直接执行 production migration。
+
+```powershell
+$env:CATSTARRY_PRODUCTION_D1_ID = '<production Feed D1 UUID>'
+pwsh -NoLogo -NoProfile -File .\scripts\apply-feed-production-migrations.ps1
+```
+
+完成 production backup 并确认可恢复后，才执行该 runner；它只处理 Feed D1 migrations，
+不处理 Worker deploy、KV、R2、routes、Cron 或 secrets。
+
+Staging migration/deployment 顺序仍使用以下命令：
+
 ```powershell
 npx wrangler d1 migrations apply catstarry-db --remote --config workers/feed-api/wrangler.jsonc
 npx wrangler d1 migrations apply finance-db --remote --config workers/finance-api/wrangler.jsonc
