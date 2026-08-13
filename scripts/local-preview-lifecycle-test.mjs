@@ -332,8 +332,8 @@ try {
   assert.deepEqual(gracefulExit, { code: 0, signal: null }, preview.output());
   assert.match(preview.output(), /Local previews are ready:/);
   assert.match(preview.output(), /LOCAL PREVIEW ONLY/);
-  assert.match(preview.output(), /Source checkout: .+learn-local-publication-gate/);
-  assert.match(preview.output(), /Git branch \/ HEAD: task\/learn-local-publication-gate \/ [0-9a-f]{40}/);
+  assert.match(preview.output(), /Source checkout: \S+/);
+  assert.match(preview.output(), /Git branch \/ HEAD: [^\r\n]+ \/ [0-9a-f]{40}/);
   assert.match(preview.output(), /Received SIGINT; stopping all local previews/);
   assert.match(preview.output(), /All local previews stopped\./);
   assert.deepEqual(await Promise.all([portIsAvailable(sitePort), portIsAvailable(feedPort), portIsAvailable(financePort)]), [true, true, true]);
