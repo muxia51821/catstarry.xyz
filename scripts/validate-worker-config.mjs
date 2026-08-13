@@ -108,5 +108,9 @@ if (site.name !== 'catstarry-site-staging') fail('root site config must use the 
 if (site.compatibility_date !== '2026-07-22') fail('root site compatibility date is out of baseline');
 if (site.observability?.enabled !== true) fail('root site must enable observability');
 if ('vars' in site || 'secrets' in site) fail('root site config must not store variables or secrets');
+const siteServices = site.services ?? [];
+if (siteServices.length !== 1 || siteServices[0]?.binding !== 'FEED_API' || siteServices[0]?.service !== 'catstarry-feed-api-staging') {
+  fail('root site must bind FEED_API to catstarry-feed-api-staging');
+}
 
 console.log('Worker configuration contracts are valid.');

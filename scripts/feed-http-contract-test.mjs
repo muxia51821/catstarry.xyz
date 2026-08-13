@@ -371,6 +371,25 @@ assert.deepEqual(await fetchWorker(blogEnv, blogManifestUrl, {
   }),
 }).then((response) => response.json()), { initialized: false, synced: 2, created: 0 });
 assert.equal(blogEnv.DB.footprints.size, 1, 'deployment retry or ordinary edit must not duplicate the first-publication event');
+const lifecycleToken = crypto.randomUUID();
+blogEnv.AUTH_KV.values.set(`session:${lifecycleToken}`, {
+  username: 'contract-owner',
+  expires_at: new Date(Date.now() + 60_000).toISOString(),
+});
+const lifecycleHeaders = { Cookie: `token=${lifecycleToken}`, Origin: 'https://catstarry.xyz', 'Content-Type': 'application/json' };
+const firstFootprint = [...blogEnv.DB.footprints.values()][0];
+firstFootprint.visibility = 'private';
+assert.deepEqual(await fetchWorker(blogEnv, 'https://api.test/api/blog/admin/publications', {
+  method: 'PATCH', headers: lifecycleHeaders, body: JSON.stringify({ slug: 'first-new-post', state: 'withdrawn' }),
+}).then((response) => response.json()).then(({ entry, created }) => ({ state: entry.state, created })), { state: 'withdrawn', created: false });
+assert.deepEqual(await fetchWorker(blogEnv, 'https://api.test/api/blog/publications').then((response) => response.json()), {
+  slugs: ['historical-post'],
+});
+assert.deepEqual(await fetchWorker(blogEnv, 'https://api.test/api/blog/admin/publications', {
+  method: 'PATCH', headers: lifecycleHeaders, body: JSON.stringify({ slug: 'first-new-post', state: 'published' }),
+}).then((response) => response.json()).then(({ entry, created }) => ({ state: entry.state, created })), { state: 'published', created: false });
+assert.equal(firstFootprint.visibility, 'private', 'Blog restore must not overwrite a manually private footprint');
+assert.equal(blogEnv.DB.footprints.size, 1, 'withdraw and restore must preserve one historical footprint');
 
 const malformedCookie = await fetchWorker(env, 'https://api.test/api/auth/session', { headers: { Cookie: 'token=%GG' } });
 assert.equal(malformedCookie.status, 200);

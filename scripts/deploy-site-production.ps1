@@ -53,7 +53,14 @@ function Assert-SiteWorkerConfig {
     throw "Site Worker configuration must contain exactly one SESSION KV binding."
   }
 
-  Write-Host "Validated Site Worker SESSION KV binding."
+  $feedBindings = @($config.services | Where-Object { $_.binding -eq 'FEED_API' })
+  if ($feedBindings.Count -ne 1) {
+    throw "Site Worker configuration must contain exactly one FEED_API service binding."
+  }
+  $feedBindings[0].service = 'catstarry-feed-api-production'
+  $config | ConvertTo-Json -Depth 100 | Set-Content -LiteralPath $Path -Encoding utf8NoBOM
+
+  Write-Host "Validated Site Worker bindings and targeted FEED_API at production."
 }
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path

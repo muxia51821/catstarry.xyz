@@ -5,5 +5,11 @@
   "compatibility_flags": ["nodejs_compat"],
   "observability": {
     "enabled": true
-  }
+  },
+  "services": [
+    {
+      "binding": "FEED_API",
+      "service": "catstarry-feed-api-staging"
+    }
+  ]
 }

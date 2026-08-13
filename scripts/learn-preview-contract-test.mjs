@@ -48,6 +48,16 @@ try {
   site.stderr.on('data', (chunk) => { output += chunk; });
   await waitForHttp(`${siteOrigin}/`, site, () => output);
 
+  for (const adminPath of ['/feed/admin/', '/learn/admin/']) {
+    const unauthenticatedAdmin = await fetch(`${siteOrigin}${adminPath}`, { redirect: 'manual' });
+    assert.ok([301, 302, 303, 307, 308].includes(unauthenticatedAdmin.status), adminPath);
+    assert.equal(unauthenticatedAdmin.headers.get('location'), '/feed/', adminPath);
+    const unavailableAdmin = await fetch(`${siteOrigin}${adminPath}`, { headers: { Cookie: 'preview-error=1' } });
+    assert.equal(unavailableAdmin.status, 503, adminPath);
+    const authenticatedAdmin = await fetch(`${siteOrigin}${adminPath}`, { headers: { Cookie: 'preview-token=1' } });
+    assert.equal(authenticatedAdmin.status, 200, adminPath);
+  }
+
   const previewUrl = `${siteOrigin}/learn/preview/domain-dns-http/`;
   const unauthenticated = await fetch(previewUrl, { redirect: 'manual' });
   assert.ok([301, 302, 303, 307, 308].includes(unauthenticated.status));

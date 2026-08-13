@@ -99,7 +99,17 @@ async function verifyLocalAuthoringWorkflow({ sitePort, feedPort, output }) {
   const credentials = localPreviewCredentials(output);
   const siteOrigin = `http://127.0.0.1:${sitePort}`;
   const feedOrigin = `http://127.0.0.1:${feedPort}`;
-  const login = await fetch(`${feedOrigin}/api/auth/login`, {
+  const request = async (url, options, label) => {
+    let lastError;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try { return await fetch(url, options); } catch (error) {
+        lastError = error;
+        await new Promise((resolve) => setTimeout(resolve, 150 * (attempt + 1)));
+      }
+    }
+    throw new Error(`${label} failed after transient retries: ${lastError?.message ?? 'unknown error'}`);
+  };
+  const login = await request(`${feedOrigin}/api/auth/login`, {
     method: 'POST',
     headers: { Origin: siteOrigin, 'Content-Type': 'application/json' },
     body: JSON.stringify(credentials),
@@ -121,6 +131,34 @@ async function verifyLocalAuthoringWorkflow({ sitePort, feedPort, output }) {
   assert.match(adminBody, /Learn 管理/);
   assert.match(adminBody, /domain-dns-http/);
   assert.match(adminBody, /git-recovery-reflog-reset/);
+
+  const feedAdmin = await fetch(`${siteOrigin}/feed/admin/`, { headers: { Cookie: cookie } });
+  assert.equal(feedAdmin.status, 200);
+  const feedAdminBody = await feedAdmin.text();
+  assert.match(feedAdminBody, /Feed 管理/);
+  assert.match(feedAdminBody, /Blog 发布状态/);
+  assert.match(feedAdminBody, /从零开始建造数字空间/);
+  assert.match(feedAdminBody, /仅供本地预览的草稿/);
+
+  const draftUrl = `${siteOrigin}/blog/draft-preview/`;
+  assert.equal((await fetch(draftUrl)).status, 404);
+  const updateBlog = async (state) => request(`${siteOrigin}/blog/admin/lifecycle`, {
+    method: 'PATCH',
+    headers: { Cookie: cookie, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ slug: 'draft-preview', state }),
+  }, `Blog ${state}`);
+  assert.equal((await updateBlog('published')).status, 200);
+  assert.equal((await fetch(draftUrl)).status, 200);
+  assert.equal((await updateBlog('withdrawn')).status, 200);
+  assert.equal((await fetch(draftUrl)).status, 404);
+  assert.equal((await updateBlog('published')).status, 200);
+  assert.equal((await fetch(draftUrl)).status, 200);
+
+  for (const pathname of ['/feed/admin/', '/learn/admin/']) {
+    const response = await fetch(`${siteOrigin}${pathname}`, { redirect: 'manual' });
+    assert.ok([301, 302, 303, 307, 308].includes(response.status), pathname);
+    assert.equal(response.headers.get('location'), '/feed/', pathname);
+  }
 
   for (const [slug, title] of [
     ['domain-dns-http', '域名、DNS 与 HTTP：浏览器如何找到 catstarry.xyz'],
@@ -177,7 +215,7 @@ function waitForOutput(preview, pattern, timeoutMs = 90_000) {
     child.once('exit', onExit);
     child.once('error', onError);
     onTick();
-  });
+  }, 'Feed login');
 }
 
 function waitForExit(preview, timeoutMs = 20_000) {

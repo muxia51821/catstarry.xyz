@@ -24,6 +24,7 @@ jobs:
       - run: npm ci
       - run: npm run test:contracts
       - run: npm run test:learn:preview
+      - run: npm run test:preview:lifecycle
       - run: npm run worker:config
       - run: npm run worker:types:check
       - run: npm run worker:typecheck

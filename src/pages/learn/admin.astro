@@ -3,7 +3,7 @@ export const prerender = false;
 
 import { getCollection } from 'astro:content';
 import Base from '../../layouts/Base.astro';
-import { feedApiBase } from '../../lib/feed-api';
+import { readOwnerSession } from '../../lib/server/owner-auth';
 import {
   getTrackDefinition,
   lifecycleLabel,
@@ -11,22 +11,15 @@ import {
 } from '../../components/learn/learn-data';
 import '../../components/learn/learn.css';
 
-const apiBase = feedApiBase(Astro.url.origin);
 Astro.response.headers.set('Cache-Control', 'private, no-store');
 Astro.response.headers.set('Pragma', 'no-cache');
 Astro.response.headers.set('X-Robots-Tag', 'noindex, nofollow, noarchive');
 
 let unavailable = '';
-let authenticated = false;
-try {
-  const sessionResponse = await fetch(`${apiBase}/api/auth/session`, {
-    headers: { Cookie: Astro.request.headers.get('Cookie') ?? '', Accept: 'application/json' },
-    cache: 'no-store',
-  });
-  if (sessionResponse.ok) authenticated = Boolean((await sessionResponse.json()).authenticated);
-  else if (sessionResponse.status >= 500) unavailable = '管理服务暂时不可用，请稍后重试。';
-} catch { unavailable = '管理服务暂时不可用，请稍后重试。'; }
-if (!unavailable && !authenticated) return Astro.redirect('/feed/');
+const auth = await readOwnerSession(Astro.request);
+const authenticated = auth.state === 'authenticated';
+if (auth.state === 'unavailable') unavailable = '管理服务暂时不可用，请稍后重试。';
+if (auth.state === 'unauthenticated') return Astro.redirect('/feed/');
 if (unavailable) Astro.response.status = 503;
 
 const notes = (authenticated ? await getCollection('learn') : []).map(noteFromEntry)

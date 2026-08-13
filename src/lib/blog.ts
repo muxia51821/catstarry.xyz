@@ -3,6 +3,15 @@ import type { CollectionEntry } from 'astro:content';
 export const POSTS_PER_PAGE = 10;
 
 export type BlogPost = CollectionEntry<'blog'>;
+export type BlogLifecycleState = 'draft' | 'published' | 'withdrawn';
+
+export function getBlogLifecycleState(post: BlogPost): BlogLifecycleState {
+  return post.data.state ?? (post.data.draft === true ? 'draft' : 'published');
+}
+
+export function isPublishedBlogPost(post: BlogPost): boolean {
+  return getBlogLifecycleState(post) === 'published';
+}
 
 export function getPostSlug(post: BlogPost): string {
   return post.data.slug ?? post.id;

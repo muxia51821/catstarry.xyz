@@ -11,6 +11,7 @@ import {
   getTrackNotes,
 } from '../../components/learn/learn-data';
 import '../../components/learn/learn.css';
+import { STAR_MAP_DESTINATION } from '../../lib/home-navigation';
 
 const notes = getPublishedNotes(await getCollection('learn'));
 const tracks = getActiveTracks(notes);
@@ -22,7 +23,7 @@ const recentNotes = getRecentKnowledge(notes);
     <div class="learn-page__shell">
       <header class="learn-opening">
         <nav class="page-home-nav" aria-label="Learn 页面导航">
-          <a class="page-home-link learn-page__back" href="/" aria-label="返回星图">
+          <a class="page-home-link learn-page__back" href={STAR_MAP_DESTINATION} aria-label="返回星图">
             <span aria-hidden="true">←</span><span>返回星图</span>
           </a>
         </nav>

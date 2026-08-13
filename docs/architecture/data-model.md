@@ -301,7 +301,7 @@ Blog collection 由 `src/content.config.ts` 定义；loader 读取 `src/data/blo
 
 ```typescript
 // 当前字段：title, date, category, tags, description,
-// slug?, draft (default false), publication_id?
+// slug?, state (draft/published/withdrawn), legacy draft?, publication_id?
 ```
 
 ### 5.2 learn collection

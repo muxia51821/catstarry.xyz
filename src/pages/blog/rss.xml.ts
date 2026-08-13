@@ -1,7 +1,10 @@
 ﻿import type { APIRoute } from 'astro';
 import { getCollection } from 'astro:content';
-import { getPostSlug, type BlogPost } from '../../lib/blog';
+import { getPostSlug } from '../../lib/blog';
 import { getPublishedNotes, type LearnEntry } from '../../components/learn/learn-data';
+import { filterPublishedBlogPosts } from '../../lib/server/blog-lifecycle';
+
+export const prerender = false;
 
 const SITE_URL = 'https://catstarry.xyz';
 const BLOG_TITLE = 'catstarry.xyz · Blog + Learn';
@@ -44,8 +47,9 @@ function truncateMd(text: string, maxLen: number): string {
   return plain.slice(0, maxLen).replace(/\s+\S*$/, '') + '……';
 }
 
-export const GET: APIRoute = async () => {
-  const posts: BlogPost[] = await getCollection('blog', ({ data }: BlogPost) => !data.draft);
+export const GET: APIRoute = async ({ request }) => {
+  const posts = await filterPublishedBlogPosts(request, await getCollection('blog'));
+  if (!posts) return new Response('Blog feed unavailable', { status: 503 });
   const learnEntries: LearnEntry[] = await getCollection('learn');
   const entries = [
     ...posts.map((post) => ({

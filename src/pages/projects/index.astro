@@ -3,6 +3,7 @@ import Base from '../../layouts/Base.astro';
 import ProjectCard from '../../components/projects/ProjectCard.astro';
 import { getVisibleProjects } from '../../components/projects/project-data';
 import '../../components/projects/projects.css';
+import { STAR_MAP_DESTINATION } from '../../lib/home-navigation';
 
 const projects = getVisibleProjects();
 ---
@@ -12,7 +13,7 @@ const projects = getVisibleProjects();
     <div class="projects-page__shell">
       <header class="projects-page__header">
         <nav class="page-home-nav" aria-label="Projects 页面导航">
-          <a class="page-home-link projects-page__back" href="/" aria-label="返回星图">
+          <a class="page-home-link projects-page__back" href={STAR_MAP_DESTINATION} aria-label="返回星图">
             <span aria-hidden="true">←</span>
             <span>返回星图</span>
           </a>

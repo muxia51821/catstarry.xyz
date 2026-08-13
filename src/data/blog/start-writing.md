@@ -4,6 +4,7 @@ date: 2026-08-02
 category: "life"
 tags: ["个人网站", "数字生活"]
 description: "其实谈不上写作，只是想把我内心所想表达出来。"
+state: published
 ---
 
 我准备开始写作。

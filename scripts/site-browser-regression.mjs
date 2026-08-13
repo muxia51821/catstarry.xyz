@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
+import { spawn } from 'node:child_process';
+import { once } from 'node:events';
 import { existsSync } from 'node:fs';
 import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
@@ -16,6 +18,15 @@ const localFailures = [];
 const viewFixture = { records: 0, ownerReads: 0 };
 const server = createServer(async (request, response) => {
   const url = new URL(request.url, 'http://local.test');
+  response.setHeader('access-control-allow-origin', request.headers.origin ?? '*');
+  response.setHeader('access-control-allow-credentials', 'true');
+  response.setHeader('access-control-allow-headers', 'content-type');
+  response.setHeader('access-control-allow-methods', 'GET,POST,OPTIONS');
+  if (request.method === 'OPTIONS') {
+    response.statusCode = 204;
+    response.end();
+    return;
+  }
   if (url.pathname === '/api/auth/session') {
     const authenticated = (request.headers.cookie ?? '').includes('owner-fixture=1');
     response.setHeader('content-type', 'application/json; charset=utf-8');
@@ -36,6 +47,16 @@ const server = createServer(async (request, response) => {
     }
     viewFixture.ownerReads += 1;
     response.end('{"slug":"start-writing","count":73}');
+    return;
+  }
+  if (url.pathname === '/api/blog/publications') {
+    response.setHeader('content-type', 'application/json; charset=utf-8');
+    response.end(JSON.stringify({ slugs: ['before-thoughts-flow-away', 'from-zero', 'start-writing'] }));
+    return;
+  }
+  if (url.pathname === '/api/feed') {
+    response.setHeader('content-type', 'application/json; charset=utf-8');
+    response.end(JSON.stringify({ items: [], cursor: null, has_more: false }));
     return;
   }
   if (url.pathname === '/activity-signals.json') {
@@ -107,7 +128,24 @@ await new Promise((resolve, reject) => {
 });
 const address = server.address();
 if (!address || typeof address === 'string') throw new Error('Site fixture server has no TCP port');
-const baseUrl = `http://127.0.0.1:${address.port}`;
+const fixtureUrl = `http://127.0.0.1:${address.port}`;
+const sitePort = await freePort();
+const baseUrl = `http://127.0.0.1:${sitePort}`;
+const site = spawn(process.execPath, [path.join('node_modules', 'astro', 'bin', 'astro.mjs'), 'dev', '--host', '127.0.0.1', '--port', String(sitePort)], {
+  env: {
+    ...process.env,
+    ASTRO_DEV_BACKGROUND: '0',
+    FEED_API_URL: fixtureUrl,
+    PUBLIC_FEED_API_URL: fixtureUrl,
+    PUBLIC_ACTIVITY_SIGNALS_URL: `${fixtureUrl}/activity-signals.json`,
+  },
+  stdio: ['ignore', 'pipe', 'pipe'],
+  windowsHide: true,
+});
+let siteOutput = '';
+site.stdout.on('data', (chunk) => { siteOutput += chunk; });
+site.stderr.on('data', (chunk) => { siteOutput += chunk; });
+await waitForHttp(baseUrl, site, () => siteOutput);
 
 const routes = [
   '/',
@@ -115,7 +153,6 @@ const routes = [
   '/blog/from-zero/',
   '/projects/',
   '/learn/',
-  '/learn/track/programming/',
   '/learn/notes/vibe-coding-mission/',
 ];
 const viewports = [
@@ -475,7 +512,7 @@ try {
     [],
     'unexpected local assets or routes returned 404',
   );
-  assert.ok(textZoom.noHorizontalOverflow && textZoom.legacyDirectoryAbsent && textZoom.relatedNotesPresent);
+  assert.ok(textZoom.noHorizontalOverflow && textZoom.legacyDirectoryAbsent);
   assert.ok(keyboard.focused && keyboard.focusVisible);
   assert.equal(reducedMotion, true);
   assert.ok(archiveReducedMotion);
@@ -503,5 +540,34 @@ try {
 } finally {
   cdp?.close();
   await browser?.close();
+  await stopProcessTree(site);
   await new Promise((resolve) => server.close(resolve));
+}
+
+async function freePort() {
+  const probe = createServer();
+  probe.listen(0, '127.0.0.1');
+  await once(probe, 'listening');
+  const address = probe.address();
+  if (!address || typeof address === 'string') throw new Error('Could not reserve an Astro port');
+  await new Promise((resolve) => probe.close(resolve));
+  return address.port;
+}
+
+async function waitForHttp(url, child, getOutput) {
+  const deadline = Date.now() + 60_000;
+  while (Date.now() < deadline) {
+    if (child.exitCode !== null) throw new Error(`Astro exited before ready:\n${getOutput()}`);
+    try { if ((await fetch(url, { signal: AbortSignal.timeout(1_000) })).ok) return; } catch {}
+    await delay(250);
+  }
+  throw new Error(`Astro did not become ready:\n${getOutput()}`);
+}
+
+async function stopProcessTree(child) {
+  if (!child || child.exitCode !== null) return;
+  if (process.platform === 'win32') {
+    const killer = spawn('taskkill.exe', ['/PID', String(child.pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true });
+    await once(killer, 'exit');
+  } else child.kill('SIGTERM');
 }

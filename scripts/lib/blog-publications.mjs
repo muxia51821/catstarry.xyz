@@ -7,16 +7,19 @@ export async function readBlogPublicationEntries(root = 'src/data/blog') {
     if (!/\.mdx?$/i.test(file)) continue;
     const source = await readFile(file, 'utf8');
     const frontmatter = parseFrontmatter(source, file);
-    if (frontmatter.draft === 'true') continue;
+    const state = frontmatter.state ?? (frontmatter.draft === 'true' ? 'draft' : 'published');
+    if (!['draft', 'published', 'withdrawn'].includes(state)) {
+      throw new Error(`Blog file has invalid lifecycle state: ${file}`);
+    }
     const fallbackSlug = path.basename(file, path.extname(file));
     const slug = frontmatter.slug || fallbackSlug;
     if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) {
-      throw new Error(`Published Blog file has no valid slug: ${file}`);
+      throw new Error(`Blog file has no valid slug: ${file}`);
     }
     if (!frontmatter.title || !frontmatter.description) {
-      throw new Error(`Published Blog file needs title and description: ${file}`);
+      throw new Error(`Blog file needs title and description: ${file}`);
     }
-    entries.push({ slug, title: frontmatter.title, summary: frontmatter.description });
+    entries.push({ slug, title: frontmatter.title, summary: frontmatter.description, state });
   }
   entries.sort((a, b) => a.slug.localeCompare(b.slug));
   if (new Set(entries.map((entry) => entry.slug)).size !== entries.length) {

@@ -17,17 +17,25 @@ export class ActivitySignalStore {
     private readonly projections: R2Bucket,
   ) {}
 
-  async readLatestActivity(): Promise<LatestActivity> {
+  async readLatestActivity(publishedBlogSlugs: string[]): Promise<LatestActivity> {
+    const publicFootprint = `(visibility = 'public' AND (source_module != 'blog'
+      OR source_ref IN (SELECT value FROM json_each(?))))`;
     const [feedPost, footprints] = await Promise.all([
       this.database
         .prepare(
-          "SELECT MAX(activity_at) AS latest_at FROM (SELECT created_at AS activity_at FROM feed_posts WHERE visibility = 'public' UNION ALL SELECT occurred_at AS activity_at FROM public_footprints WHERE visibility = 'public')",
+          `SELECT MAX(activity_at) AS latest_at FROM (
+            SELECT created_at AS activity_at FROM feed_posts WHERE visibility = 'public'
+            UNION ALL SELECT occurred_at AS activity_at FROM public_footprints WHERE ${publicFootprint}
+          )`,
         )
+        .bind(JSON.stringify(publishedBlogSlugs))
         .first<LatestActivityRow>(),
       this.database
         .prepare(
-          "SELECT source_module, MAX(occurred_at) AS latest_at FROM public_footprints WHERE visibility = 'public' GROUP BY source_module",
+          `SELECT source_module, MAX(occurred_at) AS latest_at FROM public_footprints
+            WHERE ${publicFootprint} GROUP BY source_module`,
         )
+        .bind(JSON.stringify(publishedBlogSlugs))
         .all<LatestFootprintRow>(),
     ]);
 

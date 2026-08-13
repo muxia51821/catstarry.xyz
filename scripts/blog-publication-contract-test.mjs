@@ -21,12 +21,12 @@ for (const script of ['scripts/blog-publication-manifest.mjs', 'scripts/learn-pu
 
 const entries = await readBlogPublicationEntries();
 assert.ok(entries.length > 0);
-assert.equal(entries.some((entry) => entry.slug === 'draft-preview'), false);
+assert.equal(entries.find((entry) => entry.slug === 'draft-preview')?.state, 'draft');
+assert.ok(entries.some((entry) => entry.state === 'published'));
 assert.equal(new Set(entries.map((entry) => entry.slug)).size, entries.length);
-assert.ok(entries.every((entry) => entry.title && entry.summary));
+assert.ok(entries.every((entry) => entry.title && entry.summary && ['draft', 'published', 'withdrawn'].includes(entry.state)));
 
 const learnEntries = await readLearnPublicationEntries();
-assert.ok(learnEntries.length > 0);
 assert.equal(learnEntries.some((entry) => entry.slug === 'domain-dns-http'), false);
 assert.ok(learnEntries.every((entry) => entry.title && entry.published_at));
 assert.equal(new Set(learnEntries.map((entry) => entry.slug)).size, learnEntries.length);

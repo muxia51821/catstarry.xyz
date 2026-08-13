@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath } from 'node:url';
+import { readBlogPublicationEntries } from './lib/blog-publications.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const node = process.execPath;
@@ -360,6 +361,21 @@ async function prepareLocalPreviewAuth(persist, env) {
   return { ...credentials, passwordHash: record.value.password_hash };
 }
 
+async function prepareLocalBlogLifecycle(feedOrigin) {
+  const response = await fetch(`${feedOrigin}/api/blog/internal/publications`, {
+    method: 'POST',
+    headers: {
+      Authorization: 'Bearer local-preview-token',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      deployed_at: new Date().toISOString(),
+      entries: await readBlogPublicationEntries(),
+    }),
+  });
+  if (!response.ok) throw new Error(`Local Blog lifecycle initialization failed (${response.status}): ${await response.text()}`);
+}
+
 async function runQuickVerification() {
   await runCommand(npmRunner.command, [...npmRunner.prefix, 'run', 'test:feed:page'], 'Feed page quick verification');
   await runCommand(npmRunner.command, [...npmRunner.prefix, 'run', 'test:finance:preview'], 'Finance preview quick verification');
@@ -420,6 +436,7 @@ async function main() {
     ], feedEnv);
     services.push(feed);
     if (!await waitForHttp(`${feedOrigin}/api/feed`, 'Local Feed API', feed, () => stopRequested)) return 0;
+    await prepareLocalBlogLifecycle(feedOrigin);
 
     const finance = startService('Finance preview', node, ['scripts/finance-preview.mjs'], {
       ...process.env,

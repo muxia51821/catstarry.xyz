@@ -4,12 +4,13 @@ export const prerender = false;
 import FeedApp from '../../components/feed/FeedApp';
 import FeedLayout from '../../layouts/FeedLayout.astro';
 import { publicFeedApiBase } from '../../lib/feed-api';
+import { STAR_MAP_DESTINATION } from '../../lib/home-navigation';
 ---
 
 <FeedLayout title="Feed" description="木下的公开足迹与来时路。" canonicalPath="/feed/">
   <header class="feed-header">
     <nav class="feed-page-nav page-home-nav" aria-label="Feed 页面导航">
-      <a class="page-home-link feed-home-link" href="/" aria-label="返回星图"><span aria-hidden="true">←</span><span>返回星图</span></a>
+      <a class="page-home-link feed-home-link" href={STAR_MAP_DESTINATION} aria-label="返回星图"><span aria-hidden="true">←</span><span>返回星图</span></a>
       <div id="feed-owner-controls" class="feed-owner-controls" aria-label="Feed 管理入口"></div>
     </nav>
     <h1>Feed</h1><p>碎碎念、剪藏，以及一路积累下来的创作足迹。</p>

@@ -1,40 +1,24 @@
 ---
+export const prerender = false;
+
 import { getCollection } from 'astro:content';
 import BlogArchive from '../../../components/blog/BlogArchive.astro';
 import Base from '../../../layouts/Base.astro';
-import { getPageCount, getPagePosts, sortPostsByDate, type BlogPost } from '../../../lib/blog';
+import { getPageCount, getPagePosts, sortPostsByDate } from '../../../lib/blog';
+import { filterPublishedBlogPosts } from '../../../lib/server/blog-lifecycle';
 
-export async function getStaticPaths() {
-  const posts = sortPostsByDate(await getCollection('blog', ({ data }) => !data.draft));
-  const tags = [...new Set(posts.flatMap((post) => post.data.tags))];
-  return tags.flatMap((tag) => {
-    const tagPosts = posts.filter((post) => post.data.tags.includes(tag));
-    const pageCount = getPageCount(tagPosts.length);
-    return Array.from({ length: pageCount }, (_, index) => {
-      const currentPage = index + 1;
-      return {
-        params: { tag: currentPage === 1 ? tag : `${tag}/${currentPage}` },
-        props: { tag, tagPosts, currentPage, pageCount },
-      };
-    });
-  });
-}
-
-const { tag, tagPosts, currentPage, pageCount } = Astro.props as {
-  tag: string;
-  tagPosts: BlogPost[];
-  currentPage: number;
-  pageCount: number;
-};
+const publicPosts = await filterPublishedBlogPosts(Astro.request, await getCollection('blog'));
+if (!publicPosts) Astro.response.status = 503;
+const segments = (Astro.params.tag ?? '').split('/');
+const rawPage = segments.length > 1 && /^\d+$/.test(segments.at(-1) ?? '') ? Number(segments.pop()) : 1;
+const tag = decodeURIComponent(segments.join('/'));
+const tagPosts = sortPostsByDate(publicPosts ?? []).filter((post) => post.data.tags.includes(tag));
+const pageCount = getPageCount(tagPosts.length);
+if (publicPosts && (!tag || tagPosts.length === 0 || rawPage < 1 || rawPage > pageCount)) Astro.response.status = 404;
 ---
 
 <Base title={`标签：${tag}`} description={`带有「${tag}」标签的已发布文章。`}>
-  <BlogArchive
-    title={`标签：${tag}`}
-    posts={getPagePosts(tagPosts, currentPage)}
-    currentPage={currentPage}
-    pageCount={pageCount}
-    basePath={`/blog/tag/${encodeURIComponent(tag)}`}
-    showBackLink={true}
-  />
+  {publicPosts && tagPosts.length > 0 && rawPage <= pageCount
+    ? <BlogArchive title={`标签：${tag}`} posts={getPagePosts(tagPosts, rawPage)} currentPage={rawPage} pageCount={pageCount} basePath={`/blog/tag/${encodeURIComponent(tag)}`} showBackLink={true} />
+    : <main class="blog-page" data-canvas="content"><p role="alert">{publicPosts ? '没有找到这个标签。' : 'Blog 暂时无法读取，请稍后重试。'}</p></main>}
 </Base>
