@@ -3,7 +3,6 @@
   padding: clamp(var(--space-xl), 6vw, var(--space-6xl)) var(--space-md);
   color: var(--text-primary);
   background: var(--bg-base);
-  text-autospace: normal;
 }
 
 .blog-archive,
