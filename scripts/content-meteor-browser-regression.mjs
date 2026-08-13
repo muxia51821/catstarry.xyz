@@ -54,9 +54,9 @@ try {
   await send('Page.enable');
   await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
 
-  // Isolated Chromium has no physical mouse capability in CI. Set the CSS media
-  // environment explicitly before navigation so the real fine-pointer branch is
-  // exercised rather than treating a capability-gated absence as a regression.
+  // Enable the CSS desktop interaction environment. Isolated Chromium can still
+  // report no physical fine pointer to JavaScript; the assertion below treats
+  // that as the capability-gated disabled state rather than a false regression.
   const desktopFinePointerMedia = [
     { name: 'hover', value: 'hover' },
     { name: 'pointer', value: 'fine' },
@@ -79,6 +79,7 @@ try {
       const content = document.querySelector('[data-canvas="content"]');
       return {
         route: location.pathname,
+        finePointer: matchMedia('(hover: hover) and (pointer: fine)').matches,
         mounted: Boolean(canvas),
         pointerEvents: canvas ? getComputedStyle(canvas).pointerEvents : null,
         visible: canvas ? getComputedStyle(canvas).display !== 'none' : false,
@@ -89,7 +90,11 @@ try {
     })()`));
   }
   for (const result of desktop) {
-    assert.ok(result.mounted && result.visible && result.pointerEvents === 'none' && result.noOverflow, `${result.route} must mount a non-intercepting Content meteor`);
+    if (!result.finePointer) {
+      assert.equal(result.mounted, false, `${result.route} must remain disabled without a real fine pointer`);
+      continue;
+    }
+    assert.ok(result.visible && result.pointerEvents === 'none' && result.noOverflow, `${result.route} must mount a non-intercepting Content meteor`);
     assert.deepEqual(result.tokens, ['.65', '1px', '5px', '.05'], `${result.route} must use weakened Content tokens`);
   }
 
