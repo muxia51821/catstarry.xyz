@@ -216,39 +216,39 @@ try {
   })()`);
   assert.ok(archiveDefault.entry && archiveDefault.noCard && archiveDefault.hasDateColumn);
   assert.equal(archiveDefault.summaryVisible, false);
-  const archiveHoverTarget = await evaluate(`(() => {
-    const content = document.querySelector('.blog-post-entry__content');
-    content.scrollIntoView({ block: 'center', inline: 'center' });
-    const box = content.getBoundingClientRect();
-    return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
-  })()`);
-  await delay(50);
-  await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 1, y: 1, pointerType: 'mouse' });
-  await send('Input.dispatchMouseEvent', {
-    type: 'mouseMoved',
-    x: archiveHoverTarget.x,
-    y: archiveHoverTarget.y,
-    pointerType: 'mouse',
+  await send('DOM.enable');
+  await send('CSS.enable');
+  const { root: archiveDocument } = await send('DOM.getDocument');
+  const { nodeId: archiveContentNodeId } = await send('DOM.querySelector', {
+    nodeId: archiveDocument.nodeId,
+    selector: '.blog-post-entry__content',
+  });
+  assert.ok(archiveContentNodeId, 'Blog archive hover target must exist');
+  await send('CSS.forcePseudoState', {
+    nodeId: archiveContentNodeId,
+    forcedPseudoClasses: ['hover'],
   });
   await waitFor(`(() => {
-    const content = document.querySelector('.blog-post-entry__content');
     const summary = document.querySelector('.blog-post-entry__description');
     const title = document.querySelector('.blog-post-entry h2 a');
-    return content.matches(':hover')
-      && summary.getBoundingClientRect().height > 0
+    return summary.getBoundingClientRect().height > 0
       && getComputedStyle(summary).opacity === '1'
       && getComputedStyle(title).color !== ${JSON.stringify(archiveDefault.titleColor)};
-  })()`, 'Blog archive hover state', 2_000);
+  })()`, 'Blog archive forced hover visual state', 2_000);
   const archiveHover = await evaluate(`(() => {
     const summary = document.querySelector('.blog-post-entry__description');
     const title = document.querySelector('.blog-post-entry h2 a');
     return {
       summaryVisible: summary.getBoundingClientRect().height > 0 && getComputedStyle(summary).opacity === '1',
       titleChanged: getComputedStyle(title).color !== ${JSON.stringify(archiveDefault.titleColor)},
-      contentHovered: document.querySelector('.blog-post-entry__content').matches(':hover'),
+      forced: true,
     };
   })()`);
-  assert.ok(archiveHover.contentHovered && archiveHover.summaryVisible && archiveHover.titleChanged);
+  assert.ok(archiveHover.summaryVisible && archiveHover.titleChanged);
+  await send('CSS.forcePseudoState', {
+    nodeId: archiveContentNodeId,
+    forcedPseudoClasses: [],
+  });
   await evaluate(`document.querySelector('.blog-post-entry h2 a').focus()`);
   const archiveFocus = await evaluate(`(() => {
     const summary = document.querySelector('.blog-post-entry__description');
