@@ -120,17 +120,34 @@ async function verifyLocalAuthoringWorkflow({ sitePort, feedPort, output }) {
   const adminBody = await admin.text();
   assert.match(adminBody, /Learn 管理/);
   assert.match(adminBody, /domain-dns-http/);
+  assert.match(adminBody, /git-recovery-reflog-reset/);
 
-  const preview = await fetch(`${siteOrigin}/learn/preview/domain-dns-http/`, { headers: { Cookie: cookie } });
-  assert.equal(preview.status, 200);
-  const previewBody = await preview.text();
-  assert.match(previewBody, /PRIVATE PREVIEW/);
-  assert.match(previewBody, /域名、DNS 与 HTTP/);
-  assert.match(previewBody, /浏览器访问网站/);
+  for (const [slug, title] of [
+    ['domain-dns-http', '域名、DNS 与 HTTP：浏览器如何找到 catstarry.xyz'],
+    ['git-recovery-reflog-reset', 'Git 出问题时先找证据：Reflog、Reset 与安全恢复'],
+  ]) {
+    const preview = await fetch(`${siteOrigin}/learn/preview/${slug}/`, { headers: { Cookie: cookie } });
+    assert.equal(preview.status, 200, slug);
+    const previewBody = await preview.text();
+    assert.match(previewBody, /PRIVATE PREVIEW/, slug);
+    assert.match(previewBody, new RegExp(title), slug);
+  }
+
+  for (const slug of [
+    'vibe-coding-mission',
+    'site-context-and-terms',
+    'content-canvas-and-accessibility',
+    'english-reading-resources',
+    'typing-foundation',
+  ]) {
+    const historical = await fetch(`${siteOrigin}/learn/notes/${slug}/`);
+    assert.equal(historical.status, 200, slug);
+    assert.match(await historical.text(), /此笔记已退出当前 Learn corpus；页面暂时保留用于历史链接。/, slug);
+  }
 
   const unauthenticated = await fetch(`${siteOrigin}/learn/preview/domain-dns-http/`, { redirect: 'manual' });
   assert.ok([301, 302, 303, 307, 308].includes(unauthenticated.status));
-  assert.doesNotMatch(await unauthenticated.text(), /域名、DNS 与 HTTP/);
+  assert.doesNotMatch(await unauthenticated.text(), /域名、DNS 与 HTTP：浏览器如何找到 catstarry\.xyz/);
   assert.doesNotMatch(output, /\$2[aby]\$/i, 'bcrypt hashes must not be printed');
 }
 

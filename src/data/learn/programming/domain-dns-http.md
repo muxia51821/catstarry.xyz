@@ -49,14 +49,14 @@ Browser
 以这个地址为例：
 
 ```text
-https://catstarry.xyz/learn/
+https://example.com/learn/
 ```
 
 暂时只需要认识三个部分：
 
 ```text
 https://          协议 / Scheme
-catstarry.xyz     域名 / Domain
+example.com        域名 / Domain
 /learn/           路径 / Path
 ```
 
@@ -64,7 +64,7 @@ catstarry.xyz     域名 / Domain
 
 `https` 告诉浏览器应该使用什么通信方式。
 
-`catstarry.xyz` 告诉浏览器我要访问哪个域名。
+`example.com` 告诉浏览器我要访问哪个域名。
 
 `/learn/` 则进一步指出，我希望访问这个域名下面的哪个资源或路径。
 
@@ -78,7 +78,7 @@ catstarry.xyz     域名 / Domain
 
 知道域名之后，浏览器仍然面临一个问题：
 
-> `catstarry.xyz` 到底应该去哪里找？
+> `example.com` 到底应该去哪里找？
 
 这就是域名系统（Domain Name System，DNS）参与的地方。
 
@@ -99,7 +99,7 @@ DNS
 同样，我比较容易记住：
 
 ```text
-catstarry.xyz
+example.com
 ```
 
 而网络需要能够把请求送向正确的目标。
@@ -137,10 +137,10 @@ HTTP
 因此：
 
 ```text
-https://catstarry.xyz
+https://example.com
 ```
 
-不只是告诉浏览器“访问 catstarry.xyz”，同时也要求这次 Web 通信通过安全连接进行。
+不只是告诉浏览器“访问这个域名”，同时也要求这次 Web 通信通过安全连接进行。
 
 这里不需要马上理解 TLS、证书链或者握手过程。
 
@@ -298,14 +298,14 @@ GET /planet.webp
 
 ---
 
-## 把 catstarry.xyz 放回这条链
+## 把一个网站放回这条链
 
 忽略项目内部更复杂的实现以后，可以把一次访问先简化为：
 
 ```text
 Browser
 ↓
-输入 https://catstarry.xyz/learn/
+输入 https://example.com/learn/
 ↓
 解析 URL
 ↓
@@ -315,7 +315,7 @@ DNS
 ↓
 HTTP Request
 ↓
-catstarry.xyz 所在的 Web 服务体系
+这个域名背后的 Web 服务体系
 ↓
 HTTP Response
 ↓
@@ -326,9 +326,7 @@ Browser
 显示页面
 ```
 
-catstarry.xyz 当前实际上运行在 Cloudflare 体系中，因此请求进入站点之后还有 Cloudflare、路由以及不同程序如何处理请求的问题。
-
-但那属于下一层。
+真实站点的 CDN、路由和不同程序如何处理请求，属于下一层。
 
 对于理解最基础的一次 Web 访问，现在最重要的是先把：
 
@@ -377,10 +375,10 @@ HTML 回来了以后，是不是某个其他资源加载失败？
 ## 一张最后的速查图
 
 ```text
-https://catstarry.xyz/learn/
+https://example.com/learn/
 │
 ├─ https://          → 使用 HTTPS
-├─ catstarry.xyz     → Domain
+├─ example.com        → Domain
 └─ /learn/           → Path
 
 Domain
@@ -414,11 +412,9 @@ Browser
 
 通用 Web 概念主要参考：
 
-* MDN — How the web works
-* MDN — Overview of HTTP
-* MDN — URI schemes
-* MDN — URI path
+* [MDN — How the web works](https://developer.mozilla.org/en-US/docs/Learn_web_development/Getting_started/Web_standards/How_the_web_works)
+* [MDN — Overview of HTTP](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Overview)
+* [MDN — URI schemes](https://developer.mozilla.org/en-US/docs/Web/URI/Reference/Schemes)
+* [MDN — URI path](https://developer.mozilla.org/en-US/docs/Web/URI/Reference/Path)
 
-catstarry.xyz 相关描述以项目自身固定版本的配置与部署文档为依据。
-
-本文只覆盖最基础的浏览器访问链路；Cloudflare Route、Astro、API、Worker 和数据层留到后续内容。
+本文只覆盖最基础的浏览器访问链路；CDN、应用路由、API 和数据层留到后续内容。

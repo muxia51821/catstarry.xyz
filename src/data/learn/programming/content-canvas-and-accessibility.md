@@ -4,7 +4,7 @@ title: "Content 画布与可访问性"
 track: programming
 section: 项目基础
 tags: ["Content Canvas", "CJK", "可访问性", "键盘", "reduced-motion"]
-state: published
+state: withdrawn
 publishedAt: 2026-07-18
 revisedAt: 2026-07-24
 excerpt: "记录内容页的 Cream Gallery 语境，以及 CJK、键盘、触控和动效降级约束。"

@@ -59,6 +59,7 @@ for (const filename of blogSources) {
   if (/^draft:\s*true\s*$/m.test(meta)) draftSlugs.push(`/blog/${slug}/`);
   else publishedBlog.push(`/blog/${slug}/`);
 }
+const routedLearn = [];
 const publishedLearn = [];
 for (const filename of learnSources) {
   const meta = frontmatter(await readFile(filename, 'utf8'));
@@ -67,11 +68,16 @@ for (const filename of learnSources) {
   const explicitState = field(meta, 'state');
   const legacyState = /^draft:\s*false\s*$/m.test(meta) ? 'published' : 'draft';
   const state = explicitState ?? legacyState;
-  if (state === 'published') publishedLearn.push(`/learn/notes/${slug}/`);
-  else draftSlugs.push(`/learn/notes/${slug}/`);
+  if (state === 'published') {
+    publishedLearn.push(`/learn/notes/${slug}/`);
+    routedLearn.push(`/learn/notes/${slug}/`);
+  } else if (state === 'withdrawn') {
+    routedLearn.push(`/learn/notes/${slug}/`);
+    draftSlugs.push(`/learn/notes/${slug}/`);
+  } else draftSlugs.push(`/learn/notes/${slug}/`);
 }
 
-for (const pathname of [...publishedBlog, ...publishedLearn]) {
+for (const pathname of [...publishedBlog, ...routedLearn]) {
   const htmlPath = outputPath(path.join(pathname.slice(1), 'index.html'));
   const html = await readFile(htmlPath, 'utf8');
   assert.match(html, /<link[^>]+rel="canonical"|<meta[^>]+property="og:url"/, `${pathname} needs canonical metadata`);

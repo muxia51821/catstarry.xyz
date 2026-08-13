@@ -4,7 +4,7 @@ title: "Vibe Coding：与 AI 协作的学习任务"
 track: programming
 section: 编程
 tags: ["Vibe Coding", "AI 协作", "JavaScript", "项目实践"]
-state: published
+state: withdrawn
 publishedAt: 2026-07-03
 excerpt: "通过理解 AI 生成的代码、掌握基础概念并积累项目经验，提升与 AI 协作的判断力。"
 ---
