@@ -199,6 +199,7 @@ try {
   });
   await send('Page.navigate', { url: `${baseUrl}/blog/` });
   await waitFor(`document.readyState === 'complete'`, 'Blog archive load');
+  await waitFor(`!document.fonts || document.fonts.status === 'loaded'`, 'Blog archive fonts', 10_000);
   const archiveDefault = await evaluate(`(() => {
     const entry = document.querySelector('.blog-post-entry');
     const summary = document.querySelector('.blog-post-entry__description');
@@ -215,14 +216,29 @@ try {
   })()`);
   assert.ok(archiveDefault.entry && archiveDefault.noCard && archiveDefault.hasDateColumn);
   assert.equal(archiveDefault.summaryVisible, false);
+  const archiveHoverTarget = await evaluate(`(() => {
+    const content = document.querySelector('.blog-post-entry__content');
+    content.scrollIntoView({ block: 'center', inline: 'center' });
+    const box = content.getBoundingClientRect();
+    return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  })()`);
+  await delay(50);
   await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 1, y: 1, pointerType: 'mouse' });
   await send('Input.dispatchMouseEvent', {
     type: 'mouseMoved',
-    x: archiveDefault.contentBox.x + Math.min(20, archiveDefault.contentBox.width / 2),
-    y: archiveDefault.contentBox.y + Math.min(20, archiveDefault.contentBox.height / 2),
+    x: archiveHoverTarget.x,
+    y: archiveHoverTarget.y,
     pointerType: 'mouse',
   });
-  await delay(260);
+  await waitFor(`(() => {
+    const content = document.querySelector('.blog-post-entry__content');
+    const summary = document.querySelector('.blog-post-entry__description');
+    const title = document.querySelector('.blog-post-entry h2 a');
+    return content.matches(':hover')
+      && summary.getBoundingClientRect().height > 0
+      && getComputedStyle(summary).opacity === '1'
+      && getComputedStyle(title).color !== ${JSON.stringify(archiveDefault.titleColor)};
+  })()`, 'Blog archive hover state', 2_000);
   const archiveHover = await evaluate(`(() => {
     const summary = document.querySelector('.blog-post-entry__description');
     const title = document.querySelector('.blog-post-entry h2 a');
