@@ -54,6 +54,14 @@ try {
   await send('Page.enable');
   await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
 
+  // Isolated Chromium has no physical mouse capability in CI. Set the CSS media
+  // environment explicitly before navigation so the real fine-pointer branch is
+  // exercised rather than treating a capability-gated absence as a regression.
+  const desktopFinePointerMedia = [
+    { name: 'hover', value: 'hover' },
+    { name: 'pointer', value: 'fine' },
+  ];
+
   async function load(route, label) {
     await send('Page.navigate', { url: `${baseUrl}${route}` });
     await waitFor(`document.readyState === 'complete'`, label);
@@ -62,7 +70,7 @@ try {
   const contentRoutes = ['/blog/', '/learn/', '/projects/'];
   const desktop = [];
   for (const route of contentRoutes) {
-    await send('Emulation.setEmulatedMedia', { media: '', features: [] });
+    await send('Emulation.setEmulatedMedia', { media: '', features: desktopFinePointerMedia });
     await load(route, `${route} desktop load`);
     await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 360, y: 180, pointerType: 'mouse' });
     await delay(40);
@@ -94,12 +102,21 @@ try {
   const home = await evaluate(`({ homeMeteor: Boolean(document.getElementById('meteor-canvas')), contentMeteor: Boolean(document.querySelector('.content-meteor-canvas')) })`);
   assert.deepEqual(home, { homeMeteor: true, contentMeteor: false }, 'Home runtime must remain isolated');
 
-  await send('Emulation.setEmulatedMedia', { media: '', features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
+  await send('Emulation.setEmulatedMedia', {
+    media: '',
+    features: [...desktopFinePointerMedia, { name: 'prefers-reduced-motion', value: 'reduce' }],
+  });
   await load('/blog/', 'reduced motion Blog load');
   const reducedMotion = await evaluate(`Boolean(document.querySelector('.content-meteor-canvas'))`);
   assert.equal(reducedMotion, false, 'reduced motion must not mount Content meteor');
 
-  await send('Emulation.setEmulatedMedia', { media: '', features: [] });
+  await send('Emulation.setEmulatedMedia', {
+    media: '',
+    features: [
+      { name: 'hover', value: 'none' },
+      { name: 'pointer', value: 'coarse' },
+    ],
+  });
   await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
   await send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 1 });
   await load('/blog/', 'mobile Blog load');
