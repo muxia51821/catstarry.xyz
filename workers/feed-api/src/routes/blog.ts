@@ -173,7 +173,7 @@ function normalizeEntries(entries: PublicationEntry[]): BlogLifecycleEntry[] | n
     slug: typeof entry.slug === 'string' ? entry.slug.trim() : '',
     title: typeof entry.title === 'string' ? entry.title.trim() : '',
     summary: typeof entry.summary === 'string' ? entry.summary.trim() : '',
-    state: (entry.state ?? 'published') as BlogLifecycleState,
+    state: entry.state as BlogLifecycleState,
   })).sort((a, b) => a.slug.localeCompare(b.slug));
   if (normalized.some((entry) => (
     !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(entry.slug)

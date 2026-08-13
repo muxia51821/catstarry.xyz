@@ -146,7 +146,7 @@ Finance route handlers 通过 `shared/auth.ts` 的 `getFinanceSession` 读取
 | -------------- | ------------------------------------------------------------- | -------------- |
 | `/feed/admin`  | Astro SSR page 转发原始 cookie → `FEED_API` Service Binding → Feed Worker `/api/auth/session` | 302 → `/feed/`；binding/backend failure → 503 |
 | `/learn/admin` / `/learn/preview/*` | 与 Feed Admin 共用 Site SSR owner-auth adapter 和 `FEED_API` Service Binding | 302 → `/feed/`；binding/backend failure → 503 |
-| `/learn/admin` | Astro SSR page 检查同一主站 session                   | 302 → `/feed/` |
+| `/blog/preview/*` | 与 Feed Admin 共用 Site SSR owner-auth adapter 和 `FEED_API` Service Binding；预览不记录公开阅读量或活动 | 302 → `/feed/`；binding/backend failure → 503 |
 
 ### 财务
 

@@ -37,6 +37,15 @@
 | slug 优先级 | frontmatter `slug` > 文件名                                     |
 | 链接到      | `/blog/`（返回链接）、分类/标签筛选链接                         |
 
+### `/blog/preview/[slug]/` — Blog 私有预览
+
+| 属性 | 值 |
+| --- | --- |
+| 渲染 | Site SSR；共用 Feed owner session 与 `FEED_API` Service Binding |
+| 内容 | draft / published / withdrawn 的 Blog source，使用正式文章阅读样式 |
+| 安全 | 未认证跳转 `/feed/`；backend unavailable 返回 503；`noindex,nofollow,noarchive`；不记录公开阅读量、足迹或 activity |
+| 链接到 | `/feed/admin/`（返回发布管理） |
+
 ### `/blog/category/[category]/` — 分类页
 
 | 属性   | 值                                          |

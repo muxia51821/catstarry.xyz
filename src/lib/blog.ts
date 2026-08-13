@@ -6,7 +6,7 @@ export type BlogPost = CollectionEntry<'blog'>;
 export type BlogLifecycleState = 'draft' | 'published' | 'withdrawn';
 
 export function getBlogLifecycleState(post: BlogPost): BlogLifecycleState {
-  return post.data.state ?? (post.data.draft === true ? 'draft' : 'published');
+  return post.data.state;
 }
 
 export function isPublishedBlogPost(post: BlogPost): boolean {

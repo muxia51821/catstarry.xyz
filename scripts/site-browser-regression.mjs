@@ -450,8 +450,10 @@ try {
       document.documentElement.scrollWidth <= document.documentElement.clientWidth,
     legacyDirectoryAbsent:
       !document.querySelector('[data-tree-open], .learn-directory-tree'),
-    relatedNotesPresent:
-      Boolean(document.querySelector('.learn-related')),
+    withdrawnNoticePresent:
+      Boolean(document.querySelector('.learn-withdrawn-notice')),
+    relatedNotesAbsent:
+      !document.querySelector('.learn-related'),
   })`);
 
   await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Tab', code: 'Tab' });
@@ -512,7 +514,7 @@ try {
     [],
     'unexpected local assets or routes returned 404',
   );
-  assert.ok(textZoom.noHorizontalOverflow && textZoom.legacyDirectoryAbsent);
+  assert.ok(textZoom.noHorizontalOverflow && textZoom.legacyDirectoryAbsent && textZoom.withdrawnNoticePresent && textZoom.relatedNotesAbsent);
   assert.ok(keyboard.focused && keyboard.focusVisible);
   assert.equal(reducedMotion, true);
   assert.ok(archiveReducedMotion);

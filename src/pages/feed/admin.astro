@@ -19,20 +19,29 @@ if (auth.state === 'unauthenticated') return Astro.redirect('/feed/');
 
 let initial: PaginatedResponse<TimelineEntry> = { items: [], cursor: null, has_more: false };
 let blogEntries: BlogLifecycleEntry[] = [];
-let initialError = '';
+let feedInitialError = '';
+let blogInitialError = '';
 if (!unavailable) {
-  try {
-    const [listResponse, blogResponse] = await Promise.all([
-      fetchOwnerApi(Astro.request, '/api/feed/admin?limit=20'),
-      fetchOwnerApi(Astro.request, '/api/blog/admin/publications'),
-    ]);
-    if (listResponse.ok) initial = await listResponse.json() as PaginatedResponse<TimelineEntry>;
-    else initialError = '管理列表暂时无法读取，请重试。';
-    if (blogResponse.ok) blogEntries = (await blogResponse.json() as { entries: BlogLifecycleEntry[] }).entries;
-    else initialError ||= 'Blog 发布状态暂时无法读取，请重试。';
-  } catch {
-    initialError = '管理列表暂时无法读取，请重试。';
-  }
+  await Promise.all([
+    (async () => {
+      try {
+        const response = await fetchOwnerApi(Astro.request, '/api/feed/admin?limit=20');
+        if (!response.ok) throw new Error('Feed admin unavailable');
+        initial = await response.json() as PaginatedResponse<TimelineEntry>;
+      } catch {
+        feedInitialError = '管理列表暂时无法读取，请重试。';
+      }
+    })(),
+    (async () => {
+      try {
+        const response = await fetchOwnerApi(Astro.request, '/api/blog/admin/publications');
+        if (!response.ok) throw new Error('Blog lifecycle unavailable');
+        blogEntries = (await response.json() as { entries: BlogLifecycleEntry[] }).entries;
+      } catch {
+        blogInitialError = 'Blog 发布状态暂时无法读取，请重试。';
+      }
+    })(),
+  ]);
 }
 if (unavailable) Astro.response.status = 503;
 ---
@@ -42,7 +51,7 @@ if (unavailable) Astro.response.status = 503;
   {unavailable
     ? <p class="feed-state--error" role="alert">{unavailable}</p>
     : <>
-        <BlogLifecycleAdmin client:load initial={blogEntries} />
-        <FeedAdmin client:load apiBase={publicFeedApiBase()} initial={initial} initialError={initialError} />
+        <BlogLifecycleAdmin client:load initial={blogEntries} initialError={blogInitialError} />
+        <FeedAdmin client:load apiBase={publicFeedApiBase()} initial={initial} initialError={feedInitialError} />
       </>}
 </FeedLayout>

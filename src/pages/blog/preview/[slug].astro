@@ -1,0 +1,55 @@
+---
+export const prerender = false;
+
+import { getCollection, render } from 'astro:content';
+import Base from '../../../layouts/Base.astro';
+import '../../../styles/blog.css';
+import { formatBlogDate, getPostSlug } from '../../../lib/blog';
+import { getCategoryLabel } from '../../../lib/category';
+import { readOwnerSession } from '../../../lib/server/owner-auth';
+
+const previewHeaders = {
+  'Cache-Control': 'private, no-store',
+  Pragma: 'no-cache',
+  'X-Robots-Tag': 'noindex, nofollow, noarchive',
+};
+for (const [name, value] of Object.entries(previewHeaders)) Astro.response.headers.set(name, value);
+
+const auth = await readOwnerSession(Astro.request);
+if (auth.state === 'unauthenticated') {
+  return new Response(null, { status: 302, headers: { ...previewHeaders, Location: '/feed/' } });
+}
+const unavailable = auth.state === 'unavailable';
+if (unavailable) Astro.response.status = 503;
+
+const entries = auth.state === 'authenticated' ? await getCollection('blog') : [];
+const post = entries.find((candidate) => getPostSlug(candidate) === Astro.params.slug);
+if (auth.state === 'authenticated' && !post) Astro.response.status = 404;
+const rendered = post ? await render(post) : null;
+---
+
+<Base title={post ? `${post.data.title} · Private Preview` : 'Blog Private Preview'} description={post?.data.description ?? '私有 Blog 内容预览。'}>
+  <meta slot="head" name="robots" content="noindex,nofollow,noarchive" />
+  {unavailable ? (
+    <main class="blog-page" data-canvas="content"><p role="alert">预览服务暂时不可用，请稍后重试。</p></main>
+  ) : post && rendered ? (
+    <main class="blog-page blog-page--reading" data-canvas="content">
+      <nav class="blog-reading-nav" aria-label="预览导航"><a class="blog-reading-nav__return" href="/feed/admin/"><span aria-hidden="true">←</span><span>返回发布管理</span></a></nav>
+      <article class="blog-article">
+        <div class="blog-article__paper">
+          <header class="blog-article__header">
+            <span class="blog-article__category">PRIVATE PREVIEW · {getCategoryLabel(post.data.category)}</span>
+            <h1>{post.data.title}</h1>
+            <p class="blog-article__deck">{post.data.description}</p>
+            <div class="blog-article__meta" aria-label="文章信息"><time datetime={post.data.date.toISOString().slice(0, 10)}>{formatBlogDate(post.data.date)}</time></div>
+          </header>
+          <div class="blog-prose"><rendered.Content /></div>
+          {post.data.tags.length > 0 && <footer class="blog-article__tags" aria-label="文章标签">{post.data.tags.map((tag) => <span>#{tag}</span>)}</footer>}
+        </div>
+        <footer class="blog-article__footer"><a class="blog-article__back" href="/feed/admin/">← 返回发布管理</a></footer>
+      </article>
+    </main>
+  ) : (
+    <main class="blog-page" data-canvas="content"><p>没有找到这篇 Blog 文章。</p></main>
+  )}
+</Base>

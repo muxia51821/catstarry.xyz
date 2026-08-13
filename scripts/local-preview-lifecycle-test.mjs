@@ -141,7 +141,15 @@ async function verifyLocalAuthoringWorkflow({ sitePort, feedPort, output }) {
   assert.match(feedAdminBody, /仅供本地预览的草稿/);
 
   const draftUrl = `${siteOrigin}/blog/draft-preview/`;
+  const draftPreviewUrl = `${siteOrigin}/blog/preview/draft-preview/`;
   assert.equal((await fetch(draftUrl)).status, 404);
+  const unauthenticatedBlogPreview = await fetch(draftPreviewUrl, { redirect: 'manual' });
+  assert.ok([301, 302, 303, 307, 308].includes(unauthenticatedBlogPreview.status));
+  assert.equal(unauthenticatedBlogPreview.headers.get('location'), '/feed/');
+  const ownerDraftPreview = await fetch(draftPreviewUrl, { headers: { Cookie: cookie } });
+  assert.equal(ownerDraftPreview.status, 200);
+  assert.equal(ownerDraftPreview.headers.get('x-robots-tag'), 'noindex, nofollow, noarchive');
+  assert.match(await ownerDraftPreview.text(), /仅供本地预览的草稿/);
   const updateBlog = async (state) => request(`${siteOrigin}/blog/admin/lifecycle`, {
     method: 'PATCH',
     headers: { Cookie: cookie, 'Content-Type': 'application/json' },
@@ -151,6 +159,9 @@ async function verifyLocalAuthoringWorkflow({ sitePort, feedPort, output }) {
   assert.equal((await fetch(draftUrl)).status, 200);
   assert.equal((await updateBlog('withdrawn')).status, 200);
   assert.equal((await fetch(draftUrl)).status, 404);
+  const ownerWithdrawnPreview = await fetch(draftPreviewUrl, { headers: { Cookie: cookie } });
+  assert.equal(ownerWithdrawnPreview.status, 200);
+  assert.match(await ownerWithdrawnPreview.text(), /仅供本地预览的草稿/);
   assert.equal((await updateBlog('published')).status, 200);
   assert.equal((await fetch(draftUrl)).status, 200);
 

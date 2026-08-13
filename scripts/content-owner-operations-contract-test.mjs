@@ -30,6 +30,7 @@ const sources = await Promise.all([
   'src/pages/feed/admin.astro',
   'src/pages/learn/admin.astro',
   'src/pages/learn/preview/[slug].astro',
+  'src/pages/blog/preview/[slug].astro',
 ].map((file) => readFile(file, 'utf8')));
 for (const source of sources) {
   assert.match(source, /readOwnerSession\(Astro\.request\)/);
@@ -37,6 +38,21 @@ for (const source of sources) {
 }
 const lifecycleProxy = await readFile('src/pages/blog/admin/lifecycle.ts', 'utf8');
 assert.match(lifecycleProxy, /fetchOwnerApi\(request, '\/api\/blog\/admin\/publications'\)/);
+const blogPreview = sources.at(-1);
+assert.match(blogPreview, /noindex,nofollow,noarchive/);
+assert.match(blogPreview, /getCollection\('blog'\)/);
+assert.doesNotMatch(blogPreview, /filterPublishedBlogPosts|ViewTracker|ViewCounter|ArticleFooter/);
+
+const blogSchema = await readFile('src/content.config.ts', 'utf8');
+assert.match(blogSchema, /state: z\.enum\(\['draft', 'published', 'withdrawn'\]\),/);
+const blogManifestReader = await readFile('scripts/lib/blog-publications.mjs', 'utf8');
+assert.match(blogManifestReader, /must declare lifecycle state/);
+assert.doesNotMatch(blogManifestReader, /state \?\?.*published/);
+
+const feedAdminPage = sources[0];
+assert.match(feedAdminPage, /feedInitialError/);
+assert.match(feedAdminPage, /blogInitialError/);
+assert.match(feedAdminPage, /<BlogLifecycleAdmin[^>]+initialError=\{blogInitialError\}/);
 
 const homeRuntime = await readFile('src/components/home/home-runtime.ts', 'utf8');
 assert.match(homeRuntime, /parseInitialHomeStage\(location\.search\)/);

@@ -7,7 +7,10 @@ export async function readBlogPublicationEntries(root = 'src/data/blog') {
     if (!/\.mdx?$/i.test(file)) continue;
     const source = await readFile(file, 'utf8');
     const frontmatter = parseFrontmatter(source, file);
-    const state = frontmatter.state ?? (frontmatter.draft === 'true' ? 'draft' : 'published');
+    const state = frontmatter.state;
+    if (!state) {
+      throw new Error(`Blog file must declare lifecycle state: ${file}`);
+    }
     if (!['draft', 'published', 'withdrawn'].includes(state)) {
       throw new Error(`Blog file has invalid lifecycle state: ${file}`);
     }

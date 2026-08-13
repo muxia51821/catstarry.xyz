@@ -25,6 +25,7 @@
     "blog:sync-publications": "node scripts/blog-publication-manifest.mjs",
     "test:blog:publications": "node scripts/blog-publication-contract-test.mjs",
     "test:blog:reconciliation": "node scripts/blog-reconciliation-contract-test.mjs",
+    "test:blog:preview": "node scripts/blog-preview-contract-test.mjs",
     "test:content-owner-operations": "node --experimental-transform-types --import ./scripts/register-typescript-loader.mjs scripts/content-owner-operations-contract-test.mjs",
     "project:add": "node scripts/project-entry.mjs",
     "project:capture": "node scripts/capture-project-screenshots.mjs",

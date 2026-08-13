@@ -14,8 +14,8 @@ const blog = defineCollection({
     tags: z.array(z.string()).default([]),
     description: z.string(),
     slug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).optional(),
-    state: z.enum(['draft', 'published', 'withdrawn']).optional(),
-    // Transitional reader only. New Blog content must use state.
+    state: z.enum(['draft', 'published', 'withdrawn']),
+    // Legacy metadata may remain readable, but state is mandatory for all Blog content.
     draft: z.boolean().optional(),
     publication_id: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).optional(),
   }),

@@ -125,7 +125,7 @@ try {
   const syncBlog = (entries, deployedAt) => rawRequest('/api/blog/internal/publications', {
     method: 'POST', headers: publicationHeaders, body: JSON.stringify({ entries, deployed_at: deployedAt }),
   });
-  assert.equal((await syncBlog([{ slug: 'contract', title: 'Contract blog', summary: 'snapshot' }], '2026-07-25T12:00:00.000Z')).status, 200);
+  assert.equal((await syncBlog([{ slug: 'contract', title: 'Contract blog', summary: 'snapshot', state: 'published' }], '2026-07-25T12:00:00.000Z')).status, 200);
   let publicPage = await rawRequest('/api/feed?limit=20').then((response) => response.json());
   assert.equal(publicPage.items.some((item) => item.id === firstFootprint.footprint.id), true, 'public Blog source and public footprint must project');
   assert.equal((await syncBlog([], '2026-07-25T12:01:00.000Z')).status, 200);
@@ -138,7 +138,7 @@ try {
   assert.equal((await request(`/api/feed/${firstFootprint.footprint.id}`, { method: 'PATCH', headers: { Cookie: cookie, 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'system_footprint', visibility: 'public' }) })).status, 200);
   publicPage = await rawRequest('/api/feed?limit=20').then((response) => response.json());
   assert.equal(publicPage.items.some((item) => item.id === firstFootprint.footprint.id), false, 'own-public must not bypass a hidden Blog source gate');
-  assert.equal((await syncBlog([{ slug: 'contract', title: 'Contract blog', summary: 'restored source' }], '2026-07-25T12:02:00.000Z')).status, 200);
+  assert.equal((await syncBlog([{ slug: 'contract', title: 'Contract blog', summary: 'restored source', state: 'published' }], '2026-07-25T12:02:00.000Z')).status, 200);
   publicPage = await rawRequest('/api/feed?limit=20').then((response) => response.json());
   assert.equal(publicPage.items.filter((item) => item.id === firstFootprint.footprint.id).length, 1, 'restoring the source must reproject the same immutable footprint');
   let adminProjection = await request('/api/feed/admin?limit=20', { headers: { Cookie: cookie } }).then((response) => response.json());

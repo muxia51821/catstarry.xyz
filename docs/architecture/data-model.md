@@ -336,15 +336,13 @@ const learnCollection = defineCollection({
 
 ## 6. Blog 生产部署成功信号
 
-Blog 继续以 Markdown frontmatter 为内容源。Public Footprint 不在构建开始时写入：只有生产部署成功后的受保护信号才可创建一次足迹。
+Blog 继续以 Markdown frontmatter 为内容源，`state` 是必填生命周期字段。Public Footprint 不在构建或草稿部署时写入：新文章只有 owner 显式 Publish 才可创建一次足迹。
 
 ```
-Markdown（slug；publication_id 为可选字段）
+Markdown（required state: draft；slug / publication_id 为可选字段）
     ↓ Git push / build / production deploy
-首次 production sync 建立已发布 slug 基线
-    ↓ 基线之后的新 slug
-部署成功信号（仅 production）
-    ↓ 由 Publication Signal Adapter 验证
+受保护 manifest sync 登记 source，但不发布 draft
+    ↓ owner preview → explicit Publish
 Public Footprint Writer
     ↓ source_version = first-production-v1
 D1 public_footprints
@@ -353,6 +351,8 @@ D1 public_footprints
 **约束**：
 
 - 当前 Blog 幂等键使用 `blog:{slug}:first-production-v1`，不使用 `publication_id`、deployment id 或普通 Git SHA。
+- `state` 必须明确为 `draft`、`published` 或 `withdrawn`；缺失 state 的新内容在 authoring 与 manifest boundary 均失败，不回退为 published。
+- 新 draft 部署不生成足迹；owner 首次 Publish 生成一次，Withdraw / Restore 不重复生成。
 - 普通编辑、构建开始、部署失败与对同一发布标识的重复部署均不得产生新足迹。
 - 生产部署成功后的受保护 manifest sync 由 repository workflow 与 publication-manifest scripts 触发；架构接口不依赖某个特定供应商回调格式。
 - `publication_id` 是否成为未来 Blog 发布身份，待木下确认；本文件不提前裁决产品契约。

@@ -58,7 +58,8 @@ const draftSlugs = [];
 for (const filename of blogSources) {
   const meta = frontmatter(await readFile(filename, 'utf8'));
   const slug = field(meta, 'slug') ?? path.basename(filename).replace(/\.mdx?$/, '');
-  const state = field(meta, 'state') ?? (/^draft:\s*true\s*$/m.test(meta) ? 'draft' : 'published');
+  const state = field(meta, 'state');
+  assert.ok(['draft', 'published', 'withdrawn'].includes(state), `${filename} needs an explicit Blog lifecycle state`);
   if (state === 'published') publishedBlog.push(`/blog/${slug}/`);
   else draftSlugs.push(`/blog/${slug}/`);
 }

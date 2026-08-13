@@ -3,6 +3,7 @@ import type { BlogLifecycleEntry, BlogLifecycleState } from '../../../shared/typ
 
 interface Props {
   initial: BlogLifecycleEntry[];
+  initialError?: string;
 }
 
 const lifecycleLabel: Record<BlogLifecycleState, string> = {
@@ -11,10 +12,10 @@ const lifecycleLabel: Record<BlogLifecycleState, string> = {
   withdrawn: '已撤下',
 };
 
-export default function BlogLifecycleAdmin({ initial }: Props) {
+export default function BlogLifecycleAdmin({ initial, initialError = '' }: Props) {
   const [entries, setEntries] = useState(initial);
   const [busy, setBusy] = useState<string | null>(null);
-  const [error, setError] = useState('');
+  const [error, setError] = useState(initialError);
 
   const update = async (slug: string, state: 'published' | 'withdrawn') => {
     setBusy(slug);
@@ -45,6 +46,7 @@ export default function BlogLifecycleAdmin({ initial }: Props) {
         <span className="feed-eyebrow">BLOG · {lifecycleLabel[entry.state]}</span>
         <p>{entry.title}</p>
         <div>
+          <a className="feed-button feed-admin-preview" href={`/blog/preview/${encodeURIComponent(entry.slug)}/`}>预览</a>
           {entry.state === 'published'
             ? <button type="button" disabled={busy === entry.slug} onClick={() => void update(entry.slug, 'withdrawn')}>Withdraw</button>
             : <button type="button" disabled={busy === entry.slug} onClick={() => void update(entry.slug, 'published')}>{entry.state === 'withdrawn' ? 'Restore' : 'Publish'}</button>}

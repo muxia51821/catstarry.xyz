@@ -330,7 +330,7 @@ const blogHeaders = {
 };
 const historicalManifest = {
   deployed_at: '2026-07-25T00:00:00.000Z',
-  entries: [{ slug: 'historical-post', title: 'Historical post', summary: 'Seed only' }],
+  entries: [{ slug: 'historical-post', title: 'Historical post', summary: 'Seed only', state: 'published' }],
 };
 assert.equal((await fetchWorker(blogEnv, blogManifestUrl, {
   method: 'POST',
@@ -352,15 +352,23 @@ const nextManifest = {
   deployed_at: '2026-07-26T00:00:00.000Z',
   entries: [
     historicalManifest.entries[0],
-    { slug: 'first-new-post', title: 'First new post', summary: 'Published now' },
+    { slug: 'first-new-post', title: 'First new post', summary: 'Draft preview', state: 'draft' },
   ],
 };
 assert.deepEqual(await fetchWorker(blogEnv, blogManifestUrl, {
   method: 'POST',
   headers: blogHeaders,
   body: JSON.stringify(nextManifest),
-}).then((response) => response.json()), { initialized: false, synced: 2, created: 1 });
-assert.equal(blogEnv.DB.footprints.size, 1);
+}).then((response) => response.json()), { initialized: false, synced: 2, created: 0 });
+assert.equal(blogEnv.DB.footprints.size, 0, 'deploying a new Blog draft must not create a publication footprint');
+assert.equal((await fetchWorker(blogEnv, blogManifestUrl, {
+  method: 'POST',
+  headers: blogHeaders,
+  body: JSON.stringify({
+    deployed_at: '2026-07-26T00:01:00.000Z',
+    entries: [{ slug: 'missing-state', title: 'Missing state', summary: 'Invalid' }],
+  }),
+})).status, 400, 'the Worker manifest boundary must reject missing Blog state');
 assert.deepEqual(await fetchWorker(blogEnv, blogManifestUrl, {
   method: 'POST',
   headers: blogHeaders,
@@ -370,13 +378,17 @@ assert.deepEqual(await fetchWorker(blogEnv, blogManifestUrl, {
     entries: [historicalManifest.entries[0], { ...nextManifest.entries[1], title: 'Ordinary edit' }],
   }),
 }).then((response) => response.json()), { initialized: false, synced: 2, created: 0 });
-assert.equal(blogEnv.DB.footprints.size, 1, 'deployment retry or ordinary edit must not duplicate the first-publication event');
+assert.equal(blogEnv.DB.footprints.size, 0, 'deployment retry or ordinary edit must not publish a Blog draft');
 const lifecycleToken = crypto.randomUUID();
 blogEnv.AUTH_KV.values.set(`session:${lifecycleToken}`, {
   username: 'contract-owner',
   expires_at: new Date(Date.now() + 60_000).toISOString(),
 });
 const lifecycleHeaders = { Cookie: `token=${lifecycleToken}`, Origin: 'https://catstarry.xyz', 'Content-Type': 'application/json' };
+assert.deepEqual(await fetchWorker(blogEnv, 'https://api.test/api/blog/admin/publications', {
+  method: 'PATCH', headers: lifecycleHeaders, body: JSON.stringify({ slug: 'first-new-post', state: 'published' }),
+}).then((response) => response.json()).then(({ entry, created }) => ({ state: entry.state, created })), { state: 'published', created: true });
+assert.equal(blogEnv.DB.footprints.size, 1, 'owner Publish must create the first publication footprint exactly once');
 const firstFootprint = [...blogEnv.DB.footprints.values()][0];
 firstFootprint.visibility = 'private';
 assert.deepEqual(await fetchWorker(blogEnv, 'https://api.test/api/blog/admin/publications', {
