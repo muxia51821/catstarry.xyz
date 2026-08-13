@@ -4,7 +4,7 @@ title: "catstarry.xyz 项目上下文与术语"
 track: programming
 section: 项目基础
 tags: ["Astro", "React", "shadcn/ui", "Cloudflare", "Learn", "Projects"]
-state: published
+state: withdrawn
 publishedAt: 2026-07-03
 revisedAt: 2026-07-24
 excerpt: "从项目简介、技术架构与板块职责进入 catstarry.xyz 的上下文。"

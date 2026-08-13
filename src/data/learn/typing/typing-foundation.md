@@ -4,7 +4,7 @@ title: "打字：把想法稳定地转成输出"
 track: typing
 section: 练习
 tags: ["typing speed", "盲打", "Monkeytype", "TypingClub", "SpeedCoder"]
-state: published
+state: withdrawn
 publishedAt: 2026-07-03
 excerpt: "让中文、英文与代码输入更稳定，减少表达过程中的摩擦。"
 ---

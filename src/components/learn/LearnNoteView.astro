@@ -26,6 +26,7 @@ const previewJson = serializeJsonForInlineScript(previewData);
 const sectionHref = note.section
   ? `/learn/track/${track.slug}/#section-${note.section.toLocaleLowerCase('zh-CN').replace(/[^a-z0-9\u3400-\u9fff]+/g, '-')}`
   : `/learn/track/${track.slug}/`;
+const isWithdrawn = note.state === 'withdrawn';
 ---
 
 <div class="learn-detail-page__shell">
@@ -40,8 +41,8 @@ const sectionHref = note.section
 
   <header class="learn-detail-page__header">
     <p class="learn-detail-page__context">
-      <a href={`/learn/track/${track.slug}/`}>{track.name}</a>
-      {note.section && <><span aria-hidden="true"> · </span><a href={sectionHref}>{note.section}</a></>}
+      {isWithdrawn ? <span>{track.name}</span> : <a href={`/learn/track/${track.slug}/`}>{track.name}</a>}
+      {note.section && <><span aria-hidden="true"> · </span>{isWithdrawn ? <span>{note.section}</span> : <a href={sectionHref}>{note.section}</a>}</>}
     </p>
     <div class="learn-detail-page__dates">
       {note.publishedAt && <time datetime={note.publishedAt}>发布于 {formatLearnDate(note.publishedAt)}</time>}

@@ -4,7 +4,7 @@ title: "英语：阅读技术文档与日常输入"
 track: english
 section: 阅读
 tags: ["English", "技术文档", "MDN", "JavaScript.info", "DeepL"]
-state: published
+state: withdrawn
 publishedAt: 2026-07-03
 excerpt: "通过技术文档、文章、书籍与交流工具，建立持续的英语输入。"
 ---

@@ -74,8 +74,17 @@ try {
   const authenticatedBody = await authenticated.text();
   assert.match(authenticatedBody, /PRIVATE PREVIEW/);
   assert.match(authenticatedBody, /域名、DNS 与 HTTP/);
-  assert.match(authenticatedBody, /浏览器访问网站/);
+  assert.match(authenticatedBody, /浏览器如何找到 catstarry\.xyz/);
   assert.match(authenticatedBody, /<meta name="robots" content="noindex,nofollow,noarchive"/);
+
+  const gitDraft = await fetch(`${siteOrigin}/learn/preview/git-recovery-reflog-reset/`, {
+    headers: { Cookie: 'preview-token=1' },
+  });
+  assert.equal(gitDraft.status, 200);
+  const gitDraftBody = await gitDraft.text();
+  assert.match(gitDraftBody, /PRIVATE PREVIEW/);
+  assert.match(gitDraftBody, /Git 出问题时先找证据：Reflog、Reset 与安全恢复/);
+  assert.match(gitDraftBody, /STOP/);
 
   const missing = await fetch(`${siteOrigin}/learn/preview/not-a-real-note/`, {
     headers: { Cookie: 'preview-token=1' },
@@ -87,11 +96,29 @@ try {
   assert.equal(publicDraft.status, 404);
   assert.doesNotMatch(await publicDraft.text(), /域名、DNS 与 HTTP/);
 
-  for (const pathname of ['/learn/', '/learn/track/programming/']) {
-    const response = await fetch(`${siteOrigin}${pathname}`);
-    assert.equal(response.status, 200, pathname);
-    assert.doesNotMatch(await response.text(), /域名、DNS 与 HTTP/);
+  for (const [slug, title] of [
+    ['vibe-coding-mission', 'Vibe Coding：与 AI 协作的学习任务'],
+    ['site-context-and-terms', 'catstarry.xyz 项目上下文与术语'],
+    ['content-canvas-and-accessibility', 'Content 画布与可访问性'],
+    ['english-reading-resources', '英语：阅读技术文档与日常输入'],
+    ['typing-foundation', '打字：把想法稳定地转成输出'],
+  ]) {
+    const withdrawn = await fetch(`${siteOrigin}/learn/notes/${slug}/`);
+    assert.equal(withdrawn.status, 200, slug);
+    const withdrawnBody = await withdrawn.text();
+    assert.match(withdrawnBody, /此笔记已退出当前 Learn corpus；页面暂时保留用于历史链接。/, slug);
+    assert.match(withdrawnBody, new RegExp(title), slug);
   }
+
+  const learnHome = await fetch(`${siteOrigin}/learn/`);
+  assert.equal(learnHome.status, 200);
+  const learnHomeBody = await learnHome.text();
+  assert.match(learnHomeBody, /暂时还没有公开的学习笔记。/);
+  for (const title of [
+    '域名、DNS 与 HTTP',
+    'Git 出问题时先找证据',
+    'Vibe Coding：与 AI 协作的学习任务',
+  ]) assert.doesNotMatch(learnHomeBody, new RegExp(title));
 
   const adminSource = await readFile(path.join(root, 'src', 'pages', 'learn', 'admin.astro'), 'utf8');
   assert.match(adminSource, /learn\/preview\/\$\{note\.slug\}/);

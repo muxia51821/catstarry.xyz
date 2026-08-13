@@ -7,8 +7,8 @@ import '../../../components/learn/learn.css';
 
 export async function getStaticPaths() {
   const entries = await getCollection('learn');
-  const publishedSlugs = new Set(getPublishedNotes(entries).map((note) => note.slug));
-  return entries.filter((entry) => publishedSlugs.has(entry.data.slug)).map((entry) => ({
+  const publicSlugs = new Set(getPublishedNotes(entries).map((note) => note.slug));
+  return entries.filter((entry) => publicSlugs.has(entry.data.slug) || entry.data.state === 'withdrawn').map((entry) => ({
     params: { slug: entry.data.slug },
     props: { entry },
   }));
@@ -22,6 +22,9 @@ const { Content } = await render(entry);
 
 <Base title={`${note.title} · Learn`} description={note.excerpt}>
   <main class="learn-detail-page" data-canvas="content">
+    {note.state === 'withdrawn' && (
+      <p class="learn-withdrawn-notice" role="status">此笔记已退出当前 Learn corpus；页面暂时保留用于历史链接。</p>
+    )}
     <LearnNoteView note={note} allNotes={allPublishedNotes} Content={Content} />
   </main>
 </Base>
