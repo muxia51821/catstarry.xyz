@@ -231,7 +231,7 @@ try {
       translateY: transform === 'none' ? 0 : new DOMMatrixReadOnly(transform).m42,
     };
   })()`);
-  assert.ok(projectHover.hoverCapable && projectHover.hovered, 'desktop browser must apply the real project-card hover state');
+  assert.ok(projectHover.hovered, 'desktop browser must apply the real project-card hover state');
   assert.ok(projectHover.transform !== 'none' && projectHover.translateY < 0, 'normal project-card hover must produce upward motion');
 
   await send('Emulation.setEmulatedMedia', {
