@@ -34,7 +34,7 @@ const rendered = post ? await render(post) : null;
     <main class="blog-page" data-canvas="content"><p role="alert">预览服务暂时不可用，请稍后重试。</p></main>
   ) : post && rendered ? (
     <main class="blog-page blog-page--reading" data-canvas="content">
-      <nav class="blog-reading-nav" aria-label="预览导航"><a class="blog-reading-nav__return" href="/feed/admin/"><span aria-hidden="true">←</span><span>返回发布管理</span></a></nav>
+      <nav class="blog-reading-nav" aria-label="预览导航"><a class="blog-reading-nav__return" href="/feed/admin/"><span aria-hidden="true">←</span><span>返回 Feed / Blog 管理</span></a></nav>
       <article class="blog-article">
         <div class="blog-article__paper">
           <header class="blog-article__header">
@@ -46,7 +46,7 @@ const rendered = post ? await render(post) : null;
           <div class="blog-prose"><rendered.Content /></div>
           {post.data.tags.length > 0 && <footer class="blog-article__tags" aria-label="文章标签">{post.data.tags.map((tag) => <span>#{tag}</span>)}</footer>}
         </div>
-        <footer class="blog-article__footer"><a class="blog-article__back" href="/feed/admin/">← 返回发布管理</a></footer>
+        <footer class="blog-article__footer"><a class="blog-article__back" href="/feed/admin/">← 返回 Feed / Blog 管理</a></footer>
       </article>
     </main>
   ) : (

@@ -77,6 +77,14 @@ try {
     await load(route, `${route} desktop load`);
     await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 360, y: 180, pointerType: 'mouse' });
     await delay(40);
+    const beforeClick = await evaluate(`(() => {
+      const canvas = document.querySelector('.content-meteor-canvas');
+      if (!(canvas instanceof HTMLCanvasElement)) return null;
+      return Array.from(canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data).some((value) => value !== 0);
+    })()`);
+    await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: 360, y: 180, button: 'left', clickCount: 1, pointerType: 'mouse' });
+    await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: 360, y: 180, button: 'left', clickCount: 1, pointerType: 'mouse' });
+    await delay(20);
     desktop.push(await evaluate(`(() => {
       const canvas = document.querySelector('.content-meteor-canvas');
       const content = document.querySelector('[data-canvas="content"]');
@@ -86,6 +94,10 @@ try {
         mounted: Boolean(canvas),
         pointerEvents: canvas ? getComputedStyle(canvas).pointerEvents : null,
         visible: canvas ? getComputedStyle(canvas).display !== 'none' : false,
+        beforeClick: ${JSON.stringify(beforeClick)},
+        hasClickFlash: canvas instanceof HTMLCanvasElement
+          ? Array.from(canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data).some((value) => value !== 0)
+          : false,
         noOverflow: document.documentElement.scrollWidth <= document.documentElement.clientWidth,
         tokens: content ? ['--cursor-meteor-opacity', '--cursor-meteor-width', '--cursor-meteor-head-radius', '--cursor-meteor-debris-opacity']
           .map((token) => getComputedStyle(content).getPropertyValue(token).trim()) : [],
@@ -97,11 +109,13 @@ try {
       assert.equal(result.mounted, false, `${result.route} must remain disabled without a real fine pointer`);
       continue;
     }
-    assert.ok(result.visible && result.pointerEvents === 'none' && result.noOverflow, `${result.route} must mount a non-intercepting Content meteor`);
-    assert.equal(Number.parseFloat(result.tokens[0]), 0.65, `${result.route} must use weakened Content opacity`);
-    assert.equal(result.tokens[1], '1px', `${result.route} must use weakened Content trail width`);
-    assert.equal(result.tokens[2], '5px', `${result.route} must use weakened Content head radius`);
-    assert.equal(Number.parseFloat(result.tokens[3]), 0.05, `${result.route} must use weakened Content debris opacity`);
+    assert.ok(result.visible && result.pointerEvents === 'none' && result.noOverflow, `${result.route} must mount a non-intercepting Content click flash`);
+    assert.equal(result.beforeClick, false, `${result.route} must not draw a movement trail`);
+    assert.equal(result.hasClickFlash, true, `${result.route} must draw a click flash`);
+    assert.equal(Number.parseFloat(result.tokens[0]), 0.42, `${result.route} must use calibrated Content opacity`);
+    assert.equal(result.tokens[1], '0.75px', `${result.route} must use calibrated Content trail width`);
+    assert.equal(result.tokens[2], '2.75px', `${result.route} must use calibrated Content head radius`);
+    assert.equal(Number.parseFloat(result.tokens[3]), 0.012, `${result.route} must use near-invisible Content debris`);
   }
 
   // Feed is SSR-only on this fixture. Its shared layout provides the content canvas;

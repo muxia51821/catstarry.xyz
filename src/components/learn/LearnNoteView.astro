@@ -13,9 +13,10 @@ interface Props {
   allNotes: LearnNote[];
   Content: AstroComponentFactory;
   preview?: boolean;
+  canPublish?: boolean;
 }
 
-const { note, allNotes, Content, preview = false } = Astro.props;
+const { note, allNotes, Content, preview = false, canPublish = false } = Astro.props;
 const track = getTrackDefinition(note.track);
 const related = getRelatedNotes(note, allNotes);
 const previewData = Object.fromEntries(allNotes.map((item) => [item.slug, {
@@ -33,7 +34,10 @@ const isWithdrawn = note.state === 'withdrawn';
   {preview ? (
     <div class="learn-preview-chrome">
       <strong>PRIVATE PREVIEW · {note.state.toUpperCase()}</strong>
-      <a href="/learn/admin/">← 返回 Learn 管理</a>
+      <div class="learn-preview-chrome__actions">
+        {canPublish && <button class="learn-local-publish" type="button" data-learn-local-publish data-slug={note.slug}>Publish locally</button>}
+        <a href="/learn/admin/">← 返回 Learn 管理</a>
+      </div>
     </div>
   ) : (
     <a class="learn-detail-page__back" href="/learn/">← 返回 Learn</a>
@@ -77,7 +81,7 @@ const isWithdrawn = note.state === 'withdrawn';
   </div>
 
   <div class="learn-note-ending">
-    <a class="learn-detail-page__back" href="/learn/">← 返回 Learn</a>
+    <a class="learn-detail-page__back" href={preview ? '/learn/admin/' : '/learn/'}>← 返回 {preview ? 'Learn 管理' : 'Learn'}</a>
   </div>
 </div>
 
@@ -110,5 +114,32 @@ const isWithdrawn = note.state === 'withdrawn';
       trigger.addEventListener('focus', show);
       trigger.addEventListener('blur', hide);
     }
+  }
+</script>
+
+<script>
+  const publish = document.querySelector('[data-learn-local-publish]');
+  if (publish instanceof HTMLButtonElement) {
+    publish.addEventListener('click', async () => {
+      publish.disabled = true;
+      const original = publish.textContent;
+      publish.textContent = 'Publishing…';
+      try {
+        const response = await fetch('/learn/preview/publish', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify({ slug: publish.dataset.slug }),
+        });
+        const result = await response.json() as { error?: string };
+        if (!response.ok) throw new Error(result.error ?? 'Publish failed.');
+        publish.textContent = 'Published locally';
+        publish.insertAdjacentText('afterend', ' 已写入当前 checkout；刷新 Learn 管理或公开 Learn 确认，再按正常 Git 流程提交。');
+      } catch (error) {
+        publish.disabled = false;
+        publish.textContent = original;
+        window.alert(error instanceof Error ? error.message : 'Publish failed.');
+      }
+    });
   }
 </script>

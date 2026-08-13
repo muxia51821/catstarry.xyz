@@ -103,9 +103,12 @@
 .feed-admin-row time { color: var(--text-secondary); }
 .feed-admin-row div { display: flex; gap: var(--space-sm); }
 .feed-admin-back { display: inline-flex; margin-block-end: var(--space-lg); color: var(--text-primary); text-decoration: none; }
+.feed-owner-nav { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-block-end: var(--space-lg); }
+.feed-owner-nav a { display: inline-flex; min-block-size: var(--interaction-hit-size); align-items: center; color: var(--text-secondary); font-size: var(--text-sm); text-decoration: none; }
+.feed-owner-nav a:is(:hover, :focus-visible, [aria-current="page"]) { color: var(--klein-500); }
 .feed-eyebrow { margin: 0 0 var(--space-sm); color: var(--footprint-source); font: 500 .75rem/1.4 var(--font-mono); letter-spacing: .06em; }
 
-.feed-home-link:focus-visible, .feed-owner-action:focus-visible, .feed-button:focus-visible, .feed-tabs button:focus-visible, .feed-media-button:focus-visible, .feed-destination:focus-visible, .feed-viewer-close:focus-visible, .feed-admin-row button:focus-visible, .feed-admin-back:focus-visible { outline: 2px solid var(--klein-500); outline-offset: 3px; }
+.feed-home-link:focus-visible, .feed-owner-action:focus-visible, .feed-button:focus-visible, .feed-tabs button:focus-visible, .feed-media-button:focus-visible, .feed-destination:focus-visible, .feed-viewer-close:focus-visible, .feed-admin-row button:focus-visible, .feed-admin-back:focus-visible, .feed-owner-nav a:focus-visible { outline: 2px solid var(--klein-500); outline-offset: 3px; }
 .feed-panel input:focus-visible, .feed-panel textarea:focus-visible, .feed-admin-filters select:focus-visible, .feed-admin-filters input:focus-visible { outline: 2px solid var(--klein-500); outline-offset: 2px; }
 
 @media (max-width: 520px) {

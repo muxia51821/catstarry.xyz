@@ -32,6 +32,7 @@ const notes = (authenticated ? await getCollection('learn') : []).map(noteFromEn
     <div class="learn-page__shell">
       <header class="learn-admin-header">
         <a class="learn-page__back" href="/learn/">← 返回 Learn</a>
+        <nav class="learn-owner-nav" aria-label="内容管理"><a href="/feed/admin/">Feed / Blog 管理</a><a aria-current="page" href="/learn/admin/">Learn 管理</a></nav>
         <h1>Learn 管理</h1>
         <p>管理公开 Learn Note 的预览与状态。</p>
       </header>

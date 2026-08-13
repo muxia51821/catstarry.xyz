@@ -118,6 +118,7 @@ async function verifyLocalAuthoringWorkflow({ sitePort, feedPort, output }) {
   assert.match(adminBody, /Learn 管理/);
   assert.match(adminBody, /domain-dns-http/);
   assert.match(adminBody, /git-recovery-reflog-reset/);
+  assert.match(adminBody, /href="\/feed\/admin\/"/);
 
   const feedAdmin = await fetch(`${siteOrigin}/feed/admin/`, { headers: { Cookie: cookie } });
   assert.equal(feedAdmin.status, 200);
@@ -126,6 +127,7 @@ async function verifyLocalAuthoringWorkflow({ sitePort, feedPort, output }) {
   assert.match(feedAdminBody, /Blog 发布状态/);
   assert.match(feedAdminBody, /从零开始建造数字空间/);
   assert.match(feedAdminBody, /仅供本地预览的草稿/);
+  assert.match(feedAdminBody, /href="\/learn\/admin\/"/);
 
   const draftUrl = `${siteOrigin}/blog/draft-preview/`;
   const draftPreviewUrl = `${siteOrigin}/blog/preview/draft-preview/`;
@@ -167,7 +169,34 @@ async function verifyLocalAuthoringWorkflow({ sitePort, feedPort, output }) {
     const previewBody = await preview.text();
     assert.match(previewBody, /PRIVATE PREVIEW/, slug);
     assert.match(previewBody, new RegExp(title), slug);
+    if (slug === 'domain-dns-http') assert.match(previewBody, /Publish locally/);
   }
+
+  const unauthenticatedPublish = await fetch(`${siteOrigin}/learn/preview/publish`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ slug: 'domain-dns-http' }),
+  });
+  assert.equal(unauthenticatedPublish.status, 401);
+  const published = await request(`${siteOrigin}/learn/preview/publish`, {
+    method: 'POST',
+    headers: { Cookie: cookie, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ slug: 'domain-dns-http' }),
+  }, 'Publish local Learn draft');
+  const publishedBody = await published.text();
+  assert.equal(published.status, 200, publishedBody);
+  assert.match(publishedBody, /"state":"published"/);
+  const duplicatePublish = await request(`${siteOrigin}/learn/preview/publish`, {
+    method: 'POST',
+    headers: { Cookie: cookie, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ slug: 'domain-dns-http' }),
+  }, 'Repeat local Learn publish');
+  assert.equal(duplicatePublish.status, 409);
+  const publicLearn = await waitForPublishedLearn(`${siteOrigin}/learn/notes/domain-dns-http/`);
+  assert.match(publicLearn, /域名、DNS 与 HTTP/);
+  const publishedAdmin = await fetch(`${siteOrigin}/learn/admin/`, { headers: { Cookie: cookie } });
+  assert.equal(publishedAdmin.status, 200);
+  assert.match(await publishedAdmin.text(), /Published/);
 
   for (const slug of [
     'vibe-coding-mission',
@@ -185,6 +214,17 @@ async function verifyLocalAuthoringWorkflow({ sitePort, feedPort, output }) {
   assert.ok([301, 302, 303, 307, 308].includes(unauthenticated.status));
   assert.doesNotMatch(await unauthenticated.text(), /域名、DNS 与 HTTP：浏览器如何找到 catstarry\.xyz/);
   assert.doesNotMatch(output, /\$2[aby]\$/i, 'bcrypt hashes must not be printed');
+}
+
+async function waitForPublishedLearn(url) {
+  let last = '';
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const response = await fetch(url);
+    last = await response.text();
+    if (response.status === 200) return last;
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  throw new Error(`Published Learn note did not become public: ${last}`);
 }
 
 function exitDetails(child) {
@@ -266,6 +306,8 @@ await writeFile(path.join(staleDirectory, ownerFile), JSON.stringify({ pid: 2147
 let preview;
 let externallyStoppedPreview;
 let legacyStoppedPreview;
+const publishedSource = path.join(root, 'src', 'data', 'learn', 'programming', 'domain-dns-http.md');
+const originalPublishedSource = await readFile(publishedSource, 'utf8');
 try {
   preview = spawnPreview(['--check-only']);
   const checkOnly = await waitForExit(preview);
@@ -290,6 +332,8 @@ try {
   assert.deepEqual(gracefulExit, { code: 0, signal: null }, preview.output());
   assert.match(preview.output(), /Local previews are ready:/);
   assert.match(preview.output(), /LOCAL PREVIEW ONLY/);
+  assert.match(preview.output(), /Source checkout: .+learn-local-publication-gate/);
+  assert.match(preview.output(), /Git branch \/ HEAD: task\/learn-local-publication-gate \/ [0-9a-f]{40}/);
   assert.match(preview.output(), /Received SIGINT; stopping all local previews/);
   assert.match(preview.output(), /All local previews stopped\./);
   assert.deepEqual(await Promise.all([portIsAvailable(sitePort), portIsAvailable(feedPort), portIsAvailable(financePort)]), [true, true, true]);
@@ -361,4 +405,5 @@ try {
   if (externallyStoppedPreview) await stopProcessTree(externallyStoppedPreview.child);
   if (legacyStoppedPreview) await stopProcessTree(legacyStoppedPreview.child);
   await rm(staleDirectory, { recursive: true, force: true });
+  await writeFile(publishedSource, originalPublishedSource, 'utf8');
 }

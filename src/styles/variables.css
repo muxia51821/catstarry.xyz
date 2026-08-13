@@ -489,13 +489,13 @@
 
 [data-canvas="content"] {
   --button-secondary-hover: rgba(0, 47, 167, 0.05);
-  --cursor-meteor-head: var(--klein-500);
-  --cursor-meteor-trail: rgba(0, 47, 167, 0.34);
-  --cursor-meteor-glow: rgba(0, 47, 167, 0.12);
-  --cursor-meteor-width: 1px;
-  --cursor-meteor-head-radius: 5px;
-  --cursor-meteor-debris-opacity: 0.05;
-  --cursor-meteor-opacity: 0.65;
+  --cursor-meteor-head: rgba(0, 47, 167, 1);
+  --cursor-meteor-trail: rgba(61, 61, 58, 0.28);
+  --cursor-meteor-glow: rgba(61, 61, 58, 0.07);
+  --cursor-meteor-width: 0.75px;
+  --cursor-meteor-head-radius: 2.75px;
+  --cursor-meteor-debris-opacity: 0.012;
+  --cursor-meteor-opacity: 0.42;
 }
 
 [data-canvas="finance"] {

@@ -53,6 +53,10 @@ const feedAdminPage = sources[0];
 assert.match(feedAdminPage, /feedInitialError/);
 assert.match(feedAdminPage, /blogInitialError/);
 assert.match(feedAdminPage, /<BlogLifecycleAdmin[^>]+initialError=\{blogInitialError\}/);
+assert.match(feedAdminPage, /href="\/learn\/admin\/"/);
+assert.match(sources[1], /href="\/feed\/admin\/"/);
+assert.match(sources[2], /learn\/admin/);
+assert.match(blogPreview, /返回 Feed \/ Blog 管理/);
 
 const homeRuntime = await readFile('src/components/home/home-runtime.ts', 'utf8');
 assert.match(homeRuntime, /parseInitialHomeStage\(location\.search\)/);

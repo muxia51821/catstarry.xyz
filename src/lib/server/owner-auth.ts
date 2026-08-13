@@ -35,7 +35,8 @@ export async function fetchOwnerApi(incoming: Request, pathname: string): Promis
 
 export async function readOwnerSession(incoming: Request): Promise<OwnerAuthResult> {
   try {
-    const response = await fetchOwnerApi(incoming, '/api/auth/session');
+    const sessionRequest = new Request(incoming.url, { headers: incoming.headers });
+    const response = await fetchOwnerApi(sessionRequest, '/api/auth/session');
     if (!response.ok) return { state: 'unavailable' };
     const value = await response.json() as Partial<SessionStatus>;
     if (typeof value.authenticated !== 'boolean') return { state: 'unavailable' };
