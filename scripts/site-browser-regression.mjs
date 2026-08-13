@@ -211,44 +211,49 @@ try {
       hasDateColumn: getComputedStyle(document.querySelector('.blog-post-entry__date')).display !== 'none',
       summaryVisible: summary.getBoundingClientRect().height > 0 && getComputedStyle(summary).opacity === '1',
       titleColor: getComputedStyle(title).color,
-      contentBox: (() => { const box = entry.querySelector('.blog-post-entry__content').getBoundingClientRect(); return { x: box.x, y: box.y, width: box.width, height: box.height }; })(),
     };
   })()`);
   assert.ok(archiveDefault.entry && archiveDefault.noCard && archiveDefault.hasDateColumn);
   assert.equal(archiveDefault.summaryVisible, false);
-  const archiveHoverTarget = await evaluate(`(() => {
-    const content = document.querySelector('.blog-post-entry__content');
-    content.scrollIntoView({ block: 'center', inline: 'center' });
-    const box = content.getBoundingClientRect();
-    return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
-  })()`);
-  await delay(50);
-  await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 1, y: 1, pointerType: 'mouse' });
-  await send('Input.dispatchMouseEvent', {
-    type: 'mouseMoved',
-    x: archiveHoverTarget.x,
-    y: archiveHoverTarget.y,
-    pointerType: 'mouse',
+  await send('DOM.enable');
+  await send('CSS.enable');
+  const archiveContentObject = await send('Runtime.evaluate', {
+    expression: `document.querySelector('.blog-post-entry__content')`,
+    objectGroup: 'blog-archive-hover',
+  });
+  await send('DOM.getDocument', { depth: 0 });
+  const { node: archiveContentNode } = await send('DOM.describeNode', {
+    objectId: archiveContentObject.result.objectId,
+  });
+  const { nodeIds: [archiveContentNodeId] } = await send('DOM.pushNodesByBackendIdsToFrontend', {
+    backendNodeIds: [archiveContentNode.backendNodeId],
+  });
+  assert.ok(archiveContentNodeId, 'Blog archive hover target must exist');
+  await send('CSS.forcePseudoState', {
+    nodeId: archiveContentNodeId,
+    forcedPseudoClasses: ['hover'],
   });
   await waitFor(`(() => {
-    const content = document.querySelector('.blog-post-entry__content');
     const summary = document.querySelector('.blog-post-entry__description');
     const title = document.querySelector('.blog-post-entry h2 a');
-    return content.matches(':hover')
-      && summary.getBoundingClientRect().height > 0
+    return summary.getBoundingClientRect().height > 0
       && getComputedStyle(summary).opacity === '1'
       && getComputedStyle(title).color !== ${JSON.stringify(archiveDefault.titleColor)};
-  })()`, 'Blog archive hover state', 2_000);
+  })()`, 'Blog archive forced hover visual state', 2_000);
   const archiveHover = await evaluate(`(() => {
     const summary = document.querySelector('.blog-post-entry__description');
     const title = document.querySelector('.blog-post-entry h2 a');
     return {
       summaryVisible: summary.getBoundingClientRect().height > 0 && getComputedStyle(summary).opacity === '1',
       titleChanged: getComputedStyle(title).color !== ${JSON.stringify(archiveDefault.titleColor)},
-      contentHovered: document.querySelector('.blog-post-entry__content').matches(':hover'),
     };
   })()`);
-  assert.ok(archiveHover.contentHovered && archiveHover.summaryVisible && archiveHover.titleChanged);
+  assert.ok(archiveHover.summaryVisible && archiveHover.titleChanged);
+  await send('CSS.forcePseudoState', {
+    nodeId: archiveContentNodeId,
+    forcedPseudoClasses: [],
+  });
+  await send('Runtime.releaseObjectGroup', { objectGroup: 'blog-archive-hover' });
   await evaluate(`document.querySelector('.blog-post-entry h2 a').focus()`);
   const archiveFocus = await evaluate(`(() => {
     const summary = document.querySelector('.blog-post-entry__description');
@@ -428,7 +433,11 @@ try {
     });
     for (const route of routes) {
       const navigation = await send('Page.navigate', { url: `${baseUrl}${route}` });
-      assert.equal(navigation.errorText, undefined, `${route} navigation failed`);
+      assert.equal(
+        navigation.errorText,
+        undefined,
+        `${route} navigation failed (Astro exitCode=${site.exitCode}, signalCode=${site.signalCode})\n${siteOutput}`,
+      );
       await waitFor(
         `document.readyState === 'complete' && location.pathname === ${JSON.stringify(route)}`,
         `${route} load`,

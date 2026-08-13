@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { access, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
@@ -26,21 +27,22 @@ if ([checkOnly, smokeOnly, stopOnly].filter(Boolean).length > 1) {
 
 function portFromEnv(name, fallback) {
   const value = Number(process.env[name] ?? fallback);
-  if (!Number.isInteger(value) || value < 1 || value > 65535) {
-    throw new Error(`${name} must be a valid TCP port`);
+  if (!Number.isInteger(value) || value < 0 || value > 65535) {
+    throw new Error(`${name} must be a valid TCP port or 0 for automatic allocation`);
   }
   return value;
 }
 
-const sitePort = portFromEnv('SITE_PREVIEW_PORT', '4321');
-const feedPort = portFromEnv('FEED_PREVIEW_PORT', '8787');
-const financePort = portFromEnv('FINANCE_PREVIEW_PORT', '8788');
-const ports = new Set([sitePort, feedPort, financePort]);
-if (ports.size !== 3) throw new Error('SITE_PREVIEW_PORT, FEED_PREVIEW_PORT, and FINANCE_PREVIEW_PORT must be different');
-
-const siteOrigin = `http://127.0.0.1:${sitePort}`;
-const feedOrigin = `http://127.0.0.1:${feedPort}`;
-const financeOrigin = `http://127.0.0.1:${financePort}`;
+let sitePort = portFromEnv('SITE_PREVIEW_PORT', '4321');
+let feedPort = portFromEnv('FEED_PREVIEW_PORT', '8787');
+let financePort = portFromEnv('FINANCE_PREVIEW_PORT', '8788');
+const configuredPorts = [sitePort, feedPort, financePort].filter((port) => port !== 0);
+if (new Set(configuredPorts).size !== configuredPorts.length) {
+  throw new Error('SITE_PREVIEW_PORT, FEED_PREVIEW_PORT, and FINANCE_PREVIEW_PORT must be different');
+}
+let siteOrigin = `http://127.0.0.1:${sitePort}`;
+let feedOrigin = `http://127.0.0.1:${feedPort}`;
+let financeOrigin = `http://127.0.0.1:${financePort}`;
 const serviceReadyTimeoutMs = 60_000;
 const serviceReadyPollMs = 250;
 const migrationPollMs = 250;
@@ -131,13 +133,22 @@ async function stopProcessTree(pid) {
   }
 }
 
-async function waitForProcessExit(pid, timeoutMs = 5_000) {
+async function waitForPreviewCleanup(directory, pid, timeoutMs = 10_000) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
-    if (!processIsRunning(pid)) return;
+    try {
+      await access(directory);
+    } catch (error) {
+      if (error?.code === 'ENOENT') return;
+      throw error;
+    }
+    if (!processIsRunning(pid)) {
+      await rm(directory, { recursive: true, force: true, maxRetries: 8, retryDelay: 250 });
+      return;
+    }
     await sleep(100);
   }
-  if (processIsRunning(pid)) throw new Error(`Timed out waiting for local preview PID ${pid} to exit`);
+  throw new Error(`Timed out waiting for local preview PID ${pid} to clean its owner state`);
 }
 
 async function stopLocalPreview() {
@@ -166,8 +177,7 @@ async function stopLocalPreview() {
     throw new Error(`[local-preview] Refusing to stop PID ${String(owner?.pid)} because it is not an active local-preview controller.`);
   }
   await stopProcessTree(pid);
-  await waitForProcessExit(pid);
-  await rm(directory, { recursive: true, force: true, maxRetries: 8, retryDelay: 250 });
+  await waitForPreviewCleanup(directory, pid);
   console.log(`[local-preview] Stopped local preview on ports ${sitePort}/${feedPort}/${financePort}.`);
   return 0;
 }
@@ -211,7 +221,10 @@ function runCapturedCommand(command, args, label, env = process.env) {
 }
 
 function startService(label, command, args, env) {
-  const child = spawn(command, args, spawnOptions(command, env));
+  const child = spawn(command, args, {
+    ...spawnOptions(command, env),
+    detached: process.platform !== 'win32',
+  });
   const service = { label, child, stopped: false, outcome: null };
   const exit = new Promise((resolve) => {
     child.once('error', (error) => { service.stopped = true; service.outcome = { code: 1, error }; resolve(service.outcome); });
@@ -245,9 +258,61 @@ async function waitForHttp(url, label, service, shouldStop) {
 }
 
 async function stopService(service) {
-  if (service.stopped) return;
-  await stopProcessTree(service.child.pid);
-  await Promise.race([service.exit, sleep(5_000)]);
+  if (process.platform === 'win32') {
+    if (service.stopped) return;
+    await stopProcessTree(service.child.pid);
+    await Promise.race([service.exit, sleep(5_000)]);
+    return;
+  } else {
+    try {
+      process.kill(-service.child.pid, 'SIGTERM');
+    } catch (error) {
+      if (error?.code !== 'ESRCH') throw error;
+    }
+  }
+  const deadline = Date.now() + 5_000;
+  while (Date.now() < deadline) {
+    try {
+      process.kill(-service.child.pid, 0);
+    } catch (error) {
+      if (error?.code === 'ESRCH') return;
+      throw error;
+    }
+    await sleep(100);
+  }
+  try {
+    process.kill(-service.child.pid, 'SIGKILL');
+  } catch (error) {
+    if (error?.code !== 'ESRCH') throw error;
+  }
+  await Promise.race([service.exit, sleep(1_000)]);
+}
+
+async function reservePort(requestedPort) {
+  const server = net.createServer();
+  await new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(requestedPort, '127.0.0.1', resolve);
+  });
+  const address = server.address();
+  if (!address || typeof address === 'string') throw new Error('Could not reserve a local preview port');
+  return { port: address.port, server };
+}
+
+async function releasePort(reservation) {
+  if (!reservation?.server.listening) return;
+  await new Promise((resolve, reject) => reservation.server.close((error) => error ? reject(error) : resolve()));
+}
+
+async function reservePorts(requestedPorts) {
+  const reservations = [];
+  try {
+    for (const requestedPort of requestedPorts) reservations.push(await reservePort(requestedPort));
+    return reservations;
+  } catch (error) {
+    await Promise.all(reservations.map(releasePort));
+    throw error;
+  }
 }
 
 function isRetryableLocalD1InspectionError(error) {
@@ -377,12 +442,17 @@ async function prepareLocalBlogLifecycle(feedOrigin) {
 }
 
 async function runQuickVerification() {
-  await runCommand(npmRunner.command, [...npmRunner.prefix, 'run', 'test:feed:page'], 'Feed page quick verification');
-  await runCommand(npmRunner.command, [...npmRunner.prefix, 'run', 'test:finance:preview'], 'Finance preview quick verification');
+  const env = { ...process.env };
+  delete env.SITE_PREVIEW_PORT;
+  delete env.FEED_PREVIEW_PORT;
+  delete env.FINANCE_PREVIEW_PORT;
+  await runCommand(npmRunner.command, [...npmRunner.prefix, 'run', 'test:feed:page'], 'Feed page quick verification', env);
+  await runCommand(npmRunner.command, [...npmRunner.prefix, 'run', 'test:finance:preview'], 'Finance preview quick verification', env);
 }
 
 async function main() {
   let persist;
+  let reservations = [];
   const services = [];
   let stopRequested = false;
   let signalStop;
@@ -399,12 +469,22 @@ async function main() {
     process.on('SIGTERM', onSignal);
     await recoverAbandonedLocalPreviewState();
     if (stopOnly) return await stopLocalPreview();
-    await runQuickVerification();
-    if (stopRequested) return 0;
     if (checkOnly) {
+      await runQuickVerification();
       console.log('[local-preview] Quick verification passed.');
       return 0;
     }
+
+    await runQuickVerification();
+    if (stopRequested) return 0;
+
+    reservations = await reservePorts([sitePort, feedPort, financePort]);
+    [sitePort, feedPort, financePort] = reservations.map((reservation) => reservation.port);
+    const ports = new Set([sitePort, feedPort, financePort]);
+    if (ports.size !== 3) throw new Error('SITE_PREVIEW_PORT, FEED_PREVIEW_PORT, and FINANCE_PREVIEW_PORT must be different');
+    siteOrigin = `http://127.0.0.1:${sitePort}`;
+    feedOrigin = `http://127.0.0.1:${feedPort}`;
+    financeOrigin = `http://127.0.0.1:${financePort}`;
 
     persist = await mkdtemp(path.join(os.tmpdir(), localPreviewDirectoryPrefix));
     await writeFile(path.join(persist, localPreviewOwnerFile), JSON.stringify({
@@ -420,6 +500,7 @@ async function main() {
     };
     await prepareLocalFeedDatabase(persist, feedEnv);
     const localAuth = await prepareLocalPreviewAuth(persist, feedEnv);
+    await releasePort(reservations[1]);
     const feed = startService('Feed Worker', node, [
       wrangler,
       'dev',
@@ -438,12 +519,14 @@ async function main() {
     if (!await waitForHttp(`${feedOrigin}/api/feed`, 'Local Feed API', feed, () => stopRequested)) return 0;
     await prepareLocalBlogLifecycle(feedOrigin);
 
+    await releasePort(reservations[2]);
     const finance = startService('Finance preview', node, ['scripts/finance-preview.mjs'], {
       ...process.env,
       FINANCE_PREVIEW_PORT: String(financePort),
     });
     services.push(finance);
 
+    await releasePort(reservations[0]);
     const site = startService('Astro site preview', node, [
       astro,
       'dev',
@@ -504,6 +587,7 @@ async function main() {
   } finally {
     process.removeListener('SIGINT', onSignal);
     process.removeListener('SIGTERM', onSignal);
+    await Promise.all(reservations.map(releasePort));
     await Promise.all(services.slice().reverse().map(stopService));
     if (persist) await rm(persist, { recursive: true, force: true, maxRetries: 8, retryDelay: 250 });
     if (stopRequested) console.log('[local-preview] All local previews stopped.');
