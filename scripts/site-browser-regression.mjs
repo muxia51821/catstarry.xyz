@@ -205,6 +205,54 @@ try {
   })()`);
   assert.ok(archiveFocus);
 
+  await send('Page.navigate', { url: `${baseUrl}/projects/` });
+  await waitFor(`document.readyState === 'complete' && Boolean(document.querySelector('.project-card'))`, 'Projects load');
+  const projectCardBox = await evaluate(`(() => {
+    const card = document.querySelector('.project-card');
+    card.scrollIntoView({ block: 'center' });
+    const box = card.getBoundingClientRect();
+    return { x: box.x, y: box.y, width: box.width, height: box.height };
+  })()`);
+  await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 1, y: 1, pointerType: 'mouse' });
+  await send('Input.dispatchMouseEvent', {
+    type: 'mouseMoved',
+    x: projectCardBox.x + projectCardBox.width / 2,
+    y: projectCardBox.y + projectCardBox.height / 2,
+    pointerType: 'mouse',
+  });
+  await delay(260);
+  const projectHover = await evaluate(`(() => {
+    const card = document.querySelector('.project-card');
+    const transform = getComputedStyle(card).transform;
+    return {
+      hoverCapable: matchMedia('(hover: hover) and (pointer: fine)').matches,
+      hovered: card.matches(':hover'),
+      translateY: transform === 'none' ? 0 : new DOMMatrixReadOnly(transform).m42,
+    };
+  })()`);
+  assert.ok(projectHover.hoverCapable && projectHover.hovered, 'desktop browser must apply the real project-card hover state');
+  assert.ok(Math.abs(projectHover.translateY + 4) < 0.1, 'normal project-card hover must retain its 4px lift');
+
+  await send('Emulation.setEmulatedMedia', {
+    media: '',
+    features: [{ name: 'prefers-reduced-motion', value: 'reduce' }],
+  });
+  await delay(50);
+  const projectReducedMotion = await evaluate(`(() => {
+    const card = document.querySelector('.project-card');
+    const style = getComputedStyle(card);
+    return {
+      reduced: matchMedia('(prefers-reduced-motion: reduce)').matches,
+      hovered: card.matches(':hover'),
+      transform: style.transform,
+      transitionDuration: style.transitionDuration,
+    };
+  })()`);
+  assert.ok(projectReducedMotion.reduced && projectReducedMotion.hovered, 'reduced-motion assertion must observe an actual hovered project card');
+  assert.equal(projectReducedMotion.transform, 'none', 'reduced motion must prohibit project-card hover translation');
+  assert.equal(projectReducedMotion.transitionDuration, '0s', 'reduced motion must disable project-card transitions');
+  await send('Emulation.setEmulatedMedia', { media: '', features: [] });
+
   await send('Emulation.setDeviceMetricsOverride', {
     width: 390,
     height: 844,
@@ -432,6 +480,8 @@ try {
     archiveDefault,
     archiveHover,
     archiveFocus,
+    projectHover,
+    projectReducedMotion,
     archiveMobile,
     articleDesktop,
     articleMobile,

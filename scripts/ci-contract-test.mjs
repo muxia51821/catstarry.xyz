@@ -19,6 +19,7 @@ for (const [path, source] of [
 for (const command of [
   'npm ci',
   'npm run test:contracts',
+  'npm run test:learn:preview',
   'npm run worker:config',
   'npm run worker:types:check',
   'npm run worker:typecheck',

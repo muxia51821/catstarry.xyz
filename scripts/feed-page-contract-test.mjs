@@ -61,6 +61,8 @@ try {
   assert.deepEqual(await loadPublicTimeline(''), { items: [], cursor: null, has_more: false });
   assert.equal(request.url, '/api/feed?limit=20');
   assert.equal(request.init.credentials, 'include');
+  await loadPublicTimeline('https://example.test/');
+  assert.equal(request.url, 'https://example.test/api/feed?limit=20');
   await loadPublicTimeline('', 'cursor-value');
   assert.equal(request.url, '/api/feed?limit=20&cursor=cursor-value');
 } finally {
