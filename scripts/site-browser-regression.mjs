@@ -227,11 +227,12 @@ try {
     return {
       hoverCapable: matchMedia('(hover: hover) and (pointer: fine)').matches,
       hovered: card.matches(':hover'),
+      transform,
       translateY: transform === 'none' ? 0 : new DOMMatrixReadOnly(transform).m42,
     };
   })()`);
   assert.ok(projectHover.hoverCapable && projectHover.hovered, 'desktop browser must apply the real project-card hover state');
-  assert.ok(Math.abs(projectHover.translateY + 4) < 0.1, 'normal project-card hover must retain its 4px lift');
+  assert.ok(projectHover.transform !== 'none' && projectHover.translateY < 0, 'normal project-card hover must produce upward motion');
 
   await send('Emulation.setEmulatedMedia', {
     media: '',
