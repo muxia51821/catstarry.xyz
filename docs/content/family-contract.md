@@ -492,4 +492,4 @@ Feed × Learn Integration      CLOSED
 Production Deployment         NOT AUTHORIZED BY THIS CONTRACT
 ```
 
-当前 operational stage 是 **Final Content Integration evidence review**；最终 acceptance 留给上游 Web Session。本合同仍不单独授权 release 或 deployment。
+Final Content Integration & Acceptance = **PASS**。Current downstream stage 是 **Release Handoff**；**Release / Deployment → Production Acceptance** 仍是 separately authorized 后续阶段。本合同仍不单独授权 release 或 deployment。

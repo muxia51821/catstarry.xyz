@@ -24,15 +24,16 @@ Learn Production Implementation
 Learn Acceptance
 Feed × Learn semantic integration → CLOSED
 Content Integration Preview / regression
+Final Content Integration & Acceptance → PASS
 
 CURRENT
 ───────
-Final Content Integration evidence review
+Release Handoff
 
 NEXT (SEPARATELY AUTHORIZED)
 ────────────────────────────
-Final Content Integration acceptance
-→ Release / deployment
+Release / Deployment
+→ Production Acceptance
 ```
 
 ## Stage boundaries
@@ -59,7 +60,7 @@ Content Integration Preview / regression 在 Feed 与 Learn 各自 Acceptance �
 
 - Feed implementation 与 Learn implementation 均已 accepted / merged。
 - Feed × Learn semantic integration 已 CLOSED，不得作为本轮 Projects destination 修复重新打开。
-- Final Content Integration 尚待上游 Web Session 根据本 branch evidence 作最终 acceptance；本文件不提前声明 PASS。
+- Final Content Integration & Acceptance 已 PASS。
 
 ### Final Content Integration & Acceptance
 
