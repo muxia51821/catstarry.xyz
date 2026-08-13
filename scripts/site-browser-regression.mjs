@@ -217,16 +217,13 @@ try {
   assert.equal(archiveDefault.summaryVisible, false);
   await send('DOM.enable');
   await send('CSS.enable');
+  await send('DOM.getDocument', { depth: 0 });
   const archiveContentObject = await send('Runtime.evaluate', {
     expression: `document.querySelector('.blog-post-entry__content')`,
     objectGroup: 'blog-archive-hover',
   });
-  await send('DOM.getDocument', { depth: 0 });
-  const { node: archiveContentNode } = await send('DOM.describeNode', {
+  const { nodeId: archiveContentNodeId } = await send('DOM.requestNode', {
     objectId: archiveContentObject.result.objectId,
-  });
-  const { nodeIds: [archiveContentNodeId] } = await send('DOM.pushNodesByBackendIdsToFrontend', {
-    backendNodeIds: [archiveContentNode.backendNodeId],
   });
   assert.ok(archiveContentNodeId, 'Blog archive hover target must exist');
   await send('CSS.forcePseudoState', {
