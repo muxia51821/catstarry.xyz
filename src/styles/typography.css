@@ -2,7 +2,7 @@
    catstarry.xyz Design System v2.1 — Typography
    使用语义 Token 与 :lang() 实现中英自适应
    追加：CJK 标点挤压规则
-   中英混排 1/4em 间距 -> 推迟到 Phase 5 用 JS 处理
+   中英/数字混排由原生 text-autospace 处理
    ========================================= */
 
 body {
@@ -11,9 +11,17 @@ body {
   background-color: var(--bg-base);
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
+  text-autospace: normal;
 }
 
 * { box-sizing: border-box; }
+
+pre,
+code,
+kbd,
+samp {
+  text-autospace: no-autospace;
+}
 
 /* =========================================
    CJK 标点挤压 (Punctuation Trimming)
