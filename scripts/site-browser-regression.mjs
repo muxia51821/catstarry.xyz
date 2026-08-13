@@ -205,6 +205,13 @@ try {
   })()`);
   assert.ok(archiveFocus);
 
+  await send('Emulation.setEmulatedMedia', {
+    media: '',
+    features: [
+      { name: 'hover', value: 'hover' },
+      { name: 'pointer', value: 'fine' },
+    ],
+  });
   await send('Page.navigate', { url: `${baseUrl}/projects/` });
   await waitFor(`document.readyState === 'complete' && Boolean(document.querySelector('.project-card'))`, 'Projects load');
   const projectCardBox = await evaluate(`(() => {
@@ -236,7 +243,11 @@ try {
 
   await send('Emulation.setEmulatedMedia', {
     media: '',
-    features: [{ name: 'prefers-reduced-motion', value: 'reduce' }],
+    features: [
+      { name: 'hover', value: 'hover' },
+      { name: 'pointer', value: 'fine' },
+      { name: 'prefers-reduced-motion', value: 'reduce' },
+    ],
   });
   await delay(50);
   const projectReducedMotion = await evaluate(`(() => {
