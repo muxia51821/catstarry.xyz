@@ -3,6 +3,7 @@
   "type": "module",
   "version": "0.0.1",
   "scripts": {
+    "inspect:repo": "node tools/repo-observatory.mjs",
     "dev": "astro dev",
     "build": "astro build",
     "assets:planets": "node scripts/export-planet-webp.mjs",
