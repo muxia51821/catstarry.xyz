@@ -12,7 +12,7 @@ const [page, app, admin] = await Promise.all([
 
 assert.doesNotMatch(page, /loadPublicTimeline|Astro\.url\.origin/, 'Feed page must not fetch the timeline during SSR');
 assert.match(page, /<FeedApp client:load apiBase=\{publicFeedApiBase\(\)\} \/>/, 'Feed page must hydrate without an SSR timeline payload');
-assert.match(page, /<a class="page-home-link feed-home-link" href="\/" aria-label="返回星图">[\s\S]*返回星图[\s\S]*<\/a>/, 'Feed page must provide a return-to-star-map link');
+assert.match(page, /href=\{STAR_MAP_DESTINATION\}[^>]+aria-label="返回星图"/, 'Feed page must provide the canonical return-to-star-map link');
 assert.match(page, /碎碎念、剪藏，以及一路积累下来的创作足迹。/, 'Feed opening copy must match the closed product contract');
 assert.doesNotMatch(page, /PUBLIC FOOTPRINTS/, 'Feed opening must not expose product jargon');
 assert.match(await readFile('src/lib/feed-chronology.ts', 'utf8'), /timeZone: 'Asia\/Shanghai'/, 'Feed chronology must use Asia/Shanghai');

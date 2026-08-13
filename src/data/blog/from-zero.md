@@ -4,6 +4,7 @@ date: 2026-07-03
 category: "tech"
 tags: ["astro", "cloudflare", "个人网站"]
 description: "一个非程序员如何用 AI 和自己的品味，从零搭建一个有意思的网站。"
+state: published
 ---
 
 ## 背景

@@ -15,10 +15,14 @@ function stateFor(timestamp: string | null | undefined, now: number): ActivitySt
 }
 
 export async function refreshActivitySignals(
-  env: Pick<Env, 'DB' | 'HOME_PROJECTIONS'>,
+  env: Pick<Env, 'AUTH_KV' | 'DB' | 'HOME_PROJECTIONS'>,
 ): Promise<void> {
   const store = new ActivitySignalStore(env.DB, env.HOME_PROJECTIONS);
-  const latest = await store.readLatestActivity();
+  const blogManifest = await env.AUTH_KV.get<unknown>('blog:published-manifest', 'json');
+  const publishedBlogSlugs = Array.isArray(blogManifest)
+    ? blogManifest.filter((slug): slug is string => typeof slug === 'string')
+    : [];
+  const latest = await store.readLatestActivity(publishedBlogSlugs);
   const now = Date.now();
 
   const manifest: ActivitySignalsManifest = {

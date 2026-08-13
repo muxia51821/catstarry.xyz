@@ -72,6 +72,7 @@
   border: 1px solid var(--border-default);
   border-radius: var(--button-radius);
 }
+.feed-admin-preview { display: inline-flex; align-items: center; text-decoration: none; }
 .feed-button:hover, .feed-tabs button:hover, .feed-admin-row button:hover, .feed-upload-list button:hover { border-color: var(--klein-500); }
 .feed-button:disabled { cursor: not-allowed; opacity: .55; }
 

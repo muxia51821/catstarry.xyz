@@ -5,14 +5,19 @@ import {
   type LearnEntry,
 } from '../components/learn/learn-data';
 import { getPostSlug, type BlogPost } from '../lib/blog';
+import { filterPublishedBlogPosts } from '../lib/server/blog-lifecycle';
+
+export const prerender = false;
 
 const SITE = 'https://catstarry.xyz';
 
-export async function GET() {
-  const [blogEntries, learnEntries]: [BlogPost[], LearnEntry[]] = await Promise.all([
-    getCollection('blog', ({ data }: BlogPost) => !data.draft),
+export async function GET({ request }: { request: Request }) {
+  const [allBlogEntries, learnEntries]: [BlogPost[], LearnEntry[]] = await Promise.all([
+    getCollection('blog'),
     getCollection('learn'),
   ]);
+  const blogEntries = await filterPublishedBlogPosts(request, allBlogEntries);
+  if (!blogEntries) return new Response('Sitemap unavailable', { status: 503 });
   const notes = getPublishedNotes(learnEntries);
   const urls = new Set([
     '/',

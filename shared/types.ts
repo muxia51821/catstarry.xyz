@@ -8,6 +8,14 @@ export type FootprintEventType =
   | 'learn_note_revised'
   | 'project_updated';
 export type ActivityState = 'active' | 'stable' | 'dormant';
+export type BlogLifecycleState = 'draft' | 'published' | 'withdrawn';
+
+export interface BlogLifecycleEntry {
+  slug: string;
+  title: string;
+  summary: string;
+  state: BlogLifecycleState;
+}
 
 export interface ActivitySignalsManifest {
   schema_version: 1;

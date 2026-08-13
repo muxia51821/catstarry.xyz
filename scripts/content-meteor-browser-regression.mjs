@@ -1,35 +1,22 @@
 import assert from 'node:assert/strict';
+import { spawn } from 'node:child_process';
+import { once } from 'node:events';
 import { createServer } from 'node:http';
-import { existsSync } from 'node:fs';
-import { readFile, stat } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import { connectCdp, delay } from './lib/cdp-session.mjs';
 import { launchIsolatedBrowser } from './lib/isolated-browser.mjs';
 
-const distRoot = path.resolve(existsSync('dist/client/index.html') ? 'dist/client' : 'dist');
 const server = createServer(async (request, response) => {
   const url = new URL(request.url, 'http://local.test');
-  try {
-    const relative = decodeURIComponent(url.pathname).replace(/^\/+/, '');
-    const candidates = url.pathname === '/'
-      ? ['index.html']
-      : url.pathname.endsWith('/')
-        ? [path.join(relative, 'index.html')]
-        : [relative, `${relative}.html`, path.join(relative, 'index.html')];
-    const file = (await Promise.all(candidates.map(async (candidate) => {
-      const resolved = path.resolve(distRoot, candidate);
-      if (!resolved.startsWith(`${distRoot}${path.sep}`)) return null;
-      try { return (await stat(resolved)).isFile() ? resolved : null; } catch { return null; }
-    }))).find(Boolean);
-    if (!file) throw new Error('missing');
-    const extension = path.extname(file);
-    response.setHeader('content-type', extension === '.html' ? 'text/html; charset=utf-8' : extension === '.js' ? 'text/javascript' : extension === '.css' ? 'text/css' : 'application/octet-stream');
-    response.end(await readFile(file));
-  } catch {
-    response.statusCode = 404;
-    response.end();
+  if (url.pathname === '/api/blog/publications') {
+    response.setHeader('content-type', 'application/json; charset=utf-8');
+    response.end(JSON.stringify({ slugs: ['before-thoughts-flow-away', 'from-zero', 'start-writing'] }));
+    return;
   }
+  response.statusCode = 404;
+  response.end();
 });
 
 await new Promise((resolve, reject) => {
@@ -38,7 +25,23 @@ await new Promise((resolve, reject) => {
 });
 const address = server.address();
 if (!address || typeof address === 'string') throw new Error('Fixture server has no port');
-const baseUrl = `http://127.0.0.1:${address.port}`;
+const fixtureUrl = `http://127.0.0.1:${address.port}`;
+const sitePort = await freePort();
+const baseUrl = `http://127.0.0.1:${sitePort}`;
+const site = spawn(process.execPath, [path.join('node_modules', 'astro', 'bin', 'astro.mjs'), 'dev', '--host', '127.0.0.1', '--port', String(sitePort)], {
+  env: {
+    ...process.env,
+    ASTRO_DEV_BACKGROUND: '0',
+    FEED_API_URL: fixtureUrl,
+    PUBLIC_FEED_API_URL: fixtureUrl,
+  },
+  stdio: ['ignore', 'pipe', 'pipe'],
+  windowsHide: true,
+});
+let siteOutput = '';
+site.stdout.on('data', (chunk) => { siteOutput += chunk; });
+site.stderr.on('data', (chunk) => { siteOutput += chunk; });
+await waitForHttp(baseUrl, site, () => siteOutput);
 
 let browser;
 let cdp;
@@ -95,7 +98,10 @@ try {
       continue;
     }
     assert.ok(result.visible && result.pointerEvents === 'none' && result.noOverflow, `${result.route} must mount a non-intercepting Content meteor`);
-    assert.deepEqual(result.tokens, ['.65', '1px', '5px', '.05'], `${result.route} must use weakened Content tokens`);
+    assert.equal(Number.parseFloat(result.tokens[0]), 0.65, `${result.route} must use weakened Content opacity`);
+    assert.equal(result.tokens[1], '1px', `${result.route} must use weakened Content trail width`);
+    assert.equal(result.tokens[2], '5px', `${result.route} must use weakened Content head radius`);
+    assert.equal(Number.parseFloat(result.tokens[3]), 0.05, `${result.route} must use weakened Content debris opacity`);
   }
 
   // Feed is SSR-only on this fixture. Its shared layout provides the content canvas;
@@ -136,5 +142,34 @@ try {
 } finally {
   cdp?.close();
   await browser?.close();
+  await stopProcessTree(site);
   await new Promise((resolve) => server.close(resolve));
+}
+
+async function freePort() {
+  const probe = createServer();
+  probe.listen(0, '127.0.0.1');
+  await once(probe, 'listening');
+  const address = probe.address();
+  if (!address || typeof address === 'string') throw new Error('Could not reserve an Astro port');
+  await new Promise((resolve) => probe.close(resolve));
+  return address.port;
+}
+
+async function waitForHttp(url, child, getOutput) {
+  const deadline = Date.now() + 60_000;
+  while (Date.now() < deadline) {
+    if (child.exitCode !== null) throw new Error(`Astro exited before ready:\n${getOutput()}`);
+    try { if ((await fetch(url, { signal: AbortSignal.timeout(1_000) })).ok) return; } catch {}
+    await delay(250);
+  }
+  throw new Error(`Astro did not become ready:\n${getOutput()}`);
+}
+
+async function stopProcessTree(child) {
+  if (!child || child.exitCode !== null) return;
+  if (process.platform === 'win32') {
+    const killer = spawn('taskkill.exe', ['/PID', String(child.pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true });
+    await once(killer, 'exit');
+  } else child.kill('SIGTERM');
 }

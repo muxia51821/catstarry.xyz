@@ -3,6 +3,7 @@ import '../../styles/blog.css';
 import BlogPagination from './BlogPagination.astro';
 import BlogPostList from './BlogPostList.astro';
 import type { BlogPost } from '../../lib/blog';
+import { STAR_MAP_DESTINATION } from '../../lib/home-navigation';
 
 interface Props {
   title: string;
@@ -18,7 +19,7 @@ const { title, posts, currentPage, pageCount, basePath, showBackLink = false } =
 
 <main class="blog-page" data-canvas="content">
   <nav class="page-home-nav blog-archive__nav" aria-label="博客页面导航">
-    <a class="page-home-link" href="/" aria-label="返回星图">
+    <a class="page-home-link" href={STAR_MAP_DESTINATION} aria-label="返回星图">
       <span aria-hidden="true">←</span>
       <span>返回星图</span>
     </a>

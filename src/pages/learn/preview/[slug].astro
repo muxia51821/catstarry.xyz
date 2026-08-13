@@ -5,10 +5,9 @@ import { getCollection, render } from 'astro:content';
 import Base from '../../../layouts/Base.astro';
 import LearnNoteView from '../../../components/learn/LearnNoteView.astro';
 import { noteFromEntry } from '../../../components/learn/learn-data';
-import { feedApiBase } from '../../../lib/feed-api';
+import { readOwnerSession } from '../../../lib/server/owner-auth';
 import '../../../components/learn/learn.css';
 
-const apiBase = feedApiBase(Astro.url.origin);
 const previewHeaders = {
   'Cache-Control': 'private, no-store',
   Pragma: 'no-cache',
@@ -17,16 +16,10 @@ const previewHeaders = {
 for (const [name, value] of Object.entries(previewHeaders)) Astro.response.headers.set(name, value);
 
 let unavailable = false;
-let authenticated = false;
-try {
-  const sessionResponse = await fetch(`${apiBase}/api/auth/session`, {
-    headers: { Cookie: Astro.request.headers.get('Cookie') ?? '', Accept: 'application/json' },
-    cache: 'no-store',
-  });
-  if (sessionResponse.ok) authenticated = Boolean((await sessionResponse.json()).authenticated);
-  else if (sessionResponse.status >= 500) unavailable = true;
-} catch { unavailable = true; }
-if (!unavailable && !authenticated) {
+const auth = await readOwnerSession(Astro.request);
+const authenticated = auth.state === 'authenticated';
+unavailable = auth.state === 'unavailable';
+if (auth.state === 'unauthenticated') {
   return new Response(null, { status: 302, headers: { ...previewHeaders, Location: '/feed/' } });
 }
 if (unavailable) Astro.response.status = 503;

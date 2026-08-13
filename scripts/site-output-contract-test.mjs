@@ -40,14 +40,16 @@ assert.match(notFound, /href="\/"/);
 const projects = await readFile(outputPath(path.join('projects', 'index.html')), 'utf8');
 assert.doesNotMatch(projects, /截图待补|PROJECT PREVIEW/);
 
-for (const [pathname, label] of [['blog/', 'Blog'], ['learn/', 'Learn'], ['projects/', 'Projects']]) {
+for (const [pathname, label] of [['learn/', 'Learn'], ['projects/', 'Projects']]) {
   const html = pathname === 'projects/' ? projects : await readFile(outputPath(path.join(pathname, 'index.html')), 'utf8');
   assert.match(
     html,
-    /<a[^>]+class="[^"]*page-home-link[^"]*"[^>]+href="\/"[^>]+aria-label="返回星图"[\s\S]*返回星图[\s\S]*<\/a>/,
+    /<a[^>]+class="[^"]*page-home-link[^"]*"[^>]+href="\/\?stage=overview"[^>]+aria-label="返回星图"[\s\S]*返回星图[\s\S]*<\/a>/,
     `${label} must provide the shared return-to-star-map link`,
   );
 }
+const blogArchiveSource = await readFile('src/components/blog/BlogArchive.astro', 'utf8');
+assert.match(blogArchiveSource, /href=\{STAR_MAP_DESTINATION\}/, 'Blog must provide the shared return-to-star-map link');
 
 const blogSources = await markdownFiles('src/data/blog');
 const learnSources = await markdownFiles('src/data/learn');
@@ -56,8 +58,10 @@ const draftSlugs = [];
 for (const filename of blogSources) {
   const meta = frontmatter(await readFile(filename, 'utf8'));
   const slug = field(meta, 'slug') ?? path.basename(filename).replace(/\.mdx?$/, '');
-  if (/^draft:\s*true\s*$/m.test(meta)) draftSlugs.push(`/blog/${slug}/`);
-  else publishedBlog.push(`/blog/${slug}/`);
+  const state = field(meta, 'state');
+  assert.ok(['draft', 'published', 'withdrawn'].includes(state), `${filename} needs an explicit Blog lifecycle state`);
+  if (state === 'published') publishedBlog.push(`/blog/${slug}/`);
+  else draftSlugs.push(`/blog/${slug}/`);
 }
 const routedLearn = [];
 const publishedLearn = [];
@@ -77,23 +81,18 @@ for (const filename of learnSources) {
   } else draftSlugs.push(`/learn/notes/${slug}/`);
 }
 
-for (const pathname of [...publishedBlog, ...routedLearn]) {
+for (const pathname of routedLearn) {
   const htmlPath = outputPath(path.join(pathname.slice(1), 'index.html'));
   const html = await readFile(htmlPath, 'utf8');
   assert.match(html, /<link[^>]+rel="canonical"|<meta[^>]+property="og:url"/, `${pathname} needs canonical metadata`);
 }
 
-const sitemap = await readFile(outputPath('sitemap.xml'), 'utf8');
-const rss = await readFile(outputPath(path.join('blog', 'rss.xml')), 'utf8');
 const robots = await readFile(outputPath('robots.txt'), 'utf8');
 assert.match(robots, /Sitemap: https:\/\/catstarry\.xyz\/sitemap\.xml/);
-for (const pathname of [...publishedBlog, ...publishedLearn]) {
-  assert.ok(sitemap.includes(new URL(pathname, 'https://catstarry.xyz').href), `Sitemap omitted ${pathname}`);
-  assert.ok(rss.includes(new URL(pathname, 'https://catstarry.xyz').href), `RSS omitted ${pathname}`);
-}
-for (const pathname of draftSlugs) {
-  assert.ok(!sitemap.includes(pathname), `Sitemap leaked draft ${pathname}`);
-  assert.ok(!rss.includes(pathname), `RSS leaked draft ${pathname}`);
-}
+for (const pathname of publishedLearn) assert.ok(routedLearn.includes(pathname));
+const sitemapSource = await readFile('src/pages/sitemap.xml.ts', 'utf8');
+const rssSource = await readFile('src/pages/blog/rss.xml.ts', 'utf8');
+assert.match(sitemapSource, /filterPublishedBlogPosts/);
+assert.match(rssSource, /filterPublishedBlogPosts/);
 
 console.log('Generated site output contracts passed.');

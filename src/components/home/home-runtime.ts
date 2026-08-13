@@ -1,6 +1,7 @@
 // @ts-nocheck
 
 import { homeCopy } from '../../content/copy/home';
+import { parseInitialHomeStage } from '../../lib/home-navigation';
 
 export type ActivityState = 'active' | 'stable' | 'dormant';
 type Assets = Record<string, { overview: string; focus: string; mobile: string }>;
@@ -1711,6 +1712,17 @@ const P = PROTOTYPE_VISUAL_PARAMETERS,
             behavior: reduce.matches ? "auto" : "smooth",
           });
         }
+        function applyInitialStage() {
+          if (parseInitialHomeStage(location.search) !== "overview") return;
+          cancelManualAnimation();
+          closeFocusInstant(false);
+          const metrics = cameraMetrics();
+          const progress = Math.min(1, overviewInteractiveProgress() + 0.002);
+          scrollTo({
+            top: journey.offsetTop + metrics.baseTravelPx * progress,
+            behavior: "auto",
+          });
+        }
         function setManualFocus(key) {
           activeFocus = key;
           focusMode = "manual";
@@ -2540,6 +2552,8 @@ const P = PROTOTYPE_VISUAL_PARAMETERS,
         setVariant(variant);
         applyActivityProjection();
         setupMeteor();
+        applyInitialStage();
+        addEventListener("pageshow", applyInitialStage, { once: true });
         updateScene();
 
   return (states: States) => { activityProjection = states; applyActivityProjection(); };

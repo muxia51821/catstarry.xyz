@@ -4,13 +4,14 @@
 
 ## 1. 写文章和发布
 
-- [ ] 我在 content/blog/ 下新建一个 Markdown 文件，填写标题、日期、分类、标签、摘要
-- [ ] 我把文章推到 GitHub，几分钟后博客自动更新，新文章出现在列表里
-- [ ] 一篇带有首次发布标识的新文章在生产部署成功后，在 Feed 留下一条「Blog 发布」公开足迹
+- [ ] 我在 `src/data/blog/` 下新建一个 Markdown 文件，填写标题、日期、分类、标签、摘要，并明确写 `state: draft`
+- [ ] 草稿部署后不会公开，也不会生成 Feed 足迹；我可以从 `/feed/admin/` 打开私有预览检查正文
+- [ ] 我点击 Publish 后文章第一次公开，并在 Feed 留下一条「Blog 发布」公开足迹
 - [ ] 我之后修改同一篇已发布文章并重新部署，不会产生第二条「Blog 发布」足迹
 - [ ] 构建失败、部署失败或重复部署，不会产生足迹
 - [ ] 文章 URL 是 /blog/文章slug/，简洁可读
-- [ ] 我把 draft: true 的文章推上去，它不会出现在网站里
+- [ ] 新文章缺少 `state: draft | published | withdrawn` 时，authoring / manifest validation 会失败
+- [ ] 新文章以 `state: draft` 进入管理列表；点击 Publish 后公开，点击 Withdraw 后撤下，并可再次 Restore；预览在三个状态下均可读取
 
 ## 2. 浏览博客列表
 

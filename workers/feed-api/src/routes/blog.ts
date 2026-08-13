@@ -1,9 +1,11 @@
+import type { BlogLifecycleEntry, BlogLifecycleState } from '../../../../shared/types';
+import { timingSafeEqualText } from '../../../../shared/security';
+import { logWorkerError } from '../../../../shared/worker-log';
 import { FeedStore } from '../adapters/feed-store';
 import { apiError, json, readJson } from '../lib/http';
 import { refreshActivitySignals } from '../modules/activity-signals';
 import { parseFootprintCandidate } from '../modules/footprints';
-import { timingSafeEqualText } from '../../../../shared/security';
-import { logWorkerError } from '../../../../shared/worker-log';
+import { requireMainSession } from './auth';
 
 type BlogEnv = Env & { FOOTPRINT_INGEST_TOKEN?: string };
 
@@ -11,7 +13,15 @@ interface PublicationEntry {
   slug?: unknown;
   title?: unknown;
   summary?: unknown;
+  state?: unknown;
 }
+
+interface StoredBlogLifecycleEntry extends BlogLifecycleEntry {
+  ever_published: boolean;
+}
+
+const LIFECYCLE_KEY = 'blog:lifecycle-manifest:v1';
+const PUBLISHED_KEY = 'blog:published-manifest';
 
 export async function handleBlog(
   request: Request,
@@ -19,9 +29,29 @@ export async function handleBlog(
   ctx: ExecutionContext,
   pathname: string,
 ): Promise<Response> {
-  if (pathname !== '/api/blog/internal/publications' || request.method !== 'POST') {
-    return apiError(404, 'not_found', 'Blog route not found');
+  if (pathname === '/api/blog/publications' && request.method === 'GET') {
+    const entries = await readLifecycle(env);
+    if (entries.length > 0) {
+      return json({ slugs: entries.filter((entry) => entry.state === 'published').map((entry) => entry.slug) });
+    }
+    const legacy = await env.AUTH_KV.get<unknown>(PUBLISHED_KEY, 'json');
+    return json({ slugs: validSlugs(legacy) });
   }
+  if (pathname === '/api/blog/admin/publications' && request.method === 'GET') {
+    const session = await requireMainSession(request, env);
+    if (session instanceof Response) return session;
+    return json({ entries: await readLifecycle(env) });
+  }
+  if (pathname === '/api/blog/admin/publications' && request.method === 'PATCH') {
+    return updateLifecycle(request, env, ctx);
+  }
+  if (pathname === '/api/blog/internal/publications' && request.method === 'POST') {
+    return syncDeployManifest(request, env, ctx);
+  }
+  return apiError(404, 'not_found', 'Blog route not found');
+}
+
+async function syncDeployManifest(request: Request, env: BlogEnv, ctx: ExecutionContext): Promise<Response> {
   const authorization = request.headers.get('Authorization');
   if (!env.FOOTPRINT_INGEST_TOKEN || !(await timingSafeEqualText(authorization, `Bearer ${env.FOOTPRINT_INGEST_TOKEN}`))) {
     return apiError(env.FOOTPRINT_INGEST_TOKEN ? 401 : 503, 'unauthorized', 'Blog publication sync is not available');
@@ -35,62 +65,128 @@ export async function handleBlog(
   if (!Number.isFinite(deployedAt.getTime())) {
     return apiError(400, 'invalid_manifest', 'deployed_at must be a valid timestamp');
   }
-  const entries = normalizeEntries(body.entries as PublicationEntry[]);
-  if (!entries) return apiError(400, 'invalid_manifest', 'Blog publication entries are invalid');
+  const incoming = normalizeEntries(body.entries as PublicationEntry[]);
+  if (!incoming) return apiError(400, 'invalid_manifest', 'Blog publication entries are invalid');
 
-  const manifestKey = 'blog:published-manifest';
-  const previous = await env.AUTH_KV.get<string[]>(manifestKey, 'json');
-  const slugs = entries.map((entry) => entry.slug);
-  if (!previous) {
-    await env.AUTH_KV.put(manifestKey, JSON.stringify(slugs));
-    return json({ initialized: true, synced: slugs.length, created: 0 });
+  const previous = await env.AUTH_KV.get<StoredBlogLifecycleEntry[]>(LIFECYCLE_KEY, 'json');
+  if (!Array.isArray(previous)) {
+    const initialized = incoming.map((entry) => ({ ...entry, ever_published: entry.state === 'published' }));
+    await writeLifecycle(env, initialized);
+    return json({ initialized: true, synced: incoming.length, created: 0 });
   }
 
-  const known = new Set(previous);
-  const store = new FeedStore(env.DB);
+  const priorBySlug = new Map(previous.map((entry) => [entry.slug, entry]));
+  const next: StoredBlogLifecycleEntry[] = [];
   let created = 0;
-  for (const entry of entries) {
-    if (known.has(entry.slug)) continue;
-    const candidate = parseFootprintCandidate({
-      source_module: 'blog',
-      source_ref: entry.slug,
-      source_version: 'first-production-v1',
-      event_type: 'blog_published',
-      snapshot_json: JSON.stringify({
-        title: entry.title,
-        ...(entry.summary ? { summary: entry.summary } : {}),
-        link: `/blog/${entry.slug}/`,
-      }),
-      occurred_at: deployedAt.toISOString(),
-      idempotency_key: `blog:${entry.slug}:first-production-v1`,
-    });
-    if (!candidate) return apiError(400, 'invalid_manifest', 'Blog publication entry could not be normalized');
-    const result = await store.recordFootprint(candidate, new Date().toISOString());
-    if (result.created) created += 1;
+  for (const entry of incoming) {
+    const prior = priorBySlug.get(entry.slug);
+    const state = prior?.state ?? entry.state;
+    const everPublished = prior?.ever_published === true;
+    const nextEntry = { ...entry, state, ever_published: everPublished || state === 'published' };
+    if (state === 'published' && !everPublished) {
+      created += await recordFirstPublication(env, nextEntry, deployedAt.toISOString());
+    }
+    next.push(nextEntry);
   }
-  await env.AUTH_KV.put(manifestKey, JSON.stringify(slugs));
-  if (created > 0) {
-    ctx.waitUntil(refreshActivitySignals(env).catch((error: unknown) => {
-      logWorkerError('activity_signal_refresh_after_blog_publication_sync_failed', {}, error);
-    }));
-  }
-  return json({ initialized: false, synced: slugs.length, created });
+  await writeLifecycle(env, next);
+  if (created > 0) refreshAfterMutation(env, ctx);
+  return json({ initialized: false, synced: next.length, created });
 }
 
-function normalizeEntries(entries: PublicationEntry[]) {
+async function updateLifecycle(request: Request, env: BlogEnv, ctx: ExecutionContext): Promise<Response> {
+  const session = await requireMainSession(request, env);
+  if (session instanceof Response) return session;
+  const body = await readJson<{ slug?: unknown; state?: unknown }>(request, 4_096);
+  if (body instanceof Response) return body;
+  if (typeof body.slug !== 'string' || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(body.slug)
+    || (body.state !== 'published' && body.state !== 'withdrawn')) {
+    return apiError(400, 'invalid_lifecycle', 'slug and a published or withdrawn state are required');
+  }
+  const entries = await readLifecycle(env);
+  const index = entries.findIndex((entry) => entry.slug === body.slug);
+  if (index < 0) return apiError(404, 'not_found', 'Blog entry not found');
+  const entry = entries[index];
+  if (body.state === 'withdrawn' && entry.state !== 'published') {
+    return apiError(409, 'invalid_transition', 'Only a published Blog entry can be withdrawn');
+  }
+  if (body.state === 'published' && entry.state === 'published') {
+    return json({ entry, created: false });
+  }
+
+  let created = 0;
+  const updated: StoredBlogLifecycleEntry = { ...entry, state: body.state };
+  if (body.state === 'published' && !entry.ever_published) {
+    created = await recordFirstPublication(env, updated, new Date().toISOString());
+    updated.ever_published = true;
+  }
+  entries[index] = updated;
+  await writeLifecycle(env, entries);
+  refreshAfterMutation(env, ctx);
+  return json({ entry: updated, created: created === 1 });
+}
+
+async function recordFirstPublication(
+  env: BlogEnv,
+  entry: Pick<StoredBlogLifecycleEntry, 'slug' | 'title' | 'summary'>,
+  occurredAt: string,
+): Promise<number> {
+  const candidate = parseFootprintCandidate({
+    source_module: 'blog',
+    source_ref: entry.slug,
+    source_version: 'first-production-v1',
+    event_type: 'blog_published',
+    snapshot_json: JSON.stringify({
+      title: entry.title,
+      ...(entry.summary ? { summary: entry.summary } : {}),
+      link: `/blog/${entry.slug}/`,
+    }),
+    occurred_at: occurredAt,
+    idempotency_key: `blog:${entry.slug}:first-production-v1`,
+  });
+  if (!candidate) throw new Error('Blog publication entry could not be normalized');
+  const result = await new FeedStore(env.DB).recordFootprint(candidate, new Date().toISOString());
+  return result.created ? 1 : 0;
+}
+
+async function readLifecycle(env: BlogEnv): Promise<StoredBlogLifecycleEntry[]> {
+  const entries = await env.AUTH_KV.get<StoredBlogLifecycleEntry[]>(LIFECYCLE_KEY, 'json');
+  return Array.isArray(entries) ? entries : [];
+}
+
+function validSlugs(value: unknown): string[] {
+  return Array.isArray(value) ? [...new Set(value.filter((slug): slug is string => (
+    typeof slug === 'string' && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)
+  )))] : [];
+}
+
+async function writeLifecycle(env: BlogEnv, entries: StoredBlogLifecycleEntry[]): Promise<void> {
+  const ordered = [...entries].sort((a, b) => a.slug.localeCompare(b.slug));
+  const published = ordered.filter((entry) => entry.state === 'published').map((entry) => entry.slug);
+  await Promise.all([
+    env.AUTH_KV.put(LIFECYCLE_KEY, JSON.stringify(ordered)),
+    env.AUTH_KV.put(PUBLISHED_KEY, JSON.stringify(published)),
+  ]);
+}
+
+function normalizeEntries(entries: PublicationEntry[]): BlogLifecycleEntry[] | null {
   const normalized = entries.map((entry) => ({
     slug: typeof entry.slug === 'string' ? entry.slug.trim() : '',
     title: typeof entry.title === 'string' ? entry.title.trim() : '',
     summary: typeof entry.summary === 'string' ? entry.summary.trim() : '',
+    state: entry.state as BlogLifecycleState,
   })).sort((a, b) => a.slug.localeCompare(b.slug));
-  if (
-    normalized.some((entry) => (
-      !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(entry.slug)
-      || !entry.title
-      || entry.title.length > 200
-      || entry.summary.length > 2_000
-    ))
-    || new Set(normalized.map((entry) => entry.slug)).size !== normalized.length
-  ) return null;
+  if (normalized.some((entry) => (
+    !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(entry.slug)
+    || !entry.title
+    || !['draft', 'published', 'withdrawn'].includes(entry.state)
+    || entry.title.length > 200
+    || entry.summary.length > 2_000
+  )) || new Set(normalized.map((entry) => entry.slug)).size !== normalized.length) return null;
   return normalized;
+}
+
+function refreshAfterMutation(env: BlogEnv, ctx: ExecutionContext): void {
+  ctx.waitUntil(refreshActivitySignals(env).catch((error: unknown) => {
+    logWorkerError('activity_signal_refresh_after_blog_lifecycle_change_failed', {}, error);
+  }));
 }
