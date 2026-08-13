@@ -28,5 +28,9 @@ const canonicalUrl = new URL(canonicalPath, Astro.site).href;
 </head>
 <body data-variant={canonicalPath === '/' ? 'drift' : undefined}>
   <slot />
+  <script>
+    import { setupContentMeteor } from '../scripts/content-meteor';
+    setupContentMeteor();
+  </script>
 </body>
 </html>
