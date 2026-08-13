@@ -89,6 +89,8 @@ git log -1 --oneline
 ## 文件写入
 
 - 使用 PowerShell 7（`pwsh`），不得使用 Windows PowerShell 5.1（`powershell.exe`）。
+- Keep PowerShell commands simple; avoid long one-liners and fragile nested quoting/regex.
+- A PowerShell parser or command failure is a tooling failure, not evidence that the application or test failed.
 - 修改已有文件时优先使用 patch/edit 工具。
 - 避免整文件重写和无关换行符变化。
 - 新建或完整覆盖文件时使用 UTF-8 无 BOM。

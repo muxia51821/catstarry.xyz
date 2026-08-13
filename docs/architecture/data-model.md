@@ -98,7 +98,7 @@ CREATE INDEX idx_public_footprints_source ON public_footprints(source_module, so
 
 | 字段 | 说明 |
 | --- | --- |
-| `source_ref` | 来源稳定标识，例如 Blog slug、Learn track/section、Projects project id |
+| `source_ref` | 来源稳定标识，例如 Blog slug、Learn Public Note slug（legacy row 可保留旧 section reference）、Projects project id |
 | `source_version` | 本次足迹对应的明确发布／完成／更新标识；不是普通 `lastModified` |
 | `snapshot_json` | 创建时标题、摘要、链接、来源名称和事件展示文案；之后不随来源普通编辑改写 |
 | `idempotency_key` | 同一来源版本只产生一次足迹的唯一键 |
@@ -321,14 +321,14 @@ const learnCollection = defineCollection({
     publishDate: z.coerce.date(),
     lastModified: z.coerce.date(),
     excerpt: z.string().optional(),
-    completionId: z.string().optional(), // 仅明确完成小节时写入；不是普通编辑时间
+    completionId: z.string().optional(), // legacy section event compatibility；不是普通编辑时间
     parentSlug: z.string().optional(),
     sourceUrl: z.string().url().optional(),
   }),
 });
 ```
 
-`completionId` 是 Learn 足迹的来源版本。它只在木下明确完成一个已发布小节时创建；`lastModified` 继续用于 /learn 的自身排序，绝不用于生成或重排公开足迹。
+`completionId` 仅作为旧 Learn section event 的 readable compatibility 保留；当前 Public Note 足迹使用 publication / revision marker，`lastModified` 继续用于 /learn 的自身排序，绝不用于生成或重排公开足迹。
 
 这与 ADR-008 的边界一致：Learn public note 当前 canonical source 为 Markdown；Blog 仍可读取 MDX，但不代表 Learn runtime 支持 MDX。
 

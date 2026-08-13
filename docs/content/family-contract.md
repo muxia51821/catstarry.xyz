@@ -8,7 +8,7 @@
 **Learn decision baseline:** Product / Architecture / Visual Reality Check COMPLETE; implementation ACCEPTED / MERGED
 **Purpose:** Govern shared Content Family semantics, module exceptions, and cross-module product boundaries
 
-> 本合同描述当前 canonical governance state。它不证明 production implementation 已完成，也不单独授权 deployment。
+> 本合同描述当前 canonical governance state；本轮 Content Family production release 已完成。
 
 原子需求、状态、implementation drift、Architecture Revalidate 与 Acceptance Gate 见 [`master-ledger.md`](master-ledger.md)；历史冲突为何这样收敛见 [`reconciliation-register.md`](reconciliation-register.md)；实施顺序见 [`implementation-dependency-map.md`](implementation-dependency-map.md)。
 
@@ -37,7 +37,7 @@
 - Projects：CLOSED。
 - Learn：Product / Architecture / Visual Reality Check COMPLETE；implementation ACCEPTED / MERGED。
 - Implementation：Blog / Projects 已 ACCEPTED 并 FROZEN；Feed / Learn 已 ACCEPTED / MERGED；Feed × Learn semantic integration CLOSED。
-- Production deployment：不由本合同授权。
+- Production deployment：COMPLETE；不作为新的 Family capability 或后续 gate。
 
 > **Current implementation does not automatically override later Product Closure.**
 
@@ -489,7 +489,7 @@ Learn                         CLOSED / IMPLEMENTATION ACCEPTED
 Shared Footer                 PARKED
 Global Content Admin          PARKED
 Feed × Learn Integration      CLOSED
-Production Deployment         NOT AUTHORIZED BY THIS CONTRACT
+Production Deployment         COMPLETE
 ```
 
-Final Content Integration & Acceptance = **PASS**。Current downstream stage 是 **Release Handoff**；**Release / Deployment → Production Acceptance** 仍是 separately authorized 后续阶段。本合同仍不单独授权 release 或 deployment。
+Final Content Integration & Acceptance = **PASS**。Production Release = **COMPLETE**。Production Acceptance = **PASS WITH NON-BLOCKING OBSERVATION**。Content Family 当前回到 Phase 8 maintenance。

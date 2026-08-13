@@ -104,8 +104,10 @@
 碎碎念 / 剪藏 → POST /api/feed → D1 feed_posts
 
 Blog / Learn / Projects 足迹来源事件
-    → 受保护的内部 publication / footprint route
+    → 受保护的内部 publication / footprint route（Learn Note 发布／修订事件；旧 Learn 小节完成事件保留兼容读取）
     → D1 public_footprints（来源身份与展示快照）
+
+Feed production 当前已应用 `0003_learn_note_events.sql`；Learn Note publication/revision events 是当前写入语义，旧 `learn_section_completed` 仅保留 legacy readable compatibility。
 
 feed_posts + public_footprints
     → GET /api/feed 的 Public Timeline 读取投影

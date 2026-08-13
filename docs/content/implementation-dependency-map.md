@@ -25,15 +25,14 @@ Learn Acceptance
 Feed × Learn semantic integration → CLOSED
 Content Integration Preview / regression
 Final Content Integration & Acceptance → PASS
+Release / Deployment → COMPLETE
+Production Acceptance → PASS WITH NON-BLOCKING OBSERVATION
 
 CURRENT
 ───────
-Release Handoff
+Phase 8 maintenance
 
-NEXT (SEPARATELY AUTHORIZED)
-────────────────────────────
-Release / Deployment
-→ Production Acceptance
+No pending Content Family release gate
 ```
 
 ## Stage boundaries
@@ -61,6 +60,7 @@ Content Integration Preview / regression 在 Feed 与 Learn 各自 Acceptance �
 - Feed implementation 与 Learn implementation 均已 accepted / merged。
 - Feed × Learn semantic integration 已 CLOSED，不得作为本轮 Projects destination 修复重新打开。
 - Final Content Integration & Acceptance 已 PASS。
+- Production Release 已 COMPLETE；Production Acceptance 为 PASS WITH NON-BLOCKING OBSERVATION。
 
 ### Final Content Integration & Acceptance
 
@@ -74,7 +74,7 @@ Content Integration Preview / regression 在 Feed 与 Learn 各自 Acceptance �
 
 最终检查必须覆盖 Product、Visual、Surface differences、Navigation、Responsive、Interaction、State、cross-module lifecycle 和 historical regression。
 
-Release / deployment 是 Final Content Integration & Acceptance 之后的独立高风险阶段，仍需木下另行明确授权。
+Release / deployment 已完成；本依赖图当前回到 Phase 8 maintenance，不再保留本轮 release gate。
 
 ## Module acceptance pointers
 
