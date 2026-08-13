@@ -205,6 +205,65 @@ try {
   })()`);
   assert.ok(archiveFocus);
 
+  await send('Page.navigate', { url: `${baseUrl}/projects/` });
+  await waitFor(`document.readyState === 'complete' && Boolean(document.querySelector('.project-card'))`, 'Projects load');
+  await evaluate(`(() => {
+    const style = document.createElement('style');
+    style.id = 'projects-browser-regression-control';
+    style.textContent = '.project-card { transition: transform 0.2s linear; } .project-card:hover { transform: translateY(-1px); }';
+    const firstStyle = document.head.querySelector('link[rel="stylesheet"], style');
+    if (firstStyle) firstStyle.before(style);
+    else document.head.prepend(style);
+  })()`);
+  const projectCardBox = await evaluate(`(() => {
+    const card = document.querySelector('.project-card');
+    card.scrollIntoView({ block: 'center' });
+    const box = card.getBoundingClientRect();
+    return { x: box.x, y: box.y, width: box.width, height: box.height };
+  })()`);
+  await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 1, y: 1, pointerType: 'mouse' });
+  await send('Input.dispatchMouseEvent', {
+    type: 'mouseMoved',
+    x: projectCardBox.x + projectCardBox.width / 2,
+    y: projectCardBox.y + projectCardBox.height / 2,
+    pointerType: 'mouse',
+  });
+  await delay(260);
+  const projectHover = await evaluate(`(() => {
+    const card = document.querySelector('.project-card');
+    const style = getComputedStyle(card);
+    const transform = style.transform;
+    return {
+      hovered: card.matches(':hover'),
+      transform,
+      transitionDuration: style.transitionDuration,
+      translateY: transform === 'none' ? 0 : new DOMMatrixReadOnly(transform).m42,
+    };
+  })()`);
+  assert.ok(projectHover.hovered, 'desktop browser must apply the real project-card hover state');
+  assert.ok(projectHover.transform !== 'none' && projectHover.translateY < 0, 'normal project-card hover must produce upward motion');
+  assert.notEqual(projectHover.transitionDuration, '0s', 'normal project-card hover must have motion');
+
+  await send('Emulation.setEmulatedMedia', {
+    media: '',
+    features: [{ name: 'prefers-reduced-motion', value: 'reduce' }],
+  });
+  const projectReducedMotion = await evaluate(`(() => {
+    const card = document.querySelector('.project-card');
+    const style = getComputedStyle(card);
+    return {
+      reduced: matchMedia('(prefers-reduced-motion: reduce)').matches,
+      hovered: card.matches(':hover'),
+      transform: style.transform,
+      transitionDuration: style.transitionDuration,
+    };
+  })()`);
+  assert.ok(projectReducedMotion.reduced && projectReducedMotion.hovered, 'reduced-motion assertion must observe an actual hovered project card');
+  assert.equal(projectReducedMotion.transform, 'none', 'reduced motion must prohibit project-card hover translation');
+  assert.equal(projectReducedMotion.transitionDuration, '0s', 'reduced motion must disable project-card transitions');
+  await send('Emulation.setEmulatedMedia', { media: '', features: [] });
+  await evaluate(`document.querySelector('#projects-browser-regression-control')?.remove()`);
+
   await send('Emulation.setDeviceMetricsOverride', {
     width: 390,
     height: 844,
@@ -432,6 +491,8 @@ try {
     archiveDefault,
     archiveHover,
     archiveFocus,
+    projectHover,
+    projectReducedMotion,
     archiveMobile,
     articleDesktop,
     articleMobile,
