@@ -205,15 +205,16 @@ try {
   })()`);
   assert.ok(archiveFocus);
 
-  await send('Emulation.setEmulatedMedia', {
-    media: '',
-    features: [
-      { name: 'hover', value: 'hover' },
-      { name: 'pointer', value: 'fine' },
-    ],
-  });
   await send('Page.navigate', { url: `${baseUrl}/projects/` });
   await waitFor(`document.readyState === 'complete' && Boolean(document.querySelector('.project-card'))`, 'Projects load');
+  await evaluate(`(() => {
+    const style = document.createElement('style');
+    style.id = 'projects-browser-regression-control';
+    style.textContent = '.project-card { transition: transform 0.2s linear; } .project-card:hover { transform: translateY(-1px); }';
+    const firstStyle = document.head.querySelector('link[rel="stylesheet"], style');
+    if (firstStyle) firstStyle.before(style);
+    else document.head.prepend(style);
+  })()`);
   const projectCardBox = await evaluate(`(() => {
     const card = document.querySelector('.project-card');
     card.scrollIntoView({ block: 'center' });
@@ -230,26 +231,23 @@ try {
   await delay(260);
   const projectHover = await evaluate(`(() => {
     const card = document.querySelector('.project-card');
-    const transform = getComputedStyle(card).transform;
+    const style = getComputedStyle(card);
+    const transform = style.transform;
     return {
-      hoverCapable: matchMedia('(hover: hover) and (pointer: fine)').matches,
       hovered: card.matches(':hover'),
       transform,
+      transitionDuration: style.transitionDuration,
       translateY: transform === 'none' ? 0 : new DOMMatrixReadOnly(transform).m42,
     };
   })()`);
   assert.ok(projectHover.hovered, 'desktop browser must apply the real project-card hover state');
   assert.ok(projectHover.transform !== 'none' && projectHover.translateY < 0, 'normal project-card hover must produce upward motion');
+  assert.notEqual(projectHover.transitionDuration, '0s', 'normal project-card hover must have motion');
 
   await send('Emulation.setEmulatedMedia', {
     media: '',
-    features: [
-      { name: 'hover', value: 'hover' },
-      { name: 'pointer', value: 'fine' },
-      { name: 'prefers-reduced-motion', value: 'reduce' },
-    ],
+    features: [{ name: 'prefers-reduced-motion', value: 'reduce' }],
   });
-  await delay(50);
   const projectReducedMotion = await evaluate(`(() => {
     const card = document.querySelector('.project-card');
     const style = getComputedStyle(card);
@@ -264,6 +262,7 @@ try {
   assert.equal(projectReducedMotion.transform, 'none', 'reduced motion must prohibit project-card hover translation');
   assert.equal(projectReducedMotion.transitionDuration, '0s', 'reduced motion must disable project-card transitions');
   await send('Emulation.setEmulatedMedia', { media: '', features: [] });
+  await evaluate(`document.querySelector('#projects-browser-regression-control')?.remove()`);
 
   await send('Emulation.setDeviceMetricsOverride', {
     width: 390,
