@@ -21,12 +21,18 @@ production 合同和必须从 Cloudflare 账户只读核验的事实。`待账�
 
 | Worker | Route | 预期 binding / resource | 预期 Cron | 外部 vars / secret 名称 | 当前状态 |
 | --- | --- | --- | --- | --- | --- |
-| Production Feed Worker | `catstarry.xyz/api/*`、`/activity-signals.json` | `DB` → `catstarry-db`；`VIEW_KV`、`AUTH_KV`；`MEDIA_BUCKET` → `catstarry-media`；`HOME_PROJECTIONS` → `home-projections` | 当前 Feed 合同为 `0 * * * *` | `SITE_ORIGIN`、`CLIP_PREVIEW_ALLOWED_HOSTS`、`FOOTPRINT_INGEST_TOKEN` | Worker 名称、实际 IDs、Cron、observability 和 routes 待账户核验 |
+| Production Feed Worker | `catstarry.xyz/api/*`、`/activity-signals.json` | `DB` → `catstarry-db`；`VIEW_KV`、`AUTH_KV`；`MEDIA_BUCKET` → `catstarry-media`；`HOME_PROJECTIONS` → `home-projections` | 当前 Feed 合同为 `0 * * * *` | `SITE_ORIGIN`、`CLIP_PREVIEW_ALLOWED_HOSTS`、`FOOTPRINT_INGEST_TOKEN` | 本轮 Production Release 已完成；Feed production 状态已核实 |
 | Production Finance Worker | `f.catstarry.xyz/api/*` | `DB` → `finance-db`；`FINANCE_AUTH_KV` | 当前 Finance 合同为 `*/15 * * * *`、`30 7 * * 1-5` | `FINANCE_SITE_ORIGIN`、可选 `MARKET_PROVIDER_URL`、`MARKET_PROVIDER_TOKEN` | Worker 名称、实际 IDs、Cron、observability 和 routes 待账户核验 |
 
 Staging 的 `2026-07-22` compatibility date、observability 开关和上述 binding 集合是
 当前本地合同；production 是否一致仍需独立的 Cloudflare 只读盘点确认。不得把 staging
 配置直接当作 production inventory，也不得在本表写入 secret 值。
+
+## Content Family production closure
+
+- 本轮 Content Family Production Release 已 COMPLETE；Production Acceptance 为 PASS WITH NON-BLOCKING OBSERVATION。
+- Feed production 已应用 `0003_learn_note_events.sql`；Learn manifest v2 已初始化且 `created=0`；Blog sync `created=0`。
+- 当前 Learn Note publication/revision events 与 legacy Learn section event readable compatibility 均属于 production architecture reality。
 
 ## 本地/CI 验证
 

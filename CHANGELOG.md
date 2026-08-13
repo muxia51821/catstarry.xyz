@@ -1,5 +1,18 @@
 # 更新记录
 
+## 2026-08-13 — Content Family production release closure
+
+### Content Family
+
+- 完成 Blog、Feed、Learn、Projects 的 Content Family production release；Final Content Integration = PASS。
+- Production Release = COMPLETE；Production Acceptance = PASS WITH NON-BLOCKING OBSERVATION；Content Family 当前回到 Phase 8 maintenance。
+- Feed × Learn integration = CLOSED；Shared Footer = PARKED；Projects → Feed canonical destination 为 `/projects/`。
+
+### Operations / Architecture
+
+- Feed production 已应用 `0003_learn_note_events.sql`；Learn manifest v2 已初始化且 `created=0`，Blog sync `created=0`。
+- Learn Note event 与 legacy Learn section event compatibility 已进入当前 production architecture reality。
+
 ## 2026-08-11 — Blog and Projects content surface reconciliation
 
 ### Blog

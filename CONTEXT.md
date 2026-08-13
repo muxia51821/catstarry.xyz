@@ -82,8 +82,8 @@ Blog、Feed、Learn、Projects 的 shared semantics、模块 Closure 状态、�
 - Reconciled Content Family shared semantics 由 `docs/content/family-contract.md` 与 `docs/content/master-ledger.md` 治理。
 - 已关闭模块的 Closure / Ledger truth 可以 supersede 较早的 Content-specific DESIGN assumption，但不能反向改写 Home、Finance 或全站设计系统职责。
 - Current production implementation 是实现证据，可能落后于 Product Closure；它不会自动覆盖后期 Closure truth。
-- 当前状态：Family RECONCILED；Blog CLOSED；Feed CLOSED；Projects CLOSED；Learn PROVISIONAL / OPEN。
-- Shared Footer 仍为 Revalidate；Global Content Admin 为 Parked；Parked capability 不是 implementation gap。
+- 当前状态：Family RECONCILED；Blog CLOSED；Feed CLOSED；Projects CLOSED；Learn CLOSED / IMPLEMENTATION ACCEPTED。
+- Shared Footer 为 PARKED；Global Content Admin 为 Parked；Parked capability 不是 implementation gap。
 
 ### CJK 优先
 
@@ -150,6 +150,9 @@ catstarry.xyz/
 
 - **Phase 7 staging gate**：complete
 - **Phase 7 production release**：complete
+- **Final Content Integration**：PASS
+- **Production Acceptance**：PASS WITH NON-BLOCKING OBSERVATION
+- **Content Family**：Phase 8 maintenance
 - **Phase 8 operations and maintenance**：active
 - **Production release history**：见 `CHANGELOG.md`
 

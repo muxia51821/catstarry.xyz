@@ -125,7 +125,7 @@ catstarry.xyz/
 | -------------------------------- | -------------------------------------------------------- | ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
 | **shared/auth.ts**               | `getMainSiteSession` / `getFinanceSession` | 主站 KV 优先、D1 session fallback；Finance 独立 KV；cookie token 与 role 校验 | 两个 Worker 共用 session token 解析和状态类型，但使用不同的存储边界。 |
 | **Public Timeline 模块**         | `FeedStore.listPublic(cursor, limit)` | `feed_posts` 与 `public_footprints` 读取、统一排序、游标分页、可见性过滤 | 页面只学习统一的 `TimelineEntry` 读取结果；原生 Feed 与 Public Footprint 的写模型差异留在 store 内部。 |
-| **Public Footprint Writer**      | `recordFootprint(candidate) → { created, footprint }` | 幂等键、快照固化、来源／版本校验、独立可见性 | 三个来源模块复用同一写入语义；删除它会让 Blog、Learn、Projects 各自实现去重和快照。 |
+| **Public Footprint Writer**      | `recordFootprint(candidate) → { created, footprint }` | 幂等键、快照固化、来源／版本校验、独立可见性；Learn Note 发布／修订事件与旧小节完成事件兼容读取 | 三个来源模块复用同一写入语义；删除它会让 Blog、Learn、Projects 各自实现去重和快照。 |
 | **Activity Signal Projection**  | `refreshActivitySignals(env)` | 四源公开资格筛选、7/60 天状态计算、完整对象发布和失败保留 | Home 只读取固定 Manifest；四源查询、阈值与恢复留在 feed-api 内部。 |
 | **Feed media upload route**     | `POST /api/feed/upload` | 主站 session、multipart 校验、媒体签名校验、R2 临时对象写入 | Feed 发布组件只获得 R2 key；不直接接触 R2 binding。 |
 | **shared/cors.ts**               | `rejectUntrustedStateChange` + `withCors` | 两个 Worker 统一处理 CORS 和 state-changing Origin 检查 | 路由不各自重复安全响应头与来源校验。 |
@@ -135,7 +135,7 @@ catstarry.xyz/
 | Module                     | 说明                                       | 是否保留                                  |
 | -------------------------- | ------------------------------------------ | ----------------------------------------- |
 | `routes/views.ts`          | Blog view 读取、访问者去重和 D1 查询 | ✅ 保留 — route group 仍为主站公开 API 的 seam |
-| `routes/learn.ts`          | Learn publication、completion 和管理读取 | ✅ 保留 — route group 与 Learn 管理页面共享主站 session |
+| `routes/learn.ts`          | Learn Note publication/revision、legacy completion readable compatibility 和管理读取 | ✅ 保留 — route group 与 Learn 管理页面共享主站 session |
 | `lib/category.ts`          | 3 行映射 `{tech: "技术", ...}`             | ✅ 保留 — 一处定义，多处引用              |
 | `layouts/FeedLayout.astro` | Feed 页面共享 `Base.astro` 与 Feed 级布局 | ✅ 当前使用 |
 
