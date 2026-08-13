@@ -26,7 +26,8 @@ assert.equal(new Set(entries.map((entry) => entry.slug)).size, entries.length);
 assert.ok(entries.every((entry) => entry.title && entry.summary));
 
 const learnEntries = await readLearnPublicationEntries();
-assert.ok(learnEntries.length > 0);
+// A corpus transition can intentionally leave no published Learn Notes.
+// The production manifest represents the resulting public set, including [] .
 assert.equal(learnEntries.some((entry) => entry.slug === 'domain-dns-http'), false);
 assert.ok(learnEntries.every((entry) => entry.title && entry.published_at));
 assert.equal(new Set(learnEntries.map((entry) => entry.slug)).size, learnEntries.length);
