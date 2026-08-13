@@ -47,7 +47,7 @@ if (unavailable) Astro.response.status = 503;
 ---
 
 <FeedLayout title="Feed 管理" description="管理公开 Feed 内容。" canonicalPath="/feed/admin/">
-  <header class="feed-header"><a class="feed-admin-back" href="/feed/">← 返回 Feed</a><p class="feed-eyebrow">PRIVATE MANAGEMENT</p><h1>Feed 管理</h1><p>隐藏、恢复或删除属于原生发布内容的记录。</p></header>
+  <header class="feed-header"><a class="feed-admin-back" href="/feed/">← 返回 Feed</a><nav class="feed-owner-nav" aria-label="内容管理"><a aria-current="page" href="/feed/admin/">Feed / Blog 管理</a><a href="/learn/admin/">Learn 管理</a></nav><p class="feed-eyebrow">PRIVATE MANAGEMENT</p><h1>Feed 管理</h1><p>隐藏、恢复或删除属于原生发布内容的记录。</p></header>
   {unavailable
     ? <p class="feed-state--error" role="alert">{unavailable}</p>
     : <>

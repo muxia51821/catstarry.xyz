@@ -86,6 +86,13 @@ try {
   assert.match(authenticatedBody, /域名、DNS 与 HTTP/);
   assert.match(authenticatedBody, /浏览器如何找到 catstarry\.xyz/);
   assert.match(authenticatedBody, /<meta name="robots" content="noindex,nofollow,noarchive"/);
+  assert.doesNotMatch(authenticatedBody, /Publish locally/, 'production-like preview must not expose a writable Publish capability');
+  const unavailableLocalPublish = await fetch(`${siteOrigin}/learn/preview/publish`, {
+    method: 'POST',
+    headers: { Cookie: 'preview-token=1', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ slug: 'domain-dns-http' }),
+  });
+  assert.equal(unavailableLocalPublish.status, 404, 'normal/production-like Astro context must have no local publisher');
 
   const gitDraft = await fetch(`${siteOrigin}/learn/preview/git-recovery-reflog-reset/`, {
     headers: { Cookie: 'preview-token=1' },
@@ -133,7 +140,12 @@ try {
   const adminSource = await readFile(path.join(root, 'src', 'pages', 'learn', 'admin.astro'), 'utf8');
   assert.match(adminSource, /learn\/preview\/\$\{note\.slug\}/);
   assert.match(adminSource, />预览<\/a>/);
-  assert.doesNotMatch(adminSource, /data-publication-action|data-complete-form|完成小节|撤回/);
+  assert.match(adminSource, /href="\/feed\/admin\/"/);
+  const previewSource = await readFile(path.join(root, 'src', 'pages', 'learn', 'preview', '[slug].astro'), 'utf8');
+  assert.match(previewSource, /LOCAL_LEARN_PUBLISH_URL/);
+  const publishRoute = await readFile(path.join(root, 'src', 'pages', 'learn', 'preview', 'publish.ts'), 'utf8');
+  assert.match(publishRoute, /Owner authentication required/);
+  assert.match(publishRoute, /Not found/);
   const learnRouteSource = await readFile(path.join(root, 'workers', 'feed-api', 'src', 'routes', 'learn.ts'), 'utf8');
   assert.doesNotMatch(learnRouteSource, /completeSection|requestPublication|learn_section_completed/);
   console.log('Learn preview contract passed.');

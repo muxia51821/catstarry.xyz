@@ -7,6 +7,7 @@ import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath } from 'node:url';
 import { readBlogPublicationEntries } from './lib/blog-publications.mjs';
+import { startLearnLocalPublisher } from './lib/learn-local-publisher.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const node = process.execPath;
@@ -290,17 +291,23 @@ async function stopService(service) {
 
 async function reservePort(requestedPort) {
   const server = net.createServer();
+  const sockets = new Set();
+  server.on('connection', (socket) => {
+    sockets.add(socket);
+    socket.once('close', () => sockets.delete(socket));
+  });
   await new Promise((resolve, reject) => {
     server.once('error', reject);
     server.listen(requestedPort, '127.0.0.1', resolve);
   });
   const address = server.address();
   if (!address || typeof address === 'string') throw new Error('Could not reserve a local preview port');
-  return { port: address.port, server };
+  return { port: address.port, server, sockets };
 }
 
 async function releasePort(reservation) {
   if (!reservation?.server.listening) return;
+  for (const socket of reservation.sockets ?? []) socket.destroy();
   await new Promise((resolve, reject) => reservation.server.close((error) => error ? reject(error) : resolve()));
 }
 
@@ -454,6 +461,7 @@ async function main() {
   let persist;
   let reservations = [];
   const services = [];
+  let learnPublisher;
   let stopRequested = false;
   let signalStop;
   const signalPromise = new Promise((resolve) => { signalStop = resolve; });
@@ -500,6 +508,8 @@ async function main() {
     };
     await prepareLocalFeedDatabase(persist, feedEnv);
     const localAuth = await prepareLocalPreviewAuth(persist, feedEnv);
+    const learnPublisherToken = randomBytes(24).toString('base64url');
+    learnPublisher = await startLearnLocalPublisher({ root, token: learnPublisherToken });
     await releasePort(reservations[1]);
     const feed = startService('Feed Worker', node, [
       wrangler,
@@ -539,6 +549,8 @@ async function main() {
       ASTRO_DEV_BACKGROUND: '0',
       FEED_API_URL: feedOrigin,
       PUBLIC_FEED_API_URL: feedOrigin,
+      LOCAL_LEARN_PUBLISH_URL: learnPublisher.origin,
+      LOCAL_LEARN_PUBLISH_TOKEN: learnPublisherToken,
     });
     services.push(site);
 
@@ -547,12 +559,15 @@ async function main() {
       waitForHttp(financeOrigin, 'Finance preview', finance, () => stopRequested),
     ]);
     if (stopRequested || ready.includes(false)) return 0;
+    const sourceIdentity = await gitIdentity();
 
     console.log('');
     console.log('Local previews are ready:');
     console.log(`  catstarry.xyz  ${siteOrigin}/`);
     console.log(`  f.catstarry.xyz ${financeOrigin}/`);
     console.log(`  Feed API       ${feedOrigin}/api/feed`);
+    console.log(`  Source checkout: ${root}`);
+    console.log(`  Git branch / HEAD: ${sourceIdentity}`);
     console.log('');
     console.log('Local preview login (LOCAL PREVIEW ONLY):');
     console.log(`  username: ${localAuth.username}`);
@@ -589,9 +604,16 @@ async function main() {
     process.removeListener('SIGTERM', onSignal);
     await Promise.all(reservations.map(releasePort));
     await Promise.all(services.slice().reverse().map(stopService));
+    await learnPublisher?.close();
     if (persist) await rm(persist, { recursive: true, force: true, maxRetries: 8, retryDelay: 250 });
     if (stopRequested) console.log('[local-preview] All local previews stopped.');
   }
+}
+
+async function gitIdentity() {
+  const branch = (await runCapturedCommand('git', ['branch', '--show-current'], 'Read source branch')).trim() || '(detached)';
+  const head = (await runCapturedCommand('git', ['rev-parse', 'HEAD'], 'Read source HEAD')).trim();
+  return `${branch} / ${head}`;
 }
 
 try {
