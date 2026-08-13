@@ -4,8 +4,8 @@
 **Date:** 2026-08-10
 **Scope:** Blog / Feed / Learn / Projects
 **Family state:** RECONCILED / FROZEN for implementation
-**Closed modules:** Blog / Feed / Projects
-**Learn decision baseline:** Product Synthesis / Architecture Final COMPLETE; Visual Reality Check IN PROGRESS
+**Closed modules:** Blog / Feed / Learn / Projects
+**Learn decision baseline:** Product / Architecture / Visual Reality Check COMPLETE; implementation ACCEPTED / MERGED
 **Purpose:** Govern shared Content Family semantics, module exceptions, and cross-module product boundaries
 
 > 本合同描述当前 canonical governance state。它不证明 production implementation 已完成，也不单独授权 deployment。
@@ -35,8 +35,8 @@
 - Blog：CLOSED。
 - Feed：CLOSED。
 - Projects：CLOSED。
-- Learn：Product Synthesis / Architecture Final COMPLETE；Visual Reality Check IN PROGRESS，production implementation PENDING。
-- Production implementation：Blog / Projects 已 ACCEPTED 并 FROZEN；Feed 正在形成 Codex Production Implementation Task Package；Learn 尚未进入 production implementation。
+- Learn：Product / Architecture / Visual Reality Check COMPLETE；implementation ACCEPTED / MERGED。
+- Implementation：Blog / Projects 已 ACCEPTED 并 FROZEN；Feed / Learn 已 ACCEPTED / MERGED；Feed × Learn semantic integration CLOSED。
 - Production deployment：不由本合同授权。
 
 > **Current implementation does not automatically override later Product Closure.**
@@ -312,9 +312,9 @@ Visual Completeness = hierarchy + state + rhythm + continuity + finish，不等�
 
 每个 Content surface 都需要 intentional ending。Ending 可由 natural whitespace、pagination end、navigation、related navigation、discussion、shared footer 或其他有语义的 conclusion 形成。
 
-> **Shared Content Footer = Revalidate.**
+> **Shared Content Footer = Parked.**
 
-Shared Footer 不是 Confirmed Family capability，不得为修复 Projects whitespace 而给所有模块创建 mandatory Footer。
+Family intentional ending 已 Confirmed；Shared Footer 不是 Confirmed Family capability，不得为修复 Projects whitespace 而给所有模块创建 mandatory Footer。
 
 ### 6.4 Owner / Admin boundary
 
@@ -399,24 +399,18 @@ Projects/source side owns Project update event semantics；Feed 只消费与展�
 - copy、screenshot、tags、deploy 等字段变化不自动等于 material Project update；
 - 只有用户/source workflow 明确确认该更新具有公开记录价值时，才产生 `PROJECT · 更新`；
 - supporting description 应尽量说明这次更新了什么；
-- event entry、idempotency、updateId、description storage 仍为 Architecture Revalidate。
+- Footprint 的 canonical Feed destination 是 `/projects/`；Project Card 继续使用 external `project.url`；
+- `updateId` 提供幂等身份，source-side workflow 负责 meaningful-update semantics。
 
 ### 8.3 Learn → Feed
 
-Feed presentation `LEARN · 更新` 已 Confirmed；Learn source lifecycle 仍是 **Revalidate / Await Learn Closure**。
-
-在 Learn Closure 前，本合同不确认：
-
-- 哪一种 Learn edit 必须触发 event；
-- Lesson / Note / Section 谁是 source event；
-- description 来源；
-- 是否修改现有 event type。
+Feed presentation `LEARN · 更新` 已 Confirmed；Learn publication lifecycle 与 manifest v2 integration 已 accepted / merged。Public Note 首次发布产生 `learn_note_published`，后续明确修订产生 `learn_note_revised`；`learn_section_completed` 仅保留 legacy readable compatibility。
 
 ---
 
-## 9. Learn provisional boundary
+## 9. Learn accepted boundary
 
-Learn 尚未 Closure，但已确认的 Family/upstream constraints 继续有效：
+Learn 已完成 Product / Architecture / Visual Reality Check 与 accepted implementation；以下 Family/upstream constraints 继续有效：
 
 - Learn belongs to Cream Gallery；
 - Knowledge Structure + Reading direction；
@@ -428,7 +422,7 @@ Learn 尚未 Closure，但已确认的 Family/upstream constraints 继续有效�
 - Public/internal vocabulary boundary 继续适用；
 - Visual Completeness 不得强迫未来 capability。
 
-以下仍为 Learn module-local open decisions，不得 productionize 为 final IA：
+以下曾是 Learn module-local open decisions；现不得绕过 accepted implementation 重新裁决：
 
 - Track power；
 - Graph semantics；
@@ -442,7 +436,7 @@ Learn 尚未 Closure，但已确认的 Family/upstream constraints 继续有效�
 
 | Item | Status / boundary |
 | --- | --- |
-| Exact Shared Content Footer / Ending component | Revalidate |
+| Exact Shared Content Footer / Ending component | Parked |
 | Exact shared radius token values | Revalidate |
 | Exact focus token implementation | Revalidate |
 | Exact elevation/shadow token model | Revalidate；Projects behavior 本身不 Revalidate |
@@ -491,11 +485,11 @@ Family Shared Contract        RECONCILED / FROZEN FOR IMPLEMENTATION
 Blog                          CLOSED
 Feed                          CLOSED
 Projects                      CLOSED
-Learn                         PROVISIONAL / OPEN
-Shared Footer                 REVALIDATE
+Learn                         CLOSED / IMPLEMENTATION ACCEPTED
+Shared Footer                 PARKED
 Global Content Admin          PARKED
-Production Implementation     READY FOR INVENTORY, THEN GOVERNED SEQUENCING
+Feed × Learn Integration      CLOSED
 Production Deployment         NOT AUTHORIZED BY THIS CONTRACT
 ```
 
-下一 operational stage 是 **Current Implementation Inventory**。Governance Freeze 表示后续实现具有稳定的决策基线，不表示 production code 已经 reconciled。
+Final Content Integration & Acceptance = **PASS**。Current downstream stage 是 **Release Handoff**；**Release / Deployment → Production Acceptance** 仍是 separately authorized 后续阶段。本合同仍不单独授权 release 或 deployment。

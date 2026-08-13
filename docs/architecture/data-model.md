@@ -76,7 +76,7 @@ LIMIT ?3;
 
 ### 1.2 public_footprints 表
 
-`public_footprints` 是 Public Footprint 的独立写模型。它记录已经发生、可公开展示的 Blog 发布、Learn 小节完成和 Projects 实质更新；不存原生碎碎念或剪藏。创建时固化来源身份和展示快照，但不表示整条记录的所有字段都绝对不可变；`visibility` 可以独立变化。
+`public_footprints` 是 Public Footprint 的独立写模型。它记录已经发生、可公开展示的 Blog 发布、Learn Note 发布／修订和 Projects 实质更新，并兼容读取历史 Learn 小节完成事件；不存原生碎碎念或剪藏。创建时固化来源身份和展示快照，但不表示整条记录的所有字段都绝对不可变；`visibility` 可以独立变化。
 
 ```sql
 CREATE TABLE IF NOT EXISTS public_footprints (
@@ -84,7 +84,7 @@ CREATE TABLE IF NOT EXISTS public_footprints (
   source_module   TEXT NOT NULL CHECK(source_module IN ('blog','learn','projects')),
   source_ref      TEXT NOT NULL,
   source_version  TEXT NOT NULL,
-  event_type      TEXT NOT NULL CHECK(event_type IN ('blog_published','learn_section_completed','project_updated')),
+  event_type      TEXT NOT NULL CHECK(event_type IN ('blog_published','learn_section_completed','learn_note_published','learn_note_revised','project_updated')),
   snapshot_json   TEXT NOT NULL,
   occurred_at     TEXT NOT NULL,
   visibility      TEXT NOT NULL DEFAULT 'public' CHECK(visibility IN ('public','private')),
@@ -107,8 +107,10 @@ CREATE INDEX idx_public_footprints_source ON public_footprints(source_module, so
 | 来源 | `source_ref` | `source_version` | `idempotency_key` |
 | --- | --- | --- | --- |
 | Blog | `slug` | `first-production-v1` | `blog:{slug}:first-production-v1` |
-| Learn | `track/section` 或等价稳定小节引用 | 明确 `completionId` | `learn:{source_ref}:{completionId}` |
+| Learn | Public Note slug；legacy row 可保留旧 section reference | publication / revision marker；legacy row 可保留旧 completion identity | `learn:{slug}:{source_version}` |
 | Projects | 稳定 `project_id` | 木下显式给出的 `update_id` | `projects:{project_id}:{update_id}` |
+
+Projects Footprint snapshot 的 canonical destination 是 `/projects/`；Projects Card 自身仍以 external `project.url` 作为 whole-card destination。
 
 Blog collection 仍保留可选的 `publication_id` 字段，但当前生产同步脚本不读取它；首次同步建立已发布 slug 基线，基线之后的新 slug 使用 `first-production-v1` 创建足迹。是否将 `publication_id` 重新定为 Blog 的发布身份，待木下确认。
 
@@ -122,7 +124,7 @@ Blog collection 仍保留可选的 `publication_id` 字段，但当前生产同�
 
 当前内部 `TimelineEntry.kind` 仍使用 `system_footprint` 作为稳定代码 discriminator；面向项目共享语言时 canonical term 为 `Public Footprint`。内部类型名不改变产品语义。
 
-当前 `FeedStore.listPublic()` 只对统一投影中的 `visibility = 'public'` 做过滤，尚未 join Blog source visibility，因此 Blog source gate 是已确认产品规则下的 implementation drift，而不是已经实现的 current-state behavior。Exact projection query、source reference 与 tombstone mapping 进入 [`docs/content/master-ledger.md`](../content/master-ledger.md) 的 `ARCH-REV-001`–`ARCH-REV-003` / Feed Architecture Preflight。
+当前 `FeedStore.listPublic()` 会结合 published Blog manifest 过滤 Blog Footprint；Blog source hidden 时保留 record 与 snapshot，但不进入 Public Timeline，restore 后恢复同一记录且不创建 duplicate。Hard-delete tombstone / known-dead destination 的精确行为仍保留为后续边界。
 
 ### 1.4 Home Activity Signal 静态投影
 
@@ -371,6 +373,8 @@ export type FootprintSource = "blog" | "learn" | "projects";
 export type FootprintEventType =
   | "blog_published"
   | "learn_section_completed"
+  | "learn_note_published"
+  | "learn_note_revised"
   | "project_updated";
 
 export type ActivityState = "active" | "stable" | "dormant";

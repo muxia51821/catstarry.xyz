@@ -149,8 +149,19 @@ try {
   adminProjection = await request('/api/feed/admin?limit=20', { headers: { Cookie: cookie } }).then((response) => response.json());
   assert.equal(adminProjection.items.find((item) => item.id === firstFootprint.footprint.id).projection_state, 'own_private');
   assert.equal((await request(`/api/feed/${firstFootprint.footprint.id}`, { method: 'PATCH', headers: { Cookie: cookie, 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'system_footprint', visibility: 'public' }) })).status, 200);
-  const dangerous = await rawRequest('/api/feed/internal/footprints', { method: 'POST', headers: { Authorization: `Bearer ${footprintToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify(footprintBody({ idempotency_key: 'blog:danger:v1', snapshot_json: JSON.stringify({ title: 'Bad', link: 'javascript:alert(1)' }) })) });
-  assert.equal(dangerous.status, 400);
+  for (const [link, id, overrides = {}] of [
+    ['javascript:alert(1)', 'javascript'],
+    ['//example.com/project', 'protocol-relative'],
+    ['https://example.com/project', 'external'],
+    ['/finance/', 'non-content'],
+    ['/learn/notes/cross-source/', 'cross-source'],
+    ['/blog/', 'blog-root'],
+    ['/learn/', 'learn-root', { source_module: 'learn', source_ref: 'danger-learn', event_type: 'learn_note_published' }],
+    ['/projects', 'malformed-project-root', { source_module: 'projects', source_ref: 'danger-project', event_type: 'project_updated' }],
+  ]) {
+    const unsafe = await rawRequest('/api/feed/internal/footprints', { method: 'POST', headers: { Authorization: `Bearer ${footprintToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify(footprintBody({ ...overrides, idempotency_key: `danger:${id}:v1`, snapshot_json: JSON.stringify({ title: 'Bad', link }) })) });
+    assert.equal(unsafe.status, 400, `${link} must be rejected as a snapshot destination`);
+  }
 
   const footprintEvents = [
     ['learn', 'learn_note_published', 'published-note'],
@@ -166,7 +177,7 @@ try {
         source_ref: sourceRef,
         event_type: eventType,
         idempotency_key: `${source}:${sourceRef}:v1`,
-        snapshot_json: JSON.stringify({ title: sourceRef, link: source === 'learn' ? `/learn/notes/${sourceRef}/` : `/projects/${sourceRef}/` }),
+        snapshot_json: JSON.stringify({ title: sourceRef, link: source === 'learn' ? `/learn/notes/${sourceRef}/` : '/projects/' }),
       })),
     });
     assert.equal(response.status, 201, `${eventType} must be writable through the canonical ingestion boundary`);
@@ -192,7 +203,9 @@ try {
   assert.equal(publicEvents.items.some((item) => item.payload?.event_type === 'learn_section_completed'), true, 'legacy rows remain readable');
   assert.equal(publicEvents.items.some((item) => item.payload?.event_type === 'learn_note_published'), true);
   assert.equal(publicEvents.items.some((item) => item.payload?.event_type === 'learn_note_revised'), true);
-  assert.equal(publicEvents.items.some((item) => item.payload?.event_type === 'project_updated'), true);
+  const projectFootprint = publicEvents.items.find((item) => item.payload?.event_type === 'project_updated');
+  assert.equal(Boolean(projectFootprint), true);
+  assert.equal(JSON.parse(projectFootprint.payload.snapshot_json).link, '/projects/');
   const firstCursorPage = await rawRequest('/api/feed?limit=2').then((response) => response.json());
   assert.equal(firstCursorPage.items.length, 2);
   assert.equal(firstCursorPage.has_more, true);

@@ -33,6 +33,14 @@ const candidate = createFootprintCandidate('blog', {
 });
 assert.equal(candidate.idempotency_key, 'blog:new-post:publication-2026-07-25');
 assert.equal(candidate.occurred_at, '2026-07-25T04:00:00.000Z');
+const projectCandidate = createFootprintCandidate('projects', {
+  source_ref: 'catstarry-xyz',
+  source_version: 'destination-fix',
+  title: 'catstarry.xyz',
+  summary: 'Feed destination uses the canonical Projects family route.',
+  link: '/projects/',
+});
+assert.equal(JSON.parse(projectCandidate.snapshot_json).link, '/projects/');
 assert.throws(() => createFootprintCandidate('projects', {
   source_ref: 'a'.repeat(80),
   source_version: 'b'.repeat(80),
