@@ -57,7 +57,8 @@ function createContentPawTrail() {
     base.className = 'content-paw-footprint__layer content-paw-footprint__layer--base';
     const top = document.createElement('span');
     top.className = 'content-paw-footprint__layer content-paw-footprint__layer--top';
-    footprint.append(base, top);
+    footprint.appendChild(base);
+    footprint.appendChild(top);
     root.appendChild(footprint);
     footprint.addEventListener('animationend', () => footprint.remove(), { once: true });
   }
