@@ -220,18 +220,48 @@ function runCapturedCommand(command, args, label, env = process.env) {
   });
 }
 
-function startService(label, command, args, env) {
+function startService(label, command, args, env, { captureOutput = false } = {}) {
   const child = spawn(command, args, {
     ...spawnOptions(command, env),
     detached: process.platform !== 'win32',
+    ...(captureOutput ? { stdio: ['inherit', 'pipe', 'pipe'] } : {}),
   });
-  const service = { label, child, stopped: false, outcome: null };
+  const service = { label, child, stopped: false, outcome: null, output: '', collectOutput: captureOutput };
+  if (captureOutput) {
+    child.stdout.on('data', (chunk) => {
+      if (service.collectOutput) service.output += chunk.toString();
+      process.stdout.write(chunk);
+    });
+    child.stderr.on('data', (chunk) => {
+      if (service.collectOutput) service.output += chunk.toString();
+      process.stderr.write(chunk);
+    });
+  }
   const exit = new Promise((resolve) => {
     child.once('error', (error) => { service.stopped = true; service.outcome = { code: 1, error }; resolve(service.outcome); });
     child.once('exit', (code, signal) => { service.stopped = true; service.outcome = { code: code ?? 1, signal }; resolve(service.outcome); });
   });
   service.exit = exit;
   return service;
+}
+
+async function waitForAstroPort(service, shouldStop) {
+  const deadline = Date.now() + serviceReadyTimeoutMs;
+  while (Date.now() < deadline) {
+    if (shouldStop()) return null;
+    if (service.stopped) {
+      const detail = service.outcome?.signal ? ` (${service.outcome.signal})` : ` with exit code ${service.outcome?.code ?? 'unknown'}`;
+      throw new Error(`Astro site exited before reporting its local URL${detail}`);
+    }
+    const match = service.output.match(/http:\/\/127\.0\.0\.1:(\d+)\//);
+    if (match) {
+      service.collectOutput = false;
+      service.output = '';
+      return Number(match[1]);
+    }
+    await sleep(serviceReadyPollMs);
+  }
+  throw new Error(`Astro site did not report its local URL within ${serviceReadyTimeoutMs / 1_000} seconds`);
 }
 
 async function waitForHttp(url, label, service, shouldStop) {
@@ -493,11 +523,14 @@ async function main() {
     financeOrigin = `http://127.0.0.1:${financePort}`;
 
     persist = await mkdtemp(path.join(os.tmpdir(), localPreviewDirectoryPrefix));
-    await writeFile(path.join(persist, localPreviewOwnerFile), JSON.stringify({
+    const ownerPath = path.join(persist, localPreviewOwnerFile);
+    const createdAt = new Date().toISOString();
+    const writeOwnerState = () => writeFile(ownerPath, JSON.stringify({
       pid: process.pid,
-      created_at: new Date().toISOString(),
+      created_at: createdAt,
       ports: { site: sitePort, feed: feedPort, finance: financePort },
     }));
+    await writeOwnerState();
     const feedEnv = {
       ...process.env,
       WRANGLER_HIDE_BANNER: 'true',
@@ -506,6 +539,29 @@ async function main() {
     };
     await prepareLocalFeedDatabase(persist, feedEnv);
     const localAuth = await prepareLocalPreviewAuth(persist, feedEnv);
+    await releasePort(reservations[0]);
+    const site = startService('Astro site preview', node, [
+      astro,
+      'dev',
+      '--host',
+      '127.0.0.1',
+      '--port',
+      String(sitePort),
+    ], {
+      ...process.env,
+      ASTRO_DEV_BACKGROUND: '0',
+      FEED_API_URL: feedOrigin,
+      PUBLIC_FEED_API_URL: feedOrigin,
+    }, { captureOutput: true });
+    services.push(site);
+    const actualSitePort = await waitForAstroPort(site, () => stopRequested);
+    if (actualSitePort === null) return 0;
+    if (actualSitePort !== sitePort) {
+      sitePort = actualSitePort;
+      siteOrigin = `http://127.0.0.1:${sitePort}`;
+      await writeOwnerState();
+    }
+
     await releasePort(reservations[1]);
     const feed = startService('Feed Worker', node, [
       wrangler,
@@ -531,22 +587,6 @@ async function main() {
       FINANCE_PREVIEW_PORT: String(financePort),
     });
     services.push(finance);
-
-    await releasePort(reservations[0]);
-    const site = startService('Astro site preview', node, [
-      astro,
-      'dev',
-      '--host',
-      '127.0.0.1',
-      '--port',
-      String(sitePort),
-    ], {
-      ...process.env,
-      ASTRO_DEV_BACKGROUND: '0',
-      FEED_API_URL: feedOrigin,
-      PUBLIC_FEED_API_URL: feedOrigin,
-    });
-    services.push(site);
 
     const ready = await Promise.all([
       waitForHttp(siteOrigin, 'Astro site', site, () => stopRequested),

@@ -24,6 +24,17 @@ async function portIsAvailable(port) {
   }
 }
 
+async function portAcceptsConnections(port) {
+  return new Promise((resolve) => {
+    const socket = net.createConnection({ host: '127.0.0.1', port });
+    socket.once('connect', () => {
+      socket.destroy();
+      resolve(true);
+    });
+    socket.once('error', () => resolve(false));
+  });
+}
+
 async function previewDirectoryForPid(pid) {
   const entries = await readdir(os.tmpdir(), { withFileTypes: true });
   for (const entry of entries) {
@@ -80,6 +91,14 @@ function localPreviewCredentials(output) {
   const match = output.match(/Local preview login \(LOCAL PREVIEW ONLY\):\s+username:\s+(\S+)\s+password:\s+(\S+)/);
   if (!match) throw new Error(`Local preview credentials were not printed in the ready output:\n${output}`);
   return { username: match[1], password: match[2] };
+}
+
+function readyPreviewPorts(output) {
+  const site = output.match(/catstarry\.xyz\s+http:\/\/127\.0\.0\.1:(\d+)\//);
+  const finance = output.match(/f\.catstarry\.xyz\s+http:\/\/127\.0\.0\.1:(\d+)\//);
+  const feed = output.match(/Feed API\s+http:\/\/127\.0\.0\.1:(\d+)\/api\/feed/);
+  assert.ok(site && finance && feed, `Local preview ready output must expose the actual ports:\n${output}`);
+  return { site: Number(site[1]), feed: Number(feed[1]), finance: Number(finance[1]) };
 }
 
 async function verifyLocalAuthoringWorkflow({ sitePort, feedPort, output }) {
@@ -302,10 +321,10 @@ try {
     LOCAL_PREVIEW_TEST_STOP_AFTER_READY: 'SIGINT',
   });
   const gracefulDirectory = await waitForOwnerDirectory(preview);
-  const { site: sitePort, feed: feedPort, finance: financePort } = await previewPorts(gracefulDirectory);
+  const initialPorts = await previewPorts(gracefulDirectory);
   assert.deepEqual(
-    await Promise.all([portIsAvailable(sitePort), portIsAvailable(feedPort), portIsAvailable(financePort)]),
-    [false, false, false],
+    await Promise.all([initialPorts.site, initialPorts.feed, initialPorts.finance].map(portAcceptsConnections)),
+    [true, true, true],
     'the controller must reserve automatic ports until each real service binds',
   );
   await waitForOutput(preview, /Local preview login \(LOCAL PREVIEW ONLY\):[\s\S]*password:/);
@@ -317,6 +336,7 @@ try {
   assert.match(preview.output(), /Git branch \/ HEAD: [^\r\n]+ \/ [0-9a-f]{40}/);
   assert.match(preview.output(), /Received SIGINT; stopping all local previews/);
   assert.match(preview.output(), /All local previews stopped\./);
+  const { site: sitePort, feed: feedPort, finance: financePort } = readyPreviewPorts(preview.output());
   assert.deepEqual(await Promise.all([portIsAvailable(sitePort), portIsAvailable(feedPort), portIsAvailable(financePort)]), [true, true, true]);
   assert.equal(await exists(gracefulDirectory), false, 'a graceful stop must remove its own temporary state');
 
@@ -327,13 +347,13 @@ try {
   };
   externallyStoppedPreview = spawnPreview([], automaticPortEnvironment);
   const externallyStoppedDirectory = await waitForOwnerDirectory(externallyStoppedPreview);
+  await waitForOutput(externallyStoppedPreview, /Local previews are ready:/);
   const { site: stopSitePort, feed: stopFeedPort, finance: stopFinancePort } = await previewPorts(externallyStoppedDirectory);
   const stopEnvironment = {
     SITE_PREVIEW_PORT: String(stopSitePort),
     FEED_PREVIEW_PORT: String(stopFeedPort),
     FINANCE_PREVIEW_PORT: String(stopFinancePort),
   };
-  await waitForOutput(externallyStoppedPreview, /Local previews are ready:/);
   const stopCommand = spawnPreview(['--stop'], stopEnvironment);
   const stopCommandExit = await waitForExit(stopCommand);
   assert.deepEqual(stopCommandExit, { code: 0, signal: null }, stopCommand.output());
@@ -345,13 +365,13 @@ try {
 
   legacyStoppedPreview = spawnPreview([], automaticPortEnvironment);
   const legacyDirectory = await waitForOwnerDirectory(legacyStoppedPreview);
+  await waitForOutput(legacyStoppedPreview, /Local previews are ready:/);
   const { site: legacySitePort, feed: legacyFeedPort, finance: legacyFinancePort } = await previewPorts(legacyDirectory);
   const legacyEnvironment = {
     SITE_PREVIEW_PORT: String(legacySitePort),
     FEED_PREVIEW_PORT: String(legacyFeedPort),
     FINANCE_PREVIEW_PORT: String(legacyFinancePort),
   };
-  await waitForOutput(legacyStoppedPreview, /Local previews are ready:/);
   const legacyOwner = JSON.parse(await readFile(path.join(legacyDirectory, ownerFile), 'utf8'));
   delete legacyOwner.ports;
   await writeFile(path.join(legacyDirectory, ownerFile), JSON.stringify(legacyOwner));
@@ -366,8 +386,8 @@ try {
 
   preview = spawnPreview([], automaticPortEnvironment);
   const forcedDirectory = await waitForOwnerDirectory(preview);
-  const { site: forceSitePort, feed: forceFeedPort, finance: forceFinancePort } = await previewPorts(forcedDirectory);
   await waitForOutput(preview, /Local preview login \(LOCAL PREVIEW ONLY\):[\s\S]*password:/);
+  const { site: forceSitePort, feed: forceFeedPort, finance: forceFinancePort } = await previewPorts(forcedDirectory);
   await verifyLocalAuthoringWorkflow({
     sitePort: forceSitePort,
     feedPort: forceFeedPort,
