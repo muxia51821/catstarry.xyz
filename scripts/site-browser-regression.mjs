@@ -222,23 +222,35 @@ try {
   assert.equal(archiveDefault.summaryVisible, false);
   await send('DOM.enable');
   await send('CSS.enable');
-  const { root: archiveDocument } = await send('DOM.getDocument', { depth: 0 });
-  const { nodeId: archiveContentNodeId } = await send('DOM.querySelector', {
-    nodeId: archiveDocument.nodeId,
-    selector: '.blog-post-entry__content',
-  });
-  assert.ok(archiveContentNodeId, 'Blog archive hover target must exist');
-  await send('CSS.forcePseudoState', {
-    nodeId: archiveContentNodeId,
-    forcedPseudoClasses: ['hover'],
-  });
-  await waitFor(`(() => {
+  const archiveHoverVisualState = `(() => {
     const summary = document.querySelector('.blog-post-entry__description');
     const title = document.querySelector('.blog-post-entry h2 a');
     return summary.getBoundingClientRect().height > 0
       && getComputedStyle(summary).opacity === '1'
       && getComputedStyle(title).color !== ${JSON.stringify(archiveDefault.titleColor)};
-  })()`, 'Blog archive forced hover visual state', 2_000);
+  })()`;
+  const forceArchivePseudoState = async (forcedPseudoClasses, verifyVisualState = false) => {
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const { root: archiveDocument } = await send('DOM.getDocument', { depth: 0 });
+      const { nodeId } = await send('DOM.querySelector', {
+        nodeId: archiveDocument.nodeId,
+        selector: '.blog-post-entry__content',
+      });
+      if (!nodeId) continue;
+      try {
+        await send('CSS.forcePseudoState', { nodeId, forcedPseudoClasses });
+        if (verifyVisualState) {
+          await waitFor(archiveHoverVisualState, 'Blog archive forced hover visual state', 2_000);
+        }
+        return;
+      } catch (error) {
+        const staleNode = /Could not find node with given id|Timed out waiting for Blog archive forced hover visual state/.test(error.message);
+        if (!staleNode || attempt === 2) throw error;
+      }
+    }
+    assert.fail('Blog archive hover target must exist');
+  };
+  await forceArchivePseudoState(['hover'], true);
   const archiveHover = await evaluate(`(() => {
     const summary = document.querySelector('.blog-post-entry__description');
     const title = document.querySelector('.blog-post-entry h2 a');
@@ -248,10 +260,7 @@ try {
     };
   })()`);
   assert.ok(archiveHover.summaryVisible && archiveHover.titleChanged);
-  await send('CSS.forcePseudoState', {
-    nodeId: archiveContentNodeId,
-    forcedPseudoClasses: [],
-  });
+  await forceArchivePseudoState([]);
   await evaluate(`document.querySelector('.blog-post-entry h2 a').focus()`);
   const archiveFocus = await evaluate(`(() => {
     const summary = document.querySelector('.blog-post-entry__description');
