@@ -1,11 +1,25 @@
 const finePointer = matchMedia('(hover: hover) and (pointer: fine)');
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 
+const CLICK_FEEDBACK = {
+  coreRadius: 1.4,
+  coreOpacity: 0.82,
+  coreLifetime: 190,
+  echoStartRadius: 3,
+  echoEndRadius: 11,
+  echoOpacity: 0.14,
+  echoLifetime: 500,
+} as const;
+
 function colorWithAlpha(color: string, alpha: number) {
   return color.replace(/rgba?\((.*)\)/, (_match, channels) => {
     const rgb = channels.split(/[\s,/]+/).slice(0, 3).join(' ');
     return `rgb(${rgb} / ${Math.max(0, alpha).toFixed(3)})`;
   });
+}
+
+function easeOutCubic(progress: number) {
+  return 1 - (1 - progress) ** 3;
 }
 
 function createContentMeteor(content: HTMLElement) {
@@ -23,14 +37,11 @@ function createContentMeteor(content: HTMLElement) {
   const tokens = getComputedStyle(content);
   const glowColor = tokens.getPropertyValue('--cursor-meteor-glow').trim();
   const headColor = tokens.getPropertyValue('--cursor-meteor-head').trim();
-  const headRadius = Number.parseFloat(tokens.getPropertyValue('--cursor-meteor-head-radius')) || 5;
-  const opacity = Number.parseFloat(tokens.getPropertyValue('--cursor-meteor-opacity')) || 0;
   let width = 0;
   let height = 0;
   let pointX = 0;
   let pointY = 0;
-  let visible = 0;
-  let lastFrame = 0;
+  let startedAt = 0;
   let frame = 0;
 
   function resize() {
@@ -42,30 +53,36 @@ function createContentMeteor(content: HTMLElement) {
     context.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
-  function draw() {
+  function draw(elapsed: number) {
     context.clearRect(0, 0, width, height);
-    if (!visible) return;
-    const radius = headRadius * visible;
-    const glow = context.createRadialGradient(pointX, pointY, 0, pointX, pointY, radius);
-    glow.addColorStop(0, colorWithAlpha(headColor, visible * opacity));
-    glow.addColorStop(0.45, colorWithAlpha(glowColor, visible * opacity));
-    glow.addColorStop(1, colorWithAlpha(glowColor, 0));
-    context.fillStyle = glow;
+    if (elapsed >= CLICK_FEEDBACK.echoLifetime) return;
+
+    const echoProgress = Math.min(elapsed / CLICK_FEEDBACK.echoLifetime, 1);
+    const echoFade = 1 - echoProgress;
+    const echoRadius = CLICK_FEEDBACK.echoStartRadius
+      + (CLICK_FEEDBACK.echoEndRadius - CLICK_FEEDBACK.echoStartRadius) * easeOutCubic(echoProgress);
+    const echo = context.createRadialGradient(pointX, pointY, 0, pointX, pointY, echoRadius);
+    echo.addColorStop(0, colorWithAlpha(glowColor, CLICK_FEEDBACK.echoOpacity * echoFade * 0.18));
+    echo.addColorStop(0.42, colorWithAlpha(glowColor, CLICK_FEEDBACK.echoOpacity * echoFade));
+    echo.addColorStop(1, colorWithAlpha(glowColor, 0));
+    context.fillStyle = echo;
     context.beginPath();
-    context.arc(pointX, pointY, radius, 0, Math.PI * 2);
+    context.arc(pointX, pointY, echoRadius, 0, Math.PI * 2);
     context.fill();
-    context.fillStyle = colorWithAlpha(headColor, visible * opacity);
-    context.beginPath();
-    context.arc(pointX, pointY, Math.min(1.25, radius * 0.28), 0, Math.PI * 2);
-    context.fill();
+
+    const coreProgress = Math.min(elapsed / CLICK_FEEDBACK.coreLifetime, 1);
+    if (coreProgress < 1) {
+      context.fillStyle = colorWithAlpha(headColor, CLICK_FEEDBACK.coreOpacity * (1 - coreProgress));
+      context.beginPath();
+      context.arc(pointX, pointY, CLICK_FEEDBACK.coreRadius, 0, Math.PI * 2);
+      context.fill();
+    }
   }
 
   function tick(now: number) {
-    const dt = Math.min((now - lastFrame) / 1000, 0.05);
-    lastFrame = now;
-    visible = Math.max(0, visible - dt * 5.5);
-    draw();
-    if (visible > 0.01) frame = requestAnimationFrame(tick);
+    const elapsed = now - startedAt;
+    draw(elapsed);
+    if (elapsed < CLICK_FEEDBACK.echoLifetime) frame = requestAnimationFrame(tick);
     else frame = 0;
   }
 
@@ -77,7 +94,7 @@ function createContentMeteor(content: HTMLElement) {
     if (event.pointerType !== 'mouse') return;
     pointX = event.clientX;
     pointY = event.clientY;
-    visible = 1;
+    startedAt = performance.now();
     begin();
   }
 
