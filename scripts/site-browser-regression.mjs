@@ -222,13 +222,10 @@ try {
   assert.equal(archiveDefault.summaryVisible, false);
   await send('DOM.enable');
   await send('CSS.enable');
-  await send('DOM.getDocument', { depth: 0 });
-  const archiveContentObject = await send('Runtime.evaluate', {
-    expression: `document.querySelector('.blog-post-entry__content')`,
-    objectGroup: 'blog-archive-hover',
-  });
-  const { nodeId: archiveContentNodeId } = await send('DOM.requestNode', {
-    objectId: archiveContentObject.result.objectId,
+  const { root: archiveDocument } = await send('DOM.getDocument', { depth: 0 });
+  const { nodeId: archiveContentNodeId } = await send('DOM.querySelector', {
+    nodeId: archiveDocument.nodeId,
+    selector: '.blog-post-entry__content',
   });
   assert.ok(archiveContentNodeId, 'Blog archive hover target must exist');
   await send('CSS.forcePseudoState', {
@@ -255,7 +252,6 @@ try {
     nodeId: archiveContentNodeId,
     forcedPseudoClasses: [],
   });
-  await send('Runtime.releaseObjectGroup', { objectGroup: 'blog-archive-hover' });
   await evaluate(`document.querySelector('.blog-post-entry h2 a').focus()`);
   const archiveFocus = await evaluate(`(() => {
     const summary = document.querySelector('.blog-post-entry__description');
