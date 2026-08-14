@@ -7,21 +7,19 @@ export async function readLearnPublicationEntries(root = 'src/data/learn') {
     if (!file.endsWith('.md')) continue;
     const source = await readFile(file, 'utf8');
     const frontmatter = source.match(/^---\r?\n([\s\S]*?)\r?\n---/)?.[1] ?? '';
-    const state = scalar(frontmatter, 'state') ?? (scalar(frontmatter, 'draft') === 'false' ? 'published' : 'draft');
-    if (state !== 'published') continue;
+    const state = scalar(frontmatter, 'state');
+    if (state === 'withdrawn' || state === 'superseded') continue;
     const slug = scalar(frontmatter, 'slug');
     const title = scalar(frontmatter, 'title');
     const excerpt = scalar(frontmatter, 'excerpt') ?? '';
-    const publishedAt = scalar(frontmatter, 'publishedAt') ?? scalar(frontmatter, 'publishDate');
     const revisedAt = scalar(frontmatter, 'revisedAt');
-    if (!slug || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug) || !title || !publishedAt) {
-      throw new Error(`Published Learn file has invalid lifecycle metadata: ${file}`);
+    if (!slug || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug) || !title) {
+      throw new Error(`Learn file has invalid deployment metadata: ${file}`);
     }
     entries.push({
       slug,
       title,
       excerpt,
-      published_at: new Date(publishedAt).toISOString(),
       revised_at: revisedAt ? new Date(revisedAt).toISOString() : null,
     });
   }

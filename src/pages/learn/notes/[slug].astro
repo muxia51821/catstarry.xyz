@@ -1,23 +1,28 @@
 ---
+export const prerender = false;
+
 import { getCollection, render } from 'astro:content';
 import Base from '../../../layouts/Base.astro';
 import LearnNoteView from '../../../components/learn/LearnNoteView.astro';
-import { getPublishedNotes, noteFromEntry } from '../../../components/learn/learn-data';
+import { noteFromEntry } from '../../../components/learn/learn-data';
+import { loadPublicLearnNotes } from '../../../lib/server/learn-publications';
 import '../../../components/learn/learn.css';
 
-export async function getStaticPaths() {
-  const entries = await getCollection('learn');
-  const publicSlugs = new Set(getPublishedNotes(entries).map((note) => note.slug));
-  return entries.filter((entry) => publicSlugs.has(entry.data.slug) || entry.data.state === 'withdrawn').map((entry) => ({
-    params: { slug: entry.data.slug },
-    props: { entry },
-  }));
+const entries = await getCollection('learn');
+const entry = entries.find((candidate) => candidate.data.slug === Astro.params.slug);
+if (!entry) return new Response('Learn note not found', { status: 404 });
+const sourceNote = noteFromEntry(entry);
+let note = sourceNote;
+let allPublishedNotes = [];
+if (sourceNote.state !== 'withdrawn') {
+  const publicNotes = await loadPublicLearnNotes(Astro.request, entries);
+  if (!publicNotes) return new Response('Learn publication service unavailable', { status: 503 });
+  const publicNote = publicNotes.find((candidate) => candidate.slug === sourceNote.slug);
+  if (!publicNote) return new Response('Learn note not found', { status: 404 });
+  note = publicNote;
+  allPublishedNotes = publicNotes;
 }
-
-const { entry } = Astro.props;
-const note = noteFromEntry(entry);
-const allPublishedNotes = getPublishedNotes(await getCollection('learn'));
-const { Content } = await render(entry);
+const { Content, headings } = await render(entry);
 ---
 
 <Base title={`${note.title} · Learn`} description={note.excerpt}>
@@ -25,6 +30,6 @@ const { Content } = await render(entry);
     {note.state === 'withdrawn' && (
       <p class="learn-withdrawn-notice" role="status">此笔记已退出当前 Learn corpus；页面暂时保留用于历史链接。</p>
     )}
-    <LearnNoteView note={note} allNotes={allPublishedNotes} Content={Content} />
+    <LearnNoteView note={note} allNotes={allPublishedNotes} Content={Content} headings={headings} />
   </main>
 </Base>

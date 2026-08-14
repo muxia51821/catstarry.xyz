@@ -15,7 +15,7 @@ async function applyTwice(directory) {
 
 const feed = await applyTwice('workers/feed-api/migrations');
 const feedTables = feed.prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name").all().map(({ name }) => name);
-for (const table of ['auth_sessions', 'blog_view_visitors', 'blog_views', 'feed_posts', 'public_footprints']) {
+for (const table of ['auth_sessions', 'blog_view_visitors', 'blog_views', 'feed_posts', 'learn_publications', 'public_footprints']) {
   assert.ok(feedTables.includes(table), `Feed migration must create ${table}`);
 }
 assert.ok(feed.prepare("SELECT 1 FROM sqlite_master WHERE type = 'index' AND name = 'idx_blog_view_visitors_created'").get());
@@ -51,6 +51,18 @@ assert.equal(
 );
 assert.ok(feed.prepare("SELECT 1 FROM sqlite_master WHERE type = 'index' AND name = 'idx_public_footprints_public'").get());
 assert.ok(feed.prepare("SELECT 1 FROM sqlite_master WHERE type = 'index' AND name = 'idx_public_footprints_source'").get());
+feed.prepare(`INSERT INTO learn_publications (
+  slug, visibility, published_at, last_revised_at, updated_at
+) VALUES (?, 'public', ?, NULL, ?)`).run(
+  'runtime-publication',
+  '2026-08-12T00:00:00.000Z',
+  '2026-08-12T00:00:00.000Z',
+);
+feed.prepare("UPDATE learn_publications SET visibility = 'hidden', updated_at = ? WHERE slug = ?")
+  .run('2026-08-12T01:00:00.000Z', 'runtime-publication');
+const hiddenPublication = feed.prepare('SELECT visibility, published_at FROM learn_publications WHERE slug = ?').get('runtime-publication');
+assert.equal(hiddenPublication.visibility, 'hidden');
+assert.equal(hiddenPublication.published_at, '2026-08-12T00:00:00.000Z', 'Hide must preserve first published_at');
 feed.prepare(`INSERT INTO blog_view_visitors (slug, view_date, visitor_hash, created_at)
   VALUES (?, ?, ?, ?), (?, ?, ?, ?)`)
   .run(

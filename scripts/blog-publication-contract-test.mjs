@@ -41,10 +41,9 @@ try {
 }
 
 const learnEntries = await readLearnPublicationEntries();
-// A corpus transition can intentionally leave no published Learn Notes.
-// The production manifest represents the resulting public set, including [] .
-assert.equal(learnEntries.some((entry) => entry.slug === 'domain-dns-http'), false);
-assert.ok(learnEntries.every((entry) => entry.title && entry.published_at));
+assert.equal(learnEntries.some((entry) => entry.slug === 'domain-dns-http'), true);
+assert.equal(learnEntries.some((entry) => entry.slug === 'vibe-coding-mission'), false, 'legacy withdrawn notes are not revision-sync candidates');
+assert.ok(learnEntries.every((entry) => entry.title && !('published_at' in entry)));
 assert.equal(new Set(learnEntries.map((entry) => entry.slug)).size, learnEntries.length);
 
 console.log('Blog publication manifest contract passed.');

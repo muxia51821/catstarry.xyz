@@ -55,6 +55,7 @@ assert.match(feedAdminPage, /blogInitialError/);
 assert.match(feedAdminPage, /<BlogLifecycleAdmin[^>]+initialError=\{blogInitialError\}/);
 assert.match(feedAdminPage, /href="\/learn\/admin\/"/);
 assert.match(sources[1], /href="\/feed\/admin\/"/);
+assert.match(sources[1], /mutationEnabled=\{!localPreview\}/);
 assert.match(sources[2], /learn\/admin/);
 assert.match(blogPreview, /返回 Feed \/ Blog 管理/);
 
@@ -80,8 +81,10 @@ assert.doesNotMatch(blogRoute, /updateFootprintVisibility/);
 const feedRoute = await readFile('workers/feed-api/src/routes/feed.ts', 'utf8');
 assert.match(feedRoute, /entry\.visibility === 'private'.*projection_state: 'own_private'/s);
 assert.match(feedRoute, /source_module === 'blog'.*projection_state: 'source_hidden'/s);
-assert.doesNotMatch(feedRoute, /source_module === 'learn'.*source_hidden/s);
+assert.match(feedRoute, /source_module === 'learn'.*source_hidden/s);
 assert.doesNotMatch(feedRoute, /source_module === 'projects'.*source_hidden/s);
+const learnRoute = await readFile('workers/feed-api/src/routes/learn.ts', 'utf8');
+assert.match(learnRoute, /LOCAL_PREVIEW_AUTH === '1'.*local_preview_read_only/s);
 
 const activityStore = await readFile('workers/feed-api/src/adapters/activity-signal-store.ts', 'utf8');
 assert.match(activityStore, /source_module != 'blog'/);

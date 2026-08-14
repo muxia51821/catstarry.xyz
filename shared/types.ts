@@ -17,6 +17,16 @@ export interface BlogLifecycleEntry {
   state: BlogLifecycleState;
 }
 
+export type LearnPublicationVisibility = 'public' | 'hidden';
+
+export interface LearnPublicationRecord {
+  slug: string;
+  visibility: LearnPublicationVisibility;
+  published_at: string;
+  last_revised_at: string | null;
+  updated_at: string;
+}
+
 export interface ActivitySignalsManifest {
   schema_version: 1;
   signals: Record<'blog' | 'feed' | 'learn' | 'projects', { state: ActivityState }>;

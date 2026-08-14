@@ -40,8 +40,8 @@ assert.match(notFound, /href="\/"/);
 const projects = await readFile(outputPath(path.join('projects', 'index.html')), 'utf8');
 assert.doesNotMatch(projects, /截图待补|PROJECT PREVIEW/);
 
-for (const [pathname, label] of [['learn/', 'Learn'], ['projects/', 'Projects']]) {
-  const html = pathname === 'projects/' ? projects : await readFile(outputPath(path.join(pathname, 'index.html')), 'utf8');
+for (const [pathname, label] of [['projects/', 'Projects']]) {
+  const html = projects;
   assert.match(
     html,
     /<a[^>]+class="[^"]*page-home-link[^"]*"[^>]+href="\/\?stage=overview"[^>]+aria-label="返回星图"[\s\S]*返回星图[\s\S]*<\/a>/,
@@ -63,36 +63,25 @@ for (const filename of blogSources) {
   if (state === 'published') publishedBlog.push(`/blog/${slug}/`);
   else draftSlugs.push(`/blog/${slug}/`);
 }
-const routedLearn = [];
-const publishedLearn = [];
 for (const filename of learnSources) {
   const meta = frontmatter(await readFile(filename, 'utf8'));
   const slug = field(meta, 'slug');
   assert.ok(slug, `${filename} needs a stable slug`);
-  const explicitState = field(meta, 'state');
-  const legacyState = /^draft:\s*false\s*$/m.test(meta) ? 'published' : 'draft';
-  const state = explicitState ?? legacyState;
-  if (state === 'published') {
-    publishedLearn.push(`/learn/notes/${slug}/`);
-    routedLearn.push(`/learn/notes/${slug}/`);
-  } else if (state === 'withdrawn') {
-    routedLearn.push(`/learn/notes/${slug}/`);
-    draftSlugs.push(`/learn/notes/${slug}/`);
-  } else draftSlugs.push(`/learn/notes/${slug}/`);
-}
-
-for (const pathname of routedLearn) {
-  const htmlPath = outputPath(path.join(pathname.slice(1), 'index.html'));
-  const html = await readFile(htmlPath, 'utf8');
-  assert.match(html, /<link[^>]+rel="canonical"|<meta[^>]+property="og:url"/, `${pathname} needs canonical metadata`);
+  const state = field(meta, 'state');
+  if (state !== 'withdrawn' && state !== 'superseded') {
+    assert.notEqual(state, 'draft', `${filename} must not store normal publication visibility in source frontmatter`);
+  }
 }
 
 const robots = await readFile(outputPath('robots.txt'), 'utf8');
 assert.match(robots, /Sitemap: https:\/\/catstarry\.xyz\/sitemap\.xml/);
-for (const pathname of publishedLearn) assert.ok(routedLearn.includes(pathname));
 const sitemapSource = await readFile('src/pages/sitemap.xml.ts', 'utf8');
 const rssSource = await readFile('src/pages/blog/rss.xml.ts', 'utf8');
 assert.match(sitemapSource, /filterPublishedBlogPosts/);
+assert.match(sitemapSource, /loadPublicLearnNotes/);
 assert.match(rssSource, /filterPublishedBlogPosts/);
+const learnIndexSource = await readFile('src/pages/learn/index.astro', 'utf8');
+assert.match(learnIndexSource, /STAR_MAP_DESTINATION/);
+assert.match(learnIndexSource, /loadPublicLearnNotes/);
 
 console.log('Generated site output contracts passed.');

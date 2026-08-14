@@ -1,8 +1,8 @@
 ﻿import type { APIRoute } from 'astro';
 import { getCollection } from 'astro:content';
 import { getPostSlug } from '../../lib/blog';
-import { getPublishedNotes, type LearnEntry } from '../../components/learn/learn-data';
 import { filterPublishedBlogPosts } from '../../lib/server/blog-lifecycle';
+import { loadPublicLearnNotes } from '../../lib/server/learn-publications';
 
 export const prerender = false;
 
@@ -48,9 +48,15 @@ function truncateMd(text: string, maxLen: number): string {
 }
 
 export const GET: APIRoute = async ({ request }) => {
-  const posts = await filterPublishedBlogPosts(request, await getCollection('blog'));
-  if (!posts) return new Response('Blog feed unavailable', { status: 503 });
-  const learnEntries: LearnEntry[] = await getCollection('learn');
+  const [blogEntries, learnEntries] = await Promise.all([
+    getCollection('blog'),
+    getCollection('learn'),
+  ]);
+  const [posts, notes] = await Promise.all([
+    filterPublishedBlogPosts(request, blogEntries),
+    loadPublicLearnNotes(request, learnEntries),
+  ]);
+  if (!posts || !notes) return new Response('Blog feed unavailable', { status: 503 });
   const entries = [
     ...posts.map((post) => ({
       title: post.data.title,
@@ -58,7 +64,7 @@ export const GET: APIRoute = async ({ request }) => {
       date: post.data.date,
       url: `${SITE_URL}/blog/${getPostSlug(post)}/`,
     })),
-    ...getPublishedNotes(learnEntries).map((note) => {
+    ...notes.map((note) => {
       return {
         title: note.title,
         description: note.excerpt,

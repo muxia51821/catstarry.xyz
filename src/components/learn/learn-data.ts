@@ -16,7 +16,7 @@ export const TRACK_CATALOG: readonly TrackDefinition[] = [
 ];
 
 export type LearnEntry = CollectionEntry<'learn'>;
-export type LearnLifecycleState = 'draft' | 'published' | 'superseded' | 'withdrawn';
+export type LearnLifecycleState = 'hidden' | 'public' | 'superseded' | 'withdrawn';
 
 export interface LearnNote {
   slug: string;
@@ -37,9 +37,13 @@ export interface LearnRelation {
 }
 
 export function noteFromEntry(entry: LearnEntry): LearnNote {
-  const legacyState: LearnLifecycleState = entry.data.draft === false ? 'published' : 'draft';
-  const state = entry.data.state ?? legacyState;
-  const publishedAt = entry.data.publishedAt ?? (state === 'published' ? entry.data.publishDate : undefined);
+  const sourceState = entry.data.state;
+  const state: LearnLifecycleState = sourceState === 'withdrawn' || sourceState === 'superseded'
+    ? sourceState
+    : 'hidden';
+  const publishedAt = sourceState === 'withdrawn'
+    ? entry.data.publishedAt ?? entry.data.publishDate
+    : undefined;
   return {
     slug: entry.data.slug,
     title: entry.data.title,
@@ -58,7 +62,7 @@ export function noteFromEntry(entry: LearnEntry): LearnNote {
 export function getPublishedNotes(entries: LearnEntry[] | LearnNote[]) {
   const published = entries
     .map((entry) => 'data' in entry ? noteFromEntry(entry as LearnEntry) : entry as LearnNote)
-    .filter((note) => note.state === 'published')
+    .filter((note) => note.state === 'public')
     .sort(compareNotesByTitle);
   assertValidPublicRelations(published);
   return published;

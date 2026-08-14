@@ -12,11 +12,11 @@ interface Props {
   note: LearnNote;
   allNotes: LearnNote[];
   Content: AstroComponentFactory;
+  headings?: { depth: number; slug: string; text: string }[];
   preview?: boolean;
-  canPublish?: boolean;
 }
 
-const { note, allNotes, Content, preview = false, canPublish = false } = Astro.props;
+const { note, allNotes, Content, headings = [], preview = false } = Astro.props;
 const track = getTrackDefinition(note.track);
 const related = getRelatedNotes(note, allNotes);
 const previewData = Object.fromEntries(allNotes.map((item) => [item.slug, {
@@ -28,6 +28,8 @@ const sectionHref = note.section
   ? `/learn/track/${track.slug}/#section-${note.section.toLocaleLowerCase('zh-CN').replace(/[^a-z0-9\u3400-\u9fff]+/g, '-')}`
   : `/learn/track/${track.slug}/`;
 const isWithdrawn = note.state === 'withdrawn';
+const chapters = headings.filter((heading) => heading.depth === 2);
+const showChapters = chapters.length >= 2;
 ---
 
 <div class="learn-detail-page__shell">
@@ -35,7 +37,6 @@ const isWithdrawn = note.state === 'withdrawn';
     <div class="learn-preview-chrome">
       <strong>PRIVATE PREVIEW · {note.state.toUpperCase()}</strong>
       <div class="learn-preview-chrome__actions">
-        {canPublish && <button class="learn-local-publish" type="button" data-learn-local-publish data-slug={note.slug}>Publish locally</button>}
         <a href="/learn/admin/">← 返回 Learn 管理</a>
       </div>
     </div>
@@ -56,7 +57,11 @@ const isWithdrawn = note.state === 'withdrawn';
     <p class="learn-detail-page__excerpt">{note.excerpt}</p>
   </header>
 
-  <div class:list={['learn-reading-layout', { 'learn-reading-layout--related': related.length > 0 }]}>
+  <div class:list={['learn-reading-layout', {
+    'learn-reading-layout--related': related.length > 0,
+    'learn-reading-layout--chapters': showChapters,
+    'learn-reading-layout--related-chapters': related.length > 0 && showChapters,
+  }]}>
     {related.length > 0 && (
       <aside class="learn-related" aria-labelledby="learn-related-title">
         <h2 id="learn-related-title">关联笔记</h2>
@@ -77,6 +82,15 @@ const isWithdrawn = note.state === 'withdrawn';
     <article class="learn-note-body" data-wikilinks>
       <Content />
     </article>
+    {showChapters && (
+      <nav class="learn-chapter-nav" aria-label="章节导航" data-learn-chapter-nav>
+        <ol>
+          {chapters.map((chapter) => (
+            <li><a href={`#${chapter.slug}`} data-chapter-slug={chapter.slug}><span>{chapter.text}</span></a></li>
+          ))}
+        </ol>
+      </nav>
+    )}
     <script id="learn-preview-data" type="application/json" set:html={previewJson}></script>
   </div>
 
@@ -118,28 +132,24 @@ const isWithdrawn = note.state === 'withdrawn';
 </script>
 
 <script>
-  const publish = document.querySelector('[data-learn-local-publish]');
-  if (publish instanceof HTMLButtonElement) {
-    publish.addEventListener('click', async () => {
-      publish.disabled = true;
-      const original = publish.textContent;
-      publish.textContent = 'Publishing…';
-      try {
-        const response = await fetch('/learn/preview/publish', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'same-origin',
-          body: JSON.stringify({ slug: publish.dataset.slug }),
-        });
-        const result = await response.json() as { error?: string };
-        if (!response.ok) throw new Error(result.error ?? 'Publish failed.');
-        publish.textContent = 'Published locally';
-        publish.insertAdjacentText('afterend', ' 已写入当前 checkout；刷新 Learn 管理或公开 Learn 确认，再按正常 Git 流程提交。');
-      } catch (error) {
-        publish.disabled = false;
-        publish.textContent = original;
-        window.alert(error instanceof Error ? error.message : 'Publish failed.');
+  const chapterNav = document.querySelector('[data-learn-chapter-nav]');
+  if (chapterNav instanceof HTMLElement) {
+    const links = [...chapterNav.querySelectorAll('a[data-chapter-slug]')]
+      .filter((link): link is HTMLAnchorElement => link instanceof HTMLAnchorElement);
+    const headings = links.map((link) => document.getElementById(link.dataset.chapterSlug ?? ''))
+      .filter((heading): heading is HTMLElement => heading instanceof HTMLElement);
+    const setActive = (slug: string) => {
+      for (const link of links) {
+        if (link.dataset.chapterSlug === slug) link.setAttribute('aria-current', 'location');
+        else link.removeAttribute('aria-current');
       }
-    });
+    };
+    if (headings[0]) setActive(headings[0].id);
+    const observer = new IntersectionObserver((entries) => {
+      const visible = entries.filter((entry) => entry.isIntersecting)
+        .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+      if (visible[0]?.target instanceof HTMLElement) setActive(visible[0].target.id);
+    }, { rootMargin: '-18% 0px -70% 0px', threshold: 0 });
+    headings.forEach((heading) => observer.observe(heading));
   }
 </script>

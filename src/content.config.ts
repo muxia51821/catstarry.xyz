@@ -35,7 +35,7 @@ const learn = defineCollection({
     state: z.enum(['draft', 'published', 'superseded', 'withdrawn']).optional(),
     publishedAt: z.coerce.date().optional(),
     revisedAt: z.coerce.date().optional(),
-    // Transitional readers only. New Learn content must use state/publishedAt/revisedAt.
+    // Transitional and legacy readers only. Normal publication visibility is runtime-owned.
     draft: z.boolean().optional(),
     publishDate: z.coerce.date().optional(),
     lastModified: z.coerce.date().optional(),

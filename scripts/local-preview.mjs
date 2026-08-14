@@ -7,7 +7,6 @@ import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath } from 'node:url';
 import { readBlogPublicationEntries } from './lib/blog-publications.mjs';
-import { startLearnLocalPublisher } from './lib/learn-local-publisher.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const node = process.execPath;
@@ -461,7 +460,6 @@ async function main() {
   let persist;
   let reservations = [];
   const services = [];
-  let learnPublisher;
   let stopRequested = false;
   let signalStop;
   const signalPromise = new Promise((resolve) => { signalStop = resolve; });
@@ -508,8 +506,6 @@ async function main() {
     };
     await prepareLocalFeedDatabase(persist, feedEnv);
     const localAuth = await prepareLocalPreviewAuth(persist, feedEnv);
-    const learnPublisherToken = randomBytes(24).toString('base64url');
-    learnPublisher = await startLearnLocalPublisher({ root, token: learnPublisherToken });
     await releasePort(reservations[1]);
     const feed = startService('Feed Worker', node, [
       wrangler,
@@ -549,8 +545,6 @@ async function main() {
       ASTRO_DEV_BACKGROUND: '0',
       FEED_API_URL: feedOrigin,
       PUBLIC_FEED_API_URL: feedOrigin,
-      LOCAL_LEARN_PUBLISH_URL: learnPublisher.origin,
-      LOCAL_LEARN_PUBLISH_TOKEN: learnPublisherToken,
     });
     services.push(site);
 
@@ -577,7 +571,7 @@ async function main() {
     console.log(`  1. Open ${siteOrigin}/feed/`);
     console.log('  2. Login with the LOCAL PREVIEW ONLY credentials above');
     console.log('  3. Open /learn/admin');
-    console.log('  4. Click Preview on the Draft');
+    console.log('  4. Click Preview on a deployed Learn Note');
     console.log('This account exists only in the temporary local preview state. Press Ctrl+C to stop all previews and clean temporary state.');
 
     if (process.env.LOCAL_PREVIEW_TEST_STOP_AFTER_READY === 'SIGINT') onSignal('SIGINT');
@@ -604,7 +598,6 @@ async function main() {
     process.removeListener('SIGTERM', onSignal);
     await Promise.all(reservations.map(releasePort));
     await Promise.all(services.slice().reverse().map(stopService));
-    await learnPublisher?.close();
     if (persist) await rm(persist, { recursive: true, force: true, maxRetries: 8, retryDelay: 250 });
     if (stopRequested) console.log('[local-preview] All local previews stopped.');
   }

@@ -8,11 +8,8 @@ tags:
   - dns
   - http
   - browser
-state: draft
 excerpt: "从 URL、DNS、HTTPS 到 HTTP Request / Response，理解浏览器访问 catstarry.xyz 时最基础的一条 Web 请求链。"
 ---
-
-# 域名、DNS 与 HTTP：浏览器如何找到 catstarry.xyz
 
 我以前每天都会输入网址，却没有认真想过一个很基础的问题：
 

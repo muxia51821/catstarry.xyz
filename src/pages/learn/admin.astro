@@ -3,12 +3,12 @@ export const prerender = false;
 
 import { getCollection } from 'astro:content';
 import Base from '../../layouts/Base.astro';
+import LearnLifecycleAdmin, { type LearnAdminEntry } from '../../components/learn/LearnLifecycleAdmin';
 import { readOwnerSession } from '../../lib/server/owner-auth';
 import {
   getTrackDefinition,
-  lifecycleLabel,
-  noteFromEntry,
 } from '../../components/learn/learn-data';
+import { loadOwnerLearnPublications, mergeOwnerLearnNotes } from '../../lib/server/learn-publications';
 import '../../components/learn/learn.css';
 
 Astro.response.headers.set('Cache-Control', 'private, no-store');
@@ -22,8 +22,28 @@ if (auth.state === 'unavailable') unavailable = '管理服务暂时不可用，�
 if (auth.state === 'unauthenticated') return Astro.redirect('/feed/');
 if (unavailable) Astro.response.status = 503;
 
-const notes = (authenticated ? await getCollection('learn') : []).map(noteFromEntry)
-  .sort((a, b) => a.title.localeCompare(b.title, 'zh-CN'));
+const sourceEntries = authenticated ? await getCollection('learn') : [];
+const records = authenticated ? await loadOwnerLearnPublications(Astro.request) : [];
+if (authenticated && !records) {
+  unavailable = 'Learn 发布状态暂时无法读取，请稍后重试。';
+  Astro.response.status = 503;
+}
+const recordSlugs = new Set(records?.map((record) => record.slug) ?? []);
+const configuredFeedUrl = import.meta.env.FEED_API_URL;
+const localPreview = typeof configuredFeedUrl === 'string'
+  && ['127.0.0.1', 'localhost', '::1'].includes(new URL(configuredFeedUrl).hostname);
+const notes: LearnAdminEntry[] = records ? mergeOwnerLearnNotes(sourceEntries, records)
+  .map((note) => ({
+    slug: note.slug,
+    title: note.title,
+    trackLabel: getTrackDefinition(note.track).name,
+    section: note.section,
+    excerpt: note.excerpt,
+    revisedAt: note.revisedAt,
+    state: note.state,
+    everPublished: recordSlugs.has(note.slug),
+  }))
+  .sort((a, b) => a.title.localeCompare(b.title, 'zh-CN')) : [];
 ---
 
 <Base title="Learn 管理" description="管理公开 Learn Note 的预览与状态。">
@@ -40,22 +60,7 @@ const notes = (authenticated ? await getCollection('learn') : []).map(noteFromEn
       {unavailable ? (
         <p class="learn-admin-error" role="alert">{unavailable}</p>
       ) : (
-        <section class="learn-admin-list" aria-label="Learn Note 管理列表">
-          {notes.map((note) => {
-            const track = getTrackDefinition(note.track);
-            return (
-              <article class="learn-admin-row" data-note-slug={note.slug}>
-                <div>
-                  <h2>{note.title}</h2>
-                  <p class="learn-admin-row__context">{track.name}{note.section ? ` · ${note.section}` : ''}</p>
-                  <p class="learn-admin-row__excerpt">{note.excerpt}</p>
-                </div>
-                <span class="learn-admin-row__state">{lifecycleLabel(note.state)}</span>
-                <a class="learn-admin-row__preview" href={`/learn/preview/${note.slug}/`}>预览</a>
-              </article>
-            );
-          })}
-        </section>
+        <LearnLifecycleAdmin client:load initial={notes} mutationEnabled={!localPreview} />
       )}
     </div>
   </main>

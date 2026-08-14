@@ -63,12 +63,12 @@ function footprintBody(overrides = {}) {
   };
 }
 function learnManifest(entries, deployedAt = '2026-08-12T10:00:00.000Z') {
-  return { schema_version: 2, deployed_at: deployedAt, entries };
+  return { schema_version: 3, deployed_at: deployedAt, entries };
 }
 function learnEntry(overrides = {}) {
   return {
     slug: 'learn-contract', title: 'Learn contract', excerpt: 'A durable note.',
-    published_at: '2026-08-11T10:00:00.000Z', revised_at: null, ...overrides,
+    revised_at: null, ...overrides,
   };
 }
 
@@ -195,6 +195,12 @@ try {
   });
   assert.equal(retiredLearn.status, 410, 'legacy Learn events must no longer be produced');
 
+  await command('d1', 'execute', 'catstarry-db', '--local', '--persist-to', persist, '--config', config, '--command', `INSERT INTO learn_publications (
+    slug, visibility, published_at, last_revised_at, updated_at
+  ) VALUES
+    ('published-note', 'public', '2026-07-25T12:00:00.000Z', NULL, '2026-07-25T12:00:00.000Z'),
+    ('revised-note', 'public', '2026-07-25T12:00:00.000Z', NULL, '2026-07-25T12:00:00.000Z')`);
+
   await command('d1', 'execute', 'catstarry-db', '--local', '--persist-to', persist, '--config', config, '--command', `INSERT INTO public_footprints (
     id, source_module, source_ref, source_version, event_type, snapshot_json, occurred_at, visibility, idempotency_key, created_at
   ) VALUES ('00000000-0000-4000-8000-000000000099', 'learn', 'legacy-reader', 'v1', 'learn_section_completed',
@@ -212,14 +218,42 @@ try {
   const secondCursorPage = await rawRequest(`/api/feed?limit=2&cursor=${encodeURIComponent(firstCursorPage.cursor)}`).then((response) => response.json());
   assert.equal(firstCursorPage.items.some((firstItem) => secondCursorPage.items.some((secondItem) => secondItem.id === firstItem.id)), false, 'stable cursor pages must not duplicate entries');
 
-  const baseline = await rawRequest('/api/learn/internal/publications', { method: 'POST', headers: publicationHeaders, body: JSON.stringify(learnManifest([learnEntry()])) });
-  assert.deepEqual(await baseline.json(), { initialized: true, synced: 1, created: 0 });
-  const published = await rawRequest('/api/learn/internal/publications', { method: 'POST', headers: publicationHeaders, body: JSON.stringify(learnManifest([learnEntry(), learnEntry({ slug: 'new-note', title: 'New note' })], '2026-08-12T11:00:00.000Z')) });
-  assert.deepEqual(await published.json(), { initialized: false, synced: 2, created: 1 });
+  const baseline = await rawRequest('/api/learn/internal/publications', { method: 'POST', headers: publicationHeaders, body: JSON.stringify(learnManifest([learnEntry(), learnEntry({ slug: 'new-note', title: 'New note' })])) });
+  assert.deepEqual(await baseline.json(), { synced: 2, created: 0 });
+  const firstPublication = await request('/api/learn/admin/publications', {
+    method: 'PATCH',
+    headers: { Cookie: cookie, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ slug: 'learn-contract', visibility: 'public', title: 'Learn contract', excerpt: 'A durable note.', revised_at: null }),
+  });
+  assert.equal(firstPublication.status, 200);
+  const firstPublicationBody = await firstPublication.json();
+  assert.equal(firstPublicationBody.created, true);
+  const publishedAt = firstPublicationBody.entry.published_at;
+  assert.equal(Number.isFinite(Date.parse(publishedAt)), true);
+  assert.deepEqual(await rawRequest('/api/learn/publications').then((response) => response.json()), {
+    entries: [
+      { slug: 'learn-contract', published_at: publishedAt },
+      { slug: 'published-note', published_at: '2026-07-25T12:00:00.000Z' },
+      { slug: 'revised-note', published_at: '2026-07-25T12:00:00.000Z' },
+    ],
+  });
+  const hidePublication = await request('/api/learn/admin/publications', {
+    method: 'PATCH', headers: { Cookie: cookie, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ slug: 'learn-contract', visibility: 'hidden' }),
+  }).then((response) => response.json());
+  assert.equal(hidePublication.entry.published_at, publishedAt);
+  let learnAdminProjection = await request('/api/feed/admin?type=learn&limit=20', { headers: { Cookie: cookie } }).then((response) => response.json());
+  assert.equal(learnAdminProjection.items.find((item) => item.payload.source_ref === 'learn-contract').projection_state, 'source_hidden');
+  const showPublication = await request('/api/learn/admin/publications', {
+    method: 'PATCH', headers: { Cookie: cookie, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ slug: 'learn-contract', visibility: 'public' }),
+  }).then((response) => response.json());
+  assert.equal(showPublication.entry.published_at, publishedAt);
+  assert.equal(showPublication.created, false);
   const revised = await rawRequest('/api/learn/internal/publications', { method: 'POST', headers: publicationHeaders, body: JSON.stringify(learnManifest([learnEntry({ revised_at: '2026-08-12T12:00:00.000Z' }), learnEntry({ slug: 'new-note', title: 'New note' })], '2026-08-12T12:30:00.000Z')) });
-  assert.deepEqual(await revised.json(), { initialized: false, synced: 2, created: 1 });
+  assert.deepEqual(await revised.json(), { synced: 2, created: 1 });
   const maintenanceRetry = await rawRequest('/api/learn/internal/publications', { method: 'POST', headers: publicationHeaders, body: JSON.stringify(learnManifest([learnEntry({ revised_at: '2026-08-12T12:00:00.000Z' }), learnEntry({ slug: 'new-note', title: 'New note' })], '2026-08-12T13:00:00.000Z')) });
-  assert.deepEqual(await maintenanceRetry.json(), { initialized: false, synced: 2, created: 0 });
+  assert.deepEqual(await maintenanceRetry.json(), { synced: 2, created: 0 });
   const lifecycleRegression = await rawRequest('/api/learn/internal/publications', { method: 'POST', headers: publicationHeaders, body: JSON.stringify(learnManifest([learnEntry(), learnEntry({ slug: 'new-note', title: 'New note' })], '2026-08-12T13:30:00.000Z')) });
   assert.equal(lifecycleRegression.status, 409);
 

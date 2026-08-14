@@ -169,34 +169,26 @@ async function verifyLocalAuthoringWorkflow({ sitePort, feedPort, output }) {
     const previewBody = await preview.text();
     assert.match(previewBody, /PRIVATE PREVIEW/, slug);
     assert.match(previewBody, new RegExp(title), slug);
-    if (slug === 'domain-dns-http') assert.match(previewBody, /Publish locally/);
+    assert.doesNotMatch(previewBody, /Publish locally/, slug);
   }
 
-  const unauthenticatedPublish = await fetch(`${siteOrigin}/learn/preview/publish`, {
+  assert.ok([404, 503].includes((await fetch(`${siteOrigin}/learn/preview/publish`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ slug: 'domain-dns-http' }),
-  });
-  assert.equal(unauthenticatedPublish.status, 401);
-  const published = await request(`${siteOrigin}/learn/preview/publish`, {
-    method: 'POST',
+    headers: { Origin: siteOrigin, Cookie: cookie },
+    redirect: 'manual',
+  })).status));
+  const localMutation = await request(`${siteOrigin}/learn/admin/lifecycle`, {
+    method: 'PATCH',
     headers: { Cookie: cookie, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ slug: 'domain-dns-http' }),
-  }, 'Publish local Learn draft');
-  const publishedBody = await published.text();
-  assert.equal(published.status, 200, publishedBody);
-  assert.match(publishedBody, /"state":"published"/);
-  const duplicatePublish = await request(`${siteOrigin}/learn/preview/publish`, {
-    method: 'POST',
-    headers: { Cookie: cookie, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ slug: 'domain-dns-http' }),
-  }, 'Repeat local Learn publish');
-  assert.equal(duplicatePublish.status, 409);
-  const publicLearn = await waitForPublishedLearn(`${siteOrigin}/learn/notes/domain-dns-http/`);
-  assert.match(publicLearn, /域名、DNS 与 HTTP/);
-  const publishedAdmin = await fetch(`${siteOrigin}/learn/admin/`, { headers: { Cookie: cookie } });
-  assert.equal(publishedAdmin.status, 200);
-  assert.match(await publishedAdmin.text(), /Published/);
+    body: JSON.stringify({ slug: 'domain-dns-http', visibility: 'public', title: 'Runtime note' }),
+  }, 'Reject local Learn lifecycle mutation');
+  assert.equal(localMutation.status, 403);
+  assert.equal((await fetch(`${siteOrigin}/learn/notes/domain-dns-http/`)).status, 404);
+  const localAdmin = await fetch(`${siteOrigin}/learn/admin/`, { headers: { Cookie: cookie } });
+  assert.equal(localAdmin.status, 200);
+  const localAdminBody = await localAdmin.text();
+  assert.match(localAdminBody, /Local Preview 只提供登录、管理列表与阅读预览/);
+  assert.doesNotMatch(localAdminBody, />Publish<|>Hide<|>Show</);
 
   for (const slug of [
     'vibe-coding-mission',
@@ -214,17 +206,6 @@ async function verifyLocalAuthoringWorkflow({ sitePort, feedPort, output }) {
   assert.ok([301, 302, 303, 307, 308].includes(unauthenticated.status));
   assert.doesNotMatch(await unauthenticated.text(), /域名、DNS 与 HTTP：浏览器如何找到 catstarry\.xyz/);
   assert.doesNotMatch(output, /\$2[aby]\$/i, 'bcrypt hashes must not be printed');
-}
-
-async function waitForPublishedLearn(url) {
-  let last = '';
-  for (let attempt = 0; attempt < 20; attempt += 1) {
-    const response = await fetch(url);
-    last = await response.text();
-    if (response.status === 200) return last;
-    await new Promise((resolve) => setTimeout(resolve, 250));
-  }
-  throw new Error(`Published Learn note did not become public: ${last}`);
 }
 
 function exitDetails(child) {
@@ -327,7 +308,7 @@ try {
     [false, false, false],
     'the controller must reserve automatic ports until each real service binds',
   );
-  await waitForOutput(preview, /Local previews are ready:/);
+  await waitForOutput(preview, /Local preview login \(LOCAL PREVIEW ONLY\):[\s\S]*password:/);
   const gracefulExit = await waitForExit(preview);
   assert.deepEqual(gracefulExit, { code: 0, signal: null }, preview.output());
   assert.match(preview.output(), /Local previews are ready:/);
@@ -386,7 +367,7 @@ try {
   preview = spawnPreview([], automaticPortEnvironment);
   const forcedDirectory = await waitForOwnerDirectory(preview);
   const { site: forceSitePort, feed: forceFeedPort, finance: forceFinancePort } = await previewPorts(forcedDirectory);
-  await waitForOutput(preview, /Local previews are ready:/);
+  await waitForOutput(preview, /Local preview login \(LOCAL PREVIEW ONLY\):[\s\S]*password:/);
   await verifyLocalAuthoringWorkflow({
     sitePort: forceSitePort,
     feedPort: forceFeedPort,

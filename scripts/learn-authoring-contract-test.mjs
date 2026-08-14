@@ -47,13 +47,13 @@ const learnFixture = {
   title: 'Published',
   track: 'programming',
   tags: [],
-  state: 'published',
+  state: 'public',
   publishedAt: '2026-01-01T00:00:00.000Z',
   excerpt: 'fixture',
   links: [],
 };
 assert.deepEqual(getPublishedNotes([
-  { ...learnFixture, slug: 'draft-note', state: 'draft' },
+  { ...learnFixture, slug: 'hidden-note', state: 'hidden' },
   learnFixture,
 ]).map((note) => note.slug), ['published-note']);
 assert.throws(
@@ -109,7 +109,7 @@ async function runLearnImportContract() {
     ], temporaryRoot);
     assert.equal(result.code, 0, result.stderr);
     assert.equal(result.signal, null);
-    assert.match(result.stdout, /"state": "draft"/);
+    assert.match(result.stdout, /"visibility": "hidden"/);
     assert.match(result.stdout, /importer-fixture\.md/);
 
     const output = path.join(temporaryRoot, 'src', 'data', 'learn', 'programming', 'importer-fixture.md');
@@ -118,8 +118,8 @@ async function runLearnImportContract() {
     await assert.rejects(readFile(legacyOutput, 'utf8'), { code: 'ENOENT' });
     assert.match(generated, /^slug: importer-fixture$/m);
     assert.match(generated, /^track: programming$/m);
-    assert.match(generated, /^state: draft$/m);
-    assert.match(generated, /# Importer Fixture/);
+    assert.doesNotMatch(generated, /^state:/m);
+    assert.doesNotMatch(generated, /^# /m);
     assert.match(generated, /```js\nconst value = 1 < 2;\n```/);
     assert.match(generated, /<!-- INTERACTIVE: quiz -->/);
 

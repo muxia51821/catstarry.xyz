@@ -60,11 +60,18 @@ class MemoryMediaBucket {
 
 class MemoryD1 {
   footprints = new Map();
+  learnPublications = new Map();
   viewVisitors = new Set();
   viewCounts = new Map();
 
   prepare(sql) {
     return new MemoryStatement(this, sql);
+  }
+
+  async batch(statements) {
+    const results = [];
+    for (const statement of statements) results.push(await statement.run());
+    return results;
   }
 }
 
@@ -81,6 +88,32 @@ class MemoryStatement {
   }
 
   async run() {
+    if (this.sql.startsWith('INSERT OR IGNORE INTO learn_publications')) {
+      const [slug, publishedAt, lastRevisedAt, updatedAt] = this.values;
+      if (this.database.learnPublications.has(slug)) return { meta: { changes: 0 } };
+      this.database.learnPublications.set(slug, {
+        slug,
+        visibility: 'public',
+        published_at: publishedAt,
+        last_revised_at: lastRevisedAt,
+        updated_at: updatedAt,
+      });
+      return { meta: { changes: 1 } };
+    }
+    if (this.sql.startsWith('UPDATE learn_publications SET visibility = ?')) {
+      const [visibility, updatedAt, slug] = this.values;
+      const record = this.database.learnPublications.get(slug);
+      if (!record) return { meta: { changes: 0 } };
+      Object.assign(record, { visibility, updated_at: updatedAt });
+      return { meta: { changes: 1 } };
+    }
+    if (this.sql.startsWith('UPDATE learn_publications SET last_revised_at = ?')) {
+      const [lastRevisedAt, updatedAt, slug] = this.values;
+      const record = this.database.learnPublications.get(slug);
+      if (!record) return { meta: { changes: 0 } };
+      Object.assign(record, { last_revised_at: lastRevisedAt, updated_at: updatedAt });
+      return { meta: { changes: 1 } };
+    }
     if (this.sql.startsWith('INSERT OR IGNORE INTO public_footprints')) {
       const [id, sourceModule, sourceRef, sourceVersion, eventType, snapshotJson, occurredAt, idempotencyKey] = this.values;
       if (this.database.footprints.has(idempotencyKey)) return { meta: { changes: 0 } };
@@ -109,6 +142,9 @@ class MemoryStatement {
   }
 
   async first() {
+    if (this.sql.includes('FROM learn_publications WHERE slug = ?')) {
+      return this.database.learnPublications.get(this.values[0]) ?? null;
+    }
     if (this.sql.includes('FROM public_footprints WHERE idempotency_key = ?')) {
       return this.database.footprints.get(this.values[0]) ?? null;
     }
@@ -120,6 +156,47 @@ class MemoryStatement {
   }
 
   async all() {
+    if (this.sql.includes('FROM learn_publications WHERE visibility = ?')) {
+      return { results: [...this.database.learnPublications.values()]
+        .filter((entry) => entry.visibility === this.values[0])
+        .sort((a, b) => a.slug.localeCompare(b.slug)) };
+    }
+    if (this.sql.includes("FROM learn_publications WHERE visibility = 'public'")) {
+      return { results: [...this.database.learnPublications.values()]
+        .filter((entry) => entry.visibility === 'public')
+        .sort((a, b) => a.slug.localeCompare(b.slug))
+        .map(({ slug }) => ({ slug })) };
+    }
+    if (this.sql.includes('FROM learn_publications ORDER BY slug')) {
+      return { results: [...this.database.learnPublications.values()]
+        .sort((a, b) => a.slug.localeCompare(b.slug)) };
+    }
+    if (this.sql.startsWith('SELECT * FROM (')) {
+      let footprints = [...this.database.footprints.values()];
+      if (this.sql.includes('WHERE visibility = ?')) footprints = footprints.filter((entry) => entry.visibility === this.values[0]);
+      if (this.sql.includes("source_module != 'blog'")) {
+        const published = new Set(JSON.parse(this.values[1]));
+        footprints = footprints.filter((entry) => entry.source_module !== 'blog' || published.has(entry.source_ref));
+      }
+      if (this.sql.includes("source_module != 'learn'")) {
+        const published = new Set(JSON.parse(this.values[2]));
+        footprints = footprints.filter((entry) => entry.source_module !== 'learn'
+          || entry.event_type === 'learn_section_completed'
+          || published.has(entry.source_ref));
+      }
+      return { results: footprints.map((entry) => ({
+        kind: 'system_footprint',
+        ...entry,
+        type: null,
+        content: null,
+        media_json: null,
+        link_url: null,
+        link_title: null,
+        link_summary: null,
+        link_image: null,
+        updated_at: null,
+      })) };
+    }
     if (this.sql.includes('MAX(created_at) AS latest_at') && this.sql.includes('FROM feed_posts')) {
       return { results: [] };
     }
@@ -402,6 +479,128 @@ assert.deepEqual(await fetchWorker(blogEnv, 'https://api.test/api/blog/admin/pub
 }).then((response) => response.json()).then(({ entry, created }) => ({ state: entry.state, created })), { state: 'published', created: false });
 assert.equal(firstFootprint.visibility, 'private', 'Blog restore must not overwrite a manually private footprint');
 assert.equal(blogEnv.DB.footprints.size, 1, 'withdraw and restore must preserve one historical footprint');
+
+const learnEnv = createEnv();
+const learnLifecycleUrl = 'https://api.test/api/learn/admin/publications';
+const learnDeployUrl = 'https://api.test/api/learn/internal/publications';
+assert.deepEqual(await fetchWorker(learnEnv, 'https://api.test/api/learn/publications').then((response) => response.json()), {
+  entries: [],
+}, 'no runtime row means never-published Hidden');
+assert.equal((await fetchWorker(learnEnv, learnLifecycleUrl, {
+  method: 'PATCH',
+  headers: { Origin: 'https://catstarry.xyz', 'Content-Type': 'application/json' },
+  body: JSON.stringify({ slug: 'runtime-note', visibility: 'public', title: 'Runtime note' }),
+})).status, 401, 'owner lifecycle mutation requires authentication');
+const learnToken = crypto.randomUUID();
+learnEnv.AUTH_KV.values.set(`session:${learnToken}`, {
+  username: 'contract-owner',
+  expires_at: new Date(Date.now() + 60_000).toISOString(),
+});
+const learnOwnerHeaders = {
+  Cookie: `token=${learnToken}`,
+  Origin: 'https://catstarry.xyz',
+  'Content-Type': 'application/json',
+};
+const firstPublishStarted = Date.now();
+const firstPublication = await fetchWorker(learnEnv, learnLifecycleUrl, {
+  method: 'PATCH',
+  headers: learnOwnerHeaders,
+  body: JSON.stringify({
+    slug: 'runtime-note',
+    visibility: 'public',
+    title: 'Runtime note',
+    excerpt: 'Runtime publication fixture',
+    revised_at: '2026-08-01T00:00:00.000Z',
+  }),
+}).then((response) => response.json());
+assert.equal(firstPublication.created, true);
+assert.ok(Date.parse(firstPublication.entry.published_at) >= firstPublishStarted, 'published_at must be generated by the server');
+const firstPublishedAt = firstPublication.entry.published_at;
+assert.equal(learnEnv.DB.footprints.size, 1, 'first Publish creates one learn_note_published footprint');
+assert.equal([...learnEnv.DB.footprints.values()][0].event_type, 'learn_note_published');
+assert.equal((await fetchWorker(learnEnv, learnLifecycleUrl, {
+  method: 'PATCH', headers: learnOwnerHeaders, body: JSON.stringify({ slug: 'runtime-note', visibility: 'public' }),
+}).then((response) => response.json())).created, false, 'repeated Publish is idempotent');
+assert.equal(learnEnv.DB.footprints.size, 1);
+assert.deepEqual(await fetchWorker(learnEnv, 'https://api.test/api/learn/publications').then((response) => response.json()), {
+  entries: [{ slug: 'runtime-note', published_at: firstPublishedAt }],
+});
+
+const hiddenPublication = await fetchWorker(learnEnv, learnLifecycleUrl, {
+  method: 'PATCH', headers: learnOwnerHeaders, body: JSON.stringify({ slug: 'runtime-note', visibility: 'hidden' }),
+}).then((response) => response.json());
+assert.equal(hiddenPublication.entry.published_at, firstPublishedAt, 'Hide preserves first published_at');
+assert.deepEqual(await fetchWorker(learnEnv, 'https://api.test/api/learn/publications').then((response) => response.json()), { entries: [] });
+const hiddenAdminFeed = await fetchWorker(learnEnv, 'https://api.test/api/feed/admin?limit=20', {
+  headers: { Cookie: `token=${learnToken}` },
+}).then((response) => response.json());
+assert.equal(hiddenAdminFeed.items[0].projection_state, 'source_hidden');
+assert.equal((await fetchWorker(learnEnv, 'https://api.test/api/feed?limit=20').then((response) => response.json())).items.length, 0);
+
+const shownPublication = await fetchWorker(learnEnv, learnLifecycleUrl, {
+  method: 'PATCH', headers: learnOwnerHeaders, body: JSON.stringify({ slug: 'runtime-note', visibility: 'public' }),
+}).then((response) => response.json());
+assert.equal(shownPublication.entry.published_at, firstPublishedAt, 'Show preserves first published_at');
+assert.equal(learnEnv.DB.footprints.size, 1, 'Show does not duplicate first-publication footprint');
+assert.equal((await fetchWorker(learnEnv, 'https://api.test/api/feed?limit=20').then((response) => response.json())).items.length, 1);
+
+const deploymentHeaders = {
+  Authorization: `Bearer ${learnEnv.FOOTPRINT_INGEST_TOKEN}`,
+  'Content-Type': 'application/json',
+};
+const deployedAt = new Date().toISOString();
+const revisionManifest = (revisedAt) => ({
+  schema_version: 3,
+  deployed_at: deployedAt,
+  entries: [
+    { slug: 'runtime-note', title: 'Runtime note', excerpt: 'Revision fixture', revised_at: revisedAt },
+    { slug: 'never-published', title: 'Never published', excerpt: '', revised_at: revisedAt },
+  ],
+});
+assert.deepEqual(await fetchWorker(learnEnv, learnDeployUrl, {
+  method: 'POST', headers: deploymentHeaders, body: JSON.stringify(revisionManifest('2026-08-01T00:00:00.000Z')),
+}).then((response) => response.json()), { synced: 2, created: 0 }, 'deployment sync must not manufacture first publication');
+assert.deepEqual(await fetchWorker(learnEnv, learnDeployUrl, {
+  method: 'POST', headers: deploymentHeaders, body: JSON.stringify(revisionManifest('2026-08-02T00:00:00.000Z')),
+}).then((response) => response.json()), { synced: 2, created: 1 });
+assert.equal(learnEnv.DB.footprints.size, 2, 'public deployed revision creates one revision footprint');
+assert.deepEqual(await fetchWorker(learnEnv, learnDeployUrl, {
+  method: 'POST', headers: deploymentHeaders, body: JSON.stringify(revisionManifest('2026-08-02T00:00:00.000Z')),
+}).then((response) => response.json()), { synced: 2, created: 0 }, 'revision sync is idempotent');
+
+await fetchWorker(learnEnv, learnLifecycleUrl, {
+  method: 'PATCH', headers: learnOwnerHeaders, body: JSON.stringify({ slug: 'runtime-note', visibility: 'hidden' }),
+});
+assert.deepEqual(await fetchWorker(learnEnv, learnDeployUrl, {
+  method: 'POST', headers: deploymentHeaders, body: JSON.stringify(revisionManifest('2026-08-03T00:00:00.000Z')),
+}).then((response) => response.json()), { synced: 2, created: 0 }, 'Hidden deployed revision must not create a public footprint');
+await fetchWorker(learnEnv, learnLifecycleUrl, {
+  method: 'PATCH', headers: learnOwnerHeaders, body: JSON.stringify({ slug: 'runtime-note', visibility: 'public' }),
+});
+assert.deepEqual(await fetchWorker(learnEnv, learnDeployUrl, {
+  method: 'POST', headers: deploymentHeaders, body: JSON.stringify(revisionManifest('2026-08-03T00:00:00.000Z')),
+}).then((response) => response.json()), { synced: 2, created: 0 }, 'Show must not release a historical hidden revision');
+assert.equal(learnEnv.DB.footprints.size, 2);
+assert.equal((await fetchWorker(learnEnv, learnDeployUrl, {
+  method: 'POST', headers: deploymentHeaders, body: JSON.stringify(revisionManifest('2026-08-02T00:00:00.000Z')),
+})).status, 409, 'revision metadata cannot regress');
+
+const publicationFootprint = [...learnEnv.DB.footprints.values()].find((entry) => entry.event_type === 'learn_note_published');
+publicationFootprint.visibility = 'private';
+await fetchWorker(learnEnv, learnLifecycleUrl, {
+  method: 'PATCH', headers: learnOwnerHeaders, body: JSON.stringify({ slug: 'runtime-note', visibility: 'hidden' }),
+});
+await fetchWorker(learnEnv, learnLifecycleUrl, {
+  method: 'PATCH', headers: learnOwnerHeaders, body: JSON.stringify({ slug: 'runtime-note', visibility: 'public' }),
+});
+const privateAdminFeed = await fetchWorker(learnEnv, 'https://api.test/api/feed/admin?limit=20', {
+  headers: { Cookie: `token=${learnToken}` },
+}).then((response) => response.json());
+assert.equal(
+  privateAdminFeed.items.find((entry) => entry.payload.event_type === 'learn_note_published').projection_state,
+  'own_private',
+  'source Show must not override owner-private footprint visibility',
+);
 
 const malformedCookie = await fetchWorker(env, 'https://api.test/api/auth/session', { headers: { Cookie: 'token=%GG' } });
 assert.equal(malformedCookie.status, 200);

@@ -9,11 +9,8 @@ tags:
   - reflog
   - reset
   - safety
-state: draft
 excerpt: "当 branch 被移动、commit 看起来消失或 HEAD 脱离 branch 时，先确认 Git 还保存了什么证据，再选择最小破坏的恢复动作。"
 ---
-
-# Git 出问题时先找证据：Reflog、Reset 与安全恢复
 
 Git 出问题时，最危险的反应往往是立刻输入一个看起来能“回到原来”的命令。
 
