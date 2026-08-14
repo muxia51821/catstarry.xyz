@@ -10,10 +10,15 @@ const profileCleanupOptions = {
   maxRetries: 20,
   retryDelay: 250,
 };
+const debugPortWaitMs = 30_000;
+const debugPortPollMs = 100;
+const browserStderrTailLimit = 8_000;
 
 export async function launchIsolatedBrowser() {
   const executable = findBrowserExecutable();
   const profile = await mkdtemp(path.join(os.tmpdir(), 'catstarry-browser-'));
+  const startedAt = Date.now();
+  let browserStderr = '';
   const processHandle = spawn(executable, [
     '--headless=new',
     '--remote-debugging-port=0',
@@ -29,7 +34,11 @@ export async function launchIsolatedBrowser() {
     '--no-sandbox',
     '--window-size=1440,900',
     'about:blank',
-  ], { windowsHide: true, stdio: 'ignore' });
+  ], { windowsHide: true, stdio: ['ignore', 'ignore', 'pipe'] });
+  processHandle.stderr?.setEncoding('utf8');
+  processHandle.stderr?.on('data', (chunk) => {
+    browserStderr = appendTail(browserStderr, chunk, browserStderrTailLimit);
+  });
 
   try {
     const port = await waitForDebugPort(profile, processHandle);
@@ -45,10 +54,17 @@ export async function launchIsolatedBrowser() {
       },
     };
   } catch (error) {
+    const diagnosticError = browserStartupError(error, {
+      executable,
+      profile,
+      processHandle,
+      startedAt,
+      browserStderr,
+    });
     await stopBrowserProcessTree(processHandle, profile);
     await waitForExit(processHandle);
     await rm(profile, profileCleanupOptions);
-    throw error;
+    throw diagnosticError;
   }
 }
 
@@ -110,7 +126,8 @@ function findBrowserExecutable() {
 
 async function waitForDebugPort(profile, processHandle) {
   const activePort = path.join(profile, 'DevToolsActivePort');
-  for (let attempt = 0; attempt < 100; attempt += 1) {
+  const deadline = Date.now() + debugPortWaitMs;
+  while (Date.now() < deadline) {
     try {
       const port = Number((await readFile(activePort, 'utf8')).split(/\r?\n/)[0]);
       if (Number.isInteger(port) && port > 0) return port;
@@ -118,10 +135,33 @@ async function waitForDebugPort(profile, processHandle) {
     if (processHandle.exitCode !== null && (process.platform !== 'win32' || processHandle.exitCode !== 0)) {
       throw new Error(`Isolated browser exited early (${processHandle.exitCode})`);
     }
-    await delay(100);
+    await delay(debugPortPollMs);
   }
   if (processHandle.exitCode !== null) throw new Error(`Isolated browser exited early (${processHandle.exitCode})`);
-  throw new Error('Timed out waiting for isolated browser debugging port');
+  throw new Error(`Timed out waiting for isolated browser debugging port after ${debugPortWaitMs}ms`);
+}
+
+function browserStartupError(error, { executable, profile, processHandle, startedAt, browserStderr }) {
+  const message = error instanceof Error ? error.message : String(error);
+  const activePort = path.join(profile, 'DevToolsActivePort');
+  const details = [
+    `browser=${executable}`,
+    `elapsedMs=${Date.now() - startedAt}`,
+    `exitCode=${processHandle.exitCode ?? 'running'}`,
+    `signal=${processHandle.signalCode ?? 'none'}`,
+    `DevToolsActivePort=${existsSync(activePort) ? 'present' : 'missing'}`,
+  ];
+  const stderrTail = browserStderr.trim();
+  return new Error([
+    message,
+    `Isolated browser diagnostics: ${details.join(', ')}`,
+    stderrTail ? `Browser stderr tail:\n${stderrTail}` : 'Browser stderr tail: <empty>',
+  ].join('\n'));
+}
+
+function appendTail(current, chunk, limit) {
+  const next = `${current}${String(chunk)}`;
+  return next.length > limit ? next.slice(-limit) : next;
 }
 
 async function waitForTargets(port) {
