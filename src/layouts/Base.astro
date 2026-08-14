@@ -30,7 +30,11 @@ const canonicalUrl = new URL(canonicalPath, Astro.site).href;
   <slot />
   <script>
     import { setupContentMeteor } from '../scripts/content-meteor';
+    import { setupContentPawTrail } from '../scripts/content-paw-trail';
+
     setupContentMeteor();
+    const teardownPawTrail = setupContentPawTrail();
+    addEventListener('pagehide', teardownPawTrail, { once: true });
   </script>
 </body>
 </html>
