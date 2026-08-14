@@ -1,5 +1,22 @@
 # 更新记录
 
+## 2026-08-14 — Content Family lifecycle and validation hardening
+
+### Learn
+
+- 完成 Learn 公共 corpus transition 与 empty corpus 兼容：撤回历史公开 Note 时保留直接路由和历史关系，公开清单可以安全表示空 corpus。
+- 增加本地私有预览中的 Learn 草稿发布 gate、owner 导航和生命周期校验，明确本地 authoring 与 production publication 的边界。
+
+### Content Family
+
+- 完成 Blog、Feed、Learn、Projects 的 owner lifecycle 约束与统一认证边界：支持受保护的 Blog preview、发布／撤回／恢复流程，并保持 Feed 为 session authority。
+- 为 Content 页面加入仅限细指针设备的 click-only meteor flash 与原生 CJK autospace；Home runtime 保持隔离，reduced-motion 和无障碍边界继续生效。
+
+### Validation / Operations
+
+- 稳定 hosted browser regression 与 local preview lifecycle：改用语义化 hover 验证、可靠的预览端口 reservation 和进程组清理，减少 CI runner 与本地服务时序造成的误报。
+- 补充 Content owner、Blog preview、Learn preview/publication、Feed HTTP、Site browser 和输出契约覆盖，便于后续 release 前验证真实行为。
+
 ## 2026-08-13 — Content Family production release closure
 
 ### Content Family
