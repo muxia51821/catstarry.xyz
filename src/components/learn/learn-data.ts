@@ -1,4 +1,8 @@
 import type { CollectionEntry } from 'astro:content';
+import {
+  assertValidLearnPublicRelations,
+  extractLearnWikilinkSlugs,
+} from '../../../shared/learn-relations';
 
 export interface TrackDefinition {
   slug: string;
@@ -54,8 +58,7 @@ export function noteFromEntry(entry: LearnEntry): LearnNote {
     publishedAt: publishedAt?.toISOString(),
     revisedAt: entry.data.revisedAt?.toISOString(),
     excerpt: entry.data.excerpt ?? plainExcerpt(entry.body ?? ''),
-    links: [...(entry.body ?? '').matchAll(/\[\[([a-z0-9]+(?:-[a-z0-9]+)*)(?:\|[^\]]+)?\]\]/g)]
-      .map((match) => match[1]),
+    links: extractLearnWikilinkSlugs(entry.body ?? ''),
   };
 }
 
@@ -69,14 +72,7 @@ export function getPublishedNotes(entries: LearnEntry[] | LearnNote[]) {
 }
 
 export function assertValidPublicRelations(notes: LearnNote[]) {
-  const publicSlugs = new Set(notes.map((note) => note.slug));
-  for (const note of notes) {
-    for (const target of note.links) {
-      if (!publicSlugs.has(target)) {
-        throw new Error(`Broken public Learn relation: ${note.slug} -> ${target}`);
-      }
-    }
-  }
+  assertValidLearnPublicRelations(notes);
 }
 
 export function getTrackDefinition(slug: string) {

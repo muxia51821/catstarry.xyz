@@ -4,6 +4,10 @@ import type {
   PublicFootprintCandidate,
 } from '../../../../shared/types';
 import { timingSafeEqualText } from '../../../../shared/security';
+import {
+  assertValidLearnPublicRelations,
+  type LearnRelationEntry,
+} from '../../../../shared/learn-relations';
 import { logWorkerError } from '../../../../shared/worker-log';
 import { apiError, json, readJson } from '../lib/http';
 import { refreshActivitySignals } from '../modules/activity-signals';
@@ -17,6 +21,7 @@ interface LearnDeployEntry {
   title?: unknown;
   excerpt?: unknown;
   revised_at?: unknown;
+  links?: unknown;
 }
 
 interface NormalizedDeployEntry {
@@ -24,7 +29,10 @@ interface NormalizedDeployEntry {
   title: string;
   excerpt: string;
   revised_at: string | null;
+  links: string[];
 }
+
+const LEARN_RELATION_MANIFEST_KEY = 'learn:relation-manifest';
 
 export async function handleLearn(
   request: Request,
@@ -88,6 +96,9 @@ async function updatePublication(request: Request, env: LearnEnv, ctx: Execution
   }
 
   const existing = await getPublication(env.DB, slug);
+  if (existing?.visibility === visibility) return json({ entry: existing, created: false });
+  const relationFailure = await validateProposedPublicRelations(env, slug, visibility);
+  if (relationFailure) return relationFailure;
   if (!existing) {
     if (visibility !== 'public' || !title) {
       return apiError(409, 'never_published', 'A never-published Learn note can only be published');
@@ -110,7 +121,6 @@ async function updatePublication(request: Request, env: LearnEnv, ctx: Execution
     return json({ entry, created });
   }
 
-  if (existing.visibility === visibility) return json({ entry: existing, created: false });
   const updatedAt = new Date().toISOString();
   await env.DB.prepare(
     'UPDATE learn_publications SET visibility = ?, updated_at = ? WHERE slug = ?',
@@ -163,6 +173,9 @@ async function syncDeployedMetadata(request: Request, env: LearnEnv, ctx: Execut
     ]);
     if ((footprintWrite.meta.changes ?? 0) > 0) created += 1;
   }
+  await env.AUTH_KV.put(LEARN_RELATION_MANIFEST_KEY, JSON.stringify(
+    entries.map(({ slug, links }) => ({ slug, links })),
+  ));
   if (created > 0) refreshAfterMutation(env, ctx);
   return json({ synced: entries.length, created });
 }
@@ -246,6 +259,7 @@ function normalizeDeployEntries(entries: LearnDeployEntry[]): NormalizedDeployEn
     revised_at: entry.revised_at === null || entry.revised_at === undefined
       ? null
       : normalizeTimestamp(entry.revised_at),
+    links: normalizeLinks(entry.links),
   })).sort((a, b) => a.slug.localeCompare(b.slug));
   if (
     normalized.some((entry) => (
@@ -254,10 +268,64 @@ function normalizeDeployEntries(entries: LearnDeployEntry[]): NormalizedDeployEn
       || entry.title.length > 200
       || entry.excerpt.length > 2_000
       || entry.revised_at === undefined
+      || entry.links === null
     ))
     || new Set(normalized.map((entry) => entry.slug)).size !== normalized.length
   ) return null;
   return normalized as NormalizedDeployEntry[];
+}
+
+function normalizeLinks(value: unknown): string[] | null {
+  if (!Array.isArray(value) || value.length > 500) return null;
+  const links = value.map((entry) => typeof entry === 'string' ? entry.trim() : '');
+  if (links.some((entry) => !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(entry))) return null;
+  return [...new Set(links)].sort((a, b) => a.localeCompare(b, 'en'));
+}
+
+async function validateProposedPublicRelations(
+  env: LearnEnv,
+  slug: string,
+  visibility: LearnPublicationVisibility,
+): Promise<Response | null> {
+  const manifest = normalizeRelationManifest(
+    await env.AUTH_KV.get<unknown>(LEARN_RELATION_MANIFEST_KEY, 'json'),
+  );
+  if (!manifest) {
+    return apiError(503, 'relation_manifest_unavailable', 'Learn relation metadata is unavailable');
+  }
+
+  const publicSlugs = new Set((await listPublications(env.DB, 'public')).map((entry) => entry.slug));
+  if (visibility === 'public') publicSlugs.add(slug);
+  else publicSlugs.delete(slug);
+  const bySlug = new Map(manifest.map((entry) => [entry.slug, entry]));
+  const proposed: LearnRelationEntry[] = [];
+  for (const publicSlug of publicSlugs) {
+    const entry = bySlug.get(publicSlug);
+    if (!entry) {
+      return apiError(409, 'broken_public_relation', 'Learn publication metadata does not cover the proposed public set');
+    }
+    proposed.push(entry);
+  }
+  try {
+    assertValidLearnPublicRelations(proposed);
+    return null;
+  } catch (error) {
+    return apiError(409, 'broken_public_relation', error instanceof Error ? error.message : 'Broken public Learn relation');
+  }
+}
+
+function normalizeRelationManifest(value: unknown): LearnRelationEntry[] | null {
+  if (!Array.isArray(value) || value.length > 500) return null;
+  const entries = value.map((candidate) => {
+    if (!candidate || typeof candidate !== 'object') return null;
+    const record = candidate as Record<string, unknown>;
+    const slug = typeof record.slug === 'string' ? record.slug.trim() : '';
+    const links = normalizeLinks(record.links);
+    return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug) && links ? { slug, links } : null;
+  });
+  if (entries.some((entry) => entry === null)) return null;
+  const normalized = entries as LearnRelationEntry[];
+  return new Set(normalized.map((entry) => entry.slug)).size === normalized.length ? normalized : null;
 }
 
 function normalizeTimestamp(value: unknown): string | null {

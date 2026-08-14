@@ -477,14 +477,14 @@
 @media (max-width: 860px) {
   .learn-reading-layout--related { grid-template-columns: 1fr; width: min(100%, 840px); }
   .learn-reading-layout--chapters,
-  .learn-reading-layout--related-chapters { grid-template-columns: minmax(0, 1fr) 34px; gap: 16px; width: min(100%, 900px); }
+  .learn-reading-layout--related-chapters { grid-template-columns: minmax(0, 1fr) var(--interaction-hit-size); gap: 16px; width: min(100%, 900px); }
   .learn-reading-layout--chapters .learn-note-body { grid-column: 1; grid-row: 1; }
   .learn-reading-layout--chapters .learn-chapter-nav { grid-column: 2; grid-row: 1; }
   .learn-reading-layout--chapters .learn-related { grid-column: 1; grid-row: 2; }
   .learn-related { position: static; max-block-size: none; padding: 24px 20px; margin-block-start: 32px; }
   .learn-chapter-nav { inset-block-start: 12px; overflow: visible; border-inline-start: 0; }
   .learn-chapter-nav ol { gap: 4px; }
-  .learn-chapter-nav a { position: relative; min-block-size: var(--interaction-hit-size); padding: 0; justify-content: center; }
+  .learn-chapter-nav a { position: relative; min-inline-size: var(--interaction-hit-size); min-block-size: var(--interaction-hit-size); padding: 0; justify-content: center; }
   .learn-chapter-nav a::before { width: 6px; height: 6px; content: ''; background: var(--content-hairline); border-radius: 50%; }
   .learn-chapter-nav a[aria-current="location"] { background: transparent; }
   .learn-chapter-nav a[aria-current="location"]::before { background: var(--klein-500); transform: scale(1.35); }

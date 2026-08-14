@@ -208,6 +208,8 @@ try {
   const noteViewSource = await readFile(path.join(root, 'src', 'components', 'learn', 'LearnNoteView.astro'), 'utf8');
   assert.match(noteViewSource, /chapters\.length >= 2/);
   assert.match(noteViewSource, /heading\.depth === 2/);
+  const learnCssSource = await readFile(path.join(root, 'src', 'components', 'learn', 'learn.css'), 'utf8');
+  assert.match(learnCssSource, /min-inline-size:\s*var\(--interaction-hit-size\)/);
   const learnRouteSource = await readFile(path.join(root, 'workers', 'feed-api', 'src', 'routes', 'learn.ts'), 'utf8');
   assert.doesNotMatch(learnRouteSource, /completeSection|requestPublication|learn_section_completed/);
   console.log('Learn preview contract passed.');

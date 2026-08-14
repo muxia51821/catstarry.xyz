@@ -44,6 +44,7 @@ const learnEntries = await readLearnPublicationEntries();
 assert.equal(learnEntries.some((entry) => entry.slug === 'domain-dns-http'), true);
 assert.equal(learnEntries.some((entry) => entry.slug === 'vibe-coding-mission'), false, 'legacy withdrawn notes are not revision-sync candidates');
 assert.ok(learnEntries.every((entry) => entry.title && !('published_at' in entry)));
+assert.ok(learnEntries.every((entry) => Array.isArray(entry.links)));
 assert.equal(new Set(learnEntries.map((entry) => entry.slug)).size, learnEntries.length);
 
 console.log('Blog publication manifest contract passed.');

@@ -1,5 +1,6 @@
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
+import { extractLearnWikilinkSlugs } from '../../shared/learn-relations.ts';
 
 export async function readLearnPublicationEntries(root = 'src/data/learn') {
   const entries = [];
@@ -21,6 +22,7 @@ export async function readLearnPublicationEntries(root = 'src/data/learn') {
       title,
       excerpt,
       revised_at: revisedAt ? new Date(revisedAt).toISOString() : null,
+      links: extractLearnWikilinkSlugs(source),
     });
   }
   entries.sort((a, b) => a.slug.localeCompare(b.slug));

@@ -68,7 +68,7 @@ function learnManifest(entries, deployedAt = '2026-08-12T10:00:00.000Z') {
 function learnEntry(overrides = {}) {
   return {
     slug: 'learn-contract', title: 'Learn contract', excerpt: 'A durable note.',
-    revised_at: null, ...overrides,
+    revised_at: null, links: [], ...overrides,
   };
 }
 
@@ -218,8 +218,13 @@ try {
   const secondCursorPage = await rawRequest(`/api/feed?limit=2&cursor=${encodeURIComponent(firstCursorPage.cursor)}`).then((response) => response.json());
   assert.equal(firstCursorPage.items.some((firstItem) => secondCursorPage.items.some((secondItem) => secondItem.id === firstItem.id)), false, 'stable cursor pages must not duplicate entries');
 
-  const baseline = await rawRequest('/api/learn/internal/publications', { method: 'POST', headers: publicationHeaders, body: JSON.stringify(learnManifest([learnEntry(), learnEntry({ slug: 'new-note', title: 'New note' })])) });
-  assert.deepEqual(await baseline.json(), { synced: 2, created: 0 });
+  const baseline = await rawRequest('/api/learn/internal/publications', { method: 'POST', headers: publicationHeaders, body: JSON.stringify(learnManifest([
+    learnEntry(),
+    learnEntry({ slug: 'new-note', title: 'New note' }),
+    learnEntry({ slug: 'published-note', title: 'Published note' }),
+    learnEntry({ slug: 'revised-note', title: 'Revised note' }),
+  ])) });
+  assert.deepEqual(await baseline.json(), { synced: 4, created: 0 });
   const firstPublication = await request('/api/learn/admin/publications', {
     method: 'PATCH',
     headers: { Cookie: cookie, 'Content-Type': 'application/json' },

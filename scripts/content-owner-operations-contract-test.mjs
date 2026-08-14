@@ -88,7 +88,8 @@ assert.match(learnRoute, /LOCAL_PREVIEW_AUTH === '1'.*local_preview_read_only/s)
 
 const activityStore = await readFile('workers/feed-api/src/adapters/activity-signal-store.ts', 'utf8');
 assert.match(activityStore, /source_module != 'blog'/);
-assert.doesNotMatch(activityStore, /source_module != 'learn'|source_module != 'projects'/);
+assert.match(activityStore, /source_module != 'learn'/);
+assert.doesNotMatch(activityStore, /source_module != 'projects'/);
 
 const projectSignal = await readFile('scripts/lib/public-footprint.mjs', 'utf8');
 assert.match(projectSignal, /EXPLICIT_FOOTPRINT_CONFIRMATION/);
