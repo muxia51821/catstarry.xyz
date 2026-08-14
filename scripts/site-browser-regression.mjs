@@ -231,13 +231,18 @@ try {
   })()`;
   const forceArchivePseudoState = async (forcedPseudoClasses, verifyVisualState = false) => {
     for (let attempt = 0; attempt < 3; attempt += 1) {
-      const { root: archiveDocument } = await send('DOM.getDocument', { depth: 0 });
-      const { nodeId } = await send('DOM.querySelector', {
-        nodeId: archiveDocument.nodeId,
-        selector: '.blog-post-entry__content',
-      });
-      if (!nodeId) continue;
       try {
+        await waitFor(
+          `document.readyState === 'complete' && Boolean(document.querySelector('.blog-post-entry__content'))`,
+          'Blog archive current document',
+          2_000,
+        );
+        const { root: archiveDocument } = await send('DOM.getDocument', { depth: 0 });
+        const { nodeId } = await send('DOM.querySelector', {
+          nodeId: archiveDocument.nodeId,
+          selector: '.blog-post-entry__content',
+        });
+        if (!nodeId) continue;
         await send('CSS.forcePseudoState', { nodeId, forcedPseudoClasses });
         if (verifyVisualState) {
           await waitFor(archiveHoverVisualState, 'Blog archive forced hover visual state', 2_000);
