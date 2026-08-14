@@ -1,404 +1,277 @@
 # catstarry.xyz 开发流程编排方案
 
-> 执行手册。进度追踪见 `docs/DASHBOARD.md`。
-> Phase 0–7 的交付协作规则保留作历史参考；Phase 8 当前工作方式见文末的运营维护章节。
-> 当前 Phase 8 任务先读取文末“Phase 8：运营维护（当前）”章节；Phase 0–7 章节仅在历史追溯、定向上游回流或复核既有交付规则时读取。
+> 当前执行手册。catstarry.xyz 已进入 Phase 8 长期维护；Phase 0–7 只保留为历史背景，不再作为每个维护任务必须重新经过的流程。
 
 ---
 
-## 流程治理协议
+## 1. 当前角色与边界
 
-**「流程治理」对话**是项目的中枢。它不执行任何 Phase，只负责：
+Phase 8 的目标是：
 
-- 维护 `DASHBOARD.md`（进度）、`workflow-orchestration.md`（本文件）、`CONTEXT.md`（快速上下文与少量长期事实）、`AGENTS.md`（全局约束）
-- 维护 `GLOSSARY.md`（共享命名、别名和术语边界）；仅在对应产品、需求、ADR、架构、设计或实现事实确认后同步。
-- 改变路由、页面职责或公开／非公开范围的任务负责同步 `docs/SITEMAP.md`；流程治理负责共享文档一致性检查，不凭空创造产品事实。
-- 审查流程是否合理
-- 协调各 Phase 之间的衔接
-- 不同职责维度的冲突按 `AGENTS.md` 的冲突处理规则报告，并等待对应事实源或木下裁决；不使用单一线性优先级覆盖所有文档。
+> 保持可用，持续改进，让项目随着真实使用变得更简单。
 
-**触发机制**（手动，非自动）：
+网页端 Governance / Web Session 负责在需要时：
 
-```
-木下在某 Phase 对话中完成全部工作
-      ↓
-木下回到「流程治理」对话，报告：Phase X 已完成，产物是 xxx
-      ↓
-流程治理更新 DASHBOARD.md、CONTEXT.md 状态
-      ↓
-流程治理确认下一步：fork 哪个 Phase、带什么文档
-```
+- 恢复当前项目现实；
+- 判断问题属于小型直接修复、专项审查、Product / Architecture 裁决、implementation、Deployment 或 Observe；
+- 处理跨模块冲突和 authority 不清；
+- 为 implementation 准备已经收敛的 handoff；
+- 审查 implementation 是否符合上游裁决；
+- 决定是否进入独立 Deployment task。
 
-**为什么是手动的**：Codex 目前不支持跨对话自动感知。木下是唯一的信使。
+Governance 不是所有小修的 mandatory gate，也不负责为了流程完整而制造额外流程。
+
+Codex / implementation session 负责明确授权范围内的实现与验证；是否可 commit / push 由任务 handoff 明确说明。Git 与 production authority 见 `AGENTS.md`。
 
 ---
 
-## 设计驱动的定向上游回流协议
-
-当 Phase 4.1 的设计确认推翻或改变已完成模块的需求、架构前提时，使用**定向上游回流**；它不是重启项目，也不改变全局 Phase 2、Phase 3 的历史完成状态。
-
-```
-Phase 4.1 设计决策确认
-      ↓（声明受影响模块、旧契约与回流范围）
-定向 Phase 2：PRD → issue/ticket → triage
-      ↓
-定向 Phase 3：仅复核受影响的领域、数据、模块、API 与 ADR
-      ↓
-返回 Phase 4.1：重锁 DESIGN.md、SITEMAP、Phase 4 brief 与视觉接口
-      ↓
-Phase 4.2：原型生成
-```
-
-**状态表达规则**：
-
-- 定向回流进行时，主线 Phase 4 标记为“4.1 定向回流中”；Phase 4.2 不得提前启动。
-- 返回 Phase 4.1 完成并同步共享文档后，标记为“4.1 已完成”。如流程治理已登记依赖迁移等前置门，须先闭合这些前置门；随后才标记为“4.2 等待流程治理启动”，不能由设计对话自行越级进入原型。
-- 定向 Phase 2、3 以独立状态块记录“范围、产物、回归点”，不把全局 Phase 2、3 改回未完成。
-- 定向 Phase 3 未完成前，`CONTEXT.md` 中受影响的架构与设计结论必须标为“定向回流中”或“待复核”，不得伪装成已锁定。
-- 每次定向回流闭合后，木下回到流程治理对话；流程治理更新 `DASHBOARD.md`、`CONTEXT.md`、`SITEMAP.md` 与对应 Phase brief，再允许进入下游阶段。
-
----
-
-## 依赖基线迁移协议
-
-当核心框架与官方 integration 出现跨主版本错配，或木下明确要求正式开发采用最新稳定主版本时，使用**定向依赖基线迁移**。它是独立的基础设施任务，不重开需求、架构或已经闭合的设计阶段。
-
-```
-当前 Phase 完成并保持闭合
-      ↓
-流程治理声明迁移范围、目标版本与禁止越界事项
-      ↓
-独立依赖迁移任务：升级 → 最小兼容修改 → build / content / rendering 验证
-      ↓
-木下执行 Git 提交
-      ↓
-返回流程治理确认基线与下游入口
-```
-
-**执行规则**：
-
-- 依赖迁移不得夹带视觉重做、功能开发、架构扩张或未使用的 adapter。
-- 目标是最新稳定主版本，但升级必须使用 lockfile 固化实际版本，并记录官方 migration guide 中与项目相关的破坏性变化。
-- 迁移任务必须验证 build、Content Collections、Markdown、React islands 与现有可运行页面；Cloudflare adapter 仅在项目真正启用对应渲染模式时安装和验证。
-- 当前一次性迁移已完成；具体依赖版本以 `package.json` 和 lockfile 为准，不在本文件维护版本号。Content Layer、Markdown、React islands、现有 build 与 `.astro/` untrack 已完成当时的验证。
-- 后续依赖变更另立独立任务；具体版本以 `package.json` 和 lockfile 为准，不得据此自动升级。
-
----
-
-## 流程总览
-
-```
-Phase 0: 基础设施 ──→ Phase 1: 需求澄清 ──→ Phase 2: 规格化
-      ↓                                             ↓
-Phase 3: 架构设计 ──→ Phase 4: UI/原型
-      ↓
-Phase 5: 开发实现 ──→ Phase 6: 测试/QA
-      ↓
-Phase 7: 部署上线 ──→ Phase 8: 运营维护 ──→ (循环回 Phase 1)
-```
-
-**核心原则**：
-
-- 每个 Phase 独立一个 Codex 对话线程，fork 自上一个 Phase，继承上下文
-- 产出物全部落在 `docs/`、`.scratch/` 或对应 Phase 明确授权的目录中；Git 提交由木下执行
-- 木下（非程序员）审核文档层面的产出物；AI agent 负责编码
-- **Phase 顺序不可跳**。跳过规格化和架构直接写代码 = 返工。
-- **Phase 完成后必须回到「流程治理」对话报告进度**，见上方「流程治理协议」
-- Agent 修改前检查 Git 状态与 HEAD；修改后给出按路径限定的提交命令，不自行 commit / push，也不擅自加入未追踪素材。
-
----
-
-## Phase 0：基础设施
-
-**目标**：建立项目和 AI agent 协作的基础环境。
-
-**输入**：空仓库。
-
-**产出物**：`GLOSSARY.md`、`CONTEXT.md`、`AGENTS.md`、`docs/agents/*.md`、`.scratch/`。
-
-| #   | 动作                                             | skill                        |
-| --- | ------------------------------------------------ | ---------------------------- |
-| 0.1 | 从 handoff 提取术语 → `GLOSSARY.md`              | `domain-modeling`            |
-| 0.2 | 配置 issue tracker + triage labels + domain docs | 历史配置步骤                 |
-| 0.3 | 写 `CONTEXT.md`：项目简介、技术栈、约束          | —                            |
-| 0.4 | 配置 Git 规范                                    | `AGENTS.md`                  |
-
----
-
-## Phase 1：需求澄清
-
-**目标**：将模糊想法转化为结构化、可验证的需求。
-
-**输入**：已确认的 handoff 或任务简报 + 木下口述新需求。
-
-**产出物**：每个模块一份需求文档（`docs/final-requirements-*.json`）。
-
-**执行方式**：使用 `grill-me` 或 `grill-with-docs` 加载「需求解剖师」角色定义（`D:/business analyst/AGENTS.md`）和输出 schema（`D:/business analyst/output_schema.json`），按 6 层深挖 + 发散前置的规则执行。对话结束后按 schema 输出结构化 JSON。
-
-| #   | 动作               | 深度     |
-| --- | ------------------ | -------- |
-| 1.1 | B2 /feed 媒体处理  | 6 层深挖 |
-| 1.2 | B3 /feed 内容管理  | 6 层深挖 |
-| 1.3 | /learn 内容结构    | 轻量     |
-| 1.4 | /projects 页面布局 | 轻量     |
-| 1.5 | /finance 技术需求  | 中等     |
-
-**结束条件**：所有 drill 完成，无遗漏分支，每个模块产出符合 `output_schema.json` 的结构化 JSON，木下确认不再修改。
-
----
-
-## Phase 2：规格化（需求 → 可执行的卡片）
-
-**目标**：将需求文档拆分为结构化 issue，分类评估优先级。产出两份：给 AI 的开发 issue + 给木下的验收清单。
-
-**输入**：Phase 1 产出的结构化 JSON。
-
-**产出物**：
-
-- `.scratch/` 下多个 `issue.md` + triage 标签（给 AI，英文/技术语言，可包含 D1/KV/CORS/schema 等技术细节）
-- `docs/acceptance-*.md`（给木下，纯中文业务语言，不含技术细节，按模块列出"这个功能做到了/没做到"）
-
-| #   | 动作                        | skill        | 产出                                                  |
-| --- | --------------------------- | ------------ | ----------------------------------------------------- |
-| 2.1 | 已确认讨论 → PRD / spec     | `to-spec`    | 每个模块一份可执行规格                                |
-| 2.2 | PRD / spec → tracer tickets | `to-tickets` | `.scratch/*/issue.md`（含阻塞边）                     |
-| 2.3 | ticket 分类评估 + 打标签    | `triage`     | 给每个 issue 打 `needs-triage` / `ready-for-agent` 等 |
-| 2.4 | 生成验收清单                | —            | `docs/acceptance-*.md`（给木下，纯业务语言）          |
-
-**结束条件**：全部模块有开发 issue + triage 标签 + PRD + 验收清单，木下确认验收清单可操作。
-
-## Phase 3：架构设计
-
-**目标**：基于 PRD 确定技术架构细节。
-
-**输入**：PRD、已确认的技术决策和当前事实源。
-
-**产出物**：`docs/architecture.md`（总览）、`docs/architecture/data-model.md`（D1 schema + API 类型）、`docs/architecture/auth.md`（鉴权）、`docs/architecture/modules.md`（目录结构 + Workers 路由）、`docs/adr/*.md`。
-
-| #   | 动作                                                                                   | skill                                   |
-| --- | -------------------------------------------------------------------------------------- | --------------------------------------- |
-| 3.1 | 领域建模（术语表 → D1 schema、API 数据结构） → `architecture/data-model.md`            | `domain-modeling`                       |
-| 3.2 | 代码库架构（目录结构、模块边界、依赖） → `architecture.md` + `architecture/modules.md` | `codebase-design`                       |
-| 3.3 | 数据流设计（Workers 路由、D1/KV/R2 读写、Cron） → `architecture/modules.md`            | 架构文档 + 当前实现                  |
-| 3.4 | 鉴权方案（/feed + f.catstarry.xyz 的具体实现） → `architecture/auth.md`                | ADR + 当前实现                       |
-| 3.5 | 架构决策记录（每个重大决策一条：为什么选 A 不选 B） → `docs/adr/*.md`                  | —                                       |
-
----
-
-## Phase 4：UI/原型
-
-**目标**：产出 catstarry.xyz 专属视觉设计系统 + 关键页面原型。DESIGN.md 为全站视觉约束，原型验证可行性。
-
-**输入**：SITEMAP + `docs/architecture.md` + `docs/design/reference-design/`（木下人工选取的设计参照）。
-
-**产出物**：根目录 `DESIGN.md`（以文档内目录与当前版本为准）+ canonical CSS 设计系统契约（`src/styles/variables.css`、`typography.css`、`components.css`）+ `docs/design/reference-design/`（木下人工选取的参照）+ 可交互 HTML 原型。
-
-**设计基调**：由 4.0 木下挑选的 reference-design 决定。不做预设（不预设色系、不预设风格）。
-
-**CJK 约束**：以 `DESIGN.md` 与 `src/styles/typography.css` 的 canonical 规则为准，不依赖外部 taste skill。
-
-| #   | 动作                                                                                                                                                                                                         | skill                    | 产出                                                                                         |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------ | -------------------------------------------------------------------------------------------- |
-| 4.0 | 木下人工选参照：浏览 getdesign.md 挑选 2-3 个视觉锚点，笔记提取至 `docs/design/reference-design/`                                                                                                            | —（人工）                | `docs/design/reference-design/`                                                              |
-| 4.1 | Design Read + Design System Re-lock：AI 读 `reference-design/` → 声明 Design Read → 维护根目录 DESIGN.md 的设计目录、决策与视觉接口 → 对齐 canonical CSS token、CJK 基线与通用工具类，退役已失效的旧页面语义 | —                        | `DESIGN.md` + canonical CSS 设计系统契约                                                     |
-| 4.2 | 隔离原型与参数校准：以 DESIGN.md 驱动一次性 HTML/CSS/JS 原型，验证 Drift 语义构图、Star Map → Focus → action、默认滚动 Focus 序列、星球候选资产管线、信号卫星与豹猫 companion；真实活动状态只用 mock         | `prototype`、`gpt-taste` | `docs/design/prototypes/phase4-2/` 下的独立原型、Planet Asset Prompt Kit、候选资产 + verdict |
-| 4.3 | 选定原型落地 + UI 质检：把获选组件样式落回 canonical CSS，执行 CJK、keyboard、touch、reduced-motion、性能与视觉一致性检查                                                                                    | `web-design-engineer`    | 更新后的 canonical CSS + UI 质检报告                                                         |
-
-> Phase 4.1 的 CSS 工作只维护 token 契约、排版基线、通用工具类和过时语义清理，不实现新页面组件。Phase 4.2 的一次性实验 CSS 不直接写入 canonical styles；选定原型的组件样式在 Phase 4.3 才落回 `components.css`，经验证的数值再固化至 `variables.css`。
-
-**结束条件**：
-
-- **4.1**：`DESIGN.md` 与 canonical token、CJK、通用工具类完成重锁；CSS 解析、token 引用和 Astro build 通过；未实现新页面组件；流程治理确认闭合。
-- **4.2**：隔离原型与 `prototype-verdict.md` 完成；木下目测确认 Drift Star Map、Entry / Approach / Overview、Star Map → Focus → action、默认 Focus 序列、点击与侧边索引跳转、返回与 footer release、mock HAS、About / 豹猫 companion、touch、reduced-motion、回归脚本与控制台检查；未修改 canonical CSS、生产路由或架构；返回流程治理报告。五颗星球资产可作为可替换占位通过本阶段，不要求 Overview / Focus / Mobile 最终身份确认。
-- **4.3**：获选组件样式与参数落回 canonical CSS，完成五颗星球资产统一调整、Overview / Focus / Mobile 身份确认，并通过 CJK、keyboard、touch、reduced-motion、性能和视觉一致性质检；返回流程治理确认 Phase 4 完成。
-
-> Phase 3 对话结束后，木下回到流程治理报告完成状态，流程治理确认后 fork Phase 4。避免原型先行导致设计绑架架构。
-
----
-
-## Phase 5：开发实现（历史交付流程）
-
-**目标**：逐模块实现功能代码。
-
-**输入**：PRD + ADR + UI 原型 + DESIGN.md + triage 后的 issue + `docs/agents/frontend-rules.md`。
-
-| #    | 动作                                                                                                                                                                                  | skill | 产出                                        |
-| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- | ------------------------------------------- |
-| 5.0A | 依赖基线复核：核对 Astro、官方 integrations、React、Cloudflare adapter 与 Node 的最新稳定版本；仅在审计通过后升级                                                                     | —     | 依赖兼容矩阵 + 升级／保持决定（必要时 ADR） |
-| 5.0B | 前端规则固化：将 DESIGN.md 核心规则、canonical CJK 质检清单与三画布规则固化至 `docs/agents/frontend-rules.md`。标记为“原型已验证、Phase 5 仅可微调非核心参数”，各模块开发线程必须引用 | —     | `docs/agents/frontend-rules.md`             |
-
-> Phase 5.0A 已完成：前端依赖维持现状，不启动独立依赖修复任务；Phase 5.0B 无阻塞。Cloudflare adapter 未安装是当前静态前端的正确状态，不应提前安装。
-
-**历史执行策略（Phase 0–7）**：Phase 5 保留三个常驻角色，并允许模块级并行；模块内部保持单 Owner，不在同一模块内多人抢写。流程治理默认只在模块启动、模块关闭、跨模块冲突、定向回流、依赖 / 架构 Gate 与 Phase 切换时介入，不为普通修复重复登记。Phase 8 不再沿用这套调度方式。
-
-### Phase 5 常驻角色
-
-| 角色 | 职责 | 边界 |
-| --- | --- | --- |
-| 流程治理 | 阶段授权、关闭、依赖、冲突和状态文档 | 不写业务代码；不重复审查普通修复 |
-| Phase 5 主执行 / 集成线程 | 共享文件、集成、全局验证、跨模块合并 | 负责共享文件 Owner；不让临时模块线程直接改共享契约 |
-| 网页端桥梁 | 任务压缩、报告审查、方向纠偏、木下验收辅助 | 不替代主执行线程写共享文件；不越权改架构 |
-
-### Phase 5 读取与协作减重
-
-- 普通模块由临时 Codex Agent 执行；完成、合并并验收后结束 session。
-- 每个 Agent 只读取模块任务包和直接相关真源；不得默认重读完整 `CONTEXT.md`、完整 workflow、全部 ADR 或其他模块文档。
-- 共享文件只能由 Phase 5 主执行 / 集成线程修改，包括 package 与全局配置、Base layout、shared contracts、migrations、auth / CORS、CI/CD 与生产部署。
-- Phase 5 曾使用临时协作记录；该记录不属于 Phase 8 当前真源。
-
-### Phase 5 风险分级
-
-| 风险 | 适用范围 | 验证 / Review |
-| --- | --- | --- |
-| 低风险 | 展示、局部样式、文案、无共享契约变化 | 执行线程自检、build、木下验收 |
-| 普通风险 | 普通模块功能、局部数据读取、模块内状态 | 测试 + 主执行 / 集成线程检查 |
-| 高风险 | DB、migration、auth、CORS、公共 API、shared contracts、CI/CD、生产切换 | 独立 Review |
-
-### 第一波：共享基础设施（开发-F，**必须先行**）
-
-D1 schema、类型定义、鉴权逻辑、CI/CD 配置必须先完成，其他线程才可独立开发。当前 F 已完成；不得据此宣布任何业务模块已实现。
-
-F deferred：真实资源、远程 migration、路由与生产部署留到 Phase 7；其余当时的模块 deferred 记录仅作历史参考，不构成 Phase 8 当前任务规则。
-
-……（后面不动）
-
-| 线程 | 负责模块     | 参考入口       |
-| ---- | ------------ | -------------- |
-| F    | 共享基础设施 | `implement`、架构文档 |
-
-### 第二波：业务模块（开发-F 完成后允许模块级并行）
-
-| 线程 | 负责模块                                     | 参考入口                                          |
-| ---- | -------------------------------------------- | ------------------------------------------------- |
-| A    | /blog（列表 + 详情 + 分类 + 标签 + RSS）     | `tdd`、`implement`、`code-review`                |
-| B    | /feed（时间线 + 发布面板 + 媒体上传 + 鉴权） | `tdd`、`implement`、`code-review`                |
-| C    | /projects + /learn                           | `implement`、`scaffold-exercises`                |
-| D    | `/` Home                                     | `tdd`、`implement`                               |
-| E    | f.catstarry.xyz                              | `tdd`、`implement`、`code-review`、`a-stock-data` |
-
-**每个模块的 micro loop**：
-
-```
-tdd → implement → code-review → 木下按 acceptance 验收 → 通过/回退
-```
-
----
-
-## Phase 6：测试/QA
-
-**目标**：全站集成测试 + 性能验证。
-
-| #   | 动作                              | 参考入口 |
-| --- | --------------------------------- | -------- |
-| 6.1 | 全站按 PRD 验收                   | `qa`     |
-| 6.2 | Core Web Vitals                   | `qa`     |
-| 6.3 | Excel 迁移正确性 + 实时行情准确性 | `qa`     |
-
----
-
-## Phase 7：部署上线
-
-**目标**：推送到生产环境。
-
-**当前状态**：✅ production release 已完成。已完成的 release history 见 `CHANGELOG.md`。
-
-| #   | 动作                                    | 参考入口     |
-| --- | --------------------------------------- | ------------ |
-| 7.1 | D1 schema、KV namespace、R2 bucket 创建 | 历史部署步骤 |
-| 7.2 | CF Pages + Workers 部署                 | 历史部署步骤 |
-| 7.3 | 域名 DNS + 环境变量/密钥                | 历史部署步骤 |
-
----
-
-## Phase 8：运营维护（当前）
-
-**目标**：保持可用，持续改进，让项目随着真实使用变得更简单。
-
-**当前状态**：🟡 运营维护已启动。Phase 8 事项不再作为 Phase 7 blocker。
-
-### 当前循环
+## 2. Phase 8 默认维护循环
 
 ```text
-发现问题或想法
-    ↓
-分类：Bug / Maintenance / Experience refinement / New feature
-    ↓
-确定最小范围 → 实施 → 自动验证 → 木下人工验收
-    ↓
-需要发布时交给独立 Deployment Session
-    ↓
-Production verification → 在 CHANGELOG.md 追加一条成功 release
+发现真实问题 / 新需求
+        ↓
+恢复足够的当前证据
+        ↓
+分类与定范围
+        ↓
+┌──────────────────────────────┐
+│ 小型直接修复                 │
+│ 专项网页审查                 │
+│ Product / Architecture 裁决 │
+│ implementation              │
+│ Deployment                  │
+│ Observe                     │
+└──────────────────────────────┘
+        ↓
+最小改动 / 对应专项处理
+        ↓
+相关自动验证
+        ↓
+木下验收（需要时）
+        ↓
+如需上线 → 独立 Deployment task
+        ↓
+Production verification
+        ↓
+成功 release 写入 CHANGELOG
 ```
 
-### 边界与真源
+### 小型直接修复
 
-- Phase 8 负责判断范围、跨模块影响、发布范围和 production evidence；不默认部署。
-- Deployment Session 负责核查 Git、执行指定组件部署、运行 production smoke 并返回 evidence。
-- 共享命名、别名和术语边界由 `GLOSSARY.md` 记录；只有对应上游事实确认后才同步，流程治理不自行裁决产品、架构、设计或实现规则。
-- 改变路由、页面职责或公开／非公开范围的任务负责同步 `docs/SITEMAP.md`；流程治理只做一致性检查。
-- Site、Blog、Feed、Learn、Finance 等组件可以处于不同 production source；不为追求 SHA 一致而重复部署无变化组件。
-- Git HEAD、待发布 commit 和组件生产 source 等易过期状态，在需要时直接从 Git 与部署平台核对。
-- 已完成的生产发布只记录在 `CHANGELOG.md`；不建立 dispatch、next 或 release queue 文件。
+适用于：
+
+- scope 清楚；
+- 不改变已关闭 Product / Architecture contract；
+- 不引入新的跨模块依赖；
+- 风险可逆；
+- 验证路径明确。
+
+这类任务不需要为了形式重新启动完整 Product / Architecture review。
+
+### 专项审查 / Product / Architecture
+
+当任务触碰以下边界时升级：
+
+- authority 不清；
+- 已关闭 Product Closure 可能被改变；
+- durable architecture contract 可能改变；
+- 多模块共享语义发生冲突；
+- implementation evidence 与 current authority 明显矛盾。
+
+### Observe
+
+没有足够证据证明需要修改时，可以明确选择 Observe。Phase 8 不要求每个发现都立即转化为代码或文档工作。
 
 ---
 
-## 木下的角色
+## 3. 证据与职责路由
 
-| Phase | 你做什么                                                 |
-| ----- | -------------------------------------------------------- |
-| 0-1   | 需求讨论、决策确认（产品经理）                           |
-| 2-3   | 审核 issue 优先级、确认架构方向                          |
-| 4     | 从 reference-design 挑参照 + 审系统定调 + 确认 DESIGN.md |
-| 5     | 审核 tdd 测试用例、确认 code review 关键点               |
-| 6     | 手动验收关键功能                                         |
-| 7     | 配置域名/DNS（AI 指导操作）                              |
-| 8     | 日常操作（发博客、发碎碎念、录交易）+ 提新需求           |
+不要建立一条跨所有维度的单线文档优先级。按问题职责选择真源：
+
+- Agent 行为、Git、production safety：`AGENTS.md`
+- 快速项目定向：`CONTEXT.md`
+- 共享命名：`GLOSSARY.md`
+- Content Product：`docs/content/README.md` → Family Contract / Master Ledger（按需）
+- 其他 Product：仍明确有效的 Product Closure、验收基线或当前任务裁决
+- Architecture：ADR + current architecture docs + current code evidence
+- Design：`DESIGN.md`
+- 前端施工：`docs/agents/frontend-rules.md`
+- Routes / public-owner visibility：`docs/SITEMAP.md`
+- Deployment：`docs/DEPLOY.md`
+- Implementation reality：current code / tests
+- Production reality：live / deployment evidence on demand
+- 已完成 release history：`CHANGELOG.md`
+
+历史 requirements、acceptance、Phase briefing、prototype、QA evidence 可以用于追溯 rationale，但不得仅因文件名像“final / acceptance / canonical”就自动视为 current authority。
 
 ---
 
-## 产出物清单
+## 4. Touch-on-Conflict
 
+Phase 8 使用 bounded propagation，而不是 repo-wide reconciliation。
+
+1. **小型修复**：不自动触发全仓库文档同步。
+2. **直接相关 current doc 明显 stale**：在同一任务中做最小同步。
+3. **historical doc 与 current reality 不同**：通常保持历史原样；只有它会误导当前任务时才补边界或归档。
+4. **accepted Product Closure 被改变**：回到 Product governance，而不是让 implementation 自行改写 Product Truth。
+5. **Architecture / ADR contract 被改变**：进行 architecture review；只有值得长期回答“为什么选 A 不选 B”的重要决定才新增 ADR。
+6. **无关 stale doc**：可以报告，不顺手扩大当前 scope。
+7. **Governance 介入条件**：authority unclear、closed Product / Architecture 被触碰、或存在 cross-module contract risk。
+
+目标是：
+
+> 维护项目，而不是维护一套比项目本身更重的治理系统。
+
+---
+
+## 5. Session 与 handoff
+
+### 有可信 predecessor
+
+优先：
+
+```text
+旧 Session 已收敛结论
+→ concise handoff
+→ 新 specialist / implementation Session
 ```
-catstarry.xyz/
-├── README.md                        (Phase 0)
-├── AGENTS.md                        (Phase 0)
-├── GLOSSARY.md                      (Phase 0)
-├── CONTEXT.md                       (Phase 0)
-├── DESIGN.md                        (Phase 4.1)
-├── docs/
-│   ├── workflow-orchestration.md    ← 本文件
-│   ├── DASHBOARD.md
-│   ├── SITEMAP.md
-│   ├── cold-start-governance.md
-│   ├── phase-briefing/
-│   │   ├── phase2-briefing.md
-│   │   ├── phase3-briefing.md
-│   │   └── phase4-briefing.md       (Phase 4 启动前与回流后同步)
-│   ├── architecture.md              (Phase 3)
-│   ├── architecture/                (Phase 3)
-│   │   ├── data-model.md
-│   │   ├── auth.md
-│   │   └── modules.md
-│   ├── adr/                         (Phase 3)
-│   ├── design/                      (Phase 4)
-│   │   └── reference-design/        (木下人工选取的参照)
-│   ├── final-requirements-*.json  (Phase 1)
-│   ├── acceptance-*.md            (Phase 2)
-│   └── agents/
-│       ├── issue-tracker.md
-│       ├── triage-labels.md
-│       ├── domain.md
-│       └── frontend-rules.md        (Phase 5.0)
-├── .scratch/
-     ├── blog/                        (Phase 2)
-     ├── feed/                        (Phase 2)
-     ├── learn/                       (Phase 2)
-     ├── projects/                    (Phase 2)
-     ├── finance/                     (Phase 2)
-     ├── home/                        (Phase 2)
-├── src/                             (Phase 5)
-├── workers/                         (Phase 5)
-├── shared/                          (Phase 5)
-├── public/                          (Phase 5)
-└── teach/                           (teach skill workspace)
+
+不要让新 Session 重做已经完成的审查。
+
+### 没有 predecessor
+
+按任务需要读取：
+
+```text
+current repo evidence
+→ current entry docs
+→ task-specific authority
 ```
+
+没有 mandatory cold-start block，也不要求一次性加载整个文档树。
+
+### Handoff 原则
+
+一个好的 implementation handoff 应尽量包含：
+
+- current task scope；
+- 已经裁决、不得重开的结论；
+- 允许修改 / 禁止修改；
+- 关键 current evidence；
+- 验证与 acceptance boundary；
+- Git / deployment authority。
+
+判断层已经完成时，不要求 Codex 再做一遍同样的治理判断。
+
+---
+
+## 6. Git 与分支
+
+Git authority 以 `AGENTS.md` 为准，本文件不复制完整规则。
+
+Phase 8 的默认工作方式：
+
+- 有意义的功能、Bug、架构或复杂文档任务使用独立 `task/*` 或 `codex/*` branch；
+- 同一任务分支单机独占；
+- `main` 不是日常开发工作区；
+- 是否授权 Agent commit / push 由具体 handoff 明确说明；
+- 不允许 Agent 直接 push `main` 或自行 merge。
+
+---
+
+## 7. 验证与验收
+
+验证强度跟随风险，不为了“更完整”默认运行所有测试。
+
+| 风险 | 典型范围 | 最小要求 |
+| --- | --- | --- |
+| 低 | 文案、局部文档、无行为变化 | scoped diff / reference check |
+| 普通 | 模块功能、局部状态、UI 行为 | 相关 tests + build/typecheck（按需） |
+| 高 | DB、migration、auth、shared contract、CI/CD、production | 独立 review + 对应专项验证 |
+
+木下是最终产品与 acceptance 裁决者。Agent 的测试通过不等于用户体验自动接受。
+
+---
+
+## 8. Deployment 是独立边界
+
+以下状态必须分开：
+
+```text
+implementation complete
+≠ accepted
+≠ merged
+≠ deployed
+≠ production accepted
+```
+
+未经明确授权，普通 implementation session 不部署。
+
+需要上线时进入独立 Deployment task，按 `docs/DEPLOY.md` 核查：
+
+- source / target；
+- 受影响组件；
+- migration / binding / secret boundary；
+- deployment evidence；
+- production smoke；
+- rollback condition。
+
+Site、Feed、Finance 等组件可以处于不同 production source；不要为了 SHA 形式一致而重复部署没有变化的组件。
+
+Git HEAD、待发布 commit、production source 等易过期状态按需现场核验，不放进长期“当前状态看板”。
+
+---
+
+## 9. 文档传播与历史证据
+
+### Current-facing docs
+
+只在其职责真正受到影响时维护。
+
+### `docs/_archive/`
+
+用于保存版本化的 historical / superseded evidence。它不属于正常 current-truth reading path；只有历史追溯或 rationale 需要时再读取。
+
+### Existing historical namespaces
+
+Phase briefing、prototype、QA、reference design、ADR history 等历史材料可以保留当时语境，不要求 repo-wide 文案现代化。
+
+### CHANGELOG
+
+只记录已经发生的重要 repository / release history。它不是 Dashboard、dispatch queue 或实时 project status。
+
+---
+
+## 10. Phase 0–7 历史摘要
+
+Phase 0–7 已完成并进入历史：
+
+```text
+Phase 0  基础设施
+Phase 1  需求澄清
+Phase 2  规格化 / Acceptance
+Phase 3  架构设计
+Phase 4  UI / Prototype
+Phase 5  Implementation
+Phase 6  Test / QA
+Phase 7  Production Release
+Phase 8  Long-term Maintenance（当前）
+```
+
+早期阶段的详细要求、acceptance、briefing、prototype 和 QA 仍可用于历史追溯，但不再要求每个 Phase 8 任务顺序重走 Phase 1 → 7。
+
+如果新的真实需求足以改变 Product / Architecture，可以定向回到相应职责层处理，而不是把整个项目状态改回旧 Phase。
+
+---
+
+## 11. 木下的当前角色
+
+Phase 8 中木下主要负责：
+
+- 提出真实使用中的问题和需求；
+- 裁决 Product / Architecture / Design 分歧；
+- 验收重要用户体验；
+- 决定 merge / deployment / production mutation；
+- 决定哪些问题值得继续、哪些暂时 Observe。
+
+Agent 负责尽量降低完成这些判断所需的技术负担，而不是增加新的治理负担。
