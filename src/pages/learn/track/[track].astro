@@ -1,24 +1,28 @@
 ---
+export const prerender = false;
+
 import Base from '../../../layouts/Base.astro';
 import { getCollection } from 'astro:content';
 import NoteRow from '../../../components/learn/NoteRow.astro';
 import {
-  getPublishedNotes,
   getTrackDefinition,
   getTrackNotes,
   getTrackSections,
 } from '../../../components/learn/learn-data';
+import { loadPublicLearnNotes } from '../../../lib/server/learn-publications';
 import '../../../components/learn/learn.css';
 
-export async function getStaticPaths() {
-  const notes = getPublishedNotes(await getCollection('learn'));
-  const trackSlugs = [...new Set(notes.map((note) => note.track))];
-  return trackSlugs.map((track) => ({ params: { track }, props: { track } }));
+const trackSlug = Astro.params.track ?? '';
+let track;
+try {
+  track = getTrackDefinition(trackSlug);
+} catch {
+  return new Response('Learn track not found', { status: 404 });
 }
-
-const { track: trackSlug } = Astro.props;
-const track = getTrackDefinition(trackSlug);
-const notes = getTrackNotes(getPublishedNotes(await getCollection('learn')), trackSlug);
+const publicNotes = await loadPublicLearnNotes(Astro.request, await getCollection('learn'));
+if (!publicNotes) return new Response('Learn publication service unavailable', { status: 503 });
+const notes = getTrackNotes(publicNotes, trackSlug);
+if (notes.length === 0) return new Response('Learn track not found', { status: 404 });
 const sections = getTrackSections(notes);
 const unsectioned = notes.filter((note) => !note.section);
 const sectionId = (section: string) => `section-${section.toLocaleLowerCase('zh-CN').replace(/[^a-z0-9\u3400-\u9fff]+/g, '-')}`;

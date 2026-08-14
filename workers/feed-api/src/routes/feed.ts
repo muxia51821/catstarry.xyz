@@ -52,8 +52,11 @@ async function listPublic(request: Request, env: FeedEnv, store: FeedStore): Pro
   const rawCursor = url.searchParams.get('cursor');
   const cursor = rawCursor ? decodeCursor(rawCursor) ?? undefined : undefined;
   if (rawCursor && !cursor) return apiError(400, 'invalid_cursor', 'cursor is invalid');
-  const publishedBlogSlugs = await loadPublishedBlogSlugs(env);
-  return json(await store.listPublic(cursor, limit, publishedBlogSlugs));
+  const [publishedBlogSlugs, publishedLearnSlugs] = await Promise.all([
+    loadPublishedBlogSlugs(env),
+    loadPublishedLearnSlugs(env.DB),
+  ]);
+  return json(await store.listPublic(cursor, limit, publishedBlogSlugs, publishedLearnSlugs));
 }
 
 async function listAdmin(request: Request, env: FeedEnv, store: FeedStore): Promise<Response> {
@@ -78,18 +81,19 @@ async function listAdmin(request: Request, env: FeedEnv, store: FeedStore): Prom
   if (from === null || to === null || (from && to && from >= to)) {
     return apiError(400, 'invalid_date_range', 'from and to must be valid dates with from before to');
   }
-  const [page, publishedBlogSlugs] = await Promise.all([store.listAdmin({
+  const [page, publishedBlogSlugs, publishedLearnSlugs] = await Promise.all([store.listAdmin({
     visibility: visibility ?? undefined,
     type: type ?? undefined,
     from: from ?? undefined,
     to: to ?? undefined,
     cursor,
     limit,
-  }), loadPublishedBlogSlugs(env)]);
+  }), loadPublishedBlogSlugs(env), loadPublishedLearnSlugs(env.DB)]);
   const publishedBlogSlugSet = new Set(publishedBlogSlugs);
+  const publishedLearnSlugSet = new Set(publishedLearnSlugs);
   return json({
     ...page,
-    items: page.items.map((entry) => withProjectionState(entry, publishedBlogSlugSet)),
+    items: page.items.map((entry) => withProjectionState(entry, publishedBlogSlugSet, publishedLearnSlugSet)),
   });
 }
 
@@ -102,10 +106,28 @@ async function loadPublishedBlogSlugs(env: FeedEnv): Promise<string[]> {
     : [];
 }
 
-function withProjectionState(entry: TimelineEntry, publishedBlogSlugs: Set<string>): TimelineEntry {
+async function loadPublishedLearnSlugs(database: D1Database): Promise<string[]> {
+  const result = await database.prepare(
+    "SELECT slug FROM learn_publications WHERE visibility = 'public' ORDER BY slug",
+  ).all<{ slug: string }>();
+  return result.results.map((entry) => entry.slug);
+}
+
+function withProjectionState(
+  entry: TimelineEntry,
+  publishedBlogSlugs: Set<string>,
+  publishedLearnSlugs: Set<string>,
+): TimelineEntry {
   if (entry.visibility === 'private') return { ...entry, projection_state: 'own_private' };
   const footprint = entry.kind === 'system_footprint' ? entry.payload as PublicFootprint : null;
   if (footprint?.source_module === 'blog' && !publishedBlogSlugs.has(footprint.source_ref)) {
+    return { ...entry, projection_state: 'source_hidden' };
+  }
+  if (
+    footprint?.source_module === 'learn'
+    && footprint.event_type !== 'learn_section_completed'
+    && !publishedLearnSlugs.has(footprint.source_ref)
+  ) {
     return { ...entry, projection_state: 'source_hidden' };
   }
   return { ...entry, projection_state: 'public' };

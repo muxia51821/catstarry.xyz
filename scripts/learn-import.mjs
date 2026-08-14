@@ -12,7 +12,9 @@ const title = (options.title ?? htmlTitle ?? '').replace(/<[^>]+>/g, '').trim();
 if (!title) throw new Error('A title is required via --title or lesson HTML');
 const baseSlug = options.slug ?? slugifyTitle(title, options.translation ?? '');
 const slug = await uniqueLearnSlug(baseSlug);
-const { markdown, interactiveCount } = lessonHtmlToMarkdown(html);
+const bodyHtml = html.match(/<body\b[^>]*>([\s\S]*?)<\/body>/i)?.[1] ?? html;
+const { markdown, interactiveCount } = lessonHtmlToMarkdown(bodyHtml);
+const markdownBody = markdown.replace(/^# [^\n]+\n+/m, '');
 const outputDir = path.join('src/data/learn', options.track);
 const output = path.join(outputDir, `${slug}.md`);
 const tags = (options.tags ?? '').split(',').map((tag) => tag.trim()).filter(Boolean);
@@ -22,14 +24,13 @@ const frontmatter = [
   `title: ${JSON.stringify(title)}`,
   `track: ${options.track}`,
   `tags: ${JSON.stringify(tags)}`,
-  'state: draft',
   `excerpt: ${JSON.stringify(options.excerpt ?? '')}`,
   '---',
   '',
 ].join('\n');
 await mkdir(outputDir, { recursive: true });
-await writeFile(output, `${frontmatter}${markdown}`, { encoding: 'utf8', flag: 'wx' });
-console.log(JSON.stringify({ output, slug, state: 'draft', interactiveCount }, null, 2));
+await writeFile(output, `${frontmatter}${markdownBody}`, { encoding: 'utf8', flag: 'wx' });
+console.log(JSON.stringify({ output, slug, visibility: 'hidden', interactiveCount }, null, 2));
 
 function parseArgs(args) {
   const options = {};

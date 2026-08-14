@@ -99,8 +99,13 @@ export class FeedStore {
     cursor: Cursor | undefined,
     limit: number,
     publishedBlogSlugs: string[],
+    publishedLearnSlugs: string[],
   ): Promise<PaginatedResponse<TimelineEntry>> {
-    const page = await this.listTimeline({ cursor, limit, visibility: 'public' }, publishedBlogSlugs);
+    const page = await this.listTimeline(
+      { cursor, limit, visibility: 'public' },
+      publishedBlogSlugs,
+      publishedLearnSlugs,
+    );
     return page;
   }
 
@@ -226,7 +231,11 @@ export class FeedStore {
     return referenced;
   }
 
-  private async listTimeline(filters: AdminFilters, publishedBlogSlugs?: string[]): Promise<PaginatedResponse<TimelineEntry>> {
+  private async listTimeline(
+    filters: AdminFilters,
+    publishedBlogSlugs?: string[],
+    publishedLearnSlugs?: string[],
+  ): Promise<PaginatedResponse<TimelineEntry>> {
     const where: string[] = [];
     const values: (string | number)[] = [];
     if (filters.visibility) {
@@ -237,6 +246,12 @@ export class FeedStore {
       where.push(`(kind != 'system_footprint' OR source_module != 'blog'
         OR source_ref IN (SELECT value FROM json_each(?)))`);
       values.push(JSON.stringify(publishedBlogSlugs));
+    }
+    if (publishedLearnSlugs) {
+      where.push(`(kind != 'system_footprint' OR source_module != 'learn'
+        OR event_type = 'learn_section_completed'
+        OR source_ref IN (SELECT value FROM json_each(?)))`);
+      values.push(JSON.stringify(publishedLearnSlugs));
     }
     if (filters.type && ['note', 'clip'].includes(filters.type)) {
       where.push("(kind = 'native_post' AND type = ?)");

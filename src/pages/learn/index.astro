@@ -1,4 +1,6 @@
 ---
+export const prerender = false;
+
 import Base from '../../layouts/Base.astro';
 import { getCollection } from 'astro:content';
 import KnowledgeGraph from '../../components/learn/KnowledgeGraph.astro';
@@ -6,14 +8,15 @@ import LearnSearch from '../../components/learn/LearnSearch.astro';
 import NoteRow from '../../components/learn/NoteRow.astro';
 import {
   getActiveTracks,
-  getPublishedNotes,
   getRecentKnowledge,
   getTrackNotes,
 } from '../../components/learn/learn-data';
+import { loadPublicLearnNotes } from '../../lib/server/learn-publications';
 import '../../components/learn/learn.css';
 import { STAR_MAP_DESTINATION } from '../../lib/home-navigation';
 
-const notes = getPublishedNotes(await getCollection('learn'));
+const notes = await loadPublicLearnNotes(Astro.request, await getCollection('learn'));
+if (!notes) return new Response('Learn publication service unavailable', { status: 503 });
 const tracks = getActiveTracks(notes);
 const recentNotes = getRecentKnowledge(notes);
 ---

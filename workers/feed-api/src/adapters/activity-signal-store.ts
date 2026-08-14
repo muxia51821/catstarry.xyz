@@ -18,8 +18,10 @@ export class ActivitySignalStore {
   ) {}
 
   async readLatestActivity(publishedBlogSlugs: string[]): Promise<LatestActivity> {
-    const publicFootprint = `(visibility = 'public' AND (source_module != 'blog'
-      OR source_ref IN (SELECT value FROM json_each(?))))`;
+    const publicFootprint = `(visibility = 'public'
+      AND (source_module != 'blog' OR source_ref IN (SELECT value FROM json_each(?)))
+      AND (source_module != 'learn' OR event_type = 'learn_section_completed'
+        OR source_ref IN (SELECT slug FROM learn_publications WHERE visibility = 'public')))`;
     const [feedPost, footprints] = await Promise.all([
       this.database
         .prepare(

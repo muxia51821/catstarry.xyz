@@ -6,6 +6,7 @@ import Base from '../../../layouts/Base.astro';
 import LearnNoteView from '../../../components/learn/LearnNoteView.astro';
 import { noteFromEntry } from '../../../components/learn/learn-data';
 import { readOwnerSession } from '../../../lib/server/owner-auth';
+import { loadOwnerLearnPublications, mergeOwnerLearnNotes } from '../../../lib/server/learn-publications';
 import '../../../components/learn/learn.css';
 
 const previewHeaders = {
@@ -25,24 +26,16 @@ if (auth.state === 'unauthenticated') {
 if (unavailable) Astro.response.status = 503;
 
 const entries = authenticated ? await getCollection('learn') : [];
+const publications = authenticated ? await loadOwnerLearnPublications(Astro.request) : [];
+if (authenticated && !publications) unavailable = true;
 const entry = entries.find((candidate) => candidate.data.slug === Astro.params.slug);
 if (authenticated && !entry) Astro.response.status = 404;
-const note = entry ? noteFromEntry(entry) : null;
-const Content = entry ? (await render(entry)).Content : null;
-const localPublisher = localPublisherEnabled();
-const canPublish = Boolean(note && note.state === 'draft' && localPublisher);
-
-function localPublisherEnabled() {
-  const origin = import.meta.env.LOCAL_LEARN_PUBLISH_URL;
-  const token = import.meta.env.LOCAL_LEARN_PUBLISH_TOKEN;
-  if (!origin || !token) return false;
-  try {
-    const url = new URL(origin);
-    return url.protocol === 'http:' && ['127.0.0.1', 'localhost', '::1'].includes(url.hostname);
-  } catch {
-    return false;
-  }
-}
+const ownerNotes = publications ? mergeOwnerLearnNotes(entries, publications) : [];
+const note = entry ? ownerNotes.find((candidate) => candidate.slug === entry.data.slug) ?? noteFromEntry(entry) : null;
+const rendered = entry ? await render(entry) : null;
+const Content = rendered?.Content ?? null;
+const headings = rendered?.headings ?? [];
+if (unavailable) Astro.response.status = 503;
 ---
 
 <Base title={note ? `${note.title} · Private Preview` : 'Learn Private Preview'} description={note?.excerpt ?? '私有 Learn 内容预览。'}>
@@ -53,7 +46,7 @@ function localPublisherEnabled() {
     <main class="learn-page learn-private-state" data-canvas="content"><a href="/learn/admin/">← 返回 Learn 管理</a><h1>没有找到这篇 Learn 笔记</h1></main>
   ) : (
     <main class="learn-detail-page" data-canvas="content">
-      <LearnNoteView note={note} allNotes={entries.map(noteFromEntry)} Content={Content} preview canPublish={canPublish} />
+      <LearnNoteView note={note} allNotes={ownerNotes} Content={Content} headings={headings} preview />
     </main>
   )}
 </Base>

@@ -12,7 +12,45 @@ const astro = path.join(root, 'node_modules', 'astro', 'bin', 'astro.mjs');
 const [sessionPort, sitePort] = await freePorts(2);
 const sessionOrigin = `http://127.0.0.1:${sessionPort}`;
 const siteOrigin = `http://127.0.0.1:${sitePort}`;
-const sessionServer = createServer((request, response) => {
+let publicationRecords = [];
+const sessionServer = createServer(async (request, response) => {
+  if (request.url === '/api/learn/publications') {
+    if ((request.headers.cookie ?? '').includes('publication-error=1')) {
+      response.writeHead(503, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'unavailable' }));
+      return;
+    }
+    response.writeHead(200, { 'Content-Type': 'application/json' });
+    response.end(JSON.stringify({
+      entries: publicationRecords.filter((entry) => entry.visibility === 'public')
+        .map(({ slug, published_at }) => ({ slug, published_at })),
+    }));
+    return;
+  }
+  if (request.url === '/api/learn/admin/publications') {
+    if (!(request.headers.cookie ?? '').includes('preview-token=1')) {
+      response.writeHead(401, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'unauthorized' }));
+      return;
+    }
+    if (request.method === 'PATCH') {
+      const payload = JSON.parse(await requestBody(request));
+      const previous = publicationRecords.find((entry) => entry.slug === payload.slug);
+      const now = new Date().toISOString();
+      const entry = previous
+        ? { ...previous, visibility: payload.visibility, updated_at: now }
+        : {
+            slug: payload.slug,
+            visibility: 'public',
+            published_at: now,
+            last_revised_at: payload.revised_at ?? null,
+            updated_at: now,
+          };
+      publicationRecords = [...publicationRecords.filter((candidate) => candidate.slug !== entry.slug), entry];
+      response.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ entry, created: !previous }));
+      return;
+    }
+    response.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ entries: publicationRecords }));
+    return;
+  }
   if (request.url !== '/api/auth/session') {
     response.writeHead(404).end();
     return;
@@ -87,12 +125,8 @@ try {
   assert.match(authenticatedBody, /浏览器如何找到 catstarry\.xyz/);
   assert.match(authenticatedBody, /<meta name="robots" content="noindex,nofollow,noarchive"/);
   assert.doesNotMatch(authenticatedBody, /Publish locally/, 'production-like preview must not expose a writable Publish capability');
-  const unavailableLocalPublish = await fetch(`${siteOrigin}/learn/preview/publish`, {
-    method: 'POST',
-    headers: { Cookie: 'preview-token=1', 'Content-Type': 'application/json' },
-    body: JSON.stringify({ slug: 'domain-dns-http' }),
-  });
-  assert.equal(unavailableLocalPublish.status, 404, 'normal/production-like Astro context must have no local publisher');
+  assert.match(authenticatedBody, /data-learn-chapter-nav/);
+  assert.equal((authenticatedBody.match(/<h1/g) ?? []).length, 1, 'Preview must render exactly one page H1');
 
   const gitDraft = await fetch(`${siteOrigin}/learn/preview/git-recovery-reflog-reset/`, {
     headers: { Cookie: 'preview-token=1' },
@@ -113,6 +147,31 @@ try {
   assert.equal(publicDraft.status, 404);
   assert.doesNotMatch(await publicDraft.text(), /域名、DNS 与 HTTP/);
 
+  const publishThroughAdmin = await fetch(`${siteOrigin}/learn/admin/lifecycle`, {
+    method: 'PATCH',
+    headers: { Cookie: 'preview-token=1', 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      slug: 'domain-dns-http',
+      visibility: 'public',
+      title: '域名、DNS 与 HTTP：浏览器如何找到 catstarry.xyz',
+      excerpt: 'runtime publication fixture',
+      revised_at: null,
+    }),
+  });
+  assert.equal(publishThroughAdmin.status, 200);
+  const publicRuntime = await fetch(`${siteOrigin}/learn/notes/domain-dns-http/`);
+  assert.equal(publicRuntime.status, 200, 'runtime Public must become readable without rebuilding Astro');
+  const publicRuntimeBody = await publicRuntime.text();
+  assert.match(publicRuntimeBody, /data-learn-chapter-nav/);
+  const firstH2Anchor = publicRuntimeBody.match(/<h2 id="([^"]+)"/)?.[1];
+  assert.ok(firstH2Anchor, 'published fixture must render an H2 anchor');
+  assert.ok(publicRuntimeBody.includes(`href="#${firstH2Anchor}"`), 'chapter navigation must use rendered H2 anchors');
+  assert.equal((publicRuntimeBody.match(/<h1/g) ?? []).length, 1, 'Public Note must render exactly one page H1');
+
+  publicationRecords = publicationRecords.map((entry) => ({ ...entry, visibility: 'hidden' }));
+  assert.equal((await fetch(`${siteOrigin}/learn/notes/domain-dns-http/`)).status, 404);
+  assert.equal((await fetch(`${siteOrigin}/learn/`, { headers: { Cookie: 'publication-error=1' } })).status, 503);
+
   for (const [slug, title] of [
     ['vibe-coding-mission', 'Vibe Coding：与 AI 协作的学习任务'],
     ['site-context-and-terms', 'catstarry.xyz 项目上下文与术语'],
@@ -120,7 +179,7 @@ try {
     ['english-reading-resources', '英语：阅读技术文档与日常输入'],
     ['typing-foundation', '打字：把想法稳定地转成输出'],
   ]) {
-    const withdrawn = await fetch(`${siteOrigin}/learn/notes/${slug}/`);
+    const withdrawn = await fetch(`${siteOrigin}/learn/notes/${slug}/`, { headers: { Cookie: 'publication-error=1' } });
     assert.equal(withdrawn.status, 200, slug);
     const withdrawnBody = await withdrawn.text();
     assert.match(withdrawnBody, /此笔记已退出当前 Learn corpus；页面暂时保留用于历史链接。/, slug);
@@ -138,14 +197,19 @@ try {
   ]) assert.doesNotMatch(learnHomeBody, new RegExp(title));
 
   const adminSource = await readFile(path.join(root, 'src', 'pages', 'learn', 'admin.astro'), 'utf8');
-  assert.match(adminSource, /learn\/preview\/\$\{note\.slug\}/);
-  assert.match(adminSource, />预览<\/a>/);
+  assert.match(adminSource, /LearnLifecycleAdmin/);
   assert.match(adminSource, /href="\/feed\/admin\/"/);
+  const adminComponent = await readFile(path.join(root, 'src', 'components', 'learn', 'LearnLifecycleAdmin.tsx'), 'utf8');
+  assert.match(adminComponent, /learn\/preview\/\$\{encodeURIComponent\(entry\.slug\)\}/);
+  assert.match(adminComponent, />预览<\/a>/);
+  assert.match(adminComponent, /\? 'Show' : 'Publish'/);
   const previewSource = await readFile(path.join(root, 'src', 'pages', 'learn', 'preview', '[slug].astro'), 'utf8');
-  assert.match(previewSource, /LOCAL_LEARN_PUBLISH_URL/);
-  const publishRoute = await readFile(path.join(root, 'src', 'pages', 'learn', 'preview', 'publish.ts'), 'utf8');
-  assert.match(publishRoute, /Owner authentication required/);
-  assert.match(publishRoute, /Not found/);
+  assert.doesNotMatch(previewSource, /LOCAL_LEARN_PUBLISH/);
+  const noteViewSource = await readFile(path.join(root, 'src', 'components', 'learn', 'LearnNoteView.astro'), 'utf8');
+  assert.match(noteViewSource, /chapters\.length >= 2/);
+  assert.match(noteViewSource, /heading\.depth === 2/);
+  const learnCssSource = await readFile(path.join(root, 'src', 'components', 'learn', 'learn.css'), 'utf8');
+  assert.match(learnCssSource, /min-inline-size:\s*var\(--interaction-hit-size\)/);
   const learnRouteSource = await readFile(path.join(root, 'workers', 'feed-api', 'src', 'routes', 'learn.ts'), 'utf8');
   assert.doesNotMatch(learnRouteSource, /completeSection|requestPublication|learn_section_completed/);
   console.log('Learn preview contract passed.');
@@ -214,5 +278,15 @@ function closeServer(server) {
   return new Promise((resolve) => {
     if (!server.listening) return resolve();
     server.close(() => resolve());
+  });
+}
+
+function requestBody(request) {
+  return new Promise((resolve, reject) => {
+    let body = '';
+    request.setEncoding('utf8');
+    request.on('data', (chunk) => { body += chunk; });
+    request.once('end', () => resolve(body));
+    request.once('error', reject);
   });
 }

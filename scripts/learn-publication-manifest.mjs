@@ -12,7 +12,7 @@ const response = await fetch(`${apiBase.toString().replace(/\/$/, '')}/api/learn
   method: 'POST',
   headers: { Authorization: `Bearer ${process.env.FOOTPRINT_INGEST_TOKEN}`, 'Content-Type': 'application/json' },
   body: JSON.stringify({
-    schema_version: 2,
+    schema_version: 3,
     deployed_at: new Date().toISOString(),
     entries: await readLearnPublicationEntries(),
   }),
