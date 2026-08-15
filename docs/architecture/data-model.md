@@ -142,12 +142,15 @@ Home Activity Signal 不是 D1 表、不是 Public Timeline 的缩略响应，�
 | --- | --- |
 | 允许字段 | `schema_version` + 四个 module 的 `state` |
 | 状态 | `active`（≤7 天）、`stable`（>7 且≤60 天）、`dormant`（>60 天或无公开活动） |
-| 来源 | Blog / Learn / Projects 使用最新公开 Footprint；Feed 使用公开 native / Footprint 中较新者 |
+| Blog 来源 | 最新 `visibility='public'` 且 source 仍在当前 published Blog set 的 Blog Footprint |
+| Learn 来源 | 正常 Note Footprint 需 source 位于 `learn_publications.visibility='public'`；legacy `learn_section_completed` 保留兼容资格 |
+| Projects 来源 | 最新 public Project Footprint |
+| Feed 来源 | public native Feed 与上述合资格 public Footprint 中较新的活动时间 |
 | About | 不进入 projection |
 | 禁止 | 内容、标题、摘要、链接、精确时间、数量、unread/read |
 | unavailable | Home 隐藏信号卫星，不映射成 `dormant` |
 
-Projection 在相关公开事件 / visibility 变化后刷新，并由 hourly scheduled refresh 覆盖时间阈值自然迁移。
+Projection 在相关公开事件 / visibility / publication lifecycle 变化后刷新，并由 hourly scheduled refresh 覆盖时间阈值自然迁移。该对象是派生状态，不反向成为来源事件事实。
 
 ### 1.5 `blog_views`
 
@@ -236,6 +239,8 @@ Repository migration `0004_learn_publications.sql` 定义该表；远端环境�
 
 ## 2. Finance D1 — `finance-db`
 
+Finance schema 已跨 `0001`–`0006` migrations 演进。本节维护当前概念表族与关键核心表；逐列定义、index、trigger 与 migration order 仍以 Finance migrations 为准。
+
 ### 2.1 `trades`
 
 A 股 / ETF 交易业务字段：
@@ -255,7 +260,7 @@ CREATE TABLE IF NOT EXISTS trades (
 );
 ```
 
-Current migrations 另包含 creator/updater、soft-delete、review metadata，并由 Finance audit tables 保存重要变更。
+Current migrations 另包含 creator/updater、soft-delete、review metadata，并由 `finance_trade_audit` 保存交易重要变更。
 
 ### 2.2 `holdings_snapshots`
 
@@ -271,6 +276,8 @@ CREATE TABLE IF NOT EXISTS holdings_snapshots (
 );
 ```
 
+`refreshMarketData()` 使用最新正数量持仓快照确定 built-in provider 需要刷新的 active holding tickers。
+
 ### 2.3 `market_data`
 
 ```sql
@@ -284,6 +291,8 @@ CREATE TABLE IF NOT EXISTS market_data (
 );
 ```
 
+保存持仓报价与 PE-TTM records；指数展示快照使用独立 `finance_market_indexes`。
+
 ### 2.4 `circuit_breaker_log`
 
 ```sql
@@ -296,7 +305,23 @@ CREATE TABLE IF NOT EXISTS circuit_breaker_log (
 );
 ```
 
-Finance migrations 还包含指数、月度记录、计划参数、现金流、资产快照、仓位 / investment rules / memo / rebalance、访问记录、导入 / review 与 audit tables。逐表 schema 直接读取 Finance migrations。
+### 2.5 Current Finance table-family registry
+
+| Family | Current tables | 职责 |
+| --- | --- | --- |
+| Trading / holdings | `trades`, `holdings_snapshots`, `finance_trade_audit` | 交易、持仓快照与交易审计 |
+| Market | `market_data`, `finance_market_indexes` | 持仓/PE records 与指数快照 |
+| Limits / reviews | `position_limits`, `annual_reviews`, `monthly_confirmations`, `finance_review_confirmations`, `finance_circuit_resolution_confirmations` | 仓位约束、年度/月度确认与熔断解除确认 |
+| Monthly / plan | `monthly_records`, `plan_params`, `finance_plan_audit` | 月度记录、长期计划参数与计划审计 |
+| Cash / assets | `finance_cash_flows`, `finance_asset_snapshots`, `finance_cash_flow_audit` | 真实现金流、资产快照与现金流审计 |
+| Stewardship | `finance_investment_rules`, `finance_rule_audit`, `finance_memos`, `finance_rebalance_records` | 投资规则、备忘录与再平衡记录 |
+| Access / import | `finance_access_log`, `finance_import_batches`, `finance_import_review` | 访问记录与基础导入/review |
+| Workbook import | `finance_workbook_imports`, `finance_workbook_review`, `finance_workbook_review_audit` | workbook 导入、待复核行与 resolution audit |
+| Circuit | `circuit_breaker_log` | 熔断触发与 resolved state |
+
+`finance_accounts` 曾在 `0003_candidate_parity.sql` 创建，但 `0004_financial_stewardship.sql` 明确删除；它不是 current Finance table。
+
+这个 registry 用于让维护者知道某个 Finance 数据概念应去哪个表族查找；它不替代 migrations 的逐表 schema，也不表示 repository migration 文件已经在某个远端环境应用。
 
 ---
 
@@ -324,7 +349,7 @@ Finance migrations 还包含指数、月度记录、计划参数、现金流、�
 | `catstarry-media` | `feed/{YYYY-MM}/{uuid}.{ext}` | Feed media |
 | `home-projections` | `activity-signals.json` | Home Activity Signal static projection |
 
-Account-level delivery / CORS configuration belongs to Cloudflare environment wiring, not this repository data model.
+Account-level delivery / CORS configuration belongs to Cloudflare environment wiring, not this repository data model。
 
 ---
 
@@ -336,7 +361,7 @@ Account-level delivery / CORS configuration belongs to Cloudflare environment wi
 
 主要字段：`title`、`date`、`category`、`tags`、`description`、`slug?`、`state` (`draft|published|withdrawn`) 以及 legacy / optional fields。
 
-`publication_id` 是当前不参与 publication identity 的 optional field；publication lifecycle 由 runtime Blog state 与 current sync contract决定。
+`publication_id` 是当前不参与 publication identity 的 optional field；publication lifecycle 由 runtime Blog state 与 current sync contract 决定。
 
 ### 5.2 Learn
 
@@ -367,7 +392,7 @@ first-production-v1 footprint（幂等）
 - first publication idempotency key：`blog:{slug}:first-production-v1`；
 - source `state` 为 `draft` / `published` / `withdrawn`；
 - initial lifecycle baseline 不回填历史 Blog publication footprint；
-- baseline 之后，never-published source 第一次进入 `published` 可由 eligible deploy sync 或 owner lifecycle action创建 first footprint；
+- baseline 之后，never-published source 第一次进入 `published` 可由 eligible deploy sync 或 owner lifecycle action 创建 first footprint；
 - Withdraw / Restore 不重复 first publication；
 - 普通编辑、失败 deploy 和重复 sync 不制造 duplicate；
 - `publication_id` 不属于 current Blog publication identity。
@@ -417,5 +442,10 @@ R2
   Home activity projection
 
 finance-db
-  trades / holdings / market / cash-flow / asset / risk / review / audit
+  trades / holdings_snapshots
+  market_data / finance_market_indexes
+  monthly_records / plan_params
+  finance_cash_flows / finance_asset_snapshots
+  position_limits / finance_investment_rules / finance_memos / finance_rebalance_records
+  access / import / workbook-review / audit families
 ```
