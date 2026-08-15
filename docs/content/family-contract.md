@@ -3,45 +3,34 @@
 **Version:** v1 — Canonical
 **Date:** 2026-08-10
 **Scope:** Blog / Feed / Learn / Projects
-**Family state:** RECONCILED / FROZEN for implementation
-**Closed modules:** Blog / Feed / Learn / Projects
-**Learn decision baseline:** Product / Architecture / Visual Reality Check COMPLETE; implementation ACCEPTED / MERGED
-**Purpose:** Govern shared Content Family semantics, module exceptions, and cross-module product boundaries
+**State:** RECONCILED / FROZEN
+**Purpose:** Shared Content Family semantics, module exceptions, and cross-module Product contracts
 
-> 本合同描述当前 canonical Product governance state。Content Family 的 closure-era integration / release 已完成；当前 Git、deployment 与 production 状态不由本合同充当 live status source，应在需要时按当前证据核验。
-
-原子 Product 决策、状态与历史验收 traceability 见 [`master-ledger.md`](master-ledger.md)。历史冲突 rationale 与旧 implementation sequencing 已归档于 [`../_archive/content-governance/reconciliation-register.md`](../_archive/content-governance/reconciliation-register.md) 和 [`../_archive/content-governance/implementation-dependency-map.md`](../_archive/content-governance/implementation-dependency-map.md)；它们不是当前 Phase 8 执行计划。
+Atomic decisions and module-local closure truth are recorded in [`master-ledger.md`](master-ledger.md).
 
 ---
 
-## 0. Authority and state boundary
+## 0. Product authority and state
 
-### 0.1 Authority order
-
-1. 木下之后最新的明确裁决。
-2. 真正的 Family-shared question：本合同与 Master Ledger。
-3. 已关闭的 module-local question：对应 Module Closure truth，由 Master Ledger 的模块原子条目持久化。
-4. Accepted ADR / architecture：负责技术边界，不得自行重开已关闭 Product Truth。
-5. Current implementation：提供 implementation truth / evidence，不自动成为 design authority。
-6. 历史 requirements、prototype 与旧实现：只在未被后期裁决 Supersede 时继续有效。
+1. 木下最新的明确裁决拥有最高 Product authority。
+2. Family-shared question 由本合同与 Master Ledger 约束。
+3. 已关闭的 module-local question 由对应 Closure truth 约束。
+4. Architecture / implementation 不得自行重写已确认的 Product semantics。
 
 > **Family governs shared language; Closure governs closed module semantics.**
 
-遇到看似冲突时，先判断问题属于 shared contract 还是 module-local semantics，不得机械用一份文档跨职责覆盖另一份。
+Current Product state:
 
-### 0.2 Decision state is not implementation state
+| Scope | State |
+| --- | --- |
+| Content Family | RECONCILED / FROZEN |
+| Blog | CLOSED |
+| Feed | CLOSED |
+| Projects | CLOSED |
+| Learn | CLOSED |
+| Feed × Learn semantic integration | CLOSED |
 
-- Family shared rules：RECONCILED / FROZEN for implementation。
-- Blog：CLOSED。
-- Feed：CLOSED。
-- Projects：CLOSED。
-- Learn：Product / Architecture / Visual Reality Check COMPLETE；implementation ACCEPTED / MERGED。
-- Closure-era implementation：Blog / Projects 已 ACCEPTED 并 FROZEN；Feed / Learn 已 ACCEPTED / MERGED；Feed × Learn semantic integration CLOSED。
-- Closure-era Content integration / production acceptance 已完成；这是一项历史完成事实，不代表任意未来 `main` HEAD 自动等于当前 deployed / production-accepted state。
-
-> **Current implementation does not automatically override later Product Closure.**
-
-Confirmed 但尚未实现属于 implementation gap；Revalidate 是明确待复核事项；Superseded 不得因旧代码仍存在而恢复；Parked 不是当前承诺，也不是 implementation gap。
+Confirmed、Revalidate、Superseded、Parked 是 Product decision states。Parked capability 不是 implementation gap。
 
 ---
 
@@ -58,7 +47,7 @@ Content Family 的共同环境是 **Cream Gallery**：
 - shared typography roles；
 - shared interaction / accessibility language。
 
-Cream Gallery 是共同物理环境，不是共同页面模板。以下模块表达可以同时成立：
+Cream Gallery 是共同物理环境，不是共同页面模板：
 
 - Blog：Paper / editorial reading；
 - Feed：Quiet Deposition / chronology；
@@ -67,7 +56,7 @@ Cream Gallery 是共同物理环境，不是共同页面模板。以下模块表
 
 ### 1.2 Family is not a template
 
-Shared family language does not imply shared information architecture, composition, or layout。不得从 Family consistency 推导相同的：
+Family consistency 不要求共享：
 
 - header / hero；
 - Card；
@@ -75,6 +64,7 @@ Shared family language does not imply shared information architecture, compositi
 - metadata slots；
 - pagination；
 - footer；
+- radius；
 - hover behavior。
 
 ### 1.3 Opening and navigation hierarchy
@@ -84,15 +74,21 @@ Content Family 共享 opening rhythm、hierarchy language、copy discipline 与 
 - Blog：Title only 合法。
 - Feed：Title + Intro + module utility 合法。
 - Projects：Eyebrow + Title + Intro 合法。
-- Eyebrow 是 optional semantic element，不是 Opening mandatory slot。
+- Eyebrow 是 optional semantic element。
 
-Top-level Content module 使用 `返回星图` 作为 global exit；其语义目标是 Home 的 **Star Map / Overview**，不是重新回到 Home Entry。具体 URL 由 current navigation implementation 维护。
+Top-level Content module 的 global exit 是 `返回星图`，目标语义是 Home **Star Map / Overview**，不是 Home Entry。
 
-Nested child 优先返回真正的 structural parent：Blog Article → Blog 已确认。Learn 的 canonical hierarchy 为 Learn corpus → Track browse / Public Note；Track 是 Public Note 的 domain context，不是 Note identity parent，因此 Public Note 的 primary return target 是 Learn corpus，而不是被强制嵌套到 Track tree。
+Nested child 优先返回真正的 structural parent：
+
+- Blog Article → Blog；
+- Learn Track → Learn corpus；
+- Learn Public Note → Learn corpus。
+
+Track 是 Public Note 的 domain context，不是 Note identity parent。
 
 ### 1.4 Width follows surface function
 
-Content Family 没有 universal max-width。可以共享 spacing、page gutter 与 breakpoint philosophy，但 Reading、Archive、Timeline、Grid 的 measure 由 surface function 决定。
+Content Family 没有 universal max-width。Reading、Archive、Timeline、Grid 的 measure 由 surface function 决定。
 
 ---
 
@@ -100,18 +96,18 @@ Content Family 没有 universal max-width。可以共享 spacing、page gutter �
 
 ### 2.1 Surface semantics
 
-Surface model 保留：
+Surface model：
 
 - S0 Canvas；
 - S1 Structural Plane；
 - S2 Object Surface；
 - S3 Overlay / Elevated。
 
-Surface level 描述 semantic role 与 separation strength，不规定固定视觉 treatment。
+Surface level 描述 semantic role 与 separation strength，不规定固定 visual treatment。
 
 > **S2 ≠ Full Card.**
 
-- Blog Archive Entry 有独立文章身份，但不是 Full Card。
+- Blog Archive Entry 有 object identity，但不是 Full Card。
 - Feed Activity 是 S2 object rank，但 D — Quiet Deposition 不使用 full background、border 或 shadow。
 - Project 是完整 destination object，因此 Full Object Card 合法。
 
@@ -123,33 +119,29 @@ Card 需要同时具备：
 2. Unit Behavior；
 3. Boundary Necessity。
 
-通过 Card Admission 只表示 visible object boundary 可以成立，不表示必须拥有 fill、border、radius、shadow 或 lift；这些属于 Surface Treatment。
+通过 Card Admission 不等于必须拥有 fill、border、radius、shadow 或 lift。
 
 > **There is no universal Content Card.**
 
-代码可以共享 primitive，但 Shared primitive ≠ shared final appearance。不得用统一 final Card appearance 覆盖 Blog、Feed、Learn、Projects。
+Shared primitive ≠ shared final appearance。
 
 ### 2.3 Elevation
 
-Elevation 是 opt-in、semantic、module-proven 的能力，不是 Content Family 默认 surface grammar。
+Elevation 是 opt-in、semantic、module-proven 的能力。
 
-- Projects 的 static shadow、hover lift、stronger hover shadow 是 Confirmed module exception，必须保留。
+- Projects 的 static shadow、hover lift、stronger hover shadow 是 Confirmed module exception。
 - Blog Archive、Blog Reading Paper 与 Feed Activity 不使用 shadow。
 - Projects exception 不传播给其他模块。
 
 ### 2.4 Hairline and Radius
 
-Hairline 是主要 structural grammar，其强度服从结构职责：Blog entry boundary、Feed chronology/internal boundary、Projects object boundary 可以不同。
+Hairline 的强度服从结构职责。
 
-Radius 是 shared material parameter，不是 required Family property：
-
-- surface 需要 radius 时优先使用 shared token；
-- surface 不需要时，no radius 合法；
-- radius token 的存在不要求 Blog Paper、Feed Activity 或 Learn structural plane 圆角化。
+Radius 是 optional shared material parameter：存在 shared radius token 不要求所有 Content surface 使用 radius。
 
 ### 2.5 Interaction ceiling
 
-一个 object 通常只需要一个清晰的 semantic interaction response。已有 content reveal、lift、color shift 或 explicit action 后，不再叠加无必要的 border、underline、zoom、badge motion、CTA reveal、glow 或多重 simultaneous shifts。
+一个 object 通常只需要一个清晰的 semantic interaction response。已有 content reveal、lift、color shift 或 explicit action 后，不叠加无必要的 border、underline、zoom、badge motion、CTA reveal、glow 或多重 simultaneous shifts。
 
 - Blog：Summary reveal + Title Klein Blue 已足够。
 - Projects：lift + shadow + arrow Klein Blue 已达到 ceiling。
@@ -163,44 +155,38 @@ Radius 是 shared material parameter，不是 required Family property：
 
 > **Share semantic tokens; do not force shared appearance.**
 
-可共享的 semantic domains：
+可共享 semantic domains：
 
-| Domain | Candidate semantics |
+| Domain | Semantics |
 | --- | --- |
 | Color | Cream Canvas、Warm Ink、Warm Neutral、Warm Hairline、Klein Blue |
-| Interaction | focus color、focus width/offset bands、disabled treatment、reduced-motion handling |
-| Structure | spacing scale、line opacity bands、radius scale、elevation scale |
+| Interaction | focus、disabled、reduced-motion handling |
+| Structure | spacing、line opacity、radius、elevation scales |
 
-Shared token 的存在不要求所有模块调用。Shadow、Radius、Surface token 均不得被解释为跨模块视觉义务。
+Shared token 的存在不要求所有模块调用。
 
 ### 3.2 Klein Blue
 
-Klein Blue 是 low-area、high-purity、continuously perceptible Brand Voltage，主要用于 link、focus、selected interaction 或确有语义的局部 action。
+Klein Blue 是 low-area、high-purity、continuously perceptible Brand Voltage，主要用于 link、focus、selected interaction 或明确 action。
 
-它不成为 large background、module theme、Card fill、category system 或 all-heading color。
+不作为 large background、module theme、Card fill、category system 或 all-heading color。
 
 ### 3.3 Category and module color
 
-Category / module color 是 tertiary-or-lower auxiliary signal。允许 single-use、low-area、noninteractive weak identity marker，但它必须局部、极弱，不承担 interaction、state 或 module palette。
+Category / module color 是 tertiary-or-lower auxiliary signal。允许 single-use、low-area、noninteractive weak identity marker，但不承担 interaction、state 或 module palette。
 
 Projects 的 `SELECTED WORKS` 可保留极弱 orange；该 orange 不扩展到 arrow、Card、border、Tags、links 或 background。
 
 ### 3.4 Typography, Mono, and metadata
 
-T0–T5 typography role system 保留。层级原则：
-
 > **Primary meaning outranks structural metadata; structural metadata outranks auxiliary metadata; decoration comes last.**
 
-- Blog：Title / Summary > taxonomy / views。
-- Feed：Content > structural time / type metadata。
-- Projects：Project > Description > Tech。
-
-Mono 是 role-based，不是 module-based。它只用于真实 structural metadata 或 machine/technical metadata，不因 Feed 是 timeline、Projects 是技术项目而整页 Mono 化。
+Mono 是 role-based，不是 module-based。
 
 Metadata is earned, not filled：
 
 - Data existence does not create public UI entitlement。
-- Metadata density follows semantic need, not schema completeness。
+- Metadata density follows semantic need。
 - Projects 的 date / visibility / updateId 不因存在就必须公开显示。
 - Feed 不同 Activity 字段可以不同，但 object rank 相同。
 
@@ -208,11 +194,9 @@ Metadata is earned, not filled：
 
 Tag 是 semantic data concept，不是 universal visual component。
 
-- Blog taxonomy Tag：可点击、plain text、承担 discovery/navigation。
-- Projects annotation Tag：可使用 light bounded unit、noninteractive、low contrast、small radius。
-- Learn Tag：当前主要承担 retrieval / search metadata，不因此获得默认 visible pill treatment。
-
-字段同名不构成共享 pill component 的理由。
+- Blog taxonomy Tag：plain clickable text，承担 discovery/navigation。
+- Projects annotation Tag：light bounded、noninteractive、low contrast。
+- Learn Tag：retrieval / search metadata，不默认显示为 pill。
 
 ---
 
@@ -220,41 +204,33 @@ Tag 是 semantic data concept，不是 universal visual component。
 
 ### 4.1 Destination semantics
 
-Destination affordance 服从 object role：
-
-| Object role | Affordance | Canonical example |
+| Object role | Affordance | Example |
 | --- | --- | --- |
-| Destination Object | whole-object link 合法，不重复 CTA | Projects Project Card |
-| Record with Destination | explicit destination action；record 本身不 whole-card clickable | Feed Activity |
-| Editorial Navigation | 使用模块自己的 archive / reading grammar | Blog |
+| Destination Object | whole-object link 合法，不重复 CTA | Project Card |
+| Record with Destination | explicit destination action；record 不 whole-card clickable | Feed Activity |
+| Editorial Navigation | module-specific archive / reading grammar | Blog |
 
-Arrow 是轻量 semantic convention：`→` 表示站内 continuation / destination，`↗` 表示明确 external destination；并非所有 link 都必须显示 arrow。
+`→` 表示站内 continuation / destination；`↗` 表示明确 external destination。不是所有 link 都必须显示 arrow。
 
-### 4.2 Semantic time and chronology
+### 4.2 Time and chronology
 
-Time prominence 与 presentation 服从 object semantics 和 user task：
-
-- Blog：`MM.DD`，低权重 archival context；
-- Feed：Year → `MM.DD` → `HH:mm`，chronology 是核心 identity；
+- Blog：`MM.DD`，低权重 archival context。
+- Feed：Year → `MM.DD` → `HH:mm`，chronology 是核心 identity。
 - Projects：不显示 Date。
 
-Family 可以复用 formatter/token，不统一 layout/hierarchy。Chronology 与 historical browsing 保持 module-specific：
+Historical browsing 保持 module-specific：
 
 - Blog：有时间感但不是 timeline；quiet newer / older navigation。
-- Feed：timeline；Load More → `更早的内容` → `止步于此。`。
-- Projects：无 timeline，当前无 pagination。
+- Feed：timeline；`更早的内容` → `止步于此。`。
+- Projects：无 timeline。
 
-### 4.3 Public Copy and internal vocabulary
+### 4.3 Public Copy
 
 Public Copy 解释 content、meaning、state 和 available action，不解释 implementation mechanics。
 
-不得向访客暴露 deployment、storage、index、eligibility、publishing mechanics、API、Worker、D1、internal query 或 event discriminator。
+Internal schema / event vocabulary 不自动成为 Public Copy。
 
-Internal data/schema/event vocabulary 不自动成为 Public Copy。`system_footprint`、`visibility`、`updateId`、`materially updated` 可以内部存在，但不因此显示给访客。
-
-Public error copy 可以说明什么暂时不可用并提供 Retry/action，但仍不得泄露内部机制。
-
-Family voice 可以自然、有人格、有少量文学性，但避免明显 AI 腔；不强制四个模块建立刻意不同的 voice system。
+Family voice 可以自然、有人格、有少量文学性，但避免明显 AI 腔；不要求四模块刻意建立不同 voice system。
 
 ---
 
@@ -262,13 +238,11 @@ Family voice 可以自然、有人格、有少量文学性，但避免明显 AI 
 
 ### 5.1 Motion and reduced motion
 
-Motion 服务 content 或 interaction semantics，不服务 decorative activity。Blog Summary reveal、Projects object lift、functional overlay transition 合法；gratuitous floating、glow motion、endless animation 与全 Family 同款 hover animation 不作为默认。
-
-Reduced motion 后，meaning 与 capability 必须完整保留。装饰性 motion 可以减弱或移除，信息和操作不能消失。
+Motion 服务 content 或 interaction semantics，不服务 decorative activity。Reduced motion 后，meaning 与 capability 必须完整保留。
 
 ### 5.2 Desktop hover → mobile complete equivalent
 
-Desktop hover affordance 必须具有完整 non-hover touch/mobile equivalent；移动端不模拟相同 animation，但必须保留 information、action 与 understandable state。
+Desktop hover affordance 必须有完整 non-hover equivalent：
 
 - Blog：Desktop Summary reveal → Mobile Summary visible。
 - Feed：destination、Manage、media 不依赖 hover。
@@ -276,11 +250,9 @@ Desktop hover affordance 必须具有完整 non-hover touch/mobile equivalent；
 
 ### 5.3 Responsive reflow
 
-Mobile 是同一 product logic 的 reflow，不是 Desktop 缩小版，也不是第二套产品。Family 共享 gutter language 与 accessibility principles；各模块 breakpoint 由 actual layout failure point 决定，不要求数值完全一致。
+Mobile 是同一 Product logic 的 reflow，不是 Desktop 缩小版，也不是第二套产品。Breakpoints 由实际 layout failure point 决定，不要求模块数值一致。
 
 ### 5.4 Media role
-
-Media behavior 服从 content role：
 
 - Blog media：Reading content；
 - Feed native media：Activity content；
@@ -289,63 +261,50 @@ Media behavior 服从 content role：
 
 Family 不统一 aspect ratio、crop、click behavior、viewer 或 size。
 
-Local dark surface 可在功能或内容确有需要时存在，例如 Blog code block、Feed media viewer/video area、Projects screenshot 内部 dark UI；Cream Gallery 仍是 surrounding environment。
-
 ---
 
 ## 6. States, growth, ending, and owner tooling
 
 ### 6.1 Empty / Loading / Error
 
-Empty state 表示真实 content absence，保持 simple、human、module-consistent；不制造 fake Card、debug copy、eligibility explanation、onboarding、unearned CTA。
+Empty state 表示真实 content absence，保持 simple、human、module-consistent；不制造 fake Card、debug copy、onboarding 或 unearned CTA。
 
-Loading / Error 只在模块真实存在 runtime state 时要求完整设计。某一模块存在动态读取或运行时失败路径，不构成给整个 Family 复制同一套 Loading / Error system 的理由；已有状态必须保持模块自身视觉 identity。
+Loading / Error 只在模块真实存在 runtime state 时设计，不因为某一模块动态化就给整个 Family 复制同一状态系统。
 
 ### 6.2 Visual Completeness and plausible growth
 
-Visual Completeness = hierarchy + state + rhythm + continuity + finish，不等于堆功能，也不得通过虚构 product capabilities 达成。
+Visual Completeness = hierarchy + state + rhythm + continuity + finish，不等于堆功能。
 
-- Blog 没有 Featured / Popular / Search，不等于不完整。
-- Feed 没有 Search / social / infinite scroll，不等于不完整。
-- Projects 没有 Stats / More Projects / Contact CTA，不等于不完整。
-
-设计应容纳 plausible growth；只有真实 browsing、organization 或 management problem 出现后才建设 scale machinery。Blog Year context = Revalidate；Feed Year/Month Jump = Parked；Projects Archive/Featured = Parked。
+只有真实 browsing、organization 或 management problem 出现后才建设 scale machinery。
 
 ### 6.3 Intentional ending
 
-每个 Content surface 都需要 intentional ending。Ending 可由 natural whitespace、pagination end、navigation、related navigation、discussion、shared footer 或其他有语义的 conclusion 形成。
+每个 Content surface 都需要 intentional ending，但不要求统一 Footer。
+
+- Blog：由 reading / related navigation / discussion 等既有结构自然收束。
+- Feed：timeline ending 明确结束 chronology。
+- Projects：natural bottom rhythm 合法，不以 filler section 填空间。
+- Learn Home：Knowledge Map / Recent Knowledge 后自然结束即可。
+- Learn Track：结束时提供回 Learn corpus 的结构性返回。
+- Learn Public Note：以 related knowledge（如存在）与回 Learn corpus 的结构性返回完成阅读收束。
 
 > **Shared Content Footer = Parked.**
-
-Family intentional ending 已 Confirmed；Shared Footer 不是 Confirmed Family capability，不得为修复 Projects whitespace 而给所有模块创建 mandatory Footer。
 
 ### 6.4 Owner / Admin boundary
 
 Owner tooling 保持 module-local，直到重复出现的跨模块 workflow 证明 shared administration 的必要性。
 
-- Feed Manage：Confirmed module-local。
-- Learn lifecycle management：Confirmed module-local capability；不因此推导 Global Content Admin。
+- Feed owner/manage：Confirmed module-local。
+- Learn publication lifecycle management：Confirmed module-local。
 - Global Content Admin：Parked。
-
-Feed / Learn 已存在的 owner workflow 不构成提前建设全站统一 `/admin` 的理由。
 
 ### 6.5 Accessibility
 
-Visual quietness 不得以牺牲 accessibility 为代价。Family 必须保留：
-
-- visible focus；
-- keyboard semantics；
-- adequate touch target；
-- no hover-only information；
-- reduced-motion support；
-- semantic links/buttons；
-- no color-only meaning。
+Family 必须保留：visible focus、keyboard semantics、adequate touch target、no hover-only information、reduced-motion support、semantic links/buttons、no color-only meaning。
 
 ---
 
 ## 7. Canonical module exception registry
-
-这些例外是 Family contract 的组成部分。它们防止 shared implementation 抹平已关闭的 module semantics；原子细节仍以 Master Ledger 为准。
 
 ### 7.1 Blog
 
@@ -353,16 +312,16 @@ Visual quietness 不得以牺牲 accessibility 为代价。Family 必须保留�
 | --- | --- |
 | FAMILY-EX-BLOG-01 | Archive 有 content identity，但不使用 Full Card。 |
 | FAMILY-EX-BLOG-02 | Reading 使用 Tonal Paper；no border、no shadow、no radius。 |
-| FAMILY-EX-BLOG-03 | Desktop Summary 可由 hover/focus reveal；Mobile Summary always visible。 |
+| FAMILY-EX-BLOG-03 | Desktop Summary 可 hover/focus reveal；Mobile Summary always visible。 |
 | FAMILY-EX-BLOG-04 | Archive 与 Reading 使用不同 content measure。 |
 
 ### 7.2 Feed
 
 | ID | Confirmed exception |
 | --- | --- |
-| FAMILY-EX-FEED-01 | Activity 均为 S2 rank，但 D — Quiet Deposition 无 Full Card frame。 |
-| FAMILY-EX-FEED-02 | Activity 是 record-with-destination，使用 explicit destination action，不 whole-card clickable。 |
-| FAMILY-EX-FEED-03 | Chronology 在 Feed 中具有远高于其他 Content module 的结构权重。 |
+| FAMILY-EX-FEED-01 | Activity 均为 S2 rank；D — Quiet Deposition 无 Full Card frame。 |
+| FAMILY-EX-FEED-02 | Activity 是 record-with-destination，使用 explicit destination，不 whole-card clickable。 |
+| FAMILY-EX-FEED-03 | Chronology 在 Feed 中具有最高结构权重。 |
 | FAMILY-EX-FEED-04 | Feed 拥有 module-local owner/manage workflow。 |
 
 ### 7.3 Projects
@@ -370,116 +329,102 @@ Visual quietness 不得以牺牲 accessibility 为代价。Family 必须保留�
 | ID | Confirmed exception |
 | --- | --- |
 | FAMILY-EX-PROJ-01 | Project Full Object Card 合法。 |
-| FAMILY-EX-PROJ-02 | Current shadow + hover lift + stronger hover shadow 合法且 Confirmed。 |
+| FAMILY-EX-PROJ-02 | static shadow + hover lift + stronger hover shadow 合法。 |
 | FAMILY-EX-PROJ-03 | Project Card 使用 whole-card external destination。 |
-| FAMILY-EX-PROJ-04 | Tech Tags 可使用轻 bounded annotation。 |
+| FAMILY-EX-PROJ-04 | Tech Tags 可使用 light bounded annotation。 |
 | FAMILY-EX-PROJ-05 | `SELECTED WORKS` 可使用极弱 orange identity marker。 |
 
 ### 7.4 Learn
 
 | ID | Confirmed exception |
 | --- | --- |
-| FAMILY-EX-LEARN-01 | Knowledge Map 是 Cream Gallery 内的 S1 structural knowledge field，不是独立 dark dashboard。 |
-| FAMILY-EX-LEARN-02 | Track directory 与 Graph 是同一 corpus 的 categorical / relational 双目录；Track 提供 domain orientation，但不是 Note parent。 |
-| FAMILY-EX-LEARN-03 | Public Note / Track index entry 不默认使用 Full Card、shadow 或 lift；structural hairline 与 frameless row 合法。 |
-| FAMILY-EX-LEARN-04 | Graph node relation 来自 explicit Note relation；shared Track 本身不产生 edge，也不表达 prerequisite。 |
-| FAMILY-EX-LEARN-05 | Learn Tag 作为轻量 retrieval metadata，不获得默认 pill treatment。 |
+| FAMILY-EX-LEARN-01 | Knowledge Map 是 Cream Gallery 内的 S1 structural knowledge field。 |
+| FAMILY-EX-LEARN-02 | Track directory 与 Graph 是 categorical / relational 双目录；Track 是 domain context，不是 Note parent。 |
+| FAMILY-EX-LEARN-03 | Public Note / Track index entry 不默认 Full Card、shadow 或 lift。 |
+| FAMILY-EX-LEARN-04 | Graph relation 来自 explicit Note relation；shared Track 本身不产生 edge 或 prerequisite。 |
+| FAMILY-EX-LEARN-05 | Learn Tag 是 retrieval metadata，不默认 pill。 |
 
 ---
 
-## 8. Cross-module product contracts
+## 8. Cross-module Product contracts
 
 ### 8.1 Blog → Feed
 
-| Event | Canonical product behavior |
+| Event | Product behavior |
 | --- | --- |
 | First public publish | 可以创建一条 `BLOG · 发布` Footprint。 |
 | Ordinary edit | 不创建第二条，不改写 immutable snapshot。 |
-| Hide | Footprint record 与 snapshot 保留；Public Feed projection 隐藏。 |
+| Hide | Footprint record / snapshot 保留；Public Feed projection 隐藏。 |
 | Effective visibility | `source_public AND footprint_visibility_public = public_timeline_visible`。 |
-| Restore | 原 Footprint 可以恢复，不创建 duplicate。 |
-| Hard delete | historical record 可以保留；known-dead destination 不继续提供 action。 |
-
-ADR-005 的 canonical clarification：
+| Restore | 原 Footprint 可恢复，不创建 duplicate。 |
+| Hard delete | historical record 可保留；known-dead destination 不继续提供 action。 |
 
 > **storage independence ≠ public projection independence**
 
-Independent record、immutable snapshot、no cascade delete 继续成立；Blog source visibility 必须 gate Public Timeline projection。具体 query、reference 与 tombstone 仍为 Architecture concern。
-
 ### 8.2 Projects → Feed
 
-Projects/source side owns Project update event semantics；Feed 只消费与展示。
+Projects/source side owns meaningful-update semantics；Feed 只消费 accepted event。
 
-- copy、screenshot、tags、deploy 等字段变化不自动等于 material Project update；
-- 只有用户/source workflow 明确确认该更新具有公开记录价值时，才产生 `PROJECT · 更新`；
-- supporting description 应尽量说明这次更新了什么；
-- Footprint 的 canonical Feed destination 是 `/projects/`；Project Card 继续使用 external `project.url`；
-- `updateId` 提供幂等身份，source-side workflow 负责 meaningful-update semantics。
+- field diff 不自动等于 meaningful Project update；
+- 明确具有公开记录价值的更新才产生 `PROJECT · 更新`；
+- supporting description 应尽量说明变化；
+- Feed destination 是 `/projects/`；Project Card 继续使用 external `project.url`；
+- `updateId` 提供 idempotent event identity。
 
 ### 8.3 Learn → Feed
 
-Public Learn 的 canonical public object 是 living Public Note；Feed event 是 historical snapshot。二者不能互相替代。
+Public Note 是 living current knowledge；Feed event 是 historical snapshot。
 
-| Lifecycle action | Canonical product behavior |
+| Lifecycle action | Product behavior |
 | --- | --- |
 | Draft / Preview | 不进入 Public projection，不产生 Feed。 |
-| First formal publication | Public Note 首次进入公开 corpus，并产生一次 `LEARN · 更新` historical Footprint；同一 Note 的 first-publication identity 只发生一次。 |
+| First formal publication | Public Note 首次进入公开 corpus，并产生一次 `LEARN · 更新` publication Footprint。 |
 | Maintenance edit | 保持 same Public Note；不产生 Recent / Feed signal。 |
 | Substantive revision | 保持 same Public Note identity；进入 Recent Knowledge，并产生 revision Footprint。 |
-| Hide | 移出当前 Public projection；保留既有 publication identity 与 historical Feed record。 |
-| Show | 恢复当前 Public projection；不产生第二次 first-publication Footprint。 |
-| Superseded / Withdrawn | 与普通 visibility maintenance 不等价；其产品语义保持区分，不自动恢复旧 completion 模型。 |
+| Hide | 移出当前 Public projection；保留 publication identity 与 history。 |
+| Show | 恢复 Public projection；不产生第二次 first-publication Footprint。 |
+| Superseded / Withdrawn | 与普通 Hide 不等价，保持独立语义。 |
 
-Feed presentation 统一为 `LEARN · 更新`；`learn_section_completed` 只保留 legacy readable compatibility，不再是当前 Learn product semantics。具体 runtime storage、deploy sync schema、relation metadata、endpoint 与版本号属于 Architecture / implementation 事实，不在 Family Product Contract 固定。
+Feed presentation 统一为 `LEARN · 更新`。`learn_section_completed` 只保留 legacy readable compatibility，不是当前 Learn Product semantics。
+
+Implementation mechanism 不属于本 Product Contract。
 
 ---
 
 ## 9. Learn accepted boundary
 
-Learn 已完成 Product / Architecture / Visual Reality Check 与 accepted implementation；以下 Family/upstream constraints 继续有效：
-
-- Learn belongs to Cream Gallery；
-- Public Learn 是从 private validated learning 中选择性形成的 durable knowledge projection，不是 private learning workflow 的公开镜像；
-- Public Note 是唯一 canonical public durable knowledge object，也是 living / revisable knowledge；
-- Knowledge Structure + Reading direction；
-- Track = categorical / domain directory；Graph = relational / exploratory directory；二者互补，不建立 authoritative parent tree；
-- Track 是 Public Note 的重要 context，不是 Note identity parent，也不是 curriculum；
-- Knowledge Graph capability retained；current black/magenta Graph is not canonical；
-- Public Learn 不为视觉完整性变成 LMS，不引入虚假的 completion / progress / gamification；
-- Search 是 utility，不成为 Learn 的核心 identity；
-- MDX 不因交互需求自动成为必选；
-- Public/internal vocabulary boundary 继续适用；
+- Public Learn 是从 private validated learning 中选择性形成的 durable knowledge projection，不是 private learning workflow 的公开镜像。
+- Public Note 是 canonical public durable knowledge object，也是 living / revisable knowledge。
+- Learn direction = Knowledge Structure + Reading。
+- Track = categorical / domain directory；Graph = relational / exploratory directory；二者互补，不建立 authoritative parent tree。
+- Track 是重要 context，不是 Note identity parent，也不是 curriculum。
+- Knowledge Graph capability retained；旧 black/magenta Graph visual 不构成 canonical design。
+- Public Learn 不为视觉完整性变成 LMS，不引入虚假的 completion / progress / gamification。
+- Search 是 utility，不成为 Learn 的核心 identity。
+- MDX 不因交互需求自动成为 Public Learn canonical format。
 - Visual Completeness 不得强迫未来 capability 或为了填满 Track / Graph 制造 Public Notes。
 
-以下曾是 Learn module-local open decisions；现不得绕过 accepted Product / Architecture / implementation 重新裁决：
-
-- Track power；
-- Graph semantics；
-- Homepage hierarchy。
+Track power、Graph semantics、Homepage hierarchy 已关闭，不作为 open Product decisions。
 
 ---
 
-## 10. Revalidate and implementation boundary
+## 10. Revalidate / Parked boundary
 
-### 10.1 Family-level unresolved status
-
-| Item | Status / boundary |
+| Item | Status |
 | --- | --- |
-| Exact Shared Content Footer / Ending component | Parked |
+| Shared Content Footer | Parked |
 | Exact shared radius token values | Revalidate |
 | Exact focus token implementation | Revalidate |
 | Exact elevation/shadow token model | Revalidate；Projects behavior 本身不 Revalidate |
 | Exact neutral border token | Revalidate |
 | Exact responsive breakpoint constants | Revalidate；responsive principles 已 Confirmed |
-| Global Content Admin | Parked；只有真实 shared owner workflow 后重开 |
+| Global Content Admin | Parked |
 
-历史 Architecture Revalidate / Preflight 条目保留在 Master Ledger 作为当时的 implementation traceability，不应被解释为 Phase 8 current backlog。当前技术状态应回到 current architecture docs、source、tests 与必要的 production evidence；只有仍真实未决且会改变 durable architecture 的问题才重新升级。
+Architecture implementation questions 不改变 Family Product closure；当前技术事实由 Architecture 负责。
 
-### 10.2 Shared implementation admission
+### Shared implementation admission
 
-Shared implementation 只处理 genuinely confirmed shared capability。可能的候选包括 semantic token reconciliation、focus primitives、Cream Gallery core、top-level return shell、accessible link primitives；是否需要代码修改仍由 current implementation inventory 决定。
-
-以下不自动抽成 shared final component：
+Shared implementation 只处理 genuinely shared capability。以下不自动抽成 shared final component：
 
 - Content Card；
 - mandatory-slot Opening；
@@ -490,7 +435,7 @@ Shared implementation 只处理 genuinely confirmed shared capability。可能�
 - Media component；
 - hover motion。
 
-### 10.3 Downstream hard guards
+### Hard guards
 
 1. Do not Card-normalize Content Family.
 2. Do not flatten Projects elevation.
@@ -500,26 +445,23 @@ Shared implementation 只处理 genuinely confirmed shared capability。可能�
 6. Do not turn Projects Tech Tag into shared taxonomy UI.
 7. Do not make Feed Activities whole-card clickable.
 8. Do not add explicit CTA to Projects merely for consistency.
-9. Do not create a global Footer only to fill Projects whitespace.
+9. Do not create a global Footer only to fill whitespace.
 10. Do not create Global Admin because module-local owner tooling exists.
 11. Do not expose internal event/storage vocabulary as Public Copy.
 12. Do not treat Parked capability as an implementation gap.
-13. Do not restore Track as Public Note parent, completion-driven Learn, or a mandatory curriculum tree.
+13. Do not restore Track as Public Note parent, completion-driven Learn, or mandatory curriculum tree.
 
 ---
 
 ## 11. Canonical verdict
 
 ```text
-Family Shared Contract        RECONCILED / FROZEN FOR IMPLEMENTATION
+Family Shared Contract        RECONCILED / FROZEN
 Blog                          CLOSED
 Feed                          CLOSED
 Projects                      CLOSED
-Learn                         CLOSED / IMPLEMENTATION ACCEPTED
+Learn                         CLOSED
+Feed × Learn Integration      CLOSED
 Shared Footer                 PARKED
 Global Content Admin          PARKED
-Feed × Learn Integration      CLOSED
-Operational phase             PHASE 8 MAINTENANCE
 ```
-
-Closure-era Final Content Integration & Acceptance = **PASS**；the corresponding release / production acceptance is retained as historical completion evidence. Current Git / deployment / production reality must be verified on demand and is not implied by this Product Contract.
