@@ -17,15 +17,15 @@
 
 ## 技术栈映射
 
-| 层            | 选型                                | 部署              | 用途                                      |
+| 层            | 选型                                | 部署 / 运行位置   | 用途                                      |
 | ------------- | ----------------------------------- | ----------------- | ----------------------------------------- |
 | **前端框架**  | Astro (hybrid: SSG + SSR)           | CF Site Worker    | 主站静态与运行时页面渲染                  |
-| **交互组件**  | React 19 + shadcn/ui                | 嵌入 Astro island | Feed 发布、管理后台、Home 交互 |
+| **交互组件**  | React 19 + Astro / 自定义组件       | Astro islands / Site Worker | Feed 发布、管理后台、Home 交互 |
 | **API**       | CF Workers (feed-api + finance-api) | wrangler deploy   | 数据读写、认证、Cron 任务                 |
 | **数据库**    | D1 (catstarry-db + finance-db)      | CF                | 原生 Feed、公开足迹、Learn publication、交易、阅读量、session |
 | **缓存/配置** | KV                                  | CF                | 阅读量去重、认证、生命周期 manifest、Learn relation metadata、限流 |
 | **文件存储**  | R2（catstarry-media + home-projections） | CF             | /feed 媒体文件 + Home 最小活动状态静态投影 |
-| **CI/CD**     | GitHub Actions + wrangler           | GitHub            | Git push → build → deploy                 |
+| **CI / Release** | GitHub Actions validation + PowerShell / wrangler release runners | GitHub + 显式 release runner | PR/main 验证；生产部署与部署后 publication sync 分开执行 |
 | **域名**      | catstarry.xyz + f.catstarry.xyz     | CF DNS            | 主站 + 财务子域名                         |
 
 ---
@@ -106,11 +106,11 @@ Blog 的公开页面由 Site Worker SSR 读取 source，再通过 `/api/blog/pub
 ```
 Learn Markdown source
     │
-    ├─ Production Admin: first Publish
+    ├─ Owner Admin: first Publish
     │      → D1 learn_publications(public)
     │      + learn_note_published footprint（同一 D1 batch）
     │
-    ├─ Production Admin: Hide / Show
+    ├─ Owner Admin: Hide / Show
     │      → 更新 runtime visibility
     │      → 保留首次 published_at，不创建重复首次发布足迹
     │
@@ -121,7 +121,7 @@ Learn Markdown source
            → AUTH_KV learn:relation-manifest（deployed source relation metadata）
 ```
 
-Learn first Publish 与 deployment 是两个不同边界：deploy sync v3 不创建新的 publication record，也不回填首次发布。公开 `/learn`、Note、Track、RSS 与 sitemap 均从 source Markdown 与 runtime publication state 合成当前公开投影；source `withdrawn` / `superseded` 不进入正常公开 corpus。withdrawn Note 的直接历史 URL 是保留例外。
+Production runtime 的 Owner Admin 是正式 publication authority；Local Preview 明确只读。Learn first Publish 与 deployment 是两个不同边界：deploy sync v3 不创建新的 publication record，也不回填首次发布。公开 `/learn`、Note、Track、RSS 与 sitemap 均从 source Markdown 与 runtime publication state 合成当前公开投影；source `withdrawn` / `superseded` 不进入正常公开 corpus。withdrawn Note 的直接历史 URL 是保留例外。
 
 ### Feed 与 Public Footprint 写入流
 
