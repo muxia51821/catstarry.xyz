@@ -1,169 +1,127 @@
 # 项目上下文 (CONTEXT)
 
-> catstarry.xyz 项目的 Agent 快速上下文摘要、领域术语和已确认决策入口。
-> 供 `improve-codebase-architecture`、`diagnosing-bugs`、`tdd` 等 skill 快速定向。
-> 本文不替代 `GLOSSARY.md`、ADR、架构文档、`DESIGN.md`、`docs/SITEMAP.md` 或当前代码与测试；摘要与对应事实源冲突时，按 `AGENTS.md` 的冲突规则报告并回到事实源核对。
+> catstarry.xyz 的快速定向入口。这里只保留高频、相对稳定的项目事实。
+> Product、Architecture、Design、routes、deployment 或 implementation 细节应进入对应事实源；本文与对应事实源冲突时，以 `AGENTS.md` 的职责边界回到事实源核对。
 
-## 约定性质说明
+## 项目是什么
 
-本文档中的每节标注了性质标签：
+catstarry.xyz 是木下的个人网站，由 AI agent 协助开发和维护。木下负责产品、架构与体验裁决，并决定 merge、deployment 和 production mutation。
 
-| 标签 | 含义 |
+当前项目处于 **Phase 8 长期维护**：围绕真实使用中的问题做小型修复、内容更新、专项审查和必要的产品／架构调整，不要求每个任务重新经历完整 Phase 1–7。
+
+## 当前范围
+
+公开主站 `catstarry.xyz` 包含：
+
+- **Home**：星图式入口与空间导航；不是跨模块内容聚合页。
+- **Blog**：长文与阅读体验。
+- **Feed**：碎碎念、剪藏与 Public Footprint 组成的 Public Timeline。
+- **Learn**：选择性公开的学习笔记。
+- **Projects**：项目展示。
+
+`f.catstarry.xyz` 是独立的内部 Finance workspace，不属于公开 Content Family，也不进入 Home 的公开内容链路。
+
+共享术语见 `GLOSSARY.md`，具体路由见 `docs/SITEMAP.md`。
+
+## 技术架构摘要
+
+| 层 | 当前 repository baseline |
 | --- | --- |
-| `[已锁定]` | Phase 0 确定的，尽量不改 |
-| `[摘要]` | 高频上下文摘要；详细事实和当前实现以对应事实源为准 |
-| `[原型约定 \| Phase X 重新裁决]` | blog 原型阶段的临时约定，进入标注的 Phase 时必须重新审查，有权推翻 |
-| `[定向回流中 \| Phase X]` | 已确认的上游变更正在复核受影响契约；在标注 Phase 闭合前，不得作为最终实现依据 |
-| `[快照 \| Phase X 更新]` | 随项目推进需同步更新 |
+| 主站 | Astro hybrid + React；Cloudflare adapter 生成 Site Worker |
+| 主站 API | `feed-api` Cloudflare Worker |
+| Finance | 独立 Finance Pages + `finance-api` Worker |
+| 数据 | 主站与 Finance 使用独立 D1；另有 KV 与 R2 |
+| Site → Feed server seam | production-like runtime 使用 `FEED_API` Service Binding；Local Preview 才使用 localhost HTTP fallback |
 
----
+版本、binding、schema、route、Cron 和 deployment runner 不在本文复制；需要时读取 `docs/architecture.md`、其子文档、`docs/DEPLOY.md` 和当前配置／代码。
 
-## 项目简介 [已锁定]
+## Content Family 当前产品边界
 
-catstarry.xyz 是木下的个人网站，用 AI 驱动搭建。非程序员用户（Vibe Coding），AI agent 负责编码。
+Blog、Feed、Learn、Projects 的共享产品语义已经完成 reconciliation；正常入口是：
 
----
+```text
+docs/content/README.md
+  → family-contract.md / master-ledger.md（按任务需要）
+```
 
-## 领域术语 [摘要]
+历史 requirements、acceptance、旧 reconciliation / dependency map、prototype 和 QA 可以作为 rationale，但不因文件名包含 `final`、`acceptance` 或 `canonical` 就自动成为 current authority。
 
-核心术语：
+当前 implementation 是“已经实现了什么”的证据，不会自行覆盖较新的 Product Closure、Architecture decision 或木下的明确裁决。Parked capability 不是 implementation gap。
 
-- **木下**：网站所有者，非程序员，AI 架构师
-- **cati**：木下的伴侣，财务面板只读用户
-- **碎碎念**：短内容发布（文字 + 图/视频），备忘录感
-- **剪藏**：网页收藏（链接 + 自动摘要 + 用户点评）
-- **星图**：Home 中用于板块导航的自由分布空间；不承担内容聚合
-- **足迹来源事件**：Blog、Learn 或 Projects 中满足足迹生成合同、可以产生 Public Footprint 的来源事件
-- **公开足迹**：足迹来源事件固化形成的独立记录，保存创建时来源身份和内容快照，并拥有独立可见性
-- **公开时间线**：Feed 将碎碎念、剪藏与公开足迹统一排序后的读取呈现
+## 几个容易误判的当前边界
 
-  完整术语见 `GLOSSARY.md`
+### Home
 
----
+- Home 的核心职责是入口与导航，不展示跨模块最近内容列表。
+- Blog / Feed / Learn / Projects 的跨页“返回星图”目标是 `/?stage=overview`。
+- Home Cursor Meteor 是 Home 的独立指针签名。
+- Home Activity Signal 只表达四个功能模块的 `active / stable / dormant` 最小状态，不是 Public Timeline。
 
-## 技术架构 [摘要 | 事实源见架构文档]
+### Content interaction
 
-| 层     | 选型                                  | 部署            |
-| ------ | ------------------------------------- | --------------- |
-| 前端   | Astro hybrid + React (shadcn/ui)      | CF Pages        |
-| 后端   | CF Workers (feed-api + finance-api)   | wrangler deploy |
-| 数据库 | D1 (结构化) + KV (缓存/配置)          | CF              |
-| 存储   | R2 (媒体文件)                         | CF              |
-| CI/CD  | Git push → CF Pages / wrangler deploy | GitHub          |
+Content / Cream Gallery 当前使用：
 
----
+- **Content Paw Trail**：细指针移动时的猫爪轨迹；
+- **Content Click Feedback**：与 Paw Trail 分离的点击反馈。
 
-## 设计基调 [摘要 | 事实源见 DESIGN.md]
+它们不是 Home Cursor Meteor 的弱化版本；Finance 不继承这两种 Content / Home 指针签名。具体视觉参数由设计和前端实现事实源负责。
 
-> `DESIGN.md` v2.1 是当前全站视觉与交互事实来源。Home Activity Signal 已完成定向 Phase 2/3 与返回 Phase 4.1 视觉重锁；2026-07-18 又完成一次极小交互重锁，正式确认 `Star Map → Focus → action`。ADR-007 继续锁定 Home 可消费无内容的三态静态投影。Phase 4.2 隔离原型已完成木下目测验收；Phase 4.3 已完成 canonical CSS、五颗星球三槽 selected assets 与 UI QA 的设计侧落地。
+### Blog
 
-### 三画布系统
+Blog source 位于 `src/data/blog/`，可使用 Markdown / MDX。公开页面是 runtime-gated SSR：source 文件存在不等于当前公开，公开投影还受 Blog runtime lifecycle 控制。
 
-- **Home (Deep Space)**：冷调深黑画布 `#0A0A0C`，Klein Blue 为 Brand Voltage。Home 是 SSG 宇宙入口 → 2–3 屏接近同一星域 → 五颗完整暖性地质星球的自由总览 → 页脚；远景可为星点，接近后必须成为具有真实体积、光照和各自地貌的星球。
-- **Content (Cream Gallery)**：奶油暖白画布 `#FAF9F5`，暖墨色文字，回归中文阅读舒适区。Blog、Feed、Learn、Projects 保留各自功能布局，只低剂量借用对应星球的地质纹理、切面和光学残响。
-- **Finance (Cyber Arena)**：深黑画布 `#0B0E11`，松石绿 CTA `#5EAF9E`，纯数字与色块构建，无图片
+### Feed
 
-### Home 签名与交互
+原生碎碎念／剪藏写入 `feed_posts`；Blog / Learn / Projects 的 Public Footprint 写入独立记录。`/feed` 在读取时把两类记录统一形成 Public Timeline；Home 不消费这条时间线。
 
-- 五颗星球平权；大小、远近和出现顺序只表达空间纵深，不表达栏目重要性。
-- Drift 是当前主构图方向：About 右上远端、Feed 近景易达、Blog 左上、Projects 左下、Learn 右下；Phase 4.2 已完成默认 Focus 序列、直接跳转、返回与 footer release 的原型验收，不运行时随机换位。
-- Star Map 后存在可停留的 Planet Focus；自然滚动默认按 About → Feed → Blog → Projects → Learn 浏览，点击或键盘可直接跳到任一 Focus。
-- Blog、Feed、Learn、Projects 只在 Focus action 后执行 Planet Push 并进入功能页；Focus 不加载真实板块内容。
-- About 可直接点击星球原地展开；豹猫星座的两次点击蓄能 / 爆开是通往同一展开态的可选彩蛋，不是访问 About 的前置条件。
-- 鼠标流星尾在 Home 完整但克制，在 Content 弱化，在 Finance 关闭；首屏 DISCOVER MORE 流星是另一种一次性引导。
-- Home 不展示最近内容、Public Timeline、标题、摘要、列表或卡片；信号卫星只依据 ADR-007 的最小静态投影表达 `active` / `stable` / `dormant` 三态，视觉和 token 接口已由 Phase 4.1 重锁。
-- Feed 使用单列 Public Timeline；原生碎碎念、剪藏与 Public Footprint 在其中统一呈现，但不暴露底层物理分存差异。
+### Learn
 
-## Content 治理 [治理基线 | Wave 0]
+- Public Learn canonical source 是 Markdown，位于 `src/data/learn/`。
+- source metadata 与正常公开 visibility 是不同边界。
+- 正常公开 visibility / first published time 由 runtime `learn_publications` state 管理。
+- owner Admin 负责首次 Publish、Hide、Show；Local Preview lifecycle mutation 是只读的。
+- successful production deploy sync 负责已存在 publication 的 revision / relation metadata，不等同于首次 Publish。
+- `learn:relation-manifest` 是 deployed source relation metadata，不是 relation database。
 
-Blog、Feed、Learn、Projects 的 shared semantics、模块 Closure 状态、冲突收敛与实施顺序，统一从 [`docs/content/README.md`](docs/content/README.md) 进入。
+详细事实见当前 architecture / data-model / route 实现；不要从旧 Learn requirements 恢复 legacy publication 模型。
 
-- `DESIGN.md` 继续负责全站设计系统、三画布、品牌、token 与通用视觉事实。
-- Reconciled Content Family shared semantics 由 `docs/content/family-contract.md` 与 `docs/content/master-ledger.md` 治理。
-- 已关闭模块的 Closure / Ledger truth 可以 supersede 较早的 Content-specific DESIGN assumption，但不能反向改写 Home、Finance 或全站设计系统职责。
-- Current production implementation 是实现证据，可能落后于 Product Closure；它不会自动覆盖后期 Closure truth。
-- 当前状态：Family RECONCILED；Blog CLOSED；Feed CLOSED；Projects CLOSED；Learn CLOSED / IMPLEMENTATION ACCEPTED。
-- Shared Footer 为 PARKED；Global Content Admin 为 Parked；Parked capability 不是 implementation gap。
+## 设计与前端
 
-### CJK 优先
+全站仍使用三种主要画布语义：
 
-- 中文正文字号 ≥16px，行高 ≥1.85
-- 标点挤压 `text-spacing-trim` + `hanging-punctuation`
-- 中英混排 1/4em 间距（Phase 5 JS 实现）
+- Home — Deep Space
+- Content — Cream Gallery
+- Finance — Cyber Arena
 
-### 动效
+具体颜色、排版、组件与动效以 `DESIGN.md`、`docs/agents/frontend-rules.md` 和当前实现为准。共享术语只从 `GLOSSARY.md` 读取，不在本文复制施工参数。
 
-- 三条缓动曲线（ease-monopo / ease-scroll-in / ease-hover）
-- CSS-only 动画工具类：.anim-fade-up / .anim-stagger / .parallax-container
-- prefers-reduced-motion 降级
+中文排版的 current implementation 使用原生 `text-autospace`；代码类文本按当前样式显式关闭 autospace。不要恢复旧的 JS 1/4em spacing 方案。
 
-## 目录结构 [摘要 | 事实源见架构文档]
+## Git、验证与 deployment
 
-> Phase 3 裁决锁定。完整版见 `docs/architecture/modules.md`。
+- Agent 权限、Git 规则和 production safety：`AGENTS.md`。
+- 当前 Phase 8 工作流：`docs/workflow-orchestration.md`。
+- deployment runbook：`docs/DEPLOY.md`。
+- repository migration 存在、代码已经 merge、CI 通过、已经 deployed、production accepted 是不同状态。
+- Git HEAD、当前 production source、远端 migration state 等易过期事实必须现场核验，不写进本文作为长期“当前值”。
 
-catstarry.xyz/
-├── src/pages/ # 路由页面（blog/feed/learn/projects/home）
-├── src/components/ # React islands，按模块分子目录
-├── src/content.config.ts # Astro Content Collections schema
-├── src/data/blog/ # Blog Content Collection source
-├── src/data/learn/ # Learn Content Collection source
-├── src/layouts/ # 页面布局（Base/Blog/Feed）
-├── src/lib/ # 纯前端工具函数
-├── src/styles/ # 暖色系 CSS 变量
-├── shared/ # 前后端共享（types.ts + auth.ts + cors.ts）
-├── workers/feed-api/ # 主站 API Worker（/api/_）
-├── workers/finance-api/# 财务 API Worker（/api/_ + Cron）
-├── public/ # 静态资源
-├── docs/ # 项目文档
-├── .scratch/ # 开发 issue
-└── teach/ # Teach skill workspace
+## 正常读取路径
 
----
+```text
+AGENTS.md
+  ↓
+CONTEXT.md
+  ↓
+按任务进入对应事实源
+```
 
-## 前端约定 [实现约定 | Phase 7 production release 已完成]
+常见分支：
 
-> 以下为 Phase 5/6/7 已采用并通过生产发布的前端实现约定。上线后如发现偏差，应以实际代码、测试与验收结果为准再更新本文档。
+- Product / Content：`docs/content/README.md`
+- Architecture：`docs/architecture.md`
+- Design / frontend：`DESIGN.md` + `docs/agents/frontend-rules.md`
+- Routes：`docs/SITEMAP.md`
+- Deployment：`docs/DEPLOY.md`
+- Historical rationale：仅在需要时读取 `docs/_archive/` 或其他历史命名空间
 
-- 所有页面使用 `Base` layout（`src/layouts/Base.astro`）
-- 颜色使用 CSS 变量（`var(--color-xxx)`），不硬编码
-- 分类中文映射：`tech→技术`、`life→生活`、`opinion→观点`
-- React island 以 `client:load` 嵌入 Astro 页面
-- draft 文章不输出（`getCollection` 过滤 `draft: true`）
-
----
-
-## 后端约定 [实现约定 | Phase 7 production release 已完成]
-
-> 以下为 Phase 5/6/7 已采用并通过生产发布的后端实现约定。上线后如发现偏差，应以实际代码、测试与验收结果为准再更新本文档。
-
-- Workers 响应必须包含 CORS 头
-- 主站登录交互位于 `/feed`；`/feed/admin` 与 `/learn/admin` 共享主站认证 session；Finance 使用独立认证系统；当前两套 session 有效期均为 12h。详细事实见 `docs/architecture/auth.md` 与当前实现。
-- 阅读量去重：IP + slug + 日期，KV key TTL 24h
-- D1 表命名：snake_case
-- API 路由：`/api/views` → 扩展为 `/api/feed`、`/api/auth`、`/api/learn`（见 `docs/architecture/modules.md`）。`/api/home` 及其聚合职责已由 ADR-006 退役；blog-metadata KV bridge 同时退役。
-
----
-
-## 部署 [稳定事实 | Phase 8]
-
-> Phase 7 coordinated production release 已完成，当前进入 Phase 8 运营维护。
-
-- **Phase 7 staging gate**：complete
-- **Phase 7 production release**：complete
-- **Final Content Integration**：PASS
-- **Production Acceptance**：PASS WITH NON-BLOCKING OBSERVATION
-- **Content Family**：Phase 8 maintenance
-- **Phase 8 operations and maintenance**：active
-- **Production release history**：见 `CHANGELOG.md`
-
----
-
-## 当前产品状态 [稳定事实 | Phase 8]
-
-> Phase 0–7 的首次正式交付已完成；Phase 8 负责真实使用中的运营维护与增量优化。
-
-- Home、Blog、Feed、Learn、Projects 与 Finance 均处于 production / maintained 状态；Finance 模块保持 actively iterating。
-- Public Learn Note 的 canonical source format 为 Markdown（`.md`）；MDX 不属于当前 Learn runtime baseline。Learn 的页面交互、未来 Quiz、Review 或 Simulator 可以由 Astro、React 或独立学习模块承载，不要求 Public Note 正文使用 MDX。详见 `docs/adr/008-learn-markdown-canonical-content-format.md`。
-- `poker.catstarry.xyz` 为独立部署的站点。
-- 设计系统 CSS 已完成 canonical 对齐；运行时状态、生产路由和真实数据链路以实际代码与部署平台为准。
-- 新问题按 bug、维护、体验微调或新需求分类处理；易过期的 Git 与部署状态不在本文档维护。
+不要为了冷启动一次性加载整个文档树。
