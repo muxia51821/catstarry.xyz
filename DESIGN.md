@@ -1,782 +1,523 @@
 ---
 version: 2.1
 name: catstarry.xyz-design-system
-description: catstarry.xyz 视觉与交互设计系统。Home 是从远处接近 catstarry 星域的空间导航入口；Content 是奶油画廊；Finance 是赛博数据暗面。以 Klein Blue 作为全站 Brand Voltage，以暖性地质星球、克制粒子与滚动纵深构成 Home 的宇宙语法，同时保持 CJK 优先、WCAG 与 GB/T 44808 可访问性约束。
+description: catstarry.xyz 视觉与交互设计系统。Home 是从远处接近 catstarry 星域的空间导航入口；Content 是奶油画廊；Finance 是赛博数据暗面。Klein Blue 作为全站 Brand Voltage，暖性地质星球、克制粒子与滚动纵深构成 Home 的宇宙语法，同时保持 CJK 优先与可访问性。
 ---
 
 # catstarry.xyz 设计系统
 
-> Phase 4.1（Design 2.1）极小交互重锁稿，2026-07-18 完成；Phase 4.3 canonical CSS 与资产身份落地记录于 2026-07-20 同步。
->
-> 本版以 ADR-005、ADR-006、ADR-007、Home / Feed 定向回流后的需求与验收为边界，并正式吸收本次极小重锁已确认的 `Star Map → Focus → action` 交互合同。它替代 Design 1.4 中“Home 两栏布局、About 首屏卡片、Home 混合时间线”的旧假设。
->
-> **Phase 8 使用边界：** 本文件继续负责 durable visual / interaction truth。文中 Phase 4.x / Phase 5 的原型、迁移、落地阶段描述是设计 provenance，不是当前 implementation / deployment status；当前实现事实必须回到 current source / tests。后期 Content Product Closure 与 accepted implementation 只在明确冲突处 amendment，不因此重写 Home / Finance 的完整设计历史。
+> 本文件定义当前 durable visual / interaction truth。Product semantics 以对应 Product authority 为准；前端施工与 runtime implementation 见 `docs/agents/frontend-rules.md` 和 current source。
 
 ---
 
-## 0. 状态、边界与使用方式
+## 1. 视觉主题与三画布
 
-### 0.1 设计 provenance 与当前使用方式
+catstarry.xyz 是木下持续生长的数字生活空间。宇宙是共享空间语法，不要求所有页面铺满星星；内容本身始终是主角。
 
-以下阶段记录解释 Design 2.1 如何形成，均已完成：
-
-- Phase 4.1：Design 2.0、HAS 视觉重锁与 Design 2.1 极小交互重锁闭合。
-- Phase 4.2：隔离原型验证滚动距离、Focus 浏览路径、Drift 构图、mock HAS、About / 豹猫 companion、触控与 reduced-motion。
-- Phase 4.3：获选组件样式与经验证参数进入 canonical CSS，五颗星球的 Overview / Focus / Mobile 身份闭环，并形成 UI QA 证据。
-- Phase 5：productionization 已完成；本文件仍只提供 Design authority，不替代 current production source、Product Contract 或 Architecture。
-
-当前 operational phase 是 Phase 8 maintenance。小型实现修复不需要重新执行 Phase 4.x；只有任务真正改变 durable visual / interaction contract 时，才回到本文件对应边界裁决。
-
-### 0.2 上游边界
-
-- ADR-005：Feed 的原生内容与 Public Footprint 物理存储分离，但 UI 读取统一的 Public Timeline 投影；视觉组件不得感知底层表结构。
-- ADR-006：Home 是静态星图入口，采用 SSG；没有 /api/home、HomeTimelineItem、五源聚合、Recently 或跨模块最新内容读取。
-- Home 只承担空间叙事、导航、About 原地展开和静态 SEO。
-- Blog、Feed、Learn、Projects 保持各自真实功能布局，不被改造成“星球内部页面”。
-
-#### Content authority amendment
-
-`DESIGN.md` 继续是全站设计系统、三画布、品牌、token 和通用视觉约束的 authority。Content Family 的后期 shared semantics、模块状态和例外边界从 [`docs/content/README.md`](docs/content/README.md) 进入，并由 [`docs/content/family-contract.md`](docs/content/family-contract.md) 与 [`docs/content/master-ledger.md`](docs/content/master-ledger.md) 持久化。
-
-以下后期 Content truth supersede 本文件中更早、仅适用于 Content 的冲突表述，但不重写 Design 2.1 的 Home / Finance 或全站设计系统：
-
-- Feed 已关闭为 equal S2 rank 的 **D — Quiet Deposition**；Activity 不使用 full background、full border、shadow、repeated divider、tick 或 rail。旧“原生内容卡片／系统足迹行或轻卡片”的高低层级不得恢复。
-- Blog Closure 规定 Archive 是 frameless editorial index；Reading 是 Tonal Paper，no border / shadow / radius。旧 Blog Card token 或历史 implementation 只作为 inventory evidence。
-- Projects Closure 确认 Full Object Card、static shadow、hover lift 与 stronger hover shadow；该 module exception 不得因 Family anti-shadow wording被删除，也不得传播给其他模块。
-- Learn 已完成 Product / Architecture / Visual Closure：Knowledge Map = Track × Graph，Track 是 domain context / categorical directory 而不是 Note parent；Graph 是 relational / exploratory directory；Public Note / Track index 不默认使用 Full Card、shadow 或 lift。
-- Content Family 共享 Cream Gallery、semantic token 和 hierarchy language，不共享固定 Card、Opening、width、Tag、date、pagination、footer、radius 或 hover treatment。Shared token 不等于 shared appearance；Radius 是 optional material parameter。
-
-Current implementation does not automatically override later Product Closure；同样，旧 Design provenance 不得覆盖后期明确 Closure。
-
-### 0.3 锁定与待验证
-
-本文件锁定：
-
-- 三画布及品牌色关系；
-- Home 的叙事顺序、星图职责、星球视觉语言与交互语义；
-- About 星球与豹猫星座的双路径；
-- 三画布 pointer signature 边界：Home Cursor Meteor；Content Paw Trail + independent Click Feedback；Finance neither；
-- Feed D — Quiet Deposition 下 Native / Footprint 的 equal-rank、different-grammar 视觉关系；
-- 新 token 家族的命名职责和资产接口。
-
-Phase 4.2 曾校准：
-
-- 星图是否短暂 sticky，以及具体滚动距离；
-- 各景深层的视差比例、模糊量与缩放量；
-- Drift 语义构图内的相对位置、深度与命中范围；
-- 默认滚动 Focus 序列、直接跳转 Focus 与 action 的节奏；
-- 星球资产槽、占位图接入、裁切和加载切换点；Overview / Focus / Mobile 身份后由 Phase 4.3 闭环；
-- 豹猫粒子密度、蓄能与回收时长；
-- 移动端粒子数量和动效降级幅度。
-
-这些历史校准不等于 Phase 8 中每次相关实现都必须重新跑完整 Prototype Gate。
-
----
-
-## 1. 视觉主题与氛围
-
-catstarry.xyz 是木下持续生长的数字生活空间。宇宙是全站共享的空间语法，不是所有页面都铺满星星；内容本身始终是主角。
-
-### 1.1 三画布系统
-
-| 画布                    | 页面                            | 气质                                   | 核心职责                                           |
-| ----------------------- | ------------------------------- | -------------------------------------- | -------------------------------------------------- |
-| Home / Deep Space       | /                               | 克制、深邃、具有真实纵深的暖性地质宇宙 | 进入 catstarry、理解板块、直接导航、原地展开 About |
-| Content / Cream Gallery | /blog、/feed、/learn、/projects | 温暖、安静、艺术出版物质感             | 阅读、时间流、知识结构与项目展示                   |
-| Finance / Cyber Arena   | f.catstarry.xyz                 | 精确、冷静、数据优先                   | 私密财务数据与操作                                 |
+| 画布 | 页面 | 气质 | 核心职责 |
+| --- | --- | --- | --- |
+| Home / Deep Space | `/` | 克制、深邃、真实纵深的暖性地质宇宙 | 进入 catstarry、理解板块、直接导航、原地展开 About |
+| Content / Cream Gallery | Blog / Feed / Learn / Projects | 温暖、安静、艺术出版物质感 | 阅读、时间流、知识结构、项目展示 |
+| Finance / Cyber Arena | `f.catstarry.xyz` | 精确、冷静、数据优先 | 私密财务数据与操作 |
 
 统一关系：
 
-- Klein Blue 是全站 Brand Voltage：负责导航、焦点、边缘光、信号与关键动作。
-- Home 使用完整宇宙空间；Content 只借用少量地质材质和光学残响；Finance 不继承星图装饰。
-- 豹猫是木下的个人签名，不是 Home 主角、全站 mascot 或分类图标。
-- 五颗星球平权；大小、远近和出现顺序只表达空间纵深，不表达栏目重要性。
+- Klein Blue 是全站 Brand Voltage：用于导航、焦点、边缘光、信号与关键动作。
+- Home 使用完整宇宙空间；Content 只借用低剂量地质材质和光学残响；Finance 不继承星图装饰。
+- 豹猫是木下的个人签名，不是全站 mascot 或分类图标。
+- 五颗 Home 星球平权；大小、远近和出现顺序只表达空间纵深，不表达栏目重要性。
 
-### 1.2 Home：同一片星域的连续空间
+### 1.1 Content authority
 
-Home 不是多个独立 section 拼接出的作品集，也不是游戏地图。它是同一片星域从远到近的连续观察：
+Content Family 的 shared semantics 与 module exceptions 由 `docs/content/family-contract.md` / `master-ledger.md` 约束。本设计系统采用以下当前边界：
 
-1. **宇宙入口**：深空、大留白、远处星点和待定世界观短句；一次性流星与 DISCOVER MORE 提供继续探索的入口。
-2. **接近星域**：自然滚动推进 2–3 个视口的空间距离；远、中、近景产生轻量视差，星点逐渐分化为完整小型星球。
-3. **自由星图总览**：About、Blog、Feed、Learn、Projects 五颗完整星球自由分布；标签低声量常驻，hover / focus 时清晰。
-4. **Planet Focus 浏览**：总览后可自然滚动经过 `About → Feed → Blog → Projects → Learn` 的默认观察顺序；该顺序只组织镜头路径，不表达栏目重要性，也不是强制通关。
-5. **直接抵达 Focus**：从星图点击、键盘触发或侧边航行索引选择任一星球，可直接进入目标 Focus，不必按默认顺序浏览前置星球。
-6. **Focus action**：Blog、Feed、Learn、Projects 在 Focus 中通过明确 action 触发 Planet Push，随后进入对应功能页；Focus 不加载板块内容，也不是星球详情页。
-7. **About 例外**：About 保留 Home 原地展开。总览中直接点击 About 可在轻推近后连续展开；自然滚动进入 About Focus 时也提供明确 action；豹猫彩蛋进入同一展开态。
-8. **自然收束**：最后一个 Focus 释放后进入页脚；没有 Home Recently、内容卡片、类型筛选或无限信息流。
+- Blog：frameless editorial Archive + Tonal Paper Reading；Reading no border / shadow / radius。
+- Feed：D — Quiet Deposition；Native Note / Clip / Public Footprint equal S2 rank、different grammar。
+- Learn：Knowledge Structure + Reading；Knowledge Map = Track × Graph；Track 是 domain context，不是 Note parent。
+- Projects：Full Object Card + static shadow + hover lift + stronger hover shadow 是合法 module exception。
+- Content Family 没有 universal Card、Opening、width、Tag、date、pagination、footer、radius 或 hover treatment。
 
-首次看见的总览与后续聚焦属于同一片星图，不重复建立第二张地图。
+---
 
-### 1.3 星球不是抽象节点
+## 2. Home：连续星域
 
-远处可以是抽象星点，但靠近后必须逐步成为具有体积、光照、大气或地表细节的星球。
+Home 不是多个 section 拼成的作品集，也不是游戏地图。它是同一片星域从远到近的连续观察：
 
-| 观看尺度        | 必须看到                                               | 禁止退化为             |
-| --------------- | ------------------------------------------------------ | ---------------------- |
-| Entry / 远景    | 星点、微光、极少量星尘                                 | 五个带文字的圆形按钮   |
-| Approach / 接近 | 星点分化为完整的小型球体，开始出现不同轮廓和材质       | 永久抽象节点、发光圆环 |
-| Overview / 总览 | 五颗完整星球全貌，自由分布，可区分地貌、环、气层或切面 | 五张等大的产品卡片     |
-| Focus / 聚焦    | 高细节弧面、地表、阴影、大气与微观材料；可只露出局部   | 简单放大低清总览图     |
-| Push / 点击推进 | 目标星球快速占据视野并把材质色调带入页面转场           | 长时间不可跳过的影片   |
+1. **Entry**：深空、大留白、远处星点、世界观短句；一次性流星与 DISCOVER MORE 提供继续探索的入口。
+2. **Approach**：自然滚动推进空间距离；远、中、近景产生轻量视差，星点逐渐显现为完整小型星球。
+3. **Star Map Overview**：About、Blog、Feed、Learn、Projects 五颗完整星球自由分布；标签低声量常驻。
+4. **Planet Focus**：自然滚动可按 `About → Feed → Blog → Projects → Learn` 观察；顺序只组织镜头路径。
+5. **Direct Focus**：点击、键盘或航行索引可以直接进入任一目标 Focus。
+6. **Focus action**：Blog、Feed、Learn、Projects 在明确 action 后执行 Planet Push 并进入功能页。
+7. **About exception**：About 在 Home 原地展开；豹猫彩蛋进入同一展开态。
+8. **Ending**：最后一个 Focus 释放后自然进入页脚；没有 Home Recently、内容卡片、类型筛选或跨模块信息流。
 
-首选视觉方案是高质量预渲染星球图与 2.5D 演出。真实感来自一致的光照、体积、阴影和材质，不要求实时 WebGL 自转或可拖拽 3D。
+Overview 与 Focus 属于同一张星图，不建立第二张地图。
 
-当写实渲染过于接近通用科幻素材时，可采用高质量抽象地质绘画作为创作分支。像素化或点阵化只用于远景显影、信号干扰和转场，不能成为全部星球的永久样式。
+### 2.1 星球观看尺度
 
-### 1.4 共享暖性地质宇宙
+| 尺度 | 必须看到 | 禁止退化为 |
+| --- | --- | --- |
+| Entry / 远景 | 星点、微光、极少量星尘 | 五个文字圆按钮 |
+| Approach | 星点分化为完整小型球体 | 永久抽象节点、发光圆环 |
+| Overview | 五颗完整星球，可辨地貌 / 环 / 气层 / 切面 | 五张等大产品卡片 |
+| Focus | 高细节弧面、地表、阴影、大气与材料 | 简单放大低清总览图 |
+| Push | 目标星球快速占据视野并带入材质色调 | 长时间不可跳过影片 |
 
-统一原则：
+首选方案是高质量预渲染星球图 + 2.5D 演出。真实感来自一致光照、体积、阴影和材质，不要求实时 WebGL 自转或可拖拽 3D。
+
+### 2.2 暖性地质宇宙
 
 > 共享温暖地质，差异化地貌；共享 Klein Blue 光学，不共享 Klein Blue 地表。
 
-- 星球主体使用奶油、砂岩、陶土、赭色、浅矿物与冷阴影。
-- Klein Blue 只用于边缘光、航线、焦点、卫星和交互反馈，不大面积涂满星球。
-- 自然天体是主体；纸浆、陶釉、颜料沉积等艺术材料只在聚焦近看时成为微观质感。
-- 每颗星球只保留一个总览可辨认的主地貌，至多一个近看艺术质感，避免堆叠环、植物、晶体、机械、云海与建筑。
-- 五颗星球使用同一主光方向、景深规律、阴影温度与资产校色标准。
+- 主体材质使用奶油、砂岩、陶土、赭色、浅矿物与冷阴影。
+- Klein Blue 只用于边缘光、航线、焦点、卫星和交互反馈。
+- 自然天体是主体；纸浆、陶釉、颜料沉积等只在近看时成为微观质感。
+- 每颗星球只保留一个总览主地貌和至多一个近看材料重点。
+- 五颗星球共享主光方向、景深规律、阴影温度和资产校色标准。
 
-### 1.5 五颗星球材质矩阵
+| 星球 | 总览主地貌 | 聚焦微观质感 | 应避免 |
+| --- | --- | --- | --- |
+| About | 安静、低修辞的浅色岩质星体 | 细微毛发般矿物纹理 / 柔和尘埃 | 猫头星、猫形星球、强 mascot |
+| Blog | 风化层状岩、沉积地层 | 纸浆纤维、墨迹矿脉、颜料沉积 | 书本、羽毛笔等直白符号 |
+| Feed | 有流向感的低洼地表、沉积河谷 | 脚印、闪屑、时间冲刷纹理 | 社交 App 图标、信息流屏幕 |
+| Learn | 地质断层、显露矿脉 | 刻线、石墨、微晶结构 | 知识水晶、大脑隐喻 |
+| Projects | 自然地表上的人工切割 / 台地 | 陶釉、金属嵌线、几何构造 | 全机械星球、赛博工厂 |
 
-| 星球     | 总览主地貌                             | 聚焦后的微观质感                 | 应避免                              |
-| -------- | -------------------------------------- | -------------------------------- | ----------------------------------- |
-| About    | 安静、低修辞的浅色岩质星体             | 细微毛发般矿物纹理或柔和尘埃层   | 猫头星、猫形星球、强人格 mascot     |
-| Blog     | 风化层状岩、沉积地层                   | 纸浆纤维、墨迹般矿脉、颜料沉积   | 书本、羽毛笔等直白文学符号          |
-| Feed     | 有流向感的低洼地表、沉积河谷           | 脚印、细小闪屑、被时间冲刷的纹理 | 社交 App 图标、信息流屏幕、水球直译 |
-| Learn    | 地质断层、逐步显露的矿脉               | 刻线、石墨、微晶结构             | “知识水晶”、大脑等常见 AI 隐喻      |
-| Projects | 自然地表上的人工切割、台地或嵌入式结构 | 陶釉、金属嵌线、几何构造         | 全机械星球、赛博工厂、飞船基地      |
+### 2.3 Content 借材质，不搬运星球
 
-### 1.6 Content：借用材质，不搬运星球
-
-Blog、Feed、Learn、Projects 继续使用 Cream Gallery 的真实功能布局。星球只是入口与材质母题。
-
-- Blog 可借层状沉积的页首纹理、文章封面裁切或分隔线。
-- Feed 可借河谷的时间方向、轻微沉积纹理和足迹语义。
-- Learn 可借断层、刻线或矿脉表达知识结构、domain orientation 与 Note relations；不以 completion / progress 作为视觉主骨架。
-- Projects 可借台地、切面与嵌线表达项目状态和结构。
+- Blog 可借层状沉积、纸浆与风化痕迹。
+- Feed 可借河谷时间方向、沉积纹理与足迹语义。
+- Learn 可借断层、刻线、矿脉表达 knowledge structure、domain orientation 与 Note relations；不以 completion / progress 为视觉骨架。
+- Projects 可借台地、切面与嵌线表达项目对象。
 - Content 页面不出现完整行星、星图滚动、3D 飞行或宇宙背景。
-- 借用必须低剂量，不能改变文章列表、时间线、Knowledge Structure + Reading 和项目展示的主体信息架构。
 
 ---
 
-## 2. 色彩与 Token 系统
+## 3. 色彩与 Token
 
-### 2.1 三层 Token 架构
+### 3.1 三层 token
 
-设计 token 分三层：
-
-| 层级                 | 职责                               | 示例                                                                                       |
-| -------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------ |
-| Layer 1 / Primitives | 原始色值、尺寸、时长、曲线、材质值 | Klein Blue 色阶、地质色、基础透明度                                                        |
-| Layer 2 / Semantic   | 画布和语义角色                     | bg-base、text-primary、space-star-near、planet-rim                                         |
-| Layer 3 / Component  | 组件状态映射                       | star-map-label、has-beacon、leopardcat-node、cursor-meteor、content-paw-trail、feed-footprint |
-
-组件只能消费 Layer 2 或 Layer 3，不直接跨层绑定 Layer 1 原始值。Phase 4.x 已完成 token 的职责、视觉数值与 canonical CSS 落地；滚动阶段、轨道相位、随机星场、豹猫物理和 pointer gait 仍由运行时负责，不应为了文档同步把精确 runtime 参数提升为 durable token contract。
-
-纹理文件、星球贴图、豹猫节点数据和图片裁切不是 CSS token，应进入资产清单。
-
-### 2.2 Klein Blue 色阶
-
-| Token       | 值      | 用途                      |
-| ----------- | ------- | ------------------------- |
-| --klein-600 | #001F70 | 亮底 Hover / Active       |
-| --klein-500 | #002FA7 | 品牌基准、亮底 CTA 与重点 |
-| --klein-400 | #335CFF | 暗底可交互元素与可见边缘  |
-| --klein-300 | #6685FF | 暗底辅助图标、次级信号    |
-| --klein-100 | #E6ECFF | 亮底选中背景与淡提示      |
-
-Klein Blue 的艺术纯度由 --klein-500 定义；暗底交互必须根据对比度使用更亮阶，不能为了品牌纯度牺牲可见性。
-
-### 2.3 画布基础色
-
-| 画布    | 基底                       | 表面                            | 主文字                          | 主 CTA                       |
-| ------- | -------------------------- | ------------------------------- | ------------------------------- | ---------------------------- |
-| Home    | --home-void: #0A0A0C       | --home-surface-soft: #121722    | --home-text-primary: #E5E7EB    | --klein-400                  |
-| Content | --content-gallery: #FAF9F5 | --content-surface-card: #EFE9DE | --content-text-primary: #141413 | --klein-500                  |
-| Finance | --finance-dark: #0B0E11    | --finance-surface: #1E2329      | --finance-text-primary: #EAECEF | --finance-cta-green: #5EAF9E |
-
-继续保留现有暖墨正文、Content 发丝线、Finance 涨跌色与 WCAG 对比度要求。
-
-#### 暖性地质基线
-
-| Token          | 值      | 角色                     |
-| -------------- | ------- | ------------------------ |
-| --geo-cream    | #E8DFD0 | 浅岩、纸浆、盐地         |
-| --geo-sand     | #CBB184 | 沉积层、河谷、风化地貌   |
-| --geo-clay     | #A8755B | 陶土、切面、较深地层     |
-| --geo-mineral  | #BBB8AE | 中性矿物、断层与结晶基底 |
-| --geo-graphite | #4B4E55 | 刻线、冷暗细节与学习矿脉 |
-| --geo-pigment  | #7A5C48 | 墨迹与颜料沉积           |
-| --geo-metal    | #9DA2A8 | Projects 的人工嵌线      |
-
-五颗星球通过共用材质组合形成差异，不建立独立品牌色：About 使用 cream + mineral；Blog 使用 sand + clay + graphite / pigment；Feed 使用 sand + clay + pigment；Learn 使用 cream + mineral + graphite；Projects 使用 clay + mineral + metal。星球贴图决定真实地貌，CSS 色负责统一调色、光学叠加与资源降级。
-
-### 2.4 Home 空间 Token 家族
-
-以下是 v2 必须提供的语义接口。Phase 4.3 canonical CSS 已吸收 Phase 4.2 验证过的透明度、尺度与光学强度；星团坐标、暗区、随机 seed 与密度生成仍不属于 CSS token：
-
-| 家族        | 建议 Token                                            | 职责                             |
-| ----------- | ----------------------------------------------------- | -------------------------------- |
-| Deep Space  | --space-bg、--space-haze、--space-dust                | 深空、远雾、微尘                 |
-| Depth Stars | --space-star-far、--space-star-mid、--space-star-near | 三档景深星点的颜色、透明度和尺度 |
-| Depth State | --space-depth-muted、--space-depth-active             | 非焦点与当前焦点的光学差异       |
-| Route       | --space-route、--space-route-active                   | 低音量航线与交互增强             |
-
-### 2.5 星球光学、材质与状态 Token
-
-星球可能需要较多 token，但必须按职责分组，不能为每张贴图建立一套无规律变量。
-
-| 家族       | 建议 Token                                                                                     | 职责                           |
-| ---------- | ---------------------------------------------------------------------------------------------- | ------------------------------ |
-| Optical    | --planet-light-main、--planet-shadow-cold、--planet-rim、--planet-atmosphere                   | 统一主光、冷阴影、边缘光与大气 |
-| Surface    | --planet-surface-cream、--planet-surface-sand、--planet-surface-clay、--planet-surface-mineral | 暖性地质基础                   |
-| Detail     | --planet-detail-graphite、--planet-detail-pigment、--planet-detail-metal、--planet-grain       | 近看微观材料                   |
-| Contrast   | --planet-surface-contrast、--planet-surface-saturation、--planet-detail-opacity                | 总览与聚焦的材质强度           |
-| Scale      | --planet-scale-entry、--planet-scale-overview、--planet-scale-focus                            | 三档观看尺度                   |
-| Focus      | --planet-focus-rim、--planet-focus-glow、--planet-focus-label                                  | hover / focus 状态             |
-| Transition | --planet-push-scale、--planet-push-fade、--planet-push-duration                                | 点击短推进的语义接口           |
-
-五颗星球通过 Layer 3 别名映射这些共用值，例如 planet-blog-surface、planet-feed-detail。禁止建立五套互相无关的品牌色。
-
-### 2.6 Home Activity Signal 卫星
-
-ADR-007 已授权 Home 读取一份最小、静态的活动状态投影。Klein Blue 信号卫星只把 `active`、`stable`、`dormant` 映射为低音量的物理状态；它不是未读提醒、内容预览或第二套导航。
-
-共同边界：
-
-- 仅 Blog、Feed、Learn、Projects 四颗功能星球最多各有一颗；About 永不参与，豹猫星座也不共享这套语义；
-- 卫星必须是有暗面、细边缘光与嵌入式 Klein Blue 信号带的微小轨道信标，不能退化成纯蓝点、通知红点或标签旁装饰；
-- 信标沿主星周围的圆形或椭圆路径完成低频公转；可见轨道痕迹保持不完整、低透明度，不画完整高亮环或矩形虚线尾迹；
-- 公转按相位建立前后层：背面与主星圆盘重叠时由主星遮挡，离开圆盘后即使仍在后半轨也可见；不得用 opacity 淡出伪装遮挡；
-- 状态通过天体材质、轨道残留、受限运动和可访问文字共同表达，不能只靠颜色、亮度或运动；
-- 若 Home 没有有效的活动状态投影，四颗功能星球都隐藏活动卫星；绝不能把数据不可用伪装成 `dormant`。
-
-| 状态      | 总览视觉                                                                        | 局部运动与反馈                                                                  |
-| --------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| `active`  | 最清晰但仍低音量的信标：深冷珍珠灰本体、Klein Blue 信号带、细边缘辉光与可读轨道 | 按 active 周期低频公转；hover / keyboard focus 时平滑减速并维持较弱同步光学响应 |
-| `stable`  | 同一枚信标逐级冷却，尺寸、明度与轨道弱于 active                                 | 按 stable 周期低频公转；hover / focus 时按自身周期同比减速并作更弱回应          |
-| `dormant` | 可辨认的冷却卫星与极弱轨道残片；不能消失，以免与投影缺失混淆                    | 默认静止；hover 或 focus 只强化标签和轮廓，不发出辉光脉冲                       |
-
-Phase 4.2 已将同一母版信标的核心直径基线校准为主星的约 `6.375%`，再通过 active `1`、stable `.88`、dormant `.76` 的状态尺度逐级冷却。该值是 canonical 视觉接口，不授权 CSS 控制实际轨道相位、周期或随机 pulse 调度。
-
-`active` 与 `stable` 的低频公转是“卫星存在感”的受限例外：它不得自动改变星图焦点、诱导用户点击或形成通知式警报闪烁。常态 pulse 独立、低频且异步；hover / focus 期间由持续 attention 接管并暂停常态 pulse。`dormant` 不自动移动。触控与 reduced motion 下三态均退化为静态材质、轨道残留与可访问文字状态。
-
-建议 token 分为两组：
-
-- 共享材质：`--has-body-*`、`--has-rim`、`--has-band`、`--has-orbit`、`--has-attention-glow`；
-- 三态别名：`--has-{active,stable,dormant}-{scale,opacity,orbit-opacity}`；
-- `orbit path / phase / period / playbackRate / pulse scheduler` 明确为 runtime-owned，不进入普通 CSS token。
-
-Phase 4.2 的 mock-state / prototype 说明是历史验证方法，不要求 Phase 8 的普通维护任务重新搭建同一原型。
-
-About 的豹猫星座与 Home Activity Signal 卫星是两种不同角色，不共享行为、数据或 token 语义。
-
-### 2.7 豹猫 Token 家族
-
-豹猫使用 Klein Blue 光学体系，不单独建立“暖铜豹猫”品牌色。
-
-canonical 视觉 token：
-
-- 共享光学：`--leopardcat-particle`、`--leopardcat-line`、`--leopardcat-glow`；
-- 分层角色：`--leopardcat-{contour,link,aura}-*`；
-- 节点三态：`--leopardcat-node-{rest,reveal,charged}-*`；
-- Focus 残粒：`--leopardcat-residue-opacity`。
-
-豹猫的 28 个节点坐标、轮廓采样、爆点、逐粒子冲量、切向扰动、弹簧与阻尼属于 SVG / JavaScript 运行时契约，不迁入 CSS token。
-
-旧版 --cat-warm、--cat-dark、--cat-eye-glow 等过早预设已从 canonical CSS 废弃；豹猫统一使用上述 Klein Blue 光学语义。
-
-豹猫状态词汇（`data-cat-state`）及其 implementation mapping 会随 runtime 演进；本文件锁定的是 reveal → charge → burst / residue → recovery 的视觉语义与 About 不爆炸的边界，不把 selector 名当作长期 Design authority。
-
-### 2.8 Pointer signature across canvases
-
-Home 的 **Cursor Meteor** 继续使用鼠标移动光点、短渐变尾迹和少量碎屑作为个人签名；其既有 `--cursor-meteor-*` token 家族只服务这一 Home 语义。
-
-Content 已形成独立的 pointer language：
-
-- **Paw Trail**：fine-pointer movement 产生低音量猫爪足迹，是 Content / Cream Gallery 的 movement signature；
-- **Click Feedback**：点击时提供独立、克制的 Klein Blue core / echo response；
-- Paw Trail 与 Click Feedback 彼此独立，且都不是“弱化版 Cursor Meteor”。
-
-Finance 不使用 Cursor Meteor、Paw Trail 或该 Content Click Feedback，以避免干扰精确数据操作。
-
-这些 pointer signatures 仅在适合的 fine-pointer / hover 环境中出现，并尊重 reduced-motion。具体步距、速度阈值、寿命、透明度、点击半径等属于 runtime tuning，不写入 durable Design contract。
-
-Home Cursor Meteor 与首屏 DISCOVER MORE 流星不是同一个组件，也不承担同一种语义。
-
-### 2.9 Feed Public Footprint Token
-
-Feed 可保留必要的来源/类型辅助色，但颜色只作冗余标记，不能成为唯一编码。
-
-Footprint 的 token 只表达 equal-rank Activity 内的 grammar 差异，不得重新制造“Native 高 Card / Footprint 低系统行”的视觉层级，也不暴露底层物理存储差异。
-
----
-
-## 3. 排版系统
-
-### 3.1 字体角色
-
-| 角色         | 字体                                            | 用途                             |
-| ------------ | ----------------------------------------------- | -------------------------------- |
-| Display      | IBM Plex Sans + HarmonyOS Sans                  | Home 入口、画廊标题、品牌骨架    |
-| UI / Body    | Geist + HarmonyOS Sans                          | 导航、正文、卡片与操作           |
-| Data / Mono  | JetBrains Mono                                  | Finance 数值、时间戳、低音量坐标 |
-| CJK Fallback | HarmonyOS Sans SC、PingFang SC、Microsoft YaHei | 中文兜底                         |
-
-Home 的原“Hero Display”角色更名为 **Entry Display**。它服务宇宙入口的世界观短句，不承担产品 landing page 的大促销标题。
-
-### 3.2 字号层级
-
-| 角色          | EN        | CN        | 字重            | 行高原则           |
-| ------------- | --------- | --------- | --------------- | ------------------ |
-| Entry Display | 最大 94px | 最大 84px | EN 300 / CN 400 | EN 0.9；CJK ≥ 1.25 |
-| Heading LG    | 最大 78px | 最大 70px | EN 300 / CN 400 | CJK ≥ 1.30         |
-| Heading       | 最大 54px | 最大 48px | 400             | CJK ≥ 1.35         |
-| Subheading    | 最大 39px | 最大 35px | 400             | CJK ≥ 1.40         |
-| Body LG       | 18px      | 16px      | EN 300 / CN 400 | CJK ≥ 1.85         |
-| Body          | 16px      | 16px      | 400             | CJK ≥ 1.85         |
-| Nav           | 14px      | 14px      | EN 600 / CN 500 | 1.20               |
-| Caption       | 12px      | 12px      | 400             | 1.50               |
-
-Display 至 Heading 必须流式缩放。中文显示字号约为英文的 0.9 倍，不使用负字距。
-
-**Home Focus 面板排版**（生产实现以 current Home styles 为准；本节保留视觉规范记录）：
-
-| 角色 | 参数 | 备注 |
+| 层级 | 职责 | 示例 |
 | --- | --- | --- |
-| Focus 标题 EN | `clamp(36px, 5vw, var(--text-size-heading-md-en))` | 字重 300、行高 1.04、字距 -0.035em |
-| Focus 标题 CN | `clamp(34px, 4.6vw, var(--text-size-heading-md-cn))` | 字重 400、行高 1.3、字距 0 |
-| Focus 正文 | max-width 38em、`--text-size-body` | 行高 `--line-height-body`（CN 用 `--line-height-body-cjk`）、overflow-wrap anywhere |
-| Focus 操作按钮 | `--text-xs`、字重 600、行高 1 | 字距 0.14em、uppercase |
-| 星球标签 | `--star-map-label-size`（11px）、字重 500 | 行高 1.4、字距 0.18em、uppercase、nowrap；index 用 `--star-map-index-size`（10px） |
-| CN 切换 | `:lang(zh)` → `--font-cjk` | 标题/正文/按钮统一切换 |
-| 移动端 | ≤760px 正文降至 `--text-sm` | — |
+| Primitives | 原始色值、尺寸、时长、曲线 | Klein Blue、地质色、基础透明度 |
+| Semantic | 画布与语义角色 | bg-base、text-primary、planet-rim |
+| Component | 组件视觉映射 | star-map-label、has-beacon、leopardcat-node、cursor-meteor、content-paw-trail |
 
-### 3.3 CJK 强制规则
+Runtime geometry、轨道相位、随机星场、豹猫物理、pointer gait 等不属于 durable design token。
+
+### 3.2 Klein Blue
+
+| Token | 值 | 用途 |
+| --- | --- | --- |
+| `--klein-600` | `#001F70` | 亮底 Hover / Active |
+| `--klein-500` | `#002FA7` | 品牌基准、亮底 CTA / focus |
+| `--klein-400` | `#335CFF` | 暗底交互与边缘光 |
+| `--klein-300` | `#6685FF` | 暗底辅助信号 |
+| `--klein-100` | `#E6ECFF` | 亮底淡提示 |
+
+暗底交互必须优先满足可见性和对比度。
+
+### 3.3 画布基础色
+
+| 画布 | 基底 | 表面 | 主文字 | 主 CTA |
+| --- | --- | --- | --- | --- |
+| Home | `#0A0A0C` | `#121722` | `#E5E7EB` | Klein Blue |
+| Content | `#FAF9F5` | warm cream surfaces | `#141413` | Klein Blue |
+| Finance | `#0B0E11` | `#1E2329` | `#EAECEF` | Finance turquoise / state colors |
+
+### 3.4 暖性地质基线
+
+| Token | 值 | 角色 |
+| --- | --- | --- |
+| `--geo-cream` | `#E8DFD0` | 浅岩、纸浆、盐地 |
+| `--geo-sand` | `#CBB184` | 沉积层、河谷、风化地貌 |
+| `--geo-clay` | `#A8755B` | 陶土、切面、较深地层 |
+| `--geo-mineral` | `#BBB8AE` | 中性矿物、断层与结晶基底 |
+| `--geo-graphite` | `#4B4E55` | 刻线、冷暗细节 |
+| `--geo-pigment` | `#7A5C48` | 墨迹与颜料沉积 |
+| `--geo-metal` | `#9DA2A8` | Projects 人工嵌线 |
+
+### 3.5 Home optical token families
+
+- Deep Space：背景、haze、dust、far/mid/near stars。
+- Planet Optical：主光、冷阴影、rim、atmosphere。
+- Planet Surface / Detail：cream、sand、clay、mineral、graphite、pigment、metal、grain。
+- Planet Scale：Entry / Overview / Focus。
+- Focus / Transition：focus rim / glow / label、push scale / fade / duration。
+
+五颗星球通过 Layer 3 alias 使用共享光学与地质材料，不建立五套独立品牌色。
+
+---
+
+## 4. Home Activity Signal
+
+Home Activity Signal 只把 `active`、`stable`、`dormant` 映射为低音量天体状态，不是未读提醒、内容预览或第二套导航。
+
+- 仅 Blog、Feed、Learn、Projects 最多各有一颗信号卫星；About / 豹猫不参与。
+- 信标是微小轨道天体：有暗面、细 rim、嵌入式 Klein Blue signal band。
+- 轨道痕迹低透明度、不完整；不画完整高亮环或通知轨道。
+- 前后层通过真实遮挡表达，不用 opacity 淡出假装被主星遮挡。
+- 状态由材质、轨道、受限 motion 与 accessible text 共同表达，不只靠颜色。
+- 数据不可用时隐藏信号卫星，不能伪装成 `dormant`。
+
+| 状态 | 视觉 | Motion |
+| --- | --- | --- |
+| active | 最清晰但仍低音量；Klein Blue band / rim / readable orbit | 低频完整公转；hover / focus 减速 |
+| stable | 同一信标冷却、尺寸与亮度降低 | 更慢低频完整公转；hover / focus 同比减速 |
+| dormant | 冷却卫星 + 极弱轨道残留 | 静止 |
+
+核心直径基线约为主星的 `6.375%`；状态 scale：active `1`、stable `.88`、dormant `.76`。
+
+Active / stable 的完整低频公转是受限例外：不得自动改变焦点、诱导点击或形成通知式闪烁。Reduced motion 下全部退化为静态材质、轨道残留和 accessible state。
+
+---
+
+## 5. 豹猫视觉语言
+
+豹猫统一使用 Klein Blue 光学体系，不建立独立暖铜品牌色。
+
+视觉语义：
+
+- 侧面行走姿态；必须能读出双耳、侧脸、背线、四足和长尾。
+- 外轮廓优先，内部骨架克制。
+- Rest → Reveal → Charged → Burst / Residue → Recovery。
+- 只有豹猫粒子爆开，About 星球绝不爆炸。
+- Focus residue 不显示完整幽灵豹猫。
+- 不做自由拖拽、滚轮缩放或持续自动旋转。
+
+豹猫是 About 的可选彩蛋路径，不是理解或进入 About 的前置条件。
+
+---
+
+## 6. Pointer signatures
+
+### Home — Cursor Meteor
+
+- 指针光点、短渐变尾迹和少量碎屑组成。
+- 跟随真实鼠标移动，不捕获点击、不改变系统指针语义。
+- 停止后快速衰减，不覆盖正文、表单、数据或星球标签。
+
+### Content — Paw Trail + Click Feedback
+
+- **Paw Trail**：fine-pointer movement 留下低音量猫爪足迹。
+- **Click Feedback**：独立的点击 response，以克制 Klein Blue core / echo 表达。
+- 两者彼此独立，也都不是“弱化 Cursor Meteor”。
+
+### Finance — neither
+
+Finance 不使用 Cursor Meteor、Paw Trail 或 Content Click Feedback。
+
+所有 pointer signature 都是 enhancement；reduced motion / 不适合的 pointer environment 下可完全关闭，不影响内容与操作。
+
+---
+
+## 7. Typography 与 CJK
+
+### 7.1 字体角色
+
+| 角色 | 字体 | 用途 |
+| --- | --- | --- |
+| Display | IBM Plex Sans + HarmonyOS Sans | Home Entry、画廊标题、品牌骨架 |
+| UI / Body | Geist + HarmonyOS Sans | 导航、正文、Card 与操作 |
+| Data / Mono | JetBrains Mono | Finance 数值、时间戳、结构 metadata |
+| CJK Fallback | HarmonyOS Sans SC、PingFang SC、Microsoft YaHei | 中文兜底 |
+
+### 7.2 字号层级
+
+| 角色 | EN | CN | 字重 | 行高原则 |
+| --- | --- | --- | --- | --- |
+| Entry Display | 最大 94px | 最大 84px | EN 300 / CN 400 | EN 0.9；CJK ≥1.25 |
+| Heading LG | 最大 78px | 最大 70px | EN 300 / CN 400 | CJK ≥1.30 |
+| Heading | 最大 54px | 最大 48px | 400 | CJK ≥1.35 |
+| Subheading | 最大 39px | 最大 35px | 400 | CJK ≥1.40 |
+| Body LG | 18px | 16px | EN 300 / CN 400 | CJK ≥1.85 |
+| Body | 16px | 16px | 400 | CJK ≥1.85 |
+| Nav | 14px | 14px | EN 600 / CN 500 | 1.20 |
+| Caption | 12px | 12px | 400 | 1.50 |
+
+### 7.3 CJK design rules
 
 - 中文正文行高不低于 1.85，标题不低于 1.35，说明文字不低于 1.65。
-- 中文最高常用字重 500，不使用 700 以上制造“粗黑科技感”。
-- 中文字距为 0 或 normal；负字距只用于纯英文或数字标题。
-- 中英文、中文与数字之间保留自然的自动间距；current implementation 使用 browser-native `text-autospace`，不得为达到视觉间距而插入手工空格或恢复破坏复制、搜索、读屏和断行的 JS spacing。
-- Code / preformatted content 不应用正文自动间距。
-- 支持标点挤压和行首行尾禁则；多行中文标题的绝对 line-gap 不低于 16px。
-- 星球标签默认低声量，但仍需满足可发现性；hover / focus 后必须达到正文可读对比度。
+- 中文常用字重最高 500，不用 700+ 制造粗黑科技感。
+- 中文字距为 0 / normal；负字距只用于纯英文或数字 display。
+- 中英文、中文与数字之间保持自然自动间距；不通过内容本身插入人工空格塑造版式。
+- 支持合理的 CJK punctuation trim / hanging behavior。
+- 星球标签默认低声量，但 hover / focus 后达到可读对比度。
 
-### 3.4 Finance 排版
-
-Finance 保持数字优先：主要数值使用 JetBrains Mono，表格密度高于 Content 页面；不继承 Home 的 Entry Display、星球标签或 pointer signature。
+Finance 保持数字优先，主要数值使用 JetBrains Mono，不继承 Home 的 Entry Display 或星球标签语言。
 
 ---
 
-## 4. 组件与交互
+## 8. Home components and interaction
 
-### 4.1 Home Entry
+### 8.1 Entry
 
 首屏只保留：
 
-- 待定的中英文世界观短句位置；
+- 世界观短句位置；
 - DISCOVER MORE；
 - 一次性流星引导；
 - 远处星域与足够留白。
 
-世界观短句尚未锁定，不应在设计或实现中擅自补写 constellation 等英文 slogan。
+世界观短句未锁定，不擅自补写营销式 slogan。
 
-DISCOVER MORE 同时支持：
+DISCOVER MORE 支持点击、滚动、keyboard activation；reduced motion 下直接进入稳定星图状态。首屏流星只播放一次，不循环。
 
-- 点击后平滑进入接近星域阶段；
-- 用户自然滚动进入同一阶段；
-- 键盘 focus 和 Enter / Space 触发；
-- reduced motion 下直接移动到可读的星图状态。
-
-首屏流星只播放一次，结束后保留极低音量的静态轨迹或端点；首次滚动后淡出，不循环。
-
-### 4.2 Star Map Stage
+### 8.2 Star Map
 
 - 五颗星球自由分布，不使用规整轨道或中心太阳。
-- 总览必须看见完整球体；聚焦可只见弧面和高细节局部。
-- 星球在任何可点击阶段都能直接进入对应 Focus，不要求按固定顺序“通关”。
-- 星体位置、尺度和清晰度只表达深度，不表达内容优先级。
-- 星图不得自动旋转、自动巡航或持续改变焦点。
+- 总览看完整球体；Focus 可只见高细节弧面。
+- 星球在可点击阶段都可直接进入对应 Focus。
+- 位置、尺度、清晰度只表达深度，不表达内容优先级。
+- 星图不自动旋转、自动巡航或持续改变焦点。
 
-语义布局锁定为：
+语义区域：
 
-- About 位于右上远端，可发现但不成为最大主星或中心太阳；
-- Blog 位于左上区域；
-- Feed 位于中部偏右的近景区域，是最容易接近和命中的功能星球；
-- Projects 位于左下区域；
-- Learn 位于右下区域；
-- 豹猫 companion 永远以 About 星球的实际位置和半径计算相对位置，不拥有独立随机坐标。
+- About：右上远端；
+- Blog：左上；
+- Feed：中部偏右近景；
+- Projects：左下；
+- Learn：右下。
 
-Drift 已通过 Phase 4.2 目测验收并成为唯一主构图方向；当前坐标作为运行时基线保留，不迁入 canonical CSS。后续只允许在上述语义区域内进行有证据的人工校准，不得在每次加载时随机换位或跨区域漂移。Orbit 只保留为对照证据，不再作为同等候选精修。
+构图保持稳定，不按每次加载随机换位。
 
-### 4.3 Planet Label
+### 8.3 Planet Label
 
-| 状态          | 表现                                                       |
-| ------------- | ---------------------------------------------------------- |
-| 默认总览      | 名称低对比、小字号、常驻且可发现；可贴近星体或使用极细引线 |
-| Hover / Focus | 名称和可点击性清晰；可增加一行极短板块说明                 |
-| Touch         | 不依赖 hover；点按必须能获得同等名称与进入提示             |
-| Push          | 标签与星球共同向前，进入页面前淡出                         |
+| 状态 | 表现 |
+| --- | --- |
+| Overview | 名称低对比、小字号、常驻可发现 |
+| Hover / Focus | 名称与可进入性清晰，可增加极短说明 |
+| Touch | 不依赖 hover；点按获得同等名称 / 进入提示 |
+| Push | 标签与星球共同前推并在页面进入前淡出 |
 
-名称不能完全隐藏，否则星图会退化为猜谜式艺术海报。所有星球还必须在全站导航中有普通文字入口。
+名称不能完全隐藏。所有功能星球还有普通文字导航入口。
 
-### 4.4 Planet Focus、action 与 Planet Push
+### 8.4 Planet Focus and Push
 
-- `Planet Focus` 是 Home 内的观察状态：镜头锁定目标，星球放大并显露同一材质体系的更多细节，同时显示名称、极短说明和明确 action。
-- 自然滚动采用 `About → Feed → Blog → Projects → Learn` 的默认 Focus 顺序；点击、键盘或航行索引可从 Star Map 直接跳到任一 Focus。
-- Focus 只验证星球近景、材质显露、标题与 action，不加载 Blog、Feed、Learn 或 Projects 的真实内容。
-- 对 Blog、Feed、Learn、Projects，只有触发 Focus action 后才执行 `Planet Push`：从当前观察位置继续快速推进目标并进入对应页面。
-- Planet Push 必须短、可中断、不锁滚动；Focus action 是明确的目的地选择，不得再增加第三次确认。
-- 页面落地后回归对应功能画布；不建立 Home 内的“星球详情页”。
-- reduced motion 下直接切换到稳定 Focus；触发 action 后进行普通页面导航。
+- Focus 是 Home 内观察状态：目标星球放大并显露更多材质，显示名称、极短说明和明确 action。
+- 自然滚动按默认顺序浏览；点击 / keyboard / navigation index 可直接跳到任一 Focus。
+- Focus 不加载 Blog / Feed / Learn / Projects 真实内容。
+- 功能星球只有在 action 后执行短、可中断、不锁滚动的 Planet Push。
+- 页面落地后回归对应功能画布，不建立 Home 内“星球详情页”。
 
-### 4.5 About 的双路径
+### 8.5 About dual path
 
-About 必须有两条通往同一展开态的路径：
+**主路径**：点击 About / Focus action 后，镜头轻推近并进入 About 展开态；不要求发现豹猫。
 
-**主路径：直接、可访问**
+**彩蛋路径**：
 
-- 在总览点击 About 星球或文字标签时，镜头轻推近并连续进入 About 展开态，不增加第二次确认；
-- 自然滚动进入 About Focus 时，提供明确的 About action，触发后在星球附近原地展开信息；
-- 不要求用户发现豹猫或完成彩蛋。
+- About 附近出现低音量 Klein Blue 豹猫轮廓 / 星座。
+- Desktop 第一次独立点击进入 Charged，再次点击触发 burst；不是 browser `dblclick`。
+- Touch 单次激活直接进入；reduced motion 跳过 burst。
+- Burst 后少量 residue 延续到 About Focus；完整轮廓隐藏。
+- 关闭 / 返回 / 离开时回收至 Rest。
 
-**彩蛋路径：豹猫星座**
+### 8.6 About Expanded
 
-- 星图总览中，About 附近出现低音量 Klein Blue 豹猫星座；不恢复已删除的独立蓝色 companion body；
-- 指针进入 About 的引力范围或键盘 focus 时，侧面行走的豹猫轮廓清晰显现；
-- 桌面第一次独立点击豹猫：进入蓄能态，节点向实际触发点轻微内收、亮度提高，并出现“再次点击”的轻提示；这不是浏览器 `dblclick`；
-- 第二次点击豹猫：只有豹猫粒子爆开，About 星球绝不爆炸；
-- 触控端单次激活直接爆开并进入 About；reduced motion 跳过物理爆开并直接进入；
-- 节点、轮廓采样粒子与断续结构分层解体；少量残粒延续到 About Focus，完整轮廓和连线保持隐藏；
-- 镜头轻推近，进入与主路径相同的 About 展开态；
-- 展开态只保留低音量、不可交互的残余签名，不显示完整幽灵豹猫；
-- 关闭 About、返回星图或自然滚动离开时，节点、连线与断续轮廓按序回收到 rest；
-- 若蓄能后未再次点击，应缓慢退回静止态。
+- 信息在星球表面或附近出现，不恢复独立玻璃卡片主舞台。
+- 可包含姓名、简介、外部链接和必要个人信息。
+- 文本置于稳定、高对比阅读层，不直接压在复杂地表上。
+- 关闭入口明确并可 keyboard 操作；关闭后焦点回到触发元素。
 
-豹猫形态要求：
+---
 
-- 侧面、行走姿态，不采用坐姿 mascot；
-- 近看必须能读出双耳、侧脸、背线、四足和长尾；
-- 外轮廓优先，内部骨架线克制；
-- 只做轻微 2.5D 深度响应，不允许自由拖拽、滚轮缩放或持续自转。
+## 9. Content surfaces
 
-触控设备必须始终保留 About 星球直接展开的主路径。豹猫彩蛋的触控手势可降级，但不得增加理解 About 所必需的额外操作。
+### 9.1 Blog
 
-### 4.6 About Expanded
+- Archive = editorial article index，不使用 Full Card / shadow / hover lift。
+- Reading = Tonal Paper；no border / shadow / radius。
+- Desktop Summary 可 hover / focus reveal；Mobile always visible。
+- Archive 与 Reading 使用不同 content measure。
 
-- 信息在星球表面或附近出现，不恢复旧版左侧玻璃卡片主舞台。
-- 展开区可包含姓名、简介、外部链接和必要的个人信息。
-- 文字必须在稳定、足够对比度的阅读层中呈现，不能直接压在复杂地表上。
-- 关闭入口明确，可通过键盘操作；关闭后焦点回到 About 星球或触发元素。
-- About 是五颗星球之一，不因展开成为全站中心天体。
+### 9.2 Feed — Quiet Deposition
 
-### 4.7 Pointer signatures
+Design unit = **Activity**。Native Note、Native Clip、Public Footprint equal S2 rank、different grammar。
 
-**Home — Cursor Meteor**
-
-- 由指针光点、短渐变尾迹和少量碎屑组成；
-- 跟随真实鼠标移动，不捕获点击，不改变系统指针语义；
-- 完整但低音量，指针停止后快速衰减；
-- 不能覆盖正文、表单、数据或星球标签。
-
-**Content — Paw Trail + Click Feedback**
-
-- Paw Trail 跟随 qualifying fine-pointer movement，以低音量猫爪足迹作为 Cream Gallery 的 movement signature；
-- Click Feedback 是独立的点击 response，使用克制的 Klein Blue core / echo；
-- 两者不得被合并成“Content Cursor Meteor”，也不要求共享 Home meteor 的长度、碎屑、运动或 token grammar。
-
-**Finance — neither**
-
-- 不继承 Home Cursor Meteor、Content Paw Trail 或 Content Click Feedback。
-
-以上装饰性 pointer signature 均不改变系统指针、内容语义或可操作能力，并尊重 fine-pointer / reduced-motion 边界。
-
-### 4.8 Feed：equal-rank Activity, different grammar
-
-Feed 是木下的公开足迹／来时路，保持单列连续时间流。Design unit 统一是 **Activity**；Native Note、Native Clip 与 Public Footprint 都属于 equal S2 object rank，但使用各自 grammar。
-
-| Activity grammar | 核心内容 | 视觉边界 |
+| Grammar | 核心内容 | 视觉边界 |
 | --- | --- | --- |
-| Note | What I said；文字、图片或视频 | frameless / quiet deposition；内容本身是 anchor |
-| Clip | What I saved + why I cared；外部对象 + 个人 comment | 与 Note 同 rank，可用轻量内部结构区分 external object |
-| Footprint | What happened + what it was；事件 identity + snapshot + destination | 与 Native 同 rank，不伪装成手写 Note，也不降级成 system-log row |
+| Note | What I said | frameless，content 是 anchor |
+| Clip | What I saved + why I cared | 同 rank；external object 可有轻内部结构 |
+| Footprint | What happened + what it was | 同 rank；event identity + snapshot + explicit destination |
 
-D — Quiet Deposition 的共同约束：
+共同约束：
 
-- 不使用 full Activity background、full border、shadow、repeated divider、timeline rail/node/tick；
+- no full Activity background / border / shadow；
+- no repeated divider、timeline rail、node、tick；
 - Native 不天然更高，Footprint 不天然更轻；
-- Footprint 使用明确的 TYPE · ACTION / time identity、snapshot content 与 explicit destination；
-- Blog first publication、Learn publication/revision、Project meaningful update 使用同一 Footprint grammar，不恢复 `Learn Section Completed` 的 completion 产品语义；
-- UI 读取统一投影，不出现“来自哪张表”的视觉差异；
-- Feed 在所有断点保持单列，不采用旧版 Tablet 两列 grid。
+- 不把 Footprint 画成 system-log row；
+- chronology 由 year / date / time 与 vertical rhythm 承担。
+
+### 9.3 Learn
+
+- Learn = **Knowledge Structure + Reading**。
+- Knowledge Map = Track directory × Graph。
+- Track 是 categorical / domain directory；Graph 是 relational / exploratory directory。
+- Track 是 Note 的重要 context，但不是 parent / curriculum。
+- Public Note 是 durable reading surface；Track / Note list 不默认 Full Card、shadow 或 lift。
+- Search 是 secondary retrieval utility。
+- Recent Knowledge 由 publication / substantive revision lifecycle 驱动，不把普通 maintenance edit 放大成 freshness signal。
+- 不引入虚假的 public completion / progress / XP / gamification。
+
+### 9.4 Projects
+
+- Project = Full Object Card。
+- 保留 static shadow、hover lift、stronger hover shadow。
+- whole-card external destination 合法；arrow 是 cue，不增加重复 CTA。
+- Tech Tags 是轻 bounded noninteractive annotation。
+- Screenshot / visual evidence 是 Project identity evidence，不做 hover zoom。
 
 ---
 
-## 5. 布局与空间
+## 10. Layout and navigation
 
-### 5.1 Home 空间规则
+### 10.1 Home
 
-- 入口、接近、总览是同一连续空间。
-- 2–3 个视口只负责接近感和纵深，不逐屏讲解一个板块。
-- 星球自由分布、允许不对称，但必须保持可点区域和标签不冲突。
-- 可以使用短暂 sticky 舞台，但不得把它写成滚动劫持。
-- 用户可快速滚过，也可在任何可点击阶段直接进入星球。
-- 星图结束后自然进入页脚，不插入内容聚合区。
+- Entry、Approach、Overview、Focus 是同一连续空间。
+- 可以使用短暂 sticky stage，但不滚动劫持。
+- 用户可快速滚过，也可直接进入目标星球。
 
-### 5.2 Content 布局
+### 10.2 Content
 
-- Blog 以 editorial Archive 与 Reading measure 为主体。
-- Feed 以单列连续时间流和 chronology 为主体。
-- Learn 以 **Knowledge Structure + Reading** 为主体：Knowledge Map = Track directory × Graph；Recent Knowledge 是 lifecycle-driven secondary surface；Track page 提供 domain browse；Public Note 是 durable Reading Surface。不得重新以 public progress / completion 组织页面。
-- Projects 以 Project Object 展示为主体。
-- Content Family 共享 Cream Gallery 留白、Warm Ink、restrained Hairline 与 Klein Blue interaction，但没有 universal Card、radius、max-width 或 hover treatment。
-- 地质纹理只出现于页首、封面、分隔或细节，不侵入正文可读区。
+- Blog：Archive / Reading measure。
+- Feed：单列 chronology。
+- Learn：Knowledge Map + Recent Knowledge + Track browse + Public Note Reading。
+- Projects：Project Object collection。
+- Cream Gallery 共享留白、Warm Ink、restrained Hairline 与 Klein Blue interaction，不共享 universal width / radius / Card。
 
-### 5.3 Finance 布局
+### 10.3 Navigation
 
-Finance 保留高密度数据布局、精确网格和暗色操作面，不使用 Home 的星球、豹猫或任何 Content/Home pointer signature，也不继承暖性地质材料。
-
----
-
-## 6. 导航系统
-
-### 6.1 全站导航
-
-- 提供 Blog、Feed、Learn、Projects 的普通文字入口。
-- 沉浸式星图不是唯一导航方式。
-- Content top-level `返回星图` 的目标语义是 Home Star Map / Overview，而不是 Entry。
-- Learn Public Note primary return Learn corpus；Track 是 domain context，不是 Note identity parent。
-- About 可通过 Home 星球进入；若全站导航提供 About 锚点，应直接进入同一展开态。
-- Finance 保持独立私密子站，不进入公开主星图。
-
-### 6.2 Home 航行索引
-
-首次滚动或点击 DISCOVER MORE 后，低音量侧边航行索引出现：
-
-- 只锚定 Home 阶段，例如 Entry、Approach、Star Map；
-- 不把 Blog、Feed、Learn、Projects 复制成第二套全站导航；
-- 默认显示细刻度、编号或小点，hover / focus 后出现文字；
-- 当前阶段用 Klein Blue 轻量高亮；
-- 桌面端侧置，移动端可降级为顶部或底部的简短进度提示；
-- 若最终 Home 没有额外 Signals 阶段，不得预留空锚点。
+- 全站提供 Blog、Feed、Learn、Projects 的普通文字入口；星图不是唯一导航方式。
+- Top-level Content `返回星图` 返回 Home Star Map / Overview。
+- Learn Track / Public Note 的 structural return target 是 Learn corpus。
+- Finance 保持独立私密子站，不进入公开星图。
 
 ---
 
-## 7. Do / Do Not
+## 11. Do / Do Not
 
-### 7.1 Do
+### Do
 
-- 把 Home 当作真实、有纵深的星图空间，而不是深色背景上的圆形按钮。
-- 总览展示完整星球，聚焦展示高细节局部。
-- 统一星球光学规律，用地貌和微观材质区分板块。
-- 让 Content 页面保持安静、可读，只低剂量借用地质母题。
-- 让每个星球、标签、DISCOVER MORE 和 About 都可键盘操作。
-- 用一次触发的短脉冲、光照变化和回弹表达生命感。
-- 让 Home Cursor Meteor、Content Paw Trail / Click Feedback 保持各自低音量的 personal signature，而不是持续抢夺注意力的特效。
+- 把 Home 当作真实、有纵深的星图空间。
+- 总览展示完整星球，Focus 展示高细节局部。
+- 统一星球光学规律，以地貌和材料区分板块。
+- Content 保持安静、可读，只低剂量借用地质母题。
+- 所有导航与关键 interaction 提供 keyboard / touch 路径。
+- Home Cursor Meteor、Content Paw Trail / Click Feedback 保持低音量个人签名。
 
-### 7.2 Do Not
+### Do Not
 
-- 不恢复 Home 混合时间线、Recently、筛选器、分页或 /api/home。
-- 不把星球永久做成抽象节点、彩色分类圆球或五张产品卡片。
+- 不恢复 Home 混合时间线、Recently、筛选、分页或 `/api/home`。
+- 不把星球做成抽象节点、彩色分类圆球或五张产品卡片。
 - 不让五颗星球围绕中心太阳建立等级秩序。
-- 不按滚动顺序规定 About、Blog、Feed、Learn、Projects 的重要性。
-- 不做滚动劫持、强制影片、多场景世界跳转或不可跳过长转场。
-- 不自动循环旋转星图、星球或豹猫。Home Activity Signal 的 `active` / `stable` 卫星是受限例外，可沿圆形或椭圆路径低频完整公转；但不得自动巡航星图、改变焦点、诱导点击或形成通知式闪烁。`dormant` 保持静态。
-- 不让豹猫成为全站 mascot，不把 About 星球做成猫头。
-- 不在 Content 页面铺完整宇宙、完整行星或 3D 飞行。
-- 不恢复 Native 高 Card / Footprint 低 system-row 的旧 Feed hierarchy。
+- 不做滚动劫持、强制影片或不可跳过长转场。
+- 不自动循环旋转星图、主星或豹猫。HAS active / stable 卫星的低频公转是受限例外。
+- 不让豹猫成为全站 mascot。
+- 不在 Content 页面铺完整宇宙或 3D 飞行。
+- 不恢复 Feed Native high-card / Footprint low-row hierarchy。
 - 不把 Track 变成 Public Note parent、curriculum 或 progress container。
-- 不让颜色成为类别、涨跌或状态的唯一表达。
-- 不为写实度直接采用低辨识度的通用 NASA 素材拼贴。
+- 不让颜色成为类别 / state 的唯一表达。
 
 ---
 
-## 8. 响应式与无障碍
+## 12. Responsive and accessibility
 
-### 8.1 断点行为
+| 范围 | Home | Content |
+| --- | --- | --- |
+| Mobile | 保留星图；减少粒子 / 景深；标签更清晰 | 单列、完整信息、触控友好 |
+| Tablet | 调整星球位置 / 引线，降低视差 | Feed 仍单列；reading measure 自适应 |
+| Desktop | 完整景深、自由星图、navigation index、Cursor Meteor | 完整 Cream Gallery layout |
 
-| 断点              | Home                                                                               | Content / Feed            |
-| ----------------- | ---------------------------------------------------------------------------------- | ------------------------- |
-| Mobile < 640px    | 保留星图而非改成卡片列表；减少粒子和景深层；只为焦点星球加载高细节；标签默认更清楚 | 单列、触控区不小于 44px   |
-| Tablet 640–1023px | 调整星球位置和标签引线，降低视差，不采用两列 Feed                                  | Feed 仍单列；阅读版心扩展 |
-| Desktop ≥ 1024px  | 完整三层景深、自由星图、侧边航行索引、Home Cursor Meteor                           | 完整 Cream Gallery 布局   |
+Accessibility：
 
-Content 的 Paw Trail / Click Feedback 是 fine-pointer enhancement，不成为 responsive layout 的必要组成。
-
-### 8.2 可访问性
-
-- 所有主要文本达到 WCAG 2.1 AA；暗底非文本交互边界达到至少 3:1。
-- 星球是有名称的可聚焦链接或按钮，不是无语义 Canvas 热区。
-- hover 信息必须有 focus 与 touch 等价路径。
-- 当前焦点、活跃状态和类别不能只靠色彩表达。
-- About 展开后管理焦点；关闭后恢复到触发元素。
-- reduced motion 下：
-  - 关闭视差、Home Cursor Meteor、Content Paw Trail / Click Feedback、豹猫爆开和持续位移；
-  - Home Activity Signal 卫星保留三态材质、开放轨道残留与文字状态，但停止公转和辉光脉冲；
-  - DISCOVER MORE 直接进入静态星图；
-  - Planet Push 退化为普通导航；
-  - About 以淡入 / 淡出或直接切换完成。
-- 星图资源加载失败时，必须保留可读的文字导航与静态替代视觉。
+- 主要文本达到 WCAG AA；暗底非文本交互边界满足可见性要求。
+- 星球是有名称的 focusable link / button，不是无语义 Canvas hot area。
+- Hover information 有 focus / touch equivalent。
+- State / category 不只靠颜色。
+- About 展开管理焦点并在关闭后恢复。
+- Reduced motion 关闭持续视差、pointer trail、豹猫 burst 与 HAS orbit；导航、内容和 state meaning 保留。
+- 资源加载失败时保留可读文字导航。
 
 ---
 
-## 9. Agent 使用指南
+## 13. Motion
 
-### 9.1 页面到画布映射
+| 类型 | 职责 | 允许 |
+| --- | --- | --- |
+| Scroll-driven | 推进同一星域远近关系 | 星点显影、星球尺度变化、阶段切换 |
+| Parallax | 辅助纵深 | 远慢、中适中、前稍快 |
+| Hover / Focus | 表达可进入性 | 标签清晰、rim、短脉冲 |
+| Planet Push | 完成导航 | 短暂锁定目标、放大、进入页面 |
+| HAS satellite | 表达最小活动状态 | active / stable 低频公转与 attention 减速 |
+| About Cat | 可选彩蛋 | reveal、charge、burst、residue、recovery |
+| Cursor Meteor | Home pointer signature | 短尾、快速衰减 |
+| Content Paw Trail | Content movement signature | 低音量足迹、快速消退 |
+| Content Click Feedback | Content click response | 克制 core / echo |
 
-| 页面     | 画布          | 主色       | 艺术元素                                     |
-| -------- | ------------- | ---------- | -------------------------------------------- |
-| Home /   | Deep Space    | Klein Blue | 暖性地质星球、三层星域、豹猫星座、Cursor Meteor |
-| Blog     | Cream Gallery | Klein Blue | 层状沉积与纸浆残响                           |
-| Feed     | Cream Gallery | Klein Blue | 单列时间流、河谷时间方向、equal-rank Footprint |
-| Learn    | Cream Gallery | Klein Blue | Knowledge Field、断层、刻线、矿脉残响        |
-| Projects | Cream Gallery | Klein Blue | 台地、切面、金属嵌线残响                     |
-| Finance  | Cyber Arena   | Turquoise  | 数据网格、涨跌双重编码；无星图与 pointer signature |
+原则：
 
-所有 Content 页面可共享低音量 Paw Trail + independent Click Feedback；它们属于 Cream Gallery pointer language，不改变各模块主体视觉身份。
-
-### 9.2 Historical Phase 4.2 / 4.3 prototype acceptance baseline
-
-> 以下项目记录 Phase 4.x 当时如何验证 Design 2.1，不是 Phase 8 普通维护任务的 mandatory checklist。后期 Product Closure / current Design amendment 与其冲突时以后期 truth 为准。
-
-- [x] Home 是静态宇宙入口和星图，不是内容聚合页。
-- [x] Entry、Approach、Overview、Push 属于同一片星域。
-- [x] 远景可抽象，接近后必须显现完整、具实星球。
-- [x] 总览用完整球体，聚焦用同材质高细节图。
-- [x] Star Map 后存在可停留的 Planet Focus；自然滚动有默认观察顺序，点击与键盘可直接跳到任一 Focus。
-- [x] Blog、Feed、Learn、Projects 只在 Focus action 后执行 Planet Push；Focus 不加载板块内容。
-- [x] Drift 保持稳定语义区域：About 右上远端、Feed 近景易达、Blog 左上、Projects 左下、Learn 右下。
-- [x] 五颗星球平权，尺度只表达深度。
-- [x] About 有直接展开主路径，豹猫只是可选彩蛋路径。
-- [x] 豹猫爆炸不影响 About 星球，关闭后反向重组。
-- [x] Historical pointer baseline originally used Home full / Content weak Cursor Meteor；current Phase 8 amendment supersedes Content with Paw Trail + independent Click Feedback，Finance remains neither.
-- [x] Home 不直接读取 Public Footprint 或最近更新时间；仅读取 ADR-007 定义的最小活动状态投影。
-- [x] Feed Native 与 Footprint 属于同一时间流；later Closure further confirms equal S2 rank / different grammar.
-- [x] Content 页面只借用材质，不重做功能布局。
-- [x] 所有交互具备 keyboard、touch 和 reduced-motion 路径。
-
-### 9.3 Historical Phase 4.1 CSS migration boundary
-
-本节仅记录 Phase 4.1 → 4.3 的迁移依据，不授权 Phase 8 重新执行旧 migration。
-
-| Design 1.4 / 旧 CSS 概念                   | v2 处理                                                       |
-| ------------------------------------------- | ------------------------------------------------------------- |
-| Home two-column / Home Card                 | canonical CSS 已退役；由 Home Entry + Star Map Stage 取代     |
-| About Card                                  | canonical CSS 已退役；由 About Planet + About Expanded 取代   |
-| Home Timeline / Timeline Card / Type Filter | canonical CSS 已退役；不提供替代 Home 组件                    |
-| Tablet two-column Feed                      | 废弃，Feed 全断点单列                                         |
-| 粒子只属于 About Card                       | 已改为 Space / Leopard Cat / Cursor Meteor 三种明确 Home 语义 |
-| --cat-warm、--cat-dark、--cat-eye-glow      | 已废弃；迁移为 Klein Blue 豹猫光学 token                      |
-| --cat-blog 等 category token                | 已改名为 --category-blog 等；只作冗余标记，不再服务 Home 卡片 |
-| prefers-color-scheme 决定画布               | 已废弃；Canvas 身份优先，由 data-canvas 明确映射              |
-| 既有 CJK、Finance、三画布基础 token         | 保留                                                          |
-
----
-
-## 10. 动效原则
-
-动效最高准则是：建立空间关系、提供方向与反馈，不持续消耗注意力。
-
-### 10.1 动效职责
-
-| 类型               | 职责                       | 允许                                                                           |
-| ------------------ | -------------------------- | ------------------------------------------------------------------------------ |
-| Scroll-driven      | 推进同一星域的远近关系     | 星点显影、星球尺度变化、阶段切换                                               |
-| Parallax           | 辅助纵深                   | 远景慢、中景适中、前景稍快                                                     |
-| Hover / Focus      | 表达可进入性               | 标签清晰、边缘光、一次短脉冲                                                   |
-| Planet Push        | 完成导航转场               | 短暂锁定目标、放大、进入页面                                                   |
-| Activity Satellite | 表达最低限度的板块活动状态 | `active` / `stable` 低频公转、异步低频 pulse 与 attention 减速；`dormant` 静态 |
-| About Cat          | 可发现彩蛋                 | 节点蓄能、分层解体、Focus 残粒、弹簧回收                                       |
-| Cursor Meteor      | Home personal pointer signature | 短尾跟随、快速衰减                                                         |
-| Content Paw Trail  | Content movement signature | 低音量足迹、快速消退；不变成 continuous trail                                 |
-| Content Click Feedback | Content click response | 克制 core / echo；不与 Paw Trail 绑定                                      |
-
-### 10.2 缓动语义
-
-- ease-monopo：Planet Push、About 展开与关闭、豹猫回收等大范围变化。
-- ease-scroll-in：星域显影、低音量阶段进入。
-- ease-hover：标签、边缘光、按钮和可点击反馈。
-
-现有曲线可继续作为基准；具体时长和组合由 current implementation / task evidence 校准，不在 Design 文档新增动画库或复制 runtime constants。
-
-### 10.3 强制约束
-
-- 自然滚动优先，不修改用户滚轮方向、速度或惯性。
-- 不做强制 snap 通关；用户能快速滚过星图。
-- 环境可随滚动产生微弱漂移，但不允许无输入的循环屏保。Home Activity Signal 的 `active` / `stable` 信标可沿完整圆形或椭圆路径低频公转，但可见轨迹必须保持不完整、低亮且不得改变星图焦点。
-- 活动提示以三态材质、轨道残留、低频异步 pulse 和 attention 反馈共同表达；hover / keyboard focus 时平滑减速并暂停常态 pulse，离开后平滑恢复；`dormant` 不公转、不脉冲。
-- CJK 文字不做 skew、持续旋转或难读的空间变形。
+- 自然滚动优先，不修改滚轮方向、速度或惯性。
+- 不做强制 snap 通关。
+- 无输入时不形成全屏循环屏保。
+- HAS active / stable 可沿圆 / 椭圆完整低频公转，但 orbit visual 低亮且不改变焦点。
 - 页面转场不能长到让用户误以为卡住。
-- prefers-reduced-motion 是完整替代路径，不只是把 duration 设得更短。
+- Reduced motion 是完整替代路径，不只是缩短 duration。
 
 ---
 
-## 11. 意象、资产与资源规范
+## 14. Assets
 
-### 11.1 星球资产接口
+### 14.1 Planet identity
 
-每颗星球至少准备同一材质与同一光照下的三种资产用途：
+每颗星球使用同一身份的三种用途：
 
-| 资产槽               | 用途           | 要求                                               |
-| -------------------- | -------------- | -------------------------------------------------- |
-| Overview Full Sphere | 星图总览       | 完整球体、透明或深空友好边缘、总览尺寸可辨地貌     |
-| Focus High Detail    | 聚焦与点击推进 | 高分辨率地表、大气、阴影和局部弧面；与总览无换图感 |
-| Mobile Optimized     | 移动端         | 保留轮廓和主地貌，降低尺寸、粒度和透明叠层成本     |
+| Slot | 用途 | 要求 |
+| --- | --- | --- |
+| Overview Full Sphere | Star Map | 完整球体、可辨主地貌 |
+| Focus High Detail | Focus / Push | 高分辨率细节、大气、阴影；与 Overview 无换图感 |
+| Mobile Optimized | Mobile | 保留轮廓和主地貌，降低成本 |
 
-Phase 4.2 的资产 Gate 曾允许可替换占位以先验证接口连续性；Phase 4.3 随后选定五颗同系列 Overview master，并从同一 master 派生 Focus / Mobile。**Phase 4.3 selected identity 是当前设计基线，且已进入 production source；不得因为早期“placeholder”措辞而无授权替换。**
+`docs/design/assets/planets/selected/` 中的 selected identity 是当前设计基线：
 
-- selected asset 的详细来源、尺寸、体积、评分和已知限制见 `docs/design/assets/planets/planet-asset-manifest.md`；
-- Overview / Focus / Mobile 必须保持同一母版身份和主地貌连续性；
-- 更高质量替换若保持同一身份仍应有实际视觉/性能证据；改变星球身份、地貌或系列属于 Design change，而不是普通资源清理；
-- WebP / alpha / sRGB 与现有槽位属于已验证 asset baseline；2x 密度、加载阈值、preload/lazy/CDN 等属于 current performance / implementation concern，应按实际任务证据处理；
-- Phase 4.2 Prompt Kit 与候选资产目录保留为 historical design evidence，不成为 Phase 8 的默认重新生成流程。
+- Overview / Focus / Mobile 保持同一 master identity 和主地貌连续性。
+- 无授权不得用“相似星球”或历史候选替换。
+- 改变星球 identity / 地貌 / 系列属于 Design change。
+- 性能、preload/lazy、density、CDN 等属于实现策略，不改变 identity contract。
 
 资产验收：
 
 - 光源方向一致；
 - 暖性地质校色一致；
-- 总览和聚焦来自同一材质体系；
-- 边缘无低清锯齿、压缩 halo 或明显 AI 纹理重复；
-- 近看细节达到清晰、可信的天体材质水平；
-- 不要求实时 3D、自转或用户拖拽。
+- Overview / Focus 同一材料体系；
+- 边缘无明显锯齿、halo 或重复 AI texture；
+- Focus 细节达到可信天体材质水平。
 
-### 11.2 星点、尘埃与航线
+### 14.2 Space materials
 
-- 星点分远、中、近三层，密度克制，避免屏保感。
-- 尘埃只帮助显影、转场和 About 彩蛋，不作为全屏噪点层持续覆盖。
-- 航线为极细、不完整、低透明度线条；不形成 HUD 控制台。
-- 像素化只用于远景显影或信号时刻，不能永久覆盖写实星球。
+- 星点分 far / mid / near 三层，密度克制。
+- Dust 只帮助显影、transition 和豹猫事件，不持续覆盖全屏。
+- Route line 极细、低透明、不完整，不形成 HUD。
+- Pixelation 只用于远景显影 / signal moment，不永久覆盖星球。
 
-### 11.3 豹猫资产
+### 14.3 Content imagery
 
-旧版粒子豹猫可作为节点、骨架、星座连线与爆开回收逻辑的研究输入，但不得原样嵌入：
+- Content 图片没有 universal radius obligation。
+- 正文图像不做强烈宇宙着色。
+- 地质 texture 用于 header、cover、divider 或细节，不作为整页背景。
+- Finance 图表不复用暖性地质 texture。
 
-- 不复用全屏深空 About 舞台；
-- 不复用左侧玻璃卡片；
-- 不复用拖拽环绕、滚轮缩放和持续自动旋转；
-- 不把旧版复杂内部骨架直接缩小，避免猫形辨识度下降；
-- 新资产优先保证行走侧影、双耳、侧脸、四足和长尾的轮廓。
+### 14.4 Performance principle
 
-Phase 4.2 最终采用一套同源 SVG 几何：六段断续轮廓、独立连线、28 个节点（16 primary / 12 secondary）、轮廓采样 burst particles 与低强度 aura。Rest / Reveal / Charged 只改变视觉层级，不更换动物造型；Focus residue 不显示完整轮廓。已删除的独立 companion body 不得恢复。
-
-### 11.4 Content 图片与纹理
-
-- Content 图片不接受 universal radius 义务；各模块已有的 restrained image radius 可以保留，但 Blog Paper、Feed Activity、Learn structural field 或其他 surface 不因图片 treatment 被统一圆角化。
-- 正文图像不施加强烈宇宙着色。
-- 地质纹理作为页首、封面或分隔资产，不作为整页背景。
-- Blog / Feed / Learn / Projects 可共享一套暖性地质素材库，通过裁切和微观纹理建立关联。
-- Finance 图片和图表不复用暖性地质纹理。
-
-### 11.5 资源与性能原则
-
-- 首屏优先加载远景与必要入口，不同时加载五颗星球的全部高细节资产。
-- 总览加载完整球体的优化版本；只有焦点星球准备或加载高细节资产。
-- 移动端减少粒子层、模糊叠层和大图尺寸，但保留星图本身。
-- 资源失败不能破坏导航；文字标签和普通链接始终是可用兜底。
+- Entry 优先加载远景和必要导航，不同时加载五颗星球全部 high-detail assets。
+- Overview 使用优化后的 full-sphere assets；Focus 准备对应 high-detail identity。
+- Mobile 减少粒子、blur layers 和图片成本，但保留 Star Map。
+- Asset failure 不能破坏导航；文字标签和普通 link 始终可用。
 
 ---
 
-## 结论
+## 15. Canonical summary
 
-Design 2.1 将 Home 锁定为一片连续、可导航的 catstarry 星域：远处是星点，靠近后成为具实体积和各自地貌的暖性地质星球；滚动提供默认 Focus 浏览，点击、键盘和航行索引可直接抵达任一 Focus，功能星球只在 Focus action 后进入内容。About 通过直接展开和豹猫彩蛋两条路径进入同一信息态。
+Home 是一片连续、可导航的暖性地质星域：从远处星点接近完整星球，经 Overview 与 Focus 进入真实功能页面；About 通过直接主路径和豹猫彩蛋进入同一信息态。
 
-Content 保持 Cream Gallery 下各自真实产品身份：Blog editorial reading、Feed D — Quiet Deposition、Learn Knowledge Structure + Reading、Projects Full Object Card。交互签名也按画布分离：Home 使用 Cursor Meteor，Content 使用 Paw Trail + independent Click Feedback，Finance 不继承二者。Klein Blue 与豹猫继续构成个人视觉语言，但所有装饰都不能取代内容、导航与可访问性成为主角。
+Content 保持 Cream Gallery 下不同产品身份：Blog editorial reading、Feed Quiet Deposition、Learn Knowledge Structure + Reading、Projects Full Object Card。Home 使用 Cursor Meteor；Content 使用 Paw Trail + independent Click Feedback；Finance 不继承二者。
