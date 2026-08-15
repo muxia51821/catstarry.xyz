@@ -355,7 +355,7 @@ Family 必须保留：visible focus、keyboard semantics、adequate touch target
 | First public publish | 可以创建一条 `BLOG · 发布` Footprint。 |
 | Ordinary edit | 不创建第二条，不改写 immutable snapshot。 |
 | Hide | Footprint record / snapshot 保留；Public Feed projection 隐藏。 |
-| Effective visibility | `source_public AND footprint_visibility_public = public_timeline_visible`。 |
+| Effective visibility | source 与 Footprint 都处于 public 时才进入 Public Timeline。 |
 | Restore | 原 Footprint 可恢复，不创建 duplicate。 |
 | Hard delete | historical record 可保留；known-dead destination 不继续提供 action。 |
 
@@ -369,7 +369,7 @@ Projects/source side owns meaningful-update semantics；Feed 只消费 accepted 
 - 明确具有公开记录价值的更新才产生 `PROJECT · 更新`；
 - supporting description 应尽量说明变化；
 - Feed destination 是 `/projects/`；Project Card 继续使用 external `project.url`；
-- `updateId` 提供 idempotent event identity。
+- 同一个 accepted update 不重复产生 Feed Activity。
 
 ### 8.3 Learn → Feed
 
@@ -385,7 +385,7 @@ Public Note 是 living current knowledge；Feed event 是 historical snapshot。
 | Show | 恢复 Public projection；不产生第二次 first-publication Footprint。 |
 | Superseded / Withdrawn | 与普通 Hide 不等价，保持独立语义。 |
 
-Feed presentation 统一为 `LEARN · 更新`。`learn_section_completed` 只保留 legacy readable compatibility，不是当前 Learn Product semantics。
+Feed presentation 统一为 `LEARN · 更新`。Legacy section-completion records 只保留 readable compatibility，不是当前 Learn Product semantics。
 
 Implementation mechanism 不属于本 Product Contract。
 
