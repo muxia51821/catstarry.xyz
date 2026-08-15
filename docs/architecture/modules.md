@@ -87,8 +87,6 @@ catstarry.xyz/
 └─ package.json
 ```
 
-Tracked historical governance evidence 位于 `docs/_archive/`；根目录 `_archive/` 是本地 ignored scratch，不是 versioned governance archive。
-
 ---
 
 ## 3. 模块职责
@@ -183,8 +181,6 @@ Owner Feed UI
   → source visibility filtering
   → React timeline
 ```
-
-本节描述当前实现，不预先登记未来 data-fetch 重构。
 
 ### Learn lifecycle
 
