@@ -376,37 +376,21 @@ Blog lifecycle 与 Learn lifecycle 保持不同 storage / transition model，不
 
 ---
 
-## 7. Shared API types
+## 7. Shared API type ownership
 
-Canonical declarations 位于 `shared/types.ts`。主要跨层类型包括：
+跨 Site / Worker 的 canonical declarations 位于 `shared/types.ts`。本节只维护职责索引，不复制完整 TypeScript shape。
 
-```typescript
-export type PostType = 'note' | 'clip';
-export type Visibility = 'public' | 'private';
-export type FootprintSource = 'blog' | 'learn' | 'projects';
-export type ActivityState = 'active' | 'stable' | 'dormant';
-export type BlogLifecycleState = 'draft' | 'published' | 'withdrawn';
-export type LearnPublicationVisibility = 'public' | 'hidden';
+| 类型 / family | 职责 |
+| --- | --- |
+| `PostType` / `Visibility` / `FeedPost` | Feed 原生 Note / Clip 与公开/私有状态的跨层 contract |
+| `FootprintSource` / `FootprintEventType` / `PublicFootprint` | Public Footprint 来源、事件与 event-time snapshot contract |
+| `TimelineEntry` / `PaginatedResponse<T>` | Public Timeline 统一读取 projection 与 cursor pagination contract |
+| `BlogLifecycleState` / `BlogLifecycleEntry` | Blog runtime lifecycle 与 Site / Feed Worker 间的 publication contract |
+| `LearnPublicationVisibility` / `LearnPublicationRecord` | Learn runtime public / hidden lifecycle contract |
+| `ActivityState` / `ActivitySignalsManifest` | Home Activity Signal 固定静态 projection contract |
+| auth request / response / session types | 主站与 Finance 各自认证 API 的跨层 payload / status contract |
 
-export interface LearnPublicationRecord {
-  slug: string;
-  visibility: LearnPublicationVisibility;
-  published_at: string;
-  last_revised_at: string | null;
-  updated_at: string;
-}
-
-export interface TimelineEntry {
-  id: string;
-  kind: 'native_post' | 'system_footprint';
-  occurred_at: string;
-  visibility: Visibility;
-  projection_state?: 'public' | 'own_private' | 'source_hidden';
-  payload: FeedPost | PublicFootprint;
-}
-```
-
-完整 type shape 以 `shared/types.ts` 为准，不在本文维护重复副本。
+具体字段、union 成员和新增类型以 `shared/types.ts` 为准。修改跨层 shape 时应更新该 canonical declaration 及其真实 consumers；本数据模型只在类型 family 的职责发生变化时同步。
 
 ---
 
