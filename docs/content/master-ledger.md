@@ -11,8 +11,8 @@
 **Closed Modules:** Blog / Feed / Learn / Projects
 **Learn decision baseline:** Product / Architecture / Visual Reality Check COMPLETE; implementation ACCEPTED / MERGED
 **Upstream:** Reconciled Content Family Contract v1
-**Purpose:** Decision authority registry, implementation sequencing source, acceptance reference
-**Implementation:** Not a code specification by itself
+**Purpose:** Decision authority registry, Product traceability, and historical acceptance reference
+**Implementation:** Not a code specification or Phase 8 sequencing source by itself
 
 ---
 
@@ -32,15 +32,11 @@ Blog、Feed、Projects 已完成：
 
 Learn 的 Product Synthesis、Architecture Final 与 Visual Reality Check 已完成；implementation 已 accepted / merged。
 
-所以当前 Content Family 状态不是：
+Closure-era Content Family 已完成四模块 implementation / integration / acceptance；当前 operational phase 是：
 
-> 四模块全部已实施并最终验收。
+> **Phase 8 maintenance。**
 
-而是：
-
-> **Family shared contract 已 reconciliation；Projects / Blog 已 ACCEPTED 并 FROZEN；Feed / Learn implementation 已 ACCEPTED / MERGED；Feed × Learn semantic integration 已 CLOSED。**
-
-这是本 Ledger 最重要的状态边界。
+本 Ledger 继续持久化 Product Truth、Superseded / Parked / Revalidate 边界和历史验收证据，但不再承担 live Git、deployment、production status 或 Phase 8 task sequencing。当前 implementation reality 应回到 source / tests / architecture /必要的 production evidence。
 
 ---
 
@@ -394,6 +390,44 @@ Tech Tags 可使用：
 
 ---
 
+## LEARN-EX-01
+
+Knowledge Map 是 Cream Gallery 内的 S1 structural knowledge field，不是独立 dark dashboard。
+
+**Confirmed**
+
+---
+
+## LEARN-EX-02
+
+Track directory 与 Graph 是同一 Public Knowledge Corpus 的互补双目录：
+
+> Track = categorical / domain directory
+>
+> Graph = relational / exploratory directory
+
+Track 提供 macro orientation，但不是 Public Note parent，也不因 shared Track 自动产生 relation edge。
+
+**Confirmed**
+
+---
+
+## LEARN-EX-03
+
+Public Note / Track index entry 不默认使用 Full Card、shadow 或 lift；frameless structural row 与 restrained Hairline 合法。
+
+**Confirmed**
+
+---
+
+## LEARN-EX-04
+
+Learn Tags 当前主要承担 retrieval/search metadata，不因此获得 default pill treatment。
+
+**Confirmed**
+
+---
+
 # 6. Blog Master Ledger
 
 ## Module State
@@ -405,7 +439,7 @@ Tech Tags 可使用：
 **Family Reconciliation:** COMPLETE
 **Primary Identity:** Archive + Reading
 
-Blog Closure 后的 accepted implementation（包括 owner-only Views）已构成当前事实；FROZEN 表示不再主动优化或重开模块内部设计，除非出现明确 integration regression 或新的用户裁决。
+Blog Closure 后的 accepted implementation（包括 owner-only Views）已构成 closure-era accepted evidence；FROZEN 表示不再主动优化或重开模块内部设计，除非出现明确 integration regression 或新的用户裁决。Phase 8 current implementation reality 仍以 source / tests 为准。
 
 ---
 
@@ -584,7 +618,7 @@ Blog Closure 后的 accepted implementation（包括 owner-only Views）已构�
 | BLOG-CAP-007 | Table                        | Confirmed |
 | BLOG-CAP-008 | SEO / canonical URL / OG     | Confirmed |
 | BLOG-CAP-009 | Public View recording remains; owner-only Article display uses main-site auth with no Blog-specific admin/auth surface | Confirmed / Implemented |
-| BLOG-CAP-010 | Static publication           | Confirmed |
+| BLOG-CAP-010 | Repository-authored content with controlled public publication lifecycle | Confirmed |
 | BLOG-CAP-011 | draft/publication protection | Confirmed |
 
 ### Important interpretation
@@ -708,9 +742,9 @@ Custom Cream theme:
 
 ---
 
-## BLOG-PRODUCTION DRIFT
+## BLOG-PRODUCTION DRIFT — Historical pre-acceptance inventory
 
-Known drift includes:
+以下列表记录 Blog Closure 后、accepted implementation 前曾存在的 drift，用于 traceability；**不是 Phase 8 current drift tracker**。当前实现是否仍有偏差必须读取 current source / tests / relevant acceptance evidence，不能从本列表推断。
 
 ### Archive
 
@@ -759,7 +793,7 @@ Closure text outranks that frame.
 **Production Implementation:** ACCEPTED / MERGED
 **Production Acceptance:** ACCEPTED
 
-Feed Closure 明确自身不是 Delta 摘要，而是专项后形成的最终模块级 decision authority。Stage 4 收敛并验证 D — Quiet Deposition；F0 只恢复 current production architecture / runtime evidence，不形成新的 Product rule。Architecture Preflight、implementation 与 acceptance 均已完成，且实现已 merged。
+Feed Closure 明确自身不是 Delta 摘要，而是专项后形成的最终模块级 decision authority。Stage 4 收敛并验证 D — Quiet Deposition；F0 只恢复当时的 production architecture / runtime evidence，不形成新的 Product rule。Architecture Preflight、implementation 与 acceptance 均已完成；这些状态是 closure-era evidence，不替代 Phase 8 对 current source 的读取。
 
 ---
 
@@ -938,11 +972,14 @@ No platform-specific embed systems for:
 
 ### Boundary
 
-Feed 已确认：
+Feed 接收 Public Note 的有公开价值生命周期事件，而不是旧的 Section Completion：
 
-> 它希望接收“有公开价值的 Learn 更新”，而不是只接受旧的 Section Completion。
+* first formal publication → `learn_note_published`；
+* substantive revision → `learn_note_revised`；
+* maintenance edit → silent；
+* `learn_section_completed` 仅保留 legacy readable compatibility。
 
-Accepted Learn lifecycle 由 Public Note publication manifest v2 产生 `learn_note_published` / `learn_note_revised`；`learn_section_completed` 仅保留 legacy readable compatibility。
+具体 runtime storage / sync version 不属于本 Product Ledger。
 
 ---
 
@@ -1135,9 +1172,9 @@ Remove/supersede:
 
 ---
 
-## FEED-ARCHITECTURE-REVALIDATE
+## FEED-ARCHITECTURE-REVALIDATE — Historical preflight traceability
 
-Architecture Preflight 已完成；以下保留为 implementation handoff / technical traceability，不再表示 Preflight 未完成或可重开 Feed Product Truth。
+Architecture Preflight 已完成；以下条目记录当时 implementation 前必须核查的技术问题。它们**不是 Phase 8 current backlog**，也不得用于重开 Feed Product Truth。当前状态应按 architecture / source / tests 重新读取。
 
 ### AR-FEED-01
 
@@ -1208,24 +1245,9 @@ Composer runtime / focus trap / Escape / auth expiry.
 
 ## FEED-VISUAL-EVIDENCE
 
-Evidence branch:
+Stage 4 Visual Lab 是 Feed D — Quiet Deposition 的 historical design evidence。其当时 branch / ahead / merged / deployed 状态不属于 Product Ledger 的 current responsibilities；需要追溯具体 Git 状态时读取 repository evidence。
 
-> `codex/feed-stage4-visual-lab`
-
-State:
-
-* committed
-* pushed
-* ahead of main
-* no production code diff
-* not merged
-* not deployed
-
-Disposition:
-
-> preserve as Design Evidence Branch until implementation/integration decides whether docs should merge.
-
-Do not delete merely for Git cleanup.
+Do not delete historical evidence merely for Git cleanup.
 
 ---
 
@@ -1752,7 +1774,17 @@ as final public semantics.
 
 ## XMOD-LEARN-03
 
-Exact Learn source lifecycle uses Public Note publication manifest v2: first publish emits `learn_note_published`, later explicit revision emits `learn_note_revised`; `learn_section_completed` is legacy readable compatibility only.
+Public Note lifecycle contract：
+
+* Draft / Preview → no Feed；
+* first formal publication → one historical publication Footprint；
+* maintenance edit → silent；
+* substantive revision → one revision Footprint while retaining the same living Public Note identity；
+* Hide removes current Public projection while retaining publication identity/history；
+* Show restores projection without a second first-publication Footprint；
+* `learn_section_completed` remains legacy readable compatibility only。
+
+Specific manifest / storage / endpoint versions are Architecture / implementation facts, not Product Truth.
 
 **Confirmed / Implemented**
 
@@ -1765,10 +1797,10 @@ Exact Learn source lifecycle uses Public Note publication manifest v2: first pub
 **Product Synthesis:** COMPLETE
 **Architecture Final:** COMPLETE
 **Visual Reality Check:** COMPLETE
-**Stage 0:** COMPLETE / pushed
 **Production Implementation:** ACCEPTED / MERGED
+**Feed × Learn semantic integration:** CLOSED
 
-Do not restore old implementation structure superseded by the Architecture Final or reopen the CLOSED Feed × Learn semantic integration.
+Historical Stage 0 / branch / migration sequencing is evidence only. Do not restore old implementation structure superseded by the Architecture Final or reopen the CLOSED Feed × Learn semantic integration.
 
 ---
 
@@ -1840,7 +1872,7 @@ Knowledge Graph capability remains.
 
 Current black/magenta/Home-token Graph visual is not canonical.
 
-**Confirmed drift**
+**Confirmed historical drift guard**
 
 ---
 
@@ -1854,15 +1886,15 @@ Learn magenta/category color must be reduced to tertiary role.
 
 ## LEARN-PROV-010
 
-Current flat Note route `/learn/notes/{slug}` has stronger current authority than old track-nested route.
+Canonical Public Note route is flat `/learn/notes/{slug}`；Track is domain context rather than Note identity parent, so moving Track does not redefine Note identity or canonical URL.
 
-**Current/Revalidate architecture**
+**Confirmed architecture/product boundary**
 
 ---
 
 ## LEARN-PROV-011
 
-Public Note is durable continuous Reading Surface.
+Public Note is durable continuous Reading Surface and living current knowledge.
 
 **Confirmed direction**
 
@@ -1870,7 +1902,7 @@ Public Note is durable continuous Reading Surface.
 
 ## LEARN-PROV-012
 
-Publish visibility and Feed update/completion action must not be silently conflated.
+Publish means public visibility, not learned / mastered / Mission closed / section complete. Publication lifecycle and private learning completion must not be conflated.
 
 **Confirmed current boundary**
 
@@ -1901,33 +1933,33 @@ must not be added merely for completeness.
 
 ## LEARN-PROV-015
 
-Wikilink / note relations strongly fit Knowledge Structure.
+Wikilink / explicit Note relations are the canonical lightweight relation input for Knowledge Structure.
 
-**Current / strong fit**
+**Confirmed**
 
 ---
 
 ## LEARN-PROV-016
 
-Directory Tree and Article Heading TOC are different concepts.
+Directory Tree and Article Heading TOC are different concepts；the old authoritative Note tree is superseded.
 
-**Confirmed terminology correction**
+**Confirmed terminology / hierarchy correction**
 
 ---
 
 ## LEARN-PROV-017
 
-Search exists but exact long-term prominence/placement remains:
+Search is a retained retrieval utility, not Learn's core identity. The accepted homepage IA includes Search inside the Knowledge Map system; future prominence may be revisited only from new evidence, not treated as an unfinished Product decision.
 
-> Revalidate.
+**Confirmed / future re-evaluation allowed**
 
 ---
 
 ## LEARN-PROV-018
 
-Recently Revised exists but homepage authority remains:
+Recent Knowledge is a retained lifecycle-driven surface. Maintenance edits remain silent；first publication / substantive revision determine public freshness semantics. Future presentation may evolve without reopening that lifecycle distinction.
 
-> Revalidate.
+**Confirmed**
 
 ---
 
@@ -1951,9 +1983,9 @@ Historical:
 
 > nodes = Tracks.
 
-Current:
+Current accepted model:
 
-> nodes = Notes + Wikilinks.
+> nodes = Public Notes；edges = explicit author-curated Note relations；Track only provides macro domain orientation.
 
 The Architecture Final closes this decision; this historical wording must not be used to reopen it.
 
@@ -1965,12 +1997,11 @@ The Architecture Final closes this decision; this historical wording must not be
 
 ### Homepage Main Entry
 
-Current:
+Accepted model:
 
-* Graph
-* Search
-* Recently Revised
-* Tracks
+* Knowledge Map = Track directory × Graph；
+* Search = secondary retrieval utility；
+* Recent Knowledge = lifecycle-driven secondary surface。
 
 The Architecture Final closes this decision; this historical wording must not be used to reopen it.
 
@@ -2035,9 +2066,33 @@ Feed display grammar:
 
 is accepted Feed presentation.
 
-Exact source-event implementation remains a downstream implementation concern; it must follow the Architecture Final rather than restore this historical open state.
+First formal publication and substantive revision are the current public Feed-producing semantics；maintenance edits remain silent；legacy completion is compatibility evidence only.
 
-**Downstream implementation dependency**
+**Confirmed / Implemented**
+
+---
+
+## LEARN-PROV-028
+
+Track = categorical / domain directory；Graph = relational / exploratory directory. They are complementary views of the same Public Knowledge Corpus.
+
+**Confirmed**
+
+---
+
+## LEARN-PROV-029
+
+Track is an important durable Learning Domain context, not Public Note parent or curriculum authority；no global canonical Note tree.
+
+**Confirmed**
+
+---
+
+## LEARN-PROV-030
+
+Public Note = living current knowledge；Feed event = immutable historical event snapshot. Later revisions do not rewrite prior Feed history.
+
+**Confirmed**
 
 ---
 
@@ -2055,9 +2110,13 @@ Exact source-event implementation remains a downstream implementation concern; i
 
 ---
 
-# 12. Architecture Revalidate Ledger
+# 12. Historical Architecture Revalidate / Preflight Register
 
-| ID           | Item                                           | Module        |
+这些条目记录 Content implementation 前曾需要明确核查的 architecture questions。许多已经在后续实现中 resolved；少数可能仍有独立长期价值。**本表不是 Phase 8 current backlog，也不维护 live implementation status。**
+
+当前技术现实应以 `docs/architecture.md` 及相关子文档、source、tests 和必要的 production evidence 为准。只有某项问题在当前任务中仍真实未决、且会改变 durable architecture 时，才重新升级处理。
+
+| ID           | Historical item                                | Module        |
 | ------------ | ---------------------------------------------- | ------------- |
 | ARCH-REV-001 | Blog source visibility → Feed projection query | Feed/Blog     |
 | ARCH-REV-002 | ADR-005 clarification                          | Feed/Blog     |
@@ -2073,11 +2132,7 @@ Exact source-event implementation remains a downstream implementation concern; i
 | ARCH-REV-012 | Shared token inventory/mapping                 | Family        |
 | ARCH-REV-013 | Learn source-event contract                    | Learn/Feed    |
 
-These are:
-
-> implementation/preflight work
-
-not unresolved visual-product design.
+These were implementation/preflight questions, not unresolved visual-product design.
 
 ---
 
@@ -2297,7 +2352,7 @@ Do not create mandatory global Footer merely to solve Projects bottom space.
 
 ## IR-08 — Admin overreach
 
-Do not create global Content Admin merely because Feed has owner tooling.
+Do not create global Content Admin merely because Feed / Learn have module-local owner tooling.
 
 **High**
 
@@ -2315,19 +2370,22 @@ Use the cross-module contract.
 
 ## IR-10 — Learn accepted implementation
 
-Do not reopen or replace Learn's accepted final IA and implementation:
+Do not reopen or replace Learn's accepted Product / IA boundaries:
 
-* Track power
-* Graph semantics
-* Homepage hierarchy
+* Track as context rather than parent/curriculum；
+* Track × Graph complementary navigation semantics；
+* accepted homepage hierarchy；
+* living Public Note lifecycle。
 
 **Critical**
 
 ---
 
-# 16. Implementation Dependency Map
+# 16. Historical Implementation Dependency Map
 
-The following diagram and wave order are historical sequencing evidence. Current operational sequencing is maintained in [`implementation-dependency-map.md`](implementation-dependency-map.md) and is authoritative for completed, current-parallel and next work.
+> **§16–20 are completed historical delivery / acceptance sequencing.** They explain how the Content Family reached closure and remain useful for traceability, but they are not Phase 8 current workflow, current backlog, or an instruction to rerun old gates. Phase 8 sequencing comes from the current task, current evidence, and `docs/workflow-orchestration.md`.
+
+The following diagram and wave order are historical sequencing evidence. The former operational dependency map has been archived under `docs/_archive/content-governance/` and is no longer current authority.
 
 ```text
 MASTER LEDGER / GOVERNANCE FREEZE
@@ -2386,7 +2444,7 @@ RELEASE / DEPLOYMENT
 
 # 17. Historical wave order
 
-The original Wave 0 → Projects → Blog → Feed / parallel Learn plan is complete or superseded by the current operational map. It must not be used to reopen completed Projects, Blog, Feed Preflight, or Learn Product / Architecture work.
+The original Wave 0 → Projects → Blog → Feed / parallel Learn plan is complete or superseded. It must not be used to reopen completed Projects, Blog, Feed Preflight, or Learn Product / Architecture work.
 
 ---
 
@@ -2404,7 +2462,7 @@ This is a:
 
 > **documentation-only governance freeze**
 
-At the time of Wave 0 this did not reconcile production code or authorize deployment. That historical inventory / implementation sequence is now complete; current work is Final Content Integration evidence review.
+At the time of Wave 0 this did not reconcile production code or authorize deployment. That historical inventory / implementation sequence later completed and must not be treated as a current Phase 8 gate.
 
 ---
 
@@ -2464,7 +2522,7 @@ This historical sequencing must not be used to reopen the accepted Learn impleme
 
 ---
 
-# 18. Module Acceptance Gates
+# 18. Historical Module Acceptance Gates
 
 ## Projects
 
@@ -2527,7 +2585,7 @@ Visual Reality Check / closure confirmation must complete before downstream impl
 
 ---
 
-# 19. Content Integration Preview Gate
+# 19. Historical Content Integration Preview Gate
 
 Can begin when:
 
@@ -2542,7 +2600,7 @@ It is **not** Final Content Family Acceptance.
 
 ---
 
-# 20. Final Content Integration & Acceptance Gate
+# 20. Historical Final Content Integration & Acceptance Gate
 
 Requires:
 
@@ -2599,7 +2657,7 @@ No historical/old-generation residue returns.
 
 # 21. Governance Freeze State
 
-The canonical governance state is:
+The closure-era canonical governance state is:
 
 ### Family Shared Product Rules
 
@@ -2608,7 +2666,7 @@ The canonical governance state is:
 subject only to:
 
 * explicit Revalidate items;
-* genuinely new evidence.
+* genuinely new evidence。
 
 ### Blog Product Truth
 
@@ -2626,9 +2684,9 @@ subject only to:
 
 > **Product / Architecture / Visual Reality Check COMPLETE; implementation ACCEPTED / MERGED**
 
-### Production Code
+### Current operational interpretation
 
-> **Feed / Learn implementation is accepted / merged; Feed × Learn semantic integration is CLOSED.**
+> **Content Family is in Phase 8 maintenance.** Closure-era accepted implementation remains the decision baseline；current code / tests determine present implementation reality, and deployment remains separately authorized / verified.
 
 ---
 
@@ -2675,7 +2733,7 @@ And when architecture work begins:
 
 6. ADR-005
 7. current architecture/docs
-8. Visual Evidence Branch
+8. Stage 4 / F0 / Preflight evidence only when the task needs historical drill-down
 
 ---
 
@@ -2694,30 +2752,22 @@ Do not dump all historical Learn requirements unless a specific problem requires
 
 > **PASS 7 — MASTER REQUIREMENTS / CAPABILITY LEDGER ASSEMBLY COMPLETE**
 
-Current Content Family governance state:
+Current Product governance state:
 
 ```text
-Family Shared Contract         RECONCILED / FROZEN FOR IMPLEMENTATION
-Blog                           CLOSED / IMPLEMENTATION ACCEPTED / FROZEN
-Feed                           CLOSED / IMPLEMENTATION ACCEPTED / MERGED
-Projects                       CLOSED / IMPLEMENTATION ACCEPTED / FROZEN
-Learn                          CLOSED / IMPLEMENTATION ACCEPTED / MERGED
+Family Shared Contract        RECONCILED / FROZEN
+Blog                          CLOSED / FROZEN
+Feed                          CLOSED
+Projects                      CLOSED / FROZEN
+Learn                         CLOSED
 Cross-module Blog→Feed        PRODUCT RESOLVED
 Cross-module Project→Feed     PRODUCT RESOLVED
 Cross-module Learn→Feed       CLOSED
 Shared Footer                 PARKED
 Global Content Admin          PARKED
-Feed Production Implementation ACCEPTED / MERGED
-Learn Production Implementation ACCEPTED / MERGED
-Final Content Acceptance      NOT YET
+Operational Phase             PHASE 8 MAINTENANCE
 ```
 
-The next operational stage is no longer:
+Closure-era Final Content Integration & Acceptance has completed. The next operational stage is **not** another Family Product / implementation wave；new work enters the Phase 8 maintenance loop and reads only the Product / Architecture evidence relevant to that task.
 
-> Product Design.
-
-It is:
-
-> **Final Content Integration evidence review → upstream acceptance.**
-
-Governance Freeze does not mean production code is already reconciled. It establishes the decision baseline from which governed implementation may proceed; release and deployment remain separately authorized stages.
+This Ledger does not imply that an arbitrary future `main` HEAD is already deployed or production-accepted. Release and deployment remain separately authorized and current status must be verified from current evidence.
