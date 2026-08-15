@@ -26,17 +26,17 @@
 
 ```sql
 CREATE TABLE IF NOT EXISTS feed_posts (
-  id         TEXT PRIMARY KEY,              -- UUID v7
+  id         TEXT PRIMARY KEY,              -- UUID；当前由 crypto.randomUUID() 生成
   type       TEXT NOT NULL CHECK(type IN ('note','clip')),
-  content    TEXT,                          -- 文字正文（碎碎念或剪藏点评）
-  media_json TEXT,                          -- JSON 数组，R2 文件 key 列表
-  link_url   TEXT,                          -- 剪藏原链接（仅 clip 类型）
-  link_title TEXT,                          -- 剪藏标题（og:title）
-  link_summary TEXT,                        -- 剪藏摘要（og:description）
-  link_image TEXT,                          -- 剪藏封面图 URL
+  content    TEXT,
+  media_json TEXT,
+  link_url   TEXT,
+  link_title TEXT,
+  link_summary TEXT,
+  link_image TEXT,
   visibility TEXT NOT NULL DEFAULT 'public' CHECK(visibility IN ('public','private')),
-  created_at TEXT NOT NULL,                 -- ISO 8601
-  updated_at TEXT NOT NULL                  -- ISO 8601
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
 );
 ```
 
@@ -44,8 +44,8 @@ CREATE TABLE IF NOT EXISTS feed_posts (
 
 | 字段           | 类型    | 约束                 | 说明                                       |
 | -------------- | ------- | -------------------- | ------------------------------------------ |
-| `id`           | TEXT PK | UUID v7              | 时间有序的 UUID，用于游标分页              |
-| `type`         | TEXT    | `note` or `clip`     | 帖子类型，不可混用                         |
+| `id`           | TEXT PK | UUID                 | 当前由 Web Crypto `crypto.randomUUID()` 生成；不依赖 UUID 自身表达时间顺序 |
+| `type`         | TEXT    | `note` or `clip`     | 帖子类型                                   |
 | `content`      | TEXT    | 可为空（纯图碎碎念） | 文字内容                                   |
 | `media_json`   | TEXT    | JSON 数组            | R2 key 列表，如 `["feed/2026-07/abc.jpg"]` |
 | `link_url`     | TEXT    | clip 类型必填        | 剪藏目标 URL                               |
@@ -56,23 +56,19 @@ CREATE TABLE IF NOT EXISTS feed_posts (
 | `created_at`   | TEXT    | NOT NULL, ISO 8601   | 创建时间                                   |
 | `updated_at`   | TEXT    | NOT NULL, ISO 8601   | 最后更新时间                               |
 
-**索引**：
+**当前 migrations 建立的主要索引**：
 
 ```sql
 CREATE INDEX idx_feed_posts_created ON feed_posts(created_at DESC);
 CREATE INDEX idx_feed_posts_visibility ON feed_posts(visibility);
 CREATE INDEX idx_feed_posts_type ON feed_posts(type);
+CREATE INDEX idx_feed_posts_public_timeline
+  ON feed_posts(visibility, created_at DESC, id DESC);
+CREATE INDEX idx_feed_posts_type_timeline
+  ON feed_posts(type, created_at DESC, id DESC);
 ```
 
-**游标分页查询**（GET /api/feed）：
-
-```sql
-SELECT * FROM feed_posts
-WHERE visibility = 'public'
-  AND (created_at, id) < (?1, ?2)
-ORDER BY created_at DESC, id DESC
-LIMIT ?3;
-```
+`GET /api/feed` 不是 `feed_posts` 的单表查询。当前 Public Timeline 在 `FeedStore` 中把 `feed_posts` 与 `public_footprints` 统一投影后，按 `(occurred_at, id)` 排序和 cursor 分页，并应用当前 Blog / Learn source lifecycle 过滤；见 1.3。
 
 ### 1.2 public_footprints 表
 
@@ -120,11 +116,11 @@ Blog collection 仍保留可选的 `publication_id` 字段，但当前生产同�
 
 ### 1.3 Public Timeline 读取投影
 
-`feed_posts` 与 `public_footprints` 不合并为写表。`GET /api/feed` 由 Public Timeline 模块按 `(occurred_at, id)` 统一排序和游标分页，返回访客可读的 `TimelineEntry`。该投影不是 D1 表，也不应被 Home 使用。
+`feed_posts` 与 `public_footprints` 不合并为写表。`GET /api/feed` 由 Public Timeline 模块把两个写模型 `UNION ALL` 成统一 row shape，再按 `(occurred_at, id)` 排序和游标分页，返回 `TimelineEntry`。该投影不是 D1 表，也不应被 Home 使用。
 
 当前内部 `TimelineEntry.kind` 仍使用 `system_footprint` 作为稳定代码 discriminator；面向项目共享语言时 canonical term 为 `Public Footprint`。内部类型名不改变产品语义。
 
-`FeedStore.listPublic()` 接收 runtime published Blog slugs 与 public Learn slugs：Blog Footprint 按当前 Blog published manifest 过滤；Learn Note Footprint 按 D1 `learn_publications` 的 public set 过滤，legacy `learn_section_completed` 保持可读。Hard-delete tombstone / known-dead destination 的精确行为仍保留为后续边界。
+`FeedStore.listPublic(...)` 接收 runtime published Blog slugs 与 public Learn slugs：Blog Footprint 按当前 Blog published manifest 过滤；Learn Note Footprint 按 D1 `learn_publications` 的 public set 过滤，legacy `learn_section_completed` 保持可读。Hard-delete tombstone / known-dead destination 的精确行为仍保留为后续边界。
 
 ### 1.4 Home Activity Signal 静态投影
 
@@ -157,29 +153,46 @@ Home Activity Signal 不是 D1 表、不是 Public Timeline 的简化响应，�
 
 ### 1.5 blog_views 表
 
-/blog 文章阅读量统计；阅读者去重由 `blog_view_visitors` 补充。
+`blog_views` 保存按 slug / 日期聚合后的计数；当前写入由 `blog_view_visitors` 的 INSERT trigger 驱动。
 
 ```sql
 CREATE TABLE IF NOT EXISTS blog_views (
   id        INTEGER PRIMARY KEY AUTOINCREMENT,
-  slug      TEXT NOT NULL,        -- 文章 slug
-  view_date TEXT NOT NULL,        -- 阅读日期 YYYY-MM-DD
-  count     INTEGER DEFAULT 1,   -- 当日计数
+  slug      TEXT NOT NULL,
+  view_date TEXT NOT NULL,
+  count     INTEGER DEFAULT 1,
   UNIQUE(slug, view_date)
 );
 ```
 
-### 1.6 auth_sessions 表
+### 1.6 blog_view_visitors 表
+
+`blog_view_visitors` 是持久化阅读者去重边界。相同 `(slug, view_date, visitor_hash)` 只能插入一次；成功插入后 trigger 对 `blog_views` 增量计数。`VIEW_KV` 的 daily key 是快速去重层，不替代这张 D1 表。
+
+```sql
+CREATE TABLE IF NOT EXISTS blog_view_visitors (
+  slug TEXT NOT NULL,
+  view_date TEXT NOT NULL,
+  visitor_hash TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  PRIMARY KEY (slug, view_date, visitor_hash)
+);
+
+CREATE INDEX IF NOT EXISTS idx_blog_view_visitors_created
+  ON blog_view_visitors (created_at);
+```
+
+### 1.7 auth_sessions 表
 
 主站认证 session 持久化记录（/feed 登录后 12h 有效期）；KV 是优先读取层，D1 用作 fallback 与登出删除的持久记录。
 
 ```sql
 CREATE TABLE IF NOT EXISTS auth_sessions (
-  token      TEXT PRIMARY KEY,     -- session token（UUID）
+  token      TEXT PRIMARY KEY,
   username   TEXT NOT NULL,
-  created_at TEXT NOT NULL,        -- ISO 8601
-  expires_at TEXT NOT NULL,        -- ISO 8601，12h 后过期
-  ip         TEXT                  -- 登录 IP
+  created_at TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  ip         TEXT
 );
 ```
 
@@ -189,7 +202,7 @@ CREATE TABLE IF NOT EXISTS auth_sessions (
 CREATE INDEX idx_auth_sessions_expires ON auth_sessions(expires_at);
 ```
 
-### 1.7 learn_publications 表
+### 1.8 learn_publications 表
 
 `learn_publications` 是 Learn 正常公开生命周期的 runtime state。它不存 Note 正文，也不替代 Markdown source。
 
@@ -216,7 +229,7 @@ CREATE INDEX IF NOT EXISTS idx_learn_publications_visibility
 
 **生命周期不变量**：
 
-- 首次 Publish 是 Production Admin 的 owner runtime action；新记录只能首次进入 `public`。
+- Owner Admin 的首次 Publish 创建 runtime record；正式 publication authority 位于 production runtime，Local Preview mutation 明确只读。
 - 首次 Publish 在同一 D1 batch 中创建 `learn_publications` record 和 `learn_note_published` first footprint。
 - Hide / Show 只更新 runtime visibility，保留 `published_at`，不重复创建首次发布 footprint。
 - production deploy sync v3 不创建新的 publication record，也不回填 first publication。
@@ -236,15 +249,15 @@ Repository 已包含 `0004_learn_publications.sql`。某个远端环境是否已
 ```sql
 CREATE TABLE IF NOT EXISTS trades (
   id               INTEGER PRIMARY KEY AUTOINCREMENT,
-  trade_date       TEXT NOT NULL,    -- 交易日 YYYY-MM-DD
-  ticker           TEXT NOT NULL,    -- 标的代码（如 510300）
-  ticker_name      TEXT,             -- 标的名称（如 沪深300ETF）
+  trade_date       TEXT NOT NULL,
+  ticker           TEXT NOT NULL,
+  ticker_name      TEXT,
   direction        TEXT NOT NULL CHECK(direction IN ('buy','sell')),
-  quantity         REAL NOT NULL,    -- 数量
-  price            REAL NOT NULL,    -- 成交单价
-  position_category TEXT NOT NULL,   -- 仓位类别（宽基/行业/债券/现金等）
-  reason           TEXT,             -- 交易原因（选填）
-  needs_review     INTEGER DEFAULT 0 -- 0 = clean, 1 = Excel 迁移时发现 dirty data
+  quantity         REAL NOT NULL,
+  price            REAL NOT NULL,
+  position_category TEXT NOT NULL,
+  reason           TEXT,
+  needs_review     INTEGER DEFAULT 0
 );
 ```
 
@@ -257,10 +270,10 @@ CREATE TABLE IF NOT EXISTS trades (
 ```sql
 CREATE TABLE IF NOT EXISTS holdings_snapshots (
   id               INTEGER PRIMARY KEY AUTOINCREMENT,
-  snapshot_date    TEXT NOT NULL,    -- 快照日期 YYYY-MM-DD
+  snapshot_date    TEXT NOT NULL,
   ticker           TEXT NOT NULL,
-  quantity         REAL NOT NULL,    -- 持有数量
-  avg_cost         REAL NOT NULL,    -- 平均成本
+  quantity         REAL NOT NULL,
+  avg_cost         REAL NOT NULL,
   position_category TEXT NOT NULL,
   UNIQUE(snapshot_date, ticker)
 );
@@ -273,10 +286,10 @@ CREATE TABLE IF NOT EXISTS holdings_snapshots (
 ```sql
 CREATE TABLE IF NOT EXISTS market_data (
   id         INTEGER PRIMARY KEY AUTOINCREMENT,
-  ticker     TEXT NOT NULL,          -- 标的代码（或 PE 指标代码如 'SSE300_PE'）
-  price      REAL,                   -- 最新价格（PE 数据时为 PE-TTM 值）
-  pe_ttm     REAL,                   -- PE-TTM 值
-  fetched_at TEXT NOT NULL,          -- 数据拉取时间 ISO 8601
+  ticker     TEXT NOT NULL,
+  price      REAL,
+  pe_ttm     REAL,
+  fetched_at TEXT NOT NULL,
   UNIQUE(ticker, fetched_at)
 );
 ```
@@ -312,22 +325,27 @@ CREATE TABLE IF NOT EXISTS circuit_breaker_log (
 
 | Namespace   | Key Pattern          | 用途                               | TTL        |
 | ----------- | -------------------- | ---------------------------------- | ---------- |
-| **VIEW_KV** | `view:{date}:{slug}:{visitorHash}` | 阅读量访问者去重记录             | 24h        |
-| **AUTH_KV** | `user:{username}`    | 用户密码 bcrypt hash               | 永久       |
+| **VIEW_KV** | `view:{date}:{slug}:{visitorHash}` | 阅读量快速去重记录               | 24h        |
+| **VIEW_KV** | `ratelimit:views:{minute}:{visitorHash}` | 阅读记录速率限制                | 120s       |
+| **AUTH_KV** | `user:{username}`    | 主站用户密码 bcrypt hash          | 永久       |
 | **AUTH_KV** | `session:{token}`    | 主站登录 session                   | 12h        |
 | **AUTH_KV** | `ratelimit:login:{ip}` | 主站登录限流计数器               | 5min       |
 | **AUTH_KV** | `blog:lifecycle-manifest:v1` / `blog:published-manifest` | Blog runtime lifecycle / public projection | 无 TTL |
 | **AUTH_KV** | `learn:relation-manifest` | 已部署 Learn source 的 relation metadata；用于 lifecycle relation validation，不是 publication state | 无 TTL |
-| **FINANCE_AUTH_KV** | `user:{username}` / `session:{token}` | Finance 用户、角色和 session | session 12h |
+| **FINANCE_AUTH_KV** | `user:{username}` | Finance 用户与角色 | 永久 |
+| **FINANCE_AUTH_KV** | `session:{token}` | Finance session | 12h |
+| **FINANCE_AUTH_KV** | `ratelimit:login:{hash}` | Finance 登录限流 | 5min |
 
 ---
 
 ## 4. R2 Bucket
 
-| Bucket            | 路径模式                      | 用途           | CORS                 |
-| ----------------- | ----------------------------- | -------------- | -------------------- |
-| `catstarry-media` | `feed/{YYYY-MM}/{uuid}.{ext}` | /feed 媒体文件 | Allow: catstarry.xyz |
-| `home-projections` | `activity-signals.json`       | Home 最小活动状态固定资源 | 静态资源交付所需的最小允许来源 |
+| Bucket | 路径模式 | 用途 |
+| --- | --- | --- |
+| `catstarry-media` | `feed/{YYYY-MM}/{uuid}.{ext}` | /feed 媒体文件 |
+| `home-projections` | `activity-signals.json` | Home 最小活动状态固定资源 |
+
+Bucket 的账户级 CORS / delivery 配置属于 Cloudflare 环境事实；本文件不从 repository 推断其当前生产值。
 
 ---
 
@@ -530,30 +548,31 @@ catstarry-db                    finance-db
 │ last_revised_at  │                    │
 │ updated_at       │                    │
 └──────────────────┘                    │
-┌─────────────┐                ┌────────▼─────────┐
-│ blog_views  │                │ holdings_snapshots│
-│  slug       │                │  ticker, quantity │
-│  count      │                │  avg_cost         │
-└─────────────┘                └────────┬─────────┘
-┌─────────────┐                         │
-│ auth_sessions│               ┌────────▼─────────┐
-│  token (PK) │               │ market_data      │
-│  username   │               │  ticker, price    │
-│  expires_at │               │  pe_ttm           │
+┌──────────────────┐           ┌────────▼─────────┐
+│ blog_view_visitors│          │ holdings_snapshots│
+│ slug/view_date PK │          │ ticker, quantity │
+│ visitor_hash PK   │          │ avg_cost         │
+└────────┬─────────┘           └────────┬─────────┘
+         │ trigger                     │
+┌────────▼────┐               ┌────────▼─────────┐
+│ blog_views  │               │ market_data      │
+│ slug/date   │               │ ticker, price    │
+│ count       │               │ pe_ttm           │
 └─────────────┘               └────────┬─────────┘
-                                        │
-                               ┌────────▼─────────┐
-                               │ circuit_breaker_ │
-                               │ log              │
-                               │  level, reason   │
-                               └──────────────────┘
+┌──────────────┐                       │
+│ auth_sessions│              ┌────────▼─────────┐
+│ token (PK)   │              │ circuit_breaker_ │
+│ username     │              │ log              │
+│ expires_at   │              │ level, reason    │
+└──────────────┘              └──────────────────┘
 
-KV:                                  R2:
-  view:{date}:{slug}:{visitorHash}     catstarry-media/
-  user:{username}                        feed/2026-07/uuid.jpg
-  session:{token}
-  ratelimit:login:{ip}                home-projections/
-  blog:lifecycle-manifest:v1             activity-signals.json
+KV:                                      R2:
+  view:{date}:{slug}:{visitorHash}         catstarry-media/
+  ratelimit:views:{minute}:{visitorHash}     feed/2026-07/uuid.jpg
+  user:{username}
+  session:{token}                         home-projections/
+  ratelimit:login:{ip}                      activity-signals.json
+  blog:lifecycle-manifest:v1
   blog:published-manifest
   learn:relation-manifest
 ```
