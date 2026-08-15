@@ -5,7 +5,6 @@
 **Version:** v1 — Canonical
 **Date:** 2026-08-10
 **Scope:** Blog / Feed / Learn / Projects
-**State:** CLOSED-MODULE RECONCILIATION COMPLETE
 **Upstream:** Reconciled Content Family Contract v1
 **Purpose:** Atomic Product decision registry and traceability ledger
 
@@ -322,7 +321,7 @@ Learn Tags 主要承担 retrieval / search metadata，不默认 pill treatment�
 | BLOG-ARCH-010 | Date format = `MM.DD` | Confirmed |
 | BLOG-ARCH-011 | Desktop independent Date Column | Confirmed |
 | BLOG-ARCH-012 | Date/title optical rather than mechanical alignment | Confirmed |
-| BLOG-ARCH-013 | No Year grouping currently | Confirmed current / future Revalidate |
+| BLOG-ARCH-013 | No Year grouping until scale justifies revalidation | Confirmed / future Revalidate |
 | BLOG-ARCH-014 | No Month grouping | Confirmed |
 | BLOG-ARCH-015 | Hairline spans archive content width including Date Column | Confirmed |
 | BLOG-ARCH-016 | Hairline warm / light / structural | Confirmed |
@@ -386,7 +385,7 @@ Learn Tags 主要承担 retrieval / search metadata，不默认 pill treatment�
 
 | ID | Decision | Status |
 | --- | --- | --- |
-| BLOG-PAG-001 | Current top+bottom boxed pagination | Superseded |
+| BLOG-PAG-001 | Top+bottom boxed pagination | Superseded |
 | BLOG-PAG-002 | Default numbered pagination | Superseded |
 | BLOG-PAG-003 | One bottom navigation only | Confirmed |
 | BLOG-PAG-004 | `← 较新的文章` / `更早的文章 →` | Confirmed |
@@ -696,7 +695,6 @@ Current Learn public events：first formal publication / substantive revision；
 | FEED-TIME-007 | Current Year displayed too | Confirmed |
 | FEED-TIME-008 | No Month heading | Confirmed |
 | FEED-TIME-009 | No relative-time-first | Confirmed |
-| FEED-TIME-010 | Canonical timezone exact value | Architecture Revalidate |
 
 ## FEED-TIMELINE-VISUAL
 
@@ -770,7 +768,7 @@ Year Jump、Month Jump、Latest Jump、Back to top、permanent year rail、month
 | FEED-AUTH-005 | Mobile = bottom-origin sheet / near-full-screen as needed | Confirmed |
 | FEED-AUTH-006 | Empty composer may switch Note/Clip | Confirmed |
 | FEED-AUTH-007 | Switching cannot silently destroy substantial input | Confirmed |
-| FEED-AUTH-008 | No persistent Draft system currently | Confirmed non-capability |
+| FEED-AUTH-008 | Persistent Draft system is not part of current Feed authoring | Confirmed non-capability |
 | FEED-AUTH-009 | Substantial unsaved content gets abandonment protection | Confirmed |
 | FEED-AUTH-010 | Browser unload may use native warning | Confirmed |
 | FEED-AUTH-011 | Item-level upload state | Confirmed |
@@ -878,7 +876,7 @@ Do not add Timeline、Graph、Dashboard、Development Log、Status board、compl
 | PROJ-CARD-001 | Preserve Full Project Card | Confirmed |
 | PROJ-CARD-002 | Preserve Cream surface | Confirmed |
 | PROJ-CARD-003 | Preserve full object border | Confirmed |
-| PROJ-CARD-004 | Preserve current general radius direction | Confirmed |
+| PROJ-CARD-004 | Preserve accepted general radius direction | Confirmed |
 | PROJ-CARD-005 | Prefer Family radius token if available | Confirmed implementation rule |
 | PROJ-CARD-006 | Preserve screenshot/body segmentation | Confirmed |
 | PROJ-CARD-007 | Do not convert to frameless list/Blog row/masonry/hero layout | Confirmed |
@@ -921,7 +919,7 @@ Hover：lift + stronger shadow + arrow → Klein Blue。
 | --- | --- | --- |
 | PROJ-MEDIA-001 | Screenshot/visual = core project evidence | Confirmed |
 | PROJ-MEDIA-002 | Do not shrink into ordinary thumbnail | Confirmed |
-| PROJ-MEDIA-003 | Current ≈16:10 direction valid | Confirmed |
+| PROJ-MEDIA-003 | ≈16:10 direction valid | Confirmed |
 | PROJ-MEDIA-004 | Do not force 16:9 | Confirmed |
 | PROJ-MEDIA-005 | Keep native project colors | Confirmed |
 | PROJ-MEDIA-006 | No cream filter/recolor/normalization/overlay | Confirmed |
@@ -943,8 +941,7 @@ Hover：lift + stronger shadow + arrow → Klein Blue。
 
 ## PROJ-ASSETS
 
-Underwood current screenshot：**Confirmed acceptable**。  
-catstarry.xyz GitHub screenshot：workable but weak；future preferred = real production UI screenshot。**Asset Revalidate**。
+Closure-era asset evidence：Underwood screenshot was accepted；catstarry.xyz GitHub screenshot was workable but weak，with real production UI preferred。If those assets are replaced, assess the new asset against the current Project media contract rather than carrying the old screenshot rating forward。
 
 ## PROJ-TYPOGRAPHY
 
@@ -982,7 +979,7 @@ catstarry.xyz GitHub screenshot：workable but weak；future preferred = real pr
 | --- | --- | --- |
 | PROJ-META-001 | Public Card does not display Date | Confirmed |
 | PROJ-META-002 | No Updated date | Confirmed |
-| PROJ-META-003 | No public Status system currently | Parked |
+| PROJ-META-003 | Public Status system | Parked |
 | PROJ-META-004 | visibility stays internal | Confirmed |
 | PROJ-META-005 | updateId stays internal | Confirmed |
 
@@ -1010,7 +1007,7 @@ Reject Product Hunt language、agency case study、recruitment portfolio voice�
 
 | ID | Decision | Status |
 | --- | --- | --- |
-| PROJ-MOB-001 | Desktop current 2 columns | Confirmed current |
+| PROJ-MOB-001 | Desktop 2 columns | Confirmed |
 | PROJ-MOB-002 | Mobile 1 column | Confirmed |
 | PROJ-MOB-003 | Same Project Object, adjusted density | Confirmed |
 | PROJ-MOB-004 | Screenshot remains major visual area | Confirmed |
@@ -1296,7 +1293,7 @@ Accepted homepage model：Knowledge Map = Track directory × Graph；Search = se
 
 ## LEARN-PROV-022
 
-Track truncation / visual residue are cleanup issues, not reasons to determine permanent IA。
+Implementation visual residue must not determine permanent IA or Product hierarchy。
 
 **Confirmed**
 
