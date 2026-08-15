@@ -187,7 +187,7 @@ Metadata is earned, not filled：
 
 - Data existence does not create public UI entitlement。
 - Metadata density follows semantic need。
-- Projects 的 date / visibility / updateId 不因存在就必须公开显示。
+- Projects 的内部实现字段不因存在就必须公开显示。
 - Feed 不同 Activity 字段可以不同，但 object rank 相同。
 
 ### 3.5 Tag semantics
