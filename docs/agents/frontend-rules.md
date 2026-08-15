@@ -54,7 +54,7 @@ Pointer enhancement 只在合适的 fine-pointer 环境启用，并尊重 `prefe
 - shared token 只表达真实 shared semantics，不要求不同模块获得相同最终 appearance；
 - 一个变量存在于 `variables.css`，不等于它仍拥有 Design authority；使用前同时检查 `DESIGN.md` 的当前语义和真实 consumer；
 - unused / legacy token 不得成为恢复旧 UI 的理由；
-- component-local custom property 可以用于局部 runtime-driven visual interface，例如 Paw Trail；它不会因此自动升级为 global Layer 3 token；
+- component-local custom property 可以用于局部 runtime-driven visual interface，例如 Learn local material surfaces 或 Paw Trail；它不会因此自动升级为 global Layer 3 token；
 - runtime geometry、random seed、pointer gait、orbit phase、scheduler、state-machine timing 不应仅为了“统一”提升为 global token。
 
 ### 3.2 当前主要 namespace
@@ -66,6 +66,7 @@ Pointer enhancement 只在合适的 fine-pointer 环境启用，并尊重 `prefe
 | Planet / Star Map | `--planet-*`、`--star-map-*`、`--interaction-*` |
 | HAS | `--has-*`；orbit phase / period / scheduling 不进 CSS contract |
 | Leopard Cat | `--leopardcat-*`；node geometry / burst physics 在 runtime |
+| Learn local surfaces | `--learn-*` 在 `src/components/learn/learn.css` 内由 Cream Gallery / geo semantics 派生；保持 module-local，不提升为 Family palette |
 | Home Cursor Meteor | `--cursor-meteor-*` 的 active Design semantics 只属于 Home movement signature |
 | Content Paw Trail | `--content-paw-*` component-local interface；exact gait / lifetime / speed threshold 在 runtime |
 | Content Click Feedback | 当前实现复用少量 legacy cursor-meteor color tokens；这是兼容实现，不是 canonical Design namespace |
