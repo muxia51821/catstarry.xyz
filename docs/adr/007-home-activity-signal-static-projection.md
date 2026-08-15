@@ -4,8 +4,6 @@
 > Date: 2026-07-16
 > Deciders: Home Activity Signal 定向 Phase 3 architecture agent + 木下
 > Complements: ADR-005、ADR-006
->
-> Current reconciliation: Phase 8 publication lifecycle 已把 Blog / Learn source visibility 纳入 projection eligibility；本文的静态投影决策保持不变，Source Mapping 与 Refresh / Failure Rules 已按 current implementation 更新。
 
 > Terminology note: 本文中的“系统足迹”对应当前 canonical term `Public Footprint`；
 > `Public Timeline` 仍是 Feed 的统一读取投影。代码内部 discriminator 不在本 ADR 重命名。
@@ -86,7 +84,7 @@ Blog / Learn 的 Footprint record 可以继续保留在存储中，但 source �
 3. 每小时 `0 * * * *` 运行一次全量校正，确保状态跨越 7 天和 60 天阈值时自然更新，并修复先前异步刷新失败。
 4. 来源 mutation 是权威事实；Activity projection 刷新失败不得回滚已经成功的 Feed / publication / visibility mutation。
 5. 发布完整对象到 R2；刷新失败时已有完整对象保持不变，直到后续刷新成功。
-6. `/activity-signals.json` 对缺失对象返回 unavailable；对象超过内部 3 小时 freshness boundary 时返回 503。Home 对缺失、过期、请求失败、schema/state 无效均不应用状态，只隐藏四颗功能星球的信号卫星；不得将失败误报为 `dormant`。
+6. `/activity-signals.json` 在对象缺失时返回 404；对象超过内部 3 小时 freshness boundary 时返回 503。Home 对缺失、过期、请求失败、schema/state 无效均不应用状态，只隐藏四颗功能星球的信号卫星；不得将失败误报为 `dormant`。
 7. `public_footprints` 继续保持 ADR-005 的独立记录 / event-time snapshot 语义；Activity eligibility 是读取投影规则，不反向删除或改写 historical Footprint。
 
 ## Consequences
@@ -94,7 +92,7 @@ Blog / Learn 的 Footprint record 可以继续保留在存储中，但 source �
 - Home 保持 SSG，且不请求 `/api/home`、Public Timeline 或来源内容 API。
 - `Activity Signal Projection` 是 feed-api 内部模块；调用方只触发刷新或读取固定资源，不处理四源 query、source eligibility、7/60 天阈值和 failure recovery。
 - 主站使用专用 `HOME_PROJECTIONS` R2 binding 保存固定对象，不复用 Feed media bucket。
-- 当前实现由 feed-api 的 `activity-signals` module、`activity-signal-store` adapter、`activity-signals` route 和 hourly scheduled handler提供 source eligibility、状态计算、完整对象发布、freshness check 与时间阈值校正。
+- 当前实现由 feed-api 的 `activity-signals` module、`activity-signal-store` adapter、`activity-signals` route 和 hourly scheduled handler 提供 source eligibility、状态计算、完整对象发布、freshness check 与时间阈值校正。
 - Home 只把三态映射为信号卫星视觉；projection 不承载内容或未读语义。
 
 ## ADR-006 Compatibility
