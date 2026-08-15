@@ -34,7 +34,7 @@ Layer 3 — Storage / external services
 
 ### Worker ↔ shared contracts
 
-`shared/` 只承载确实跨 runtime 的 contract / utility，例如 session helpers、security、CORS 和 shared types。Feed / Finance 各自的存储逻辑留在拥有它的 Worker 内，不为了形式强制统一 adapter 层级。
+`shared/` 承载跨 runtime 的 contract / utility，例如 session helpers、security、CORS 和 shared types。Feed / Finance 各自的存储逻辑留在拥有它的 Worker 内。
 
 ### Worker ↔ infrastructure
 
