@@ -1,241 +1,192 @@
-# Phase 0–8 网站生命周期参考
+# Phase 0–8 Website Delivery Lifecycle Reference
 
-> 这是一份可复用的网站项目生命周期参考，不是 catstarry.xyz 当前 Phase 8 的 mandatory workflow。
+> 这是一份可复用的完整网站项目生命周期参考，来源于 catstarry.xyz 从启动到长期维护的真实协作经验。
 >
-> 它用于未来新项目、历史理解或需要重新从 0 建站时参考。具体项目可以跳过、合并或回流阶段；不要为了流程形式强迫项目经过不需要的步骤。
+> 它不是 catstarry.xyz 当前 Phase 8 的日常执行手册。当前维护流程见 `docs/workflow-orchestration.md`。
+>
+> 未来启动新的独立网站项目时，可以把本文件作为第一版流程骨架读取，再根据项目复杂度删减；不要机械复制 catstarry.xyz 的模块、技术栈或治理细节。
 
 ---
 
-## 总体原则
-
-一个长期网站通常会经历：
+## 0. 总体模型
 
 ```text
-Phase 0  基础设施 / 协作环境
-Phase 1  需求澄清
-Phase 2  规格化 / Acceptance
+Phase 0  基础设施与协作基线
+    ↓
+Phase 1  需求发现与澄清
+    ↓
+Phase 2  产品规格化与验收边界
+    ↓
 Phase 3  架构设计
-Phase 4  UI / Prototype
+    ↓
+Phase 4  UI / UX / Prototype
+    ↓
 Phase 5  Implementation
-Phase 6  Test / QA
-Phase 7  Production Release
+    ↓
+Phase 6  Integration / QA / Acceptance
+    ↓
+Phase 7  Deployment / Production Acceptance
+    ↓
 Phase 8  Long-term Maintenance
 ```
 
-这套阶段的价值是明确每种问题应该在哪一层解决，而不是制造流程门槛。
+这个模型的目的不是制造审批关卡，而是避免在信息不足时过早实现。
 
-核心原则：
-
-- Product 问题尽量在 implementation 前收敛。
-- Architecture 解决 durable technical boundaries，不代替 Product decision。
-- Prototype 用于验证视觉和交互，不自动等于 production implementation。
-- Implementation complete、accepted、merged、deployed、production accepted 是不同状态。
-- 进入长期维护后，不要求每次小修重新从 Phase 1 走到 Phase 7。
-- 新证据推翻旧前提时，定向回到受影响职责层，而不是重启整个项目。
-- 用户／产品所有者是最终 Product 与 Acceptance 裁决者；Agent 的职责是降低技术判断成本。
+绿色新项目中，前后 Phase 通常具有依赖关系；进入 Phase 8 后，不再要求每个小任务从 Phase 1 重新开始，而是只回流到真正受到影响的层级。
 
 ---
 
-## Phase 0 — 基础设施与协作环境
+## Phase 0 — 基础设施与协作基线
 
 ### 目标
 
-建立能够安全持续工作的项目基础，而不是先做产品功能。
+建立项目可以被人和 Agent 安全维护的最低基础。
 
 ### 典型工作
 
-- 建立 repository 与基本目录；
-- 确认 runtime、framework、package manager 与 lockfile；
-- 建立 Agent / Git / production safety 规则；
-- 建立最小项目 context 与共享术语；
-- 建立 issue / task / branch 的基本工作方式；
-- 确认开发、预览和 production 环境如何隔离。
+- 创建 repository、默认 branch 和基本目录结构；
+- 确定运行环境、package manager、lockfile 和基础依赖；
+- 建立 Agent 行为、Git、安全和 production authority 规则；
+- 建立最小项目 context、术语和文档入口；
+- 明确 secret、环境变量和本地开发边界；
+- 建立最小 build / lint / test 能力。
 
-### 典型产物
+### 退出条件
 
-```text
-README
-AGENTS / contributor rules
-CONTEXT
-GLOSSARY
-package.json + lockfile
-initial deployment/runtime config
-```
+- 一个新 Session 能找到项目入口并运行基础验证；
+- Git 与 production 权限边界明确；
+- 不需要先知道大量聊天历史才能开始工作。
 
-### 完成标准
+### 避免
 
-团队或 Agent 可以回答：
-
-- 这是个什么项目？
-- 在哪里改？
-- 什么不能随便改？
-- 如何验证？
-- 谁可以 commit / merge / deploy？
-
-不要在 Phase 0 设计完整未来架构或预先建立大量治理文件。
+不要在 Phase 0 预先设计未来所有模块、治理表格和扩展点。
 
 ---
 
-## Phase 1 — 需求澄清
+## Phase 1 — 需求发现与澄清
 
 ### 目标
 
-把“我想做一个东西”转化成可判断、可取舍的 Product intent。
+回答“为什么做、给谁用、真正需要解决什么”。
 
-### 需要回答
+### 典型工作
 
-- 谁使用？
-- 为什么存在？
-- 核心使用路径是什么？
-- 什么是必须有？
-- 什么明确不做？
-- 成功是什么样？
-- 哪些问题还不能决定？
+- 收集真实使用场景、问题和目标；
+- 区分用户需求、个人偏好、技术想法和暂时猜测；
+- 识别关键对象、角色、访问范围和主要用户旅程；
+- 找出必须裁决的问题，而不是把所有可能性都讨论完。
 
-### 推荐方式
+### 主要产物
 
-用真实场景而不是功能列表讨论需求。
+可以是讨论结论、Product Synthesis、简短 PRD 或需求清单，不要求固定格式。
 
-例如不要只问：
+### 退出条件
 
-> 是否需要搜索？
+- 核心产品目标清楚；
+- 主要范围和明确不做什么已经确定；
+- 尚未确定的问题不会阻碍下一阶段。
 
-而应问：
+### 避免
 
-> 用户在什么情况下会需要重新找到之前的内容？现有导航是否已经足够？
-
-### 完成标准
-
-进入下一阶段时，主要 Product question 已经可以被明确表达；仍然不确定的问题应被标为 open / revalidate，而不是伪装成已确认。
+不要因为“需求阶段”而强迫用户回答几十个对当前决策没有影响的问题。
 
 ---
 
-## Phase 2 — 规格化与 Acceptance
+## Phase 2 — 产品规格化与验收边界
 
 ### 目标
 
-把已确认 Product intent 转化为 implementation 可以执行、用户可以验收的边界。
+把已确认的产品意图转成可实施、可验收的行为边界。
 
-### 典型产物
+### 典型工作
 
-- PRD / spec；
-- task / issue；
-- acceptance criteria；
-- scope / non-goals；
-- dependency / blocker。
+- 将大问题拆成模块、能力或任务；
+- 定义 observable behavior；
+- 明确 Public / Owner / Private 等访问边界；
+- 确定 acceptance criteria；
+- 标记 Confirmed / Open / Parked / Superseded 等状态；
+- 建立必要的跨模块 Product Contract。
 
-### 两种语言要分开
+### 主要产物
 
-#### Implementation language
+按项目需要选择：
 
-可以包含：
+- Product Ledger；
+- Closure Sheet；
+- Capability Ledger；
+- implementation-ready task；
+- acceptance checklist。
 
-- API；
-- schema；
-- state；
-- error boundary；
-- performance constraint；
-- dependency。
+不要求所有项目同时拥有这些文档。
 
-#### User acceptance language
+### 退出条件
 
-应该回答：
+实现者可以回答：
 
-> 用户最终看见和做到什么？
-
-而不是要求非技术用户验证内部实现。
-
-### 完成标准
-
-Implementation Agent 不需要重新猜 Product intent，用户也知道完成后怎么判断“接受 / 不接受”。
+- 要做什么；
+- 不做什么；
+- 什么叫完成；
+- 哪些问题不能自行重新设计。
 
 ---
 
-## Phase 3 — Architecture
+## Phase 3 — 架构设计
 
 ### 目标
 
-确定真正需要长期稳定的技术边界。
+为已经确认的产品行为找到足够简单、可维护的技术结构。
 
-### 典型问题
+### 典型工作
 
-- 模块如何分？
-- 数据由谁拥有？
-- 哪些是 source of truth？
-- API / Worker / service boundary 在哪里？
-- 数据如何持久化？
-- Auth 如何工作？
-- public / private boundary 是什么？
-- deployment topology 是什么？
+- 模块和部署单元划分；
+- 数据模型与持久化选择；
+- API / Worker / service 边界；
+- auth / authorization；
+- public / private data flow；
+- failure / fallback / rollback；
+- 重要 architecture decision 的取舍。
 
-### Architecture 文档职责
+### 文档原则
 
-可以拆分为：
+- current architecture 写“现在系统是什么”；
+- ADR 只记录值得未来维护者回答“为什么选 A 而不是 B”的长期决定；
+- 不把每个 implementation choice 都升级成 ADR。
 
-```text
-architecture overview
-modules / ownership / seams
-data model / storage / invariants
-auth / security
-ADR
-```
+### 退出条件
 
-不要把所有内容都塞进一份 architecture 文档。
-
-### ADR 准入
-
-只有未来维护者很可能问：
-
-> 为什么选择 A，而不是 B？
-
-并且这个答案长期有价值时，才值得新增 ADR。
-
-普通 implementation correction 不需要 ADR。
-
-### 完成标准
-
-关键模块 ownership、数据边界、runtime / deployment seam 足够清楚，可以支撑实现而不需要 Agent 自行发明架构。
+关键 Product Contract 有清晰实现路径，且主要跨模块边界已经稳定。
 
 ---
 
-## Phase 4 — UI / Prototype
+## Phase 4 — UI / UX / Prototype
 
 ### 目标
 
-在 production implementation 前验证：
+在大规模实现前确认视觉语言、交互结构和关键体验。
 
-- 信息架构；
-- 视觉语言；
-- 交互路径；
-- responsive 行为；
-- motion；
-- accessibility；
-- 内容密度。
+### 典型工作
 
-### Reference-first
+- 信息架构与导航；
+- 页面层级；
+- design system / tokens；
+- typography、spacing、responsive；
+- motion 和 accessibility；
+- 关键复杂交互 prototype；
+- 用户人工选择和体验验收。
 
-如果项目视觉要求较高，先建立少量人工选择的 reference，再形成自己的视觉系统，而不是让 Agent 从抽象形容词自行发散。
+### Prototype 原则
 
-### Prototype 的边界
+Prototype 用于回答具体的不确定性，不是生产实现的平行版本。
 
-Prototype 可以验证：
+验证完成后，应明确：
 
-- 是否好用；
-- 是否好看；
-- 交互是否成立；
-- layout 是否适合真实内容。
+- 哪些 prototype 结论进入正式设计；
+- 哪些只是实验；
+- 哪些被拒绝。
 
-Prototype 不自动证明：
+### 退出条件
 
-- production architecture 成立；
-- 数据流安全；
-- performance 足够；
-- accessibility 完整；
-- production code 可以直接复用。
-
-### 完成标准
-
-关键体验已被产品所有者实际看过并接受，implementation 不需要重新发明视觉方向。
+实现者不需要重新发明核心页面结构和关键交互。
 
 ---
 
@@ -243,121 +194,73 @@ Prototype 不自动证明：
 
 ### 目标
 
-在已收敛的 Product / Architecture / Design 边界内实现真实系统。
+在已确认的 Product / Architecture / Design 边界内实现最小正确版本。
 
-### 默认循环
+### 默认执行循环
 
 ```text
-读取 task-specific authority
+恢复当前 evidence
 → 确认 scope
-→ 实施最小改动
-→ 自动验证
-→ Review
-→ 用户验收（需要时）
+→ 实现最小变更
+→ scoped tests / build
+→ review diff
+→ 用户或上游验收
 ```
 
-### 实施原则
+### 规则
 
-- 优先复用现有代码；
-- 不为未来可能性增加抽象；
-- 不顺手重构无关模块；
-- 不让 implementation 偷偷改变 Product decision；
-- 发现上游冲突时上报，而不是擅自选择一方覆盖另一方。
+- 独立任务 branch；
+- surgical changes；
+- 不顺手重构无关代码；
+- 不因为实现困难自行改变 Product Contract；
+- implementation 中发现上游矛盾时升级，而不是猜。
 
-### 并行开发
+### 并行
 
-只有模块 seam 和 shared dependency 已清楚时才并行。
-
-如果多个模块依赖同一基础设施：
-
-```text
-shared prerequisite
-→ module-local implementation in parallel
-→ integration
-```
-
-不要为了并行速度制造 duplicated implementation。
-
-### 完成标准
-
-实现满足已确认 scope，并通过与风险相匹配的自动验证。
+只有模块边界和共享依赖足够稳定后再并行。共享 schema、auth、公共 API 等依赖应优先解决。
 
 ---
 
-## Phase 6 — Test / QA
+## Phase 6 — Integration / QA / Acceptance
 
 ### 目标
 
-验证系统作为整体工作，而不仅是每个模块分别“测试通过”。
+证明“各部分放在一起仍然成立”，而不仅是单模块测试通过。
 
-### 分层验证
+### 典型验证
 
-#### Unit / contract
+- unit / integration / browser regression；
+- cross-module navigation；
+- auth boundary；
+- responsive / keyboard / reduced-motion；
+- error / fallback path；
+- data lifecycle；
+- production-like local preview；
+- 用户人工体验验收。
 
-保护：
+### 原则
 
-- 数据转换；
-- 关键规则；
-- API contracts；
-- invariants。
+测试数量不等于测试有效性。
 
-#### Integration
+优先保护：
 
-保护：
+- 高影响 contract；
+- 曾经真实出过事故的路径；
+- 容易被后续改动破坏的 seam。
 
-- module seams；
-- storage；
-- auth；
-- worker/service interactions。
+### 退出条件
 
-#### Browser / UI
-
-保护真实用户可以看到的关键行为。
-
-#### Manual acceptance
-
-保护机器测试不擅长判断的：
-
-- 视觉；
-- 阅读体验；
-- 动效；
-- 产品语义；
-- 真实使用感受。
-
-### 避免形式覆盖
-
-测试数量不是目标。
-
-每个重要测试都应该能回答：
-
-> 如果这个测试不存在，什么真实 regression 会更容易进入 production？
-
-回答不了的问题，可能只是形式覆盖。
-
-### 完成标准
-
-关键风险有真实验证，而不是只有测试文件存在。
+Implementation Acceptance 与 Integration Acceptance 均有足够证据。
 
 ---
 
-## Phase 7 — Production Release
+## Phase 7 — Deployment / Production Acceptance
 
 ### 目标
 
-把已接受的 implementation 安全带到 production，并获得 production evidence。
+把已接受版本安全进入 production，并确认真实环境成立。
 
-### Release 前
-
-明确：
-
-- exact source commit；
-- target components；
-- migrations；
-- bindings / secrets；
-- dependency order；
-- rollback condition。
-
-### 状态必须分离
+### 必须区分
 
 ```text
 implementation complete
@@ -367,19 +270,19 @@ implementation complete
 ≠ production accepted
 ```
 
-### Deployment
+### 典型工作
 
-复杂系统可使用独立 Deployment session，避免 implementation session 因为“代码写完了”自然获得 production authority。
+- 核对 exact source / target；
+- migrations / bindings / secrets；
+- 按组件部署；
+- production smoke；
+- 关键数据和权限验证；
+- rollback condition；
+- 记录成功 release history。
 
-### Production verification
+### 原则
 
-至少验证真正受影响的关键路径。
-
-不要为了形式把没有变化的组件重复部署。
-
-### 完成标准
-
-目标组件已上线，并有足够证据确认真实 production 行为。
+Deployment 最好与普通 implementation 分开处理，避免“代码写完”自动获得 production mutation authority。
 
 ---
 
@@ -387,116 +290,91 @@ implementation complete
 
 ### 目标
 
-项目开始服务真实使用后，持续修复、调整和简化，而不是继续维持建设期流程。
+保持可用，持续改进，并随着真实使用让系统和流程变得更简单。
 
-### 默认循环
-
-```text
-真实问题 / 新需求
-→ 收集足够证据
-→ 分类
-→ 最小范围处理
-→ 验证
-→ 用户验收
-→ 需要时部署
-→ production verification
-```
-
-### 常见分类
+### 典型任务类型
 
 - Bug；
 - Maintenance；
 - Experience refinement；
+- Content update；
 - New feature；
-- Product / Architecture question；
+- Architecture / Product revalidation；
 - Observe。
 
-### Small fix
+### Phase 8 与前七阶段最大的区别
 
-scope 清楚、不改变 shared contract 的小修不需要重新进入完整 Product / Architecture process。
+**不再线性重走 Phase 1–7。**
+
+使用 bounded return：
+
+```text
+小型明确修复
+→ 直接实现 / 验证
+
+触碰 Product Contract
+→ 回 Product 层
+
+触碰 durable architecture
+→ 回 Architecture 层
+
+触碰重大视觉 / interaction contract
+→ 回 Design 层
+
+需要上线
+→ Deployment
+```
 
 ### Touch-on-Conflict
 
-只有当前任务实际触碰旧决定时才传播：
+只同步真正受到影响的 current facts；不要因为一个小修触发全仓库文档 reconciliation。
 
-```text
-current task
-→ relevant current doc / contract
-→ necessary reconciliation only
-```
+### 长期原则
 
-不要因为发现一个 stale file 就做 repo-wide reconciliation。
-
-### Observe 也是合法决定
-
-不是所有问题都值得立即解决。
-
-证据不足、影响很小或成本高于收益时，可以明确选择 Observe。
-
-### 完成标准
-
-Phase 8 没有“项目完成”这一终点。它的目标是让项目长期保持：
-
-- 可用；
-- 可理解；
-- 可维护；
-- 与真实需求一致；
-- 治理成本低于治理带来的收益。
+> 维护项目，而不是维护一套比项目本身更重的治理系统。
 
 ---
 
-## 阶段回流
+## 跨 Phase 的通用规则
 
-生命周期不是单向瀑布。
+### 1. 用户是最终 Product / Acceptance 裁决者
 
-真实项目更接近：
+Agent 可以提出反对意见和证据，但不能通过代码或文档偷偷覆盖明确裁决。
 
-```text
-Phase 8 maintenance
-      ↓
-发现新的 Product question
-      ↓
-定向回 Phase 1 / 2
-      ↓
-如涉及 architecture → Phase 3
-      ↓
-如涉及体验 → Phase 4
-      ↓
-Phase 5 implementation
-      ↓
-Phase 6 validation
-      ↓
-Phase 7 release
-      ↓
-回 Phase 8
-```
+### 2. 当前实现不是所有维度的最高真源
 
-重点是**定向回流**。
+代码证明“现在实现了什么”；它不能单独证明“产品本来就应该这样”。
 
-不要因为一个新 feature 就把整个项目宣布“回到 Phase 1”。
+### 3. 文档按职责分工
+
+不要建立一份万能 canonical document。
+
+Product、Architecture、Design、Implementation、Deployment evidence 应分别维护。
+
+### 4. Handoff 优于重新发现
+
+已有可信 predecessor 时，传递已收敛结论和关键 evidence，不要求新 Session 从零重复完整调查。
+
+### 5. 复杂度跟随风险
+
+低风险任务使用轻流程；高风险任务增加独立 review、验证和回滚准备。
+
+### 6. Archive 与 Git history 有不同价值
+
+未来仍可能作为 rationale / acceptance evidence 主动读取的历史材料可以归档；仅仅为了“不丢失旧文字”不必为每次改版制造 archive 副本，Git history 已经承担版本历史。
 
 ---
 
-## 对新项目的使用方式
+## 给下一个网站的使用方式
 
-启动一个新网站时，可以按以下顺序使用这份参考：
+启动新网站时，不要直接照搬本文件的全部结构。
 
-1. 先判断项目规模和风险；
-2. 决定哪些 Phase 必须独立、哪些可以合并；
-3. 为当前 Phase 定义明确输出和退出条件；
-4. 不提前创建后续阶段不需要的文档；
-5. 每个阶段结束后只把真正 durable 的事实写入 current docs；
-6. 项目上线后主动切换到 Phase 8 maintenance 模式。
+建议先回答三个问题：
 
-对于个人网站或小团队项目，Phase 可以很轻：
+1. 这个项目复杂到需要哪些 Phase 明确分开？
+2. 哪些风险真的需要独立 Product / Architecture / Deployment gate？
+3. 哪些 catstarry.xyz 的经验只是这个项目特有，不应该复制？
 
-```text
-需求 + Acceptance
-→ Architecture（只做必要边界）
-→ UI Prototype
-→ Implementation + Test
-→ Release
-→ Maintenance
-```
+然后把 Phase 0–8 当作检查框架，而不是固定 bureaucracy。
 
-流程应该帮助项目减少返工，而不是成为项目本身。
+对于很小的网站，Phase 1–4 可以在一次设计讨论中完成；对于具有多个 Worker、数据库、Owner lifecycle 或长期维护需求的网站，再把相关 Phase 拆开。
