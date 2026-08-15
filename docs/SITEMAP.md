@@ -48,6 +48,15 @@
 | 安全 | 未认证跳转 `/feed/`；backend unavailable 返回 503；`noindex,nofollow,noarchive`；不记录公开阅读量、足迹或 activity |
 | 链接到 | `/feed/admin/`（返回发布管理） |
 
+### `/blog/admin/lifecycle` — Blog lifecycle Site proxy
+
+| 属性 | 值 |
+| --- | --- |
+| 类型 | Site SSR API route；不是独立管理页面 |
+| 方法 | PATCH |
+| 作用 | `BlogLifecycleAdmin` 将 owner lifecycle mutation 通过 `FEED_API` transport 代理到 Feed Worker `/api/blog/admin/publications` |
+| 失败 | Feed lifecycle service unavailable 时返回 503；认证/transition 校验由 Feed Worker contract 执行 |
+
 ### `/blog/category/[category]/` — 分类页
 
 | 属性   | 值                                          |
@@ -141,16 +150,16 @@
 | --- | --- |
 | 渲染 | Site SSR |
 | 访问 | 需要主站认证；未认证时返回 `/feed/` |
-| 内容 | Production Admin 管理 Publish / Hide / Show；withdrawn / superseded 只读 |
+| 内容 | Owner Admin 提供 Publish / Hide / Show；production runtime 是正式 publication authority；withdrawn / superseded 只读 |
 | Local Preview | 可登录、查看管理列表与预览，但 lifecycle mutation disabled |
-| 索引 | `X-Robots-Tag: noindex, nofollow, noarchive`，并设置 `noindex` meta |
+| 索引 | `X-Robots-Tag: noindex, nofollow,noarchive`，并设置 `noindex` meta |
 | session | 与 `/feed` 共享主站认证 session |
 
 ### `/learn/admin/lifecycle` — Learn lifecycle Site proxy
 
 | 属性 | 值 |
 | --- | --- |
-| 渲染 | Site SSR API route |
+| 类型 | Site SSR API route |
 | 方法 | PATCH |
 | 作用 | 将 owner lifecycle mutation 通过 `FEED_API` transport 代理到 Feed Worker `/api/learn/admin/publications` |
 | 失败 | Feed lifecycle service unavailable 时返回 503 |
@@ -197,7 +206,7 @@
 
 | 端点 | Worker | 方法 | 说明 |
 | --- | --- | --- | --- |
-| `/api/views` | feed-api | GET/POST | 阅读量计数，D1 + KV 去重 |
+| `/api/views` | feed-api | GET/POST | 阅读量计数；POST 使用 D1 持久去重 + VIEW_KV 快速去重/限流，GET 需要 owner session |
 | `/activity-signals.json` | feed-api | GET/HEAD | Home Activity Signal 静态投影读取 |
 | `/api/feed` | feed-api | GET/POST | Public Timeline 读取与原生 Feed 发布；公开读取同时应用 Blog / Learn source lifecycle projection |
 | `/api/auth/*` | feed-api | GET/POST | session、登录/登出，bcrypt + KV/D1 session |
