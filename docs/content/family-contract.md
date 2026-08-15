@@ -8,9 +8,9 @@
 **Learn decision baseline:** Product / Architecture / Visual Reality Check COMPLETE; implementation ACCEPTED / MERGED
 **Purpose:** Govern shared Content Family semantics, module exceptions, and cross-module product boundaries
 
-> 本合同描述当前 canonical governance state；本轮 Content Family production release 已完成。
+> 本合同描述当前 canonical Product governance state。Content Family 的 closure-era integration / release 已完成；当前 Git、deployment 与 production 状态不由本合同充当 live status source，应在需要时按当前证据核验。
 
-原子需求、状态、implementation drift、Architecture Revalidate 与 Acceptance Gate 见 [`master-ledger.md`](master-ledger.md)。历史冲突 rationale 与旧 implementation sequencing 已归档于 [`../_archive/content-governance/reconciliation-register.md`](../_archive/content-governance/reconciliation-register.md) 和 [`../_archive/content-governance/implementation-dependency-map.md`](../_archive/content-governance/implementation-dependency-map.md)；它们不是当前 Phase 8 执行计划。
+原子 Product 决策、状态与历史验收 traceability 见 [`master-ledger.md`](master-ledger.md)。历史冲突 rationale 与旧 implementation sequencing 已归档于 [`../_archive/content-governance/reconciliation-register.md`](../_archive/content-governance/reconciliation-register.md) 和 [`../_archive/content-governance/implementation-dependency-map.md`](../_archive/content-governance/implementation-dependency-map.md)；它们不是当前 Phase 8 执行计划。
 
 ---
 
@@ -36,8 +36,8 @@
 - Feed：CLOSED。
 - Projects：CLOSED。
 - Learn：Product / Architecture / Visual Reality Check COMPLETE；implementation ACCEPTED / MERGED。
-- Implementation：Blog / Projects 已 ACCEPTED 并 FROZEN；Feed / Learn 已 ACCEPTED / MERGED；Feed × Learn semantic integration CLOSED。
-- Production deployment：COMPLETE；不作为新的 Family capability 或后续 gate。
+- Closure-era implementation：Blog / Projects 已 ACCEPTED 并 FROZEN；Feed / Learn 已 ACCEPTED / MERGED；Feed × Learn semantic integration CLOSED。
+- Closure-era Content integration / production acceptance 已完成；这是一项历史完成事实，不代表任意未来 `main` HEAD 自动等于当前 deployed / production-accepted state。
 
 > **Current implementation does not automatically override later Product Closure.**
 
@@ -86,7 +86,9 @@ Content Family 共享 opening rhythm、hierarchy language、copy discipline 与 
 - Projects：Eyebrow + Title + Intro 合法。
 - Eyebrow 是 optional semantic element，不是 Opening mandatory slot。
 
-Top-level Content module 使用 `返回星图` 作为 global exit。Nested child 优先返回 parent；Blog Article → Blog 已确认。Learn 的具体 route hierarchy 以已完成的 Architecture Final 为准，本合同不重述其细节。
+Top-level Content module 使用 `返回星图` 作为 global exit；其语义目标是 Home 的 **Star Map / Overview**，不是重新回到 Home Entry。具体 URL 由 current navigation implementation 维护。
+
+Nested child 优先返回真正的 structural parent：Blog Article → Blog 已确认。Learn 的 canonical hierarchy 为 Learn corpus → Track browse / Public Note；Track 是 Public Note 的 domain context，不是 Note identity parent，因此 Public Note 的 primary return target 是 Learn corpus，而不是被强制嵌套到 Track tree。
 
 ### 1.4 Width follows surface function
 
@@ -208,6 +210,7 @@ Tag 是 semantic data concept，不是 universal visual component。
 
 - Blog taxonomy Tag：可点击、plain text、承担 discovery/navigation。
 - Projects annotation Tag：可使用 light bounded unit、noninteractive、low contrast、small radius。
+- Learn Tag：当前主要承担 retrieval / search metadata，不因此获得默认 visible pill treatment。
 
 字段同名不构成共享 pill component 的理由。
 
@@ -296,7 +299,7 @@ Local dark surface 可在功能或内容确有需要时存在，例如 Blog code
 
 Empty state 表示真实 content absence，保持 simple、human、module-consistent；不制造 fake Card、debug copy、eligibility explanation、onboarding、unearned CTA。
 
-Loading / Error 只在模块真实存在动态运行状态时要求完整设计。静态 Blog / Projects 不因 Feed 具有动态状态而制造对应系统。已有状态必须保持模块视觉 identity。
+Loading / Error 只在模块真实存在 runtime state 时要求完整设计。某一模块存在动态读取或运行时失败路径，不构成给整个 Family 复制同一套 Loading / Error system 的理由；已有状态必须保持模块自身视觉 identity。
 
 ### 6.2 Visual Completeness and plausible growth
 
@@ -321,9 +324,10 @@ Family intentional ending 已 Confirmed；Shared Footer 不是 Confirmed Family 
 Owner tooling 保持 module-local，直到重复出现的跨模块 workflow 证明 shared administration 的必要性。
 
 - Feed Manage：Confirmed module-local。
+- Learn lifecycle management：Confirmed module-local capability；不因此推导 Global Content Admin。
 - Global Content Admin：Parked。
 
-Feed 的 `管理`、Owner Browsing、Owner Managing、`＋ 发布` 不构成提前建设全站 `/admin` 的理由。
+Feed / Learn 已存在的 owner workflow 不构成提前建设全站统一 `/admin` 的理由。
 
 ### 6.5 Accessibility
 
@@ -371,6 +375,16 @@ Visual quietness 不得以牺牲 accessibility 为代价。Family 必须保留�
 | FAMILY-EX-PROJ-04 | Tech Tags 可使用轻 bounded annotation。 |
 | FAMILY-EX-PROJ-05 | `SELECTED WORKS` 可使用极弱 orange identity marker。 |
 
+### 7.4 Learn
+
+| ID | Confirmed exception |
+| --- | --- |
+| FAMILY-EX-LEARN-01 | Knowledge Map 是 Cream Gallery 内的 S1 structural knowledge field，不是独立 dark dashboard。 |
+| FAMILY-EX-LEARN-02 | Track directory 与 Graph 是同一 corpus 的 categorical / relational 双目录；Track 提供 domain orientation，但不是 Note parent。 |
+| FAMILY-EX-LEARN-03 | Public Note / Track index entry 不默认使用 Full Card、shadow 或 lift；structural hairline 与 frameless row 合法。 |
+| FAMILY-EX-LEARN-04 | Graph node relation 来自 explicit Note relation；shared Track 本身不产生 edge，也不表达 prerequisite。 |
+| FAMILY-EX-LEARN-05 | Learn Tag 作为轻量 retrieval metadata，不获得默认 pill treatment。 |
+
 ---
 
 ## 8. Cross-module product contracts
@@ -390,7 +404,7 @@ ADR-005 的 canonical clarification：
 
 > **storage independence ≠ public projection independence**
 
-Independent record、immutable snapshot、no cascade delete 继续成立；Blog source visibility 必须 gate Public Timeline projection。具体 query、reference 与 tombstone 仍为 Architecture Revalidate。
+Independent record、immutable snapshot、no cascade delete 继续成立；Blog source visibility 必须 gate Public Timeline projection。具体 query、reference 与 tombstone 仍为 Architecture concern。
 
 ### 8.2 Projects → Feed
 
@@ -404,7 +418,19 @@ Projects/source side owns Project update event semantics；Feed 只消费与展�
 
 ### 8.3 Learn → Feed
 
-Feed presentation `LEARN · 更新` 已 Confirmed；Learn publication lifecycle integration 已 accepted / merged。Public Note 首次发布产生 `learn_note_published`，后续明确修订产生 `learn_note_revised`；`learn_section_completed` 仅保留 legacy readable compatibility。具体 runtime storage、deploy sync schema 和 relation metadata 属于 Architecture / implementation 事实，不在 Family Product Contract 固定版本号。
+Public Learn 的 canonical public object 是 living Public Note；Feed event 是 historical snapshot。二者不能互相替代。
+
+| Lifecycle action | Canonical product behavior |
+| --- | --- |
+| Draft / Preview | 不进入 Public projection，不产生 Feed。 |
+| First formal publication | Public Note 首次进入公开 corpus，并产生一次 `LEARN · 更新` historical Footprint；同一 Note 的 first-publication identity 只发生一次。 |
+| Maintenance edit | 保持 same Public Note；不产生 Recent / Feed signal。 |
+| Substantive revision | 保持 same Public Note identity；进入 Recent Knowledge，并产生 revision Footprint。 |
+| Hide | 移出当前 Public projection；保留既有 publication identity 与 historical Feed record。 |
+| Show | 恢复当前 Public projection；不产生第二次 first-publication Footprint。 |
+| Superseded / Withdrawn | 与普通 visibility maintenance 不等价；其产品语义保持区分，不自动恢复旧 completion 模型。 |
+
+Feed presentation 统一为 `LEARN · 更新`；`learn_section_completed` 只保留 legacy readable compatibility，不再是当前 Learn product semantics。具体 runtime storage、deploy sync schema、relation metadata、endpoint 与版本号属于 Architecture / implementation 事实，不在 Family Product Contract 固定。
 
 ---
 
@@ -413,16 +439,19 @@ Feed presentation `LEARN · 更新` 已 Confirmed；Learn publication lifecycle 
 Learn 已完成 Product / Architecture / Visual Reality Check 与 accepted implementation；以下 Family/upstream constraints 继续有效：
 
 - Learn belongs to Cream Gallery；
+- Public Learn 是从 private validated learning 中选择性形成的 durable knowledge projection，不是 private learning workflow 的公开镜像；
+- Public Note 是唯一 canonical public durable knowledge object，也是 living / revisable knowledge；
 - Knowledge Structure + Reading direction；
-- Knowledge Graph capability retained；
-- current black/magenta Graph is not canonical；
-- category magenta remains weak；
-- Public Learn 不为视觉完整性变成 LMS；
+- Track = categorical / domain directory；Graph = relational / exploratory directory；二者互补，不建立 authoritative parent tree；
+- Track 是 Public Note 的重要 context，不是 Note identity parent，也不是 curriculum；
+- Knowledge Graph capability retained；current black/magenta Graph is not canonical；
+- Public Learn 不为视觉完整性变成 LMS，不引入虚假的 completion / progress / gamification；
+- Search 是 utility，不成为 Learn 的核心 identity；
 - MDX 不因交互需求自动成为必选；
 - Public/internal vocabulary boundary 继续适用；
-- Visual Completeness 不得强迫未来 capability。
+- Visual Completeness 不得强迫未来 capability 或为了填满 Track / Graph 制造 Public Notes。
 
-以下曾是 Learn module-local open decisions；现不得绕过 accepted implementation 重新裁决：
+以下曾是 Learn module-local open decisions；现不得绕过 accepted Product / Architecture / implementation 重新裁决：
 
 - Track power；
 - Graph semantics；
@@ -444,7 +473,7 @@ Learn 已完成 Product / Architecture / Visual Reality Check 与 accepted imple
 | Exact responsive breakpoint constants | Revalidate；responsive principles 已 Confirmed |
 | Global Content Admin | Parked；只有真实 shared owner workflow 后重开 |
 
-Architecture Revalidate 不等于 Family Product Truth 未关闭。完整项目见 Master Ledger §12，包含 Blog→Feed projection/dead destination、Project event/idempotency、Feed timezone/SSR/cursor/owner/media、shared token mapping 与 Learn source event contract。
+历史 Architecture Revalidate / Preflight 条目保留在 Master Ledger 作为当时的 implementation traceability，不应被解释为 Phase 8 current backlog。当前技术状态应回到 current architecture docs、source、tests 与必要的 production evidence；只有仍真实未决且会改变 durable architecture 的问题才重新升级。
 
 ### 10.2 Shared implementation admission
 
@@ -472,9 +501,10 @@ Shared implementation 只处理 genuinely confirmed shared capability。可能�
 7. Do not make Feed Activities whole-card clickable.
 8. Do not add explicit CTA to Projects merely for consistency.
 9. Do not create a global Footer only to fill Projects whitespace.
-10. Do not create Global Admin because Feed needs owner controls.
+10. Do not create Global Admin because module-local owner tooling exists.
 11. Do not expose internal event/storage vocabulary as Public Copy.
 12. Do not treat Parked capability as an implementation gap.
+13. Do not restore Track as Public Note parent, completion-driven Learn, or a mandatory curriculum tree.
 
 ---
 
@@ -489,7 +519,7 @@ Learn                         CLOSED / IMPLEMENTATION ACCEPTED
 Shared Footer                 PARKED
 Global Content Admin          PARKED
 Feed × Learn Integration      CLOSED
-Production Deployment         COMPLETE
+Operational phase             PHASE 8 MAINTENANCE
 ```
 
-Final Content Integration & Acceptance = **PASS**。Production Release = **COMPLETE**。Production Acceptance = **PASS WITH NON-BLOCKING OBSERVATION**。Content Family 当前回到 Phase 8 maintenance。
+Closure-era Final Content Integration & Acceptance = **PASS**；the corresponding release / production acceptance is retained as historical completion evidence. Current Git / deployment / production reality must be verified on demand and is not implied by this Product Contract.
