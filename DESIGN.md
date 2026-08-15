@@ -96,15 +96,17 @@ Overview 与 Focus 属于同一张星图，不建立第二张地图。
 
 ## 3. 色彩与 Token
 
-### 3.1 三层 token
+### 3.1 三层 token contract
 
-| 层级 | 职责 | 示例 |
+设计系统采用三层 token contract；`src/styles/variables.css` 是当前 CSS realization，但变量存在本身不能反向创造新的 Design requirement。
+
+| 层级 | 设计职责 | 当前 CSS namespace 示例 |
 | --- | --- | --- |
-| Primitives | 原始色值、尺寸、时长、曲线 | Klein Blue、地质色、基础透明度 |
-| Semantic | 画布与语义角色 | bg-base、text-primary、planet-rim |
-| Component | 组件视觉映射 | star-map-label、has-beacon、leopardcat-node、cursor-meteor、content-paw-trail |
+| Primitives | 原始色阶、材质、尺寸、时长、曲线 | `--blue-*`、`--gray-*`、`--warm-*`、`--geo-*`、type / spacing / radius / motion primitives |
+| Semantic | 画布、品牌、材料与交互角色 | `--klein-*`、`--home-*`、`--content-*`、`--finance-*`、`--space-*`、shared planet optics |
+| Component | 稳定组件视觉接口 | `--star-map-*`、`--planet-*`、`--has-*`、`--leopardcat-*`、generic control tokens |
 
-Runtime geometry、轨道相位、随机星场、豹猫物理、pointer gait 等不属于 durable design token。
+Design 负责定义角色与 namespace contract；具体 consumer、selector 与兼容实现由 frontend rules / current source 负责。Runtime geometry、轨道相位、随机星场、豹猫物理、pointer gait、sampling、scheduler 等不属于 durable design token。
 
 ### 3.2 Klein Blue
 
@@ -138,15 +140,22 @@ Runtime geometry、轨道相位、随机星场、豹猫物理、pointer gait 等
 | `--geo-pigment` | `#7A5C48` | 墨迹与颜料沉积 |
 | `--geo-metal` | `#9DA2A8` | Projects 人工嵌线 |
 
-### 3.5 Home optical token families
+### 3.5 Design → CSS namespace contract
 
-- Deep Space：背景、haze、dust、far/mid/near stars。
-- Planet Optical：主光、冷阴影、rim、atmosphere。
-- Planet Surface / Detail：cream、sand、clay、mineral、graphite、pigment、metal、grain。
-- Planet Scale：Entry / Overview / Focus。
-- Focus / Transition：focus rim / glow / label、push scale / fade / duration。
+| Design role | Canonical namespace / interface | Boundary |
+| --- | --- | --- |
+| Canvas identity | `--home-*` / `--content-*` / `--finance-*` + shared semantic aliases | 三画布语义独立；不因 shared alias 获得相同 appearance |
+| Deep Space | `--space-*` | 背景、haze、dust、far/mid/near stars、route / depth optics；随机 field geometry runtime-owned |
+| Planet optics / material / identity | `--planet-*` | 主光、阴影、rim、atmosphere、material、overview/focus identity；位置和导航 state runtime-owned |
+| Star Map interaction | `--star-map-*` / `--interaction-*` | label、focus、hit / navigation visual interface；Focus 顺序与 navigation state 不属于 token |
+| Home Activity Signal | `--has-*` | body / rim / band / orbit / state visual contract；orbit phase、period、depth、pulse scheduling runtime-owned |
+| Leopard Cat | `--leopardcat-*` | contour / link / aura / node / residue visual contract；节点坐标、burst physics、recovery runtime-owned |
+| Home Cursor Meteor | `--cursor-meteor-*` | 只对应 Home movement signature 的设计语义；不能据此恢复 Content movement meteor |
+| Content Paw Trail | component-local `--content-paw-*` interface | Paw visual interface 可使用局部 custom properties；exact gait / spacing / lifetime / speed threshold runtime-owned |
+| Content Click Feedback | semantic behavior is canonical；当前不规定独立全局 token namespace | Klein Blue core / echo 是 Design truth；不得从 legacy implementation naming 推导新的 Content Meteor 设计 |
+| Public Footprint | no dedicated framed-surface token obligation | Footprint 与 Native equal S2 rank；任何遗留 surface token 都不能反向恢复 Card / system-row hierarchy |
 
-五颗星球通过 Layer 3 alias 使用共享光学与地质材料，不建立五套独立品牌色。
+五颗星球通过共享 `--planet-*` 光学与地质材料形成不同 identity，不建立五套独立品牌色。一个 token family 是否继续作为 active implementation contract，必须同时满足当前 Design semantics 与真实 consumer；历史变量的存在不是 Design authority。
 
 ---
 
