@@ -41,7 +41,7 @@
  /projects/* │  Projects (SSG)                           │
              │                                           │
  /blog/*     │  Blog public / preview (SSR)              │
- /feed/*     │  Feed public / admin + Blog lifecycle (SSR)│
+ /feed/*     │  Feed public / admin + Blog lifecycle (SSR) │
  /learn/*    │  Learn public / preview / admin (SSR)     │
  sitemap/RSS │  runtime public projections (SSR)         │
              └───────────────────┬───────────────────────┘
@@ -243,4 +243,4 @@ Finance 使用独立 FINANCE_AUTH_KV 和独立 cookie，不与主站 session 共
 - Home 只读取 `activity-signals.json`，不读取 Public Timeline，也不恢复 `/api/home` 或已退役的 `blog-metadata` KV bridge。
 - `feed_posts` 与 `public_footprints` 是两个独立写模型；`Public Timeline` 只在读取时统一排序和分页。
 - Finance 使用独立 Worker、D1、认证 KV 和页面，不进入公开主站内容链路。
-- 双 D1、双 Worker、Feed 两态可见性、Home 静态活动投影和 Learn Markdown canonical source 分别由 ADR-001、003、004、007、008 约束。
+- 双 D1、Feed / Finance API Worker split、Feed 两态可见性、Home 静态活动投影和 Learn Markdown canonical source 分别由 ADR-001、003、004、007、008 约束。
