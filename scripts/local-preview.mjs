@@ -220,11 +220,12 @@ function runCapturedCommand(command, args, label, env = process.env) {
   });
 }
 
-function startService(label, command, args, env, { captureOutput = false } = {}) {
+function startService(label, command, args, env, { captureOutput = false, interactive = false } = {}) {
+  const stdin = interactive ? 'inherit' : 'ignore';
   const child = spawn(command, args, {
     ...spawnOptions(command, env),
     detached: process.platform !== 'win32',
-    ...(captureOutput ? { stdio: ['inherit', 'pipe', 'pipe'] } : {}),
+    stdio: captureOutput ? [stdin, 'pipe', 'pipe'] : [stdin, 'inherit', 'inherit'],
   });
   const service = { label, child, stopped: false, outcome: null, output: '', collectOutput: captureOutput };
   if (captureOutput) {
@@ -416,7 +417,7 @@ async function prepareLocalFeedDatabase(persist, env) {
     persist,
     '--config',
     feedConfig,
-  ], env);
+  ], env, { interactive: true });
   const deadline = Date.now() + migrationCompletionTimeoutMs;
   while (Date.now() < deadline) {
     const outcome = await Promise.race([migration.exit, sleep(migrationPollMs).then(() => null)]);
