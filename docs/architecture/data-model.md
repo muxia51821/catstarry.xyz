@@ -289,9 +289,9 @@ CREATE TABLE IF NOT EXISTS market_data (
 CREATE TABLE IF NOT EXISTS circuit_breaker_log (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
   level       TEXT NOT NULL CHECK(level IN ('yellow','red','black')),
-  reason      TEXT NOT NULL,          -- 触发原因
-  triggered_at TEXT NOT NULL,         -- 触发时间 ISO 8601
-  resolved_at TEXT                    -- 解除时间（NULL 表示未解除）
+  reason      TEXT NOT NULL,
+  triggered_at TEXT NOT NULL,
+  resolved_at TEXT
 );
 ```
 
@@ -315,7 +315,7 @@ CREATE TABLE IF NOT EXISTS circuit_breaker_log (
 | **VIEW_KV** | `view:{date}:{slug}:{visitorHash}` | 阅读量访问者去重记录             | 24h        |
 | **AUTH_KV** | `user:{username}`    | 用户密码 bcrypt hash               | 永久       |
 | **AUTH_KV** | `session:{token}`    | 主站登录 session                   | 12h        |
-| **AUTH_KV** | `ratelimit:{ip}`     | 主站登录限流计数器                 | 5min       |
+| **AUTH_KV** | `ratelimit:login:{ip}` | 主站登录限流计数器               | 5min       |
 | **AUTH_KV** | `blog:lifecycle-manifest:v1` / `blog:published-manifest` | Blog runtime lifecycle / public projection | 无 TTL |
 | **AUTH_KV** | `learn:relation-manifest` | 已部署 Learn source 的 relation metadata；用于 lifecycle relation validation，不是 publication state | 无 TTL |
 | **FINANCE_AUTH_KV** | `user:{username}` / `session:{token}` | Finance 用户、角色和 session | session 12h |
@@ -400,9 +400,8 @@ Blog lifecycle 与 Learn lifecycle 不合并成一套 generic publication framew
 ### 7.1 共享类型 (shared/)
 
 ```typescript
-// shared/types.ts
+// shared/types.ts（节选）
 
-// --- /feed ---
 export type PostType = "note" | "clip";
 export type Visibility = "public" | "private";
 export type FootprintSource = "blog" | "learn" | "projects";
@@ -412,17 +411,29 @@ export type FootprintEventType =
   | "learn_note_published"
   | "learn_note_revised"
   | "project_updated";
-
 export type ActivityState = "active" | "stable" | "dormant";
+export type BlogLifecycleState = "draft" | "published" | "withdrawn";
+
+export interface BlogLifecycleEntry {
+  slug: string;
+  title: string;
+  summary: string;
+  state: BlogLifecycleState;
+}
+
+export type LearnPublicationVisibility = "public" | "hidden";
+
+export interface LearnPublicationRecord {
+  slug: string;
+  visibility: LearnPublicationVisibility;
+  published_at: string;
+  last_revised_at: string | null;
+  updated_at: string;
+}
 
 export interface ActivitySignalsManifest {
   schema_version: 1;
-  signals: {
-    blog: { state: ActivityState };
-    feed: { state: ActivityState };
-    learn: { state: ActivityState };
-    projects: { state: ActivityState };
-  };
+  signals: Record<"blog" | "feed" | "learn" | "projects", { state: ActivityState }>;
 }
 
 export interface FeedPost {
@@ -455,6 +466,7 @@ export interface TimelineEntry {
   kind: "native_post" | "system_footprint";
   occurred_at: string;
   visibility: Visibility;
+  projection_state?: "public" | "own_private" | "source_hidden";
   payload: FeedPost | PublicFootprint;
 }
 
@@ -464,24 +476,11 @@ export interface PaginatedResponse<T> {
   has_more: boolean;
 }
 
-// --- Learn runtime publication ---
-export type LearnPublicationVisibility = "public" | "hidden";
-
-export interface LearnPublicationRecord {
-  slug: string;
-  visibility: LearnPublicationVisibility;
-  published_at: string;
-  last_revised_at: string | null;
-  updated_at: string;
-}
-
-// --- /blog ---
 export interface BlogViewCount {
   slug: string;
   count: number;
 }
 
-// --- auth ---
 export interface LoginRequest {
   username: string;
   password: string;
@@ -553,7 +552,7 @@ KV:                                  R2:
   view:{date}:{slug}:{visitorHash}     catstarry-media/
   user:{username}                        feed/2026-07/uuid.jpg
   session:{token}
-  ratelimit:{ip}                       home-projections/
+  ratelimit:login:{ip}                home-projections/
   blog:lifecycle-manifest:v1             activity-signals.json
   blog:published-manifest
   learn:relation-manifest
