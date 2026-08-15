@@ -21,7 +21,6 @@ Astro + React (shadcn/ui) + Cloudflare Workers / Pages + D1 + KV + R2。
 - [CONTEXT.md](CONTEXT.md)：快速项目定向与少量长期事实
 - [AGENTS.md](AGENTS.md)：Agent 行为、Git 权限与 production safety
 - [docs/workflow-orchestration.md](docs/workflow-orchestration.md)：当前 Phase 8 维护工作流
-- [docs/workflow-orchestration-phase0-8.md](docs/workflow-orchestration-phase0-8.md)：可复用的 Phase 0–8 网站生命周期参考
 - [docs/content/README.md](docs/content/README.md)：Content Family 产品治理入口
 - [docs/SITEMAP.md](docs/SITEMAP.md)：路由、页面职责与公开／非公开范围
 - [CHANGELOG.md](CHANGELOG.md)：重要 repository / release history
