@@ -115,7 +115,8 @@ Site 不直接访问 Feed Worker implementation；server-side API seam 统一走
 - Blog publication lifecycle；
 - Learn publication lifecycle / relation validation；
 - Home Activity Signal Projection；
-- 主站 D1 / KV / R2 访问。
+- 主站 D1 / KV / R2 访问；
+- hourly activity refresh、temporary media cleanup 与 Blog view visitor cleanup。
 
 ### `finance-api` Worker
 
@@ -137,7 +138,15 @@ Learn source、runtime publication、Feed historical footprint 与 deployed rela
 
 ### Activity Signal Projection
 
-Feed Worker 从合资格公开事件计算 Blog / Feed / Learn / Projects 的 `active / stable / dormant` 最小状态，并发布固定 R2 对象给 Home。Home 不读取 Public Timeline 或 D1。
+该模块由三层组成：
+
+- `modules/activity-signals.ts`：7 天 / 60 天状态计算与 manifest 组装；
+- `adapters/activity-signal-store.ts`：读取最新合资格活动，并向 `HOME_PROJECTIONS` 写完整 `activity-signals.json`；
+- `routes/activity-signals.ts`：向 Home 提供只读 GET / HEAD 静态资源接口，并执行 freshness boundary。
+
+`ActivitySignalStore` 的 source eligibility 不是简单“所有 public Footprint”：Blog 还受 published Blog set gate；正常 Learn Note 受 `learn_publications.visibility='public'` gate；legacy `learn_section_completed` 保留兼容资格。Feed state 使用 public native Feed 与合资格 public Footprint 的较新时间。
+
+Home 只读取固定 manifest，不接触上述 D1 query、source eligibility 或时间阈值逻辑。
 
 ---
 
@@ -148,26 +157,31 @@ Feed Worker 从合资格公开事件计算 Blog / Feed / Learn / Projects 的 `a
 ```text
 Blog source
    ├─ owner lifecycle action
+   │      → published / withdrawn runtime state
+   │      → first Publish 可创建 first-production-v1 Footprint
+   │
    └─ successful production deploy sync
-            ↓
-    runtime published state
-            ↓
-    Site SSR public routes
-            ↓
-    first publication footprint（幂等）
+          → initial baseline: no historical backfill
+          → preserve existing owner state
+          → eligible never-published source 首次 published 时可创建同一 first Footprint
+
+runtime published set
+   → Site SSR Blog routes / RSS / sitemap
 ```
 
 ### Feed publish
 
 ```text
 Owner Feed UI
-   ├─ media → POST /api/feed/upload → R2
+   ├─ media → POST /api/feed/upload → MEDIA_BUCKET
    └─ Note / Clip → POST /api/feed → D1 feed_posts
                       ↓ success
                   page reload
                       ↓
                   GET /api/feed
 ```
+
+发布或 visibility mutation 成功后，Feed Worker 通过 `ctx.waitUntil()` 异步刷新 Activity Signal；投影失败不把已经成功的 Feed mutation 回滚。
 
 ### Feed browse
 
@@ -178,9 +192,23 @@ Owner Feed UI
   → GET /api/feed
   → FeedStore.listPublic(...)
   → feed_posts + public_footprints
-  → source visibility filtering
+  → Blog / Learn source visibility filtering
   → React timeline
 ```
+
+### Feed media upload seam
+
+```text
+FeedApp
+  → POST /api/feed/upload
+  → main-site session check
+  → multipart / media signature / size validation
+  → MEDIA_BUCKET.put(feed/{YYYY-MM}/{uuid}.{ext})
+  → return R2 key
+  → POST /api/feed 将 key 写入 feed_posts.media_json
+```
+
+浏览器不持有 R2 binding；当前没有 presigned URL / direct browser-to-R2 upload contract。已被 Feed post 引用的媒体不能通过 media delete route 直接删除。
 
 ### Learn lifecycle
 
@@ -199,25 +227,61 @@ Learn Markdown
 
 Site public / preview / admin routes 通过 Feed transport 读取或修改该 lifecycle；Local Preview mutation 保持只读。
 
-### Home activity
+### Home Activity Signal
 
 ```text
-public source events / visibility changes
-   → Activity Signal Projection
-   → R2 activity-signals.json
+public source event / visibility / publication lifecycle mutation
+   → refreshActivitySignals()
+   → ActivitySignalStore.readLatestActivity(...)
+   → active / stable / dormant
+   → HOME_PROJECTIONS.put(activity-signals.json)
+   → GET /activity-signals.json
    → Home StarMap island
 ```
 
-Scheduled refresh 负责让时间阈值在无新事件时也能自然迁移。
+Feed Worker 的 hourly `0 * * * *` scheduled handler 再执行一次全量 refresh，使 7 天 / 60 天阈值在无新事件时也能迁移，并修复此前异步刷新失败。Route 只接受 GET / HEAD；对象缺失返回 404，超过 3 小时内部 freshness boundary 返回 503。Home 不把不可用 projection 映射成 `dormant`。
 
-### Finance
+### Feed hourly maintenance
+
+```text
+Cron `0 * * * *`
+  → feed-api scheduled handler
+      ├─ refreshActivitySignals(env)
+      ├─ cleanUnreferencedMedia(env)
+      └─ cleanExpiredViewVisitors(env.DB)
+```
+
+三个任务通过 `ctx.waitUntil(Promise.all(...))` 进入 Worker lifecycle；每个任务单独记录错误。它们分别维护派生 Activity projection、未引用临时 Feed media 与 Blog view visitor 去重记录。
+
+### Finance request flow
 
 ```text
 Finance Pages
   → same-origin Finance API
   → finance-api Worker
-  → finance D1 / auth KV / market providers
+      ├─ /api/auth/*                → auth
+      ├─ /api/trades*               → trades
+      ├─ monthly / plan / cash-flow / assets → records
+      ├─ risk / memos / rebalance / workbook review → stewardship
+      └─ remaining dashboard / market reads → dashboard
+  → finance D1 / FINANCE_AUTH_KV
 ```
+
+### Finance scheduled market flow
+
+```text
+Cron `*/15 * * * *` 或 `30 7 * * 1-5`
+  → finance-api scheduled handler
+  → refreshMarketData(env)
+      ├─ configured MARKET_PROVIDER_URL（如存在）
+      └─ built-in path
+          ├─ Tencent：A 股/ETF、上证指数、支持的 PE-TTM
+          ├─ TradingView：NASDAQ-100
+          └─ Sina：stale A 股 / 上证报价 fallback
+  → market_data + finance_market_indexes
+```
+
+Built-in path 从 `holdings_snapshots` 读取当前 active holdings，以决定持仓 ticker 刷新集合。部分 item 缺失时返回 missing list 并记录 warning；整体 refresh 失败时保留上一份有效市场快照，不做 destructive clear。
 
 ---
 
@@ -228,6 +292,8 @@ Finance Pages
 - Browser API 保持同源；server-side transport 与 browser transport 可以不同。
 - 主站与 Finance 的认证和数据必须保持隔离。
 - Public Timeline 是读取 projection，不是新的持久表。
-- Home Activity Signal 是最小静态 projection，不是 Public Timeline 缩略版。
+- Home Activity Signal 是最小静态 projection，不是 Public Timeline 缩略版；其 source query、阈值、freshness 与失败恢复留在 Feed Worker 内。
 - Blog / Learn public visibility 由 source + runtime lifecycle 共同决定。
+- Feed media 由 Worker 代理访问 R2；浏览器不直接拥有 storage binding。
+- Feed hourly maintenance 与 Finance market refresh 都属于 Worker scheduled lifecycle，不应移入页面请求路径。
 - 具体 schema 读 `data-model.md`；认证读 `auth.md`；部署 wiring 读 `DEPLOY.md`。
