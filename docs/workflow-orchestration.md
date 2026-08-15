@@ -17,7 +17,7 @@ Phase 8 的目标是：
 - 处理跨模块冲突和 authority 不清；
 - 为 implementation 准备已经收敛的 handoff；
 - 审查 implementation 是否符合上游裁决；
-- 判断任务是否需要进入独立 Deployment task；实际 deployment 仍需木下明确授权。
+- 判断是否需要进入独立 Deployment task；实际 deployment 仍需木下明确授权。
 
 Governance 不是所有小修的 mandatory gate，也不负责为了流程完整而制造额外流程。
 
