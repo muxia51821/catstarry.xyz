@@ -1,5 +1,20 @@
 # 更新记录
 
+## 2026-08-15 — Learn runtime publication and Content interaction follow-up
+
+### Learn
+
+- 将 Public Learn 的普通发布可见性转为 production runtime 管理：Production Admin 支持 Publish / Hide / Show，公开 Learn 页面、Feed 投影、RSS 与 sitemap 按运行时 publication state 读取；本地 Preview 保持只读生命周期管理。
+- 增加 Learn 公开关系校验与部署后 revision / relation metadata 同步；首次正式发布与后续 revision 使用不同写入边界，历史 `learn_section_completed` 保持只读兼容。
+
+### Content Family
+
+- 为 Cream Gallery 增加独立的 Content Paw Trail，并保留与其分离的 click feedback；Home Cursor Meteor 与 Finance 交互边界保持独立，fine-pointer / reduced-motion 降级继续生效。
+
+### Governance
+
+- 将 Phase 8 工作流与 Agent governance 调整为 current-first、按职责读取和 bounded Touch-on-Conflict；移除 Dashboard / mandatory cold-start 作为正常维护入口的依赖，并同步共享术语边界。
+
 ## 2026-08-14 — Content Family lifecycle and validation hardening
 
 ### Learn

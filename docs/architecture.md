@@ -17,15 +17,15 @@
 
 ## 技术栈映射
 
-| 层            | 选型                                | 部署              | 用途                                      |
+| 层            | 选型                                | 部署 / 运行位置   | 用途                                      |
 | ------------- | ----------------------------------- | ----------------- | ----------------------------------------- |
-| **前端框架**  | Astro (hybrid: SSG + SSR)           | CF Pages          | 全站页面渲染                              |
-| **交互组件**  | React 19 + shadcn/ui                | 嵌入 Astro island | Feed 发布、管理后台、Home 交互 |
+| **前端框架**  | Astro (hybrid: SSG + SSR)           | CF Site Worker    | 主站静态与运行时页面渲染                  |
+| **交互组件**  | React 19 + Astro / 自定义组件       | Astro islands / Site Worker | Feed 发布、管理后台、Home 交互 |
 | **API**       | CF Workers (feed-api + finance-api) | wrangler deploy   | 数据读写、认证、Cron 任务                 |
-| **数据库**    | D1 (catstarry-db + finance-db)      | CF                | 原生 Feed、公开足迹、交易、阅读量、session |
-| **缓存/配置** | KV                                  | CF                | 阅读量去重、认证、限流                    |
+| **数据库**    | D1 (catstarry-db + finance-db)      | CF                | 原生 Feed、公开足迹、Learn publication、交易、阅读量、session |
+| **缓存/配置** | KV                                  | CF                | 阅读量去重、认证、生命周期 manifest、Learn relation metadata、限流 |
 | **文件存储**  | R2（catstarry-media + home-projections） | CF             | /feed 媒体文件 + Home 最小活动状态静态投影 |
-| **CI/CD**     | GitHub Actions + wrangler           | GitHub            | Git push → build → deploy                 |
+| **CI / Release** | GitHub Actions validation + PowerShell / wrangler release runners | GitHub + 显式 release runner | PR/main 验证；生产部署与部署后 publication sync 分开执行 |
 | **域名**      | catstarry.xyz + f.catstarry.xyz     | CF DNS            | 主站 + 财务子域名                         |
 
 ---
@@ -33,46 +33,40 @@
 ## 模块关系图
 
 ```
-                         catstarry.xyz (CF Pages)
-                    ┌──────────────────────────────────┐
-                    │            Astro                  │
-                    │                                   │
-  / (SSG)           │  ┌──────┐ ┌──────┐ ┌──────────┐ │
-  /blog/* (SSG)     │  │ Home │ │ Blog │ │ Projects │ │
-  /feed/* (SSR)     │  └──┬───┘ └──┬───┘ └────┬─────┘ │
-  /learn/* (SSG)    │     │        │           │       │
-  /projects/* (SSG) │  ┌──┴───┐ ┌──┴───┐ ┌────┴─────┐ │
-                    │  │ Feed │ │ Learn│ │  shared/  │ │
-                    │  └──┬───┘ └──┬───┘ │ components│ │
-                    │     │        │     └───────────┘ │
-                    └─────┼────────┼───────────────────┘
-                          │        │
-                    HTTP fetch   HTTP fetch
-                          │        │
-          ┌───────────────┼────────┼───────────────────┐
-          │               ▼        ▼                   │
-          │     feed-api Worker                       │
-          │     ┌──────────────────────────┐           │
-          │     │ /api/feed  /api/views    │           │
-          │     │ /api/auth  /api/learn    │           │
-          │     └──────┬───────┬───────────┘           │
-          │            │       │                       │
-          │     ┌──────▼──┐ ┌──▼──────┐ ┌───────────┐ │
-          │     │ D1      │ │ KV      │ │ R2        │ │
-          │     │feed_posts│ │VIEW_KV │ │catstarry- │ │
-          │     │footprints│ │AUTH_KV │ │media      │ │
-          │     └─────────┘ └─────────┘ └───────────┘ │
-          │                                            │
-          └────────────── Cloudflare Workers ──────────┘
+                  catstarry.xyz (Cloudflare Site Worker)
+             ┌───────────────────────────────────────────┐
+             │                   Astro                   │
+             │                                           │
+ / (SSG)     │  Home                                     │
+ /projects/* │  Projects (SSG)                           │
+             │                                           │
+ /blog/*     │  Blog public / preview (SSR)              │
+ /feed/*     │  Feed public / admin + Blog lifecycle (SSR) │
+ /learn/*    │  Learn public / preview / admin (SSR)     │
+ sitemap/RSS │  runtime public projections (SSR)         │
+             └───────────────────┬───────────────────────┘
+                                 │
+                    FEED_API Service Binding
+              (local preview only: localhost HTTP fallback)
+                                 │
+             ┌───────────────────▼───────────────────────┐
+             │              feed-api Worker              │
+             │ /api/feed /api/views /api/auth            │
+             │ /api/blog /api/learn /activity-signals    │
+             └───────┬──────────────┬──────────────┬─────┘
+                     │              │              │
+                    D1             KV              R2
+              catstarry-db       AUTH/VIEW       media /
+              + publications                    projections
 
 
                     f.catstarry.xyz (独立 CF Pages)
                     ┌──────────────────────────────────┐
                     │     finance-api Worker           │
                     │  ┌──────────────────────────┐    │
-                    │  │ Finance auth / dashboard  │    │
-                    │  │ records / stewardship     │    │
-                    │  │ trades / market refresh   │    │
+                    │  │ Finance auth / dashboard │    │
+                    │  │ records / stewardship    │    │
+                    │  │ trades / market refresh  │    │
                     │  │ Cron: refresh-market-data│    │
                     │  └──────┬───────┬───────────┘    │
                     │         │       │                │
@@ -91,12 +85,43 @@
 ### Blog 发布与公开足迹流
 
 ```
-木下写 Markdown（含首次发布标识）→ Git push → astro build → CF Pages production deploy
-                                                                  ↓ 仅生产部署成功
-                                                       Publication Signal Adapter
-                                                                  ↓ 幂等写入
-                                                   D1 public_footprints（Blog 快照）
+Blog Markdown / MDX source
+    ↓ successful production deploy
+受保护 deploy manifest sync
+    ↓ 初始化时只建立 lifecycle baseline，不回填历史足迹
+    ↓ 之后保留已有 owner lifecycle；新 source 可带入 source state
+Blog runtime lifecycle manifest（AUTH_KV）
+    ↓ 首次进入 published 且 ever_published=false
+    ├─ owner lifecycle action
+    └─ eligible deploy sync
+Public Footprint Writer
+    ↓ first-production-v1（幂等）
+D1 public_footprints
 ```
+
+Blog 的公开页面由 Site Worker SSR 读取 source，再通过 `/api/blog/publications` 的 runtime published projection 过滤。`draft` / `withdrawn` source 不因为存在于 repository 就自动公开。
+
+### Learn runtime 发布与修订流
+
+```
+Learn Markdown source
+    │
+    ├─ Owner Admin: first Publish
+    │      → D1 learn_publications(public)
+    │      + learn_note_published footprint（同一 D1 batch）
+    │
+    ├─ Owner Admin: Hide / Show
+    │      → 更新 runtime visibility
+    │      → 保留首次 published_at，不创建重复首次发布足迹
+    │
+    └─ successful production deploy sync v3
+           → 只处理已经存在的 publication record
+           → public revision: learn_note_revised footprint + last_revised_at
+           → hidden revision: 仅更新 revision metadata
+           → AUTH_KV learn:relation-manifest（deployed source relation metadata）
+```
+
+Production runtime 的 Owner Admin 是正式 publication authority；Local Preview 明确只读。Learn first Publish 与 deployment 是两个不同边界：deploy sync v3 不创建新的 publication record，也不回填首次发布。公开 `/learn`、Note、Track、RSS 与 sitemap 均从 source Markdown 与 runtime publication state 合成当前公开投影；source `withdrawn` / `superseded` 不进入正常公开 corpus。withdrawn Note 的直接历史 URL 是保留例外。
 
 ### Feed 与 Public Footprint 写入流
 
@@ -104,10 +129,10 @@
 碎碎念 / 剪藏 → POST /api/feed → D1 feed_posts
 
 Blog / Learn / Projects 足迹来源事件
-    → 受保护的内部 publication / footprint route（Learn Note 发布／修订事件；旧 Learn 小节完成事件保留兼容读取）
+    → 对应 lifecycle / publication / footprint route
     → D1 public_footprints（来源身份与展示快照）
 
-Feed production 当前已应用 `0003_learn_note_events.sql`；Learn Note publication/revision events 是当前写入语义，旧 `learn_section_completed` 仅保留 legacy readable compatibility。
+旧 `learn_section_completed` 只保留 legacy readable compatibility；当前 Learn 写入语义是 Note 首次发布与修订事件。
 
 feed_posts + public_footprints
     → GET /api/feed 的 Public Timeline 读取投影
@@ -183,6 +208,7 @@ Finance 页面
 右下角 →「+」发布按钮出现
 12h 后 → session 过期 → KV TTL 自动清除 → 回到未登录状态
 
+Site Worker 的 owner SSR / lifecycle proxy 在 production-like runtime 通过 `FEED_API` Service Binding 调用 Feed Worker；本地 preview 才使用 localhost HTTP fallback。
 Finance 使用独立 FINANCE_AUTH_KV 和独立 cookie，不与主站 session 共享。
 ```
 
@@ -209,7 +235,12 @@ Finance 使用独立 FINANCE_AUTH_KV 和独立 cookie，不与主站 session 共
 
 ## 架构边界
 
+- 主站由 Cloudflare Site Worker 承载 Astro hybrid output；Finance 仍是独立 Pages + Finance Worker，不把两者混为同一 deployment unit。
+- Site Worker 的 server-side owner/publication 读取通过 `FEED_API` Service Binding 调用 Feed Worker；本地 preview 允许 localhost HTTP fallback。Astro source 与 Worker source 仍不直接互相 import。
+- Blog 与 Learn 的公开页面都是 runtime-gated SSR；source 文件存在不等于当前公开。
+- Learn Markdown 是 canonical source；D1 `learn_publications` 是正常公开可见性与发布时间的 runtime authority；KV `learn:relation-manifest` 只是已部署 source relation metadata，不是 relation database。
+- Learn first Publish 是 owner runtime lifecycle action；successful deploy sync v3 只负责已发布 Note 的 revision metadata / revision footprint 与 relation manifest，不承担首次发布。
 - Home 只读取 `activity-signals.json`，不读取 Public Timeline，也不恢复 `/api/home` 或已退役的 `blog-metadata` KV bridge。
 - `feed_posts` 与 `public_footprints` 是两个独立写模型；`Public Timeline` 只在读取时统一排序和分页。
 - Finance 使用独立 Worker、D1、认证 KV 和页面，不进入公开主站内容链路。
-- 双 D1、双 Worker、Feed 两态可见性、Home 静态活动投影和 Learn Markdown canonical source 分别由 ADR-001、003、004、007、008 约束。
+- 双 D1、Feed / Finance API Worker split、Feed 两态可见性、Home 静态活动投影和 Learn Markdown canonical source 分别由 ADR-001、003、004、007、008 约束。

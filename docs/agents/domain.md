@@ -1,6 +1,6 @@
-﻿# Domain Docs
+# Domain Docs
 
 - **Layout**: Single-context
-- **CONTEXT.md**: Project root — `D:\catstarry.xyz\CONTEXT.md`. Read first by `improve-codebase-architecture`, `diagnosing-bugs`, and `tdd`.
+- **CONTEXT.md**: `CONTEXT.md` at project root — quick project orientation and a small set of durable facts.
 - **ADRs** (Architecture Decision Records): `docs/adr/`
-- **GLOSSARY**: `GLOSSARY.md` at project root — domain terminology reference.
+- **GLOSSARY**: `GLOSSARY.md` at project root — shared terminology and naming boundaries.

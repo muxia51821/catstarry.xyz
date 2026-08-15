@@ -1,6 +1,6 @@
 # Content 治理索引
 
-> 本目录是 Blog、Feed、Learn、Projects 的 Content Family 治理入口。它记录产品权威、决策状态、冲突收敛和实施顺序，不描述当前代码已经完成了什么。
+> 本目录是 Blog、Feed、Learn、Projects 的 Content Family 治理入口。它记录产品权威、决策状态和共享语义，不描述当前代码已经完成了什么，也不承担旧 implementation sequencing。
 
 ## Canonical sources
 
@@ -8,8 +8,8 @@
 | --- | --- |
 | [`family-contract.md`](family-contract.md) | Reconciled Content Family Contract；只治理真正共享的 Family 语义、例外边界和跨模块原则。 |
 | [`master-ledger.md`](master-ledger.md) | Master Requirements / Capability Ledger；保留原子 ID、Decision Status、Implementation State、模块细则、Revalidate、Superseded、Parked、风险和验收门。 |
-| [`reconciliation-register.md`](reconciliation-register.md) | Conflict / Reconciliation Register；解释已解决冲突为什么这样收敛，以及下游不得怎样重新打开。 |
-| [`implementation-dependency-map.md`](implementation-dependency-map.md) | Implementation Dependency Map；规定 Wave 0 之后的施工顺序、并行关系和集成门。 |
+
+历史 Conflict / Reconciliation Register 与 Implementation Dependency Map 已归档到 `docs/_archive/content-governance/`，用于追溯 rationale，不属于正常 current-truth reading path。
 
 ## Authority order
 
@@ -41,7 +41,7 @@ Decision Status 与 Implementation State 必须分开记录。Confirmed 但尚�
 
 > **Parked capability is not an implementation gap.**
 
-Wave 0 Governance Freeze 完成后，governed implementation sequencing 可以继续；这不表示 production code 已经 reconciled，也不授权 release 或 deployment。
+历史 implementation sequencing 已进入归档。Phase 8 的新 implementation task 应从当前任务证据、current source 和相关 Product / Architecture authority 出发，不复用旧 Wave 顺序作为默认执行计划。
 
 ## Downstream reading routes
 
@@ -57,4 +57,4 @@ Wave 0 Governance Freeze 完成后，governed implementation sequencing 可以�
 
 ## Historical evidence boundary
 
-`docs/final-requirements-*.json`、历史 prototype 文档、历史 QA 和旧实现可以保留作为演化证据，但其中可能存在被后期 Closure / Ledger Supersede 的决定。它们不得覆盖本目录的后期治理真相，也不得因为仍存在于仓库或生产代码中就被当作恢复依据。
+历史 requirements / acceptance、旧 reconciliation / dependency map、prototype、QA 和旧实现可以保留作为演化证据。已经统一归档的材料位于 `docs/_archive/`；其中可能存在被后期 Closure / Ledger Supersede 的决定，不得覆盖本目录的后期治理真相，也不得因为仍存在于仓库或生产代码中就被当作恢复依据。

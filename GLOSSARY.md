@@ -13,7 +13,6 @@ GLOSSARY 只记录跨模块、跨 Phase、容易被误解或存在命名漂移�
 - `DESIGN.md`：三画布、视觉状态、资产和动效设计事实。
 - `docs/agents/frontend-rules.md`：前端施工规则和验收约束。
 - `docs/SITEMAP.md`：路由、页面和公开／非公开范围。
-- `docs/cold-start-governance.md`：治理身份、文件地图和流程边界。
 
 术语语义发生变化时，应先修改对应的产品、ADR、架构或设计事实源，再同步更新本文件；GLOSSARY 不自行裁决新的产品、架构、设计或实现规则。
 
@@ -68,7 +67,9 @@ GLOSSARY 只记录跨模块、跨 Phase、容易被误解或存在命名漂移�
 | **Home Activity Signal** | Home 消费的最小板块活动状态投影，只表达 Blog、Feed、Learn、Projects 的 `active`、`stable`、`dormant`；不包含内容、标题、摘要、链接、数量、精确时间或访客未读语义。它不是 Public Timeline 的简化版本，也不进入 Feed。详细事实见 [ADR-007](docs/adr/007-home-activity-signal-static-projection.md) 和架构文档。 |
 | **信号卫星** | 四颗功能星球旁用于表达 Home Activity Signal 状态的视觉载体；About 和豹猫卫星不消费这套三态语义。数据不可用不等于 `dormant`。 |
 | **豹猫卫星** | About 附近的特殊活动／交互信号卫星，也是木下的个人签名元素；通过可选彩蛋进入与 About 主路径相同的展开态。它不消费 Home Activity Signal，也不是四颗功能星球的 HAS 三态信号卫星。“豹猫星座”只可作为视觉形态或历史称呼。 |
-| **鼠标流星尾** | 跟随指针的个人交互签名；在 Home 保留，在 Content 弱化，在 Finance 关闭；不等同于首屏一次性的 DISCOVER MORE 流星。 |
+| **Home Cursor Meteor（鼠标流星尾）** | Home Deep Space 中跟随细指针移动的个人交互签名；不等同于首屏一次性的 DISCOVER MORE 流星，也不再作为 Content interaction 的名称。 |
+| **Content Paw Trail（猫爪轨迹）** | Content / Cream Gallery 中随合资格鼠标移动留下的豹猫爪印个人签名；与 Home Cursor Meteor 是不同能力，也不承担导航或内容语义。具体参数和实现由设计／前端实现事实源负责。 |
+| **Content Click Feedback** | Content 页面点击时出现的短暂局部反馈；与 Paw Trail 独立，也不是 Home Cursor Meteor 的弱化版本。 |
 | **Entry Display** | Home 宇宙入口的世界观短句排版角色；不承担产品 landing page 式促销标题。 |
 | **暖性地质宇宙** | Home 五颗导航星球共享的材质和光学母题；具体视觉参数、资产和动效由 `DESIGN.md` 负责。 |
 
@@ -95,7 +96,7 @@ GLOSSARY 只记录跨模块、跨 Phase、容易被误解或存在命名漂移�
 
 ## Finance workspace（内部）
 
-以下术语仅适用于内部 Finance workspace，不属于公开主站内容或公开站点导航。具体公式、档位、阈值、流程和实现以当前 Finance requirements 与验收文档为准。
+以下术语仅适用于内部 Finance workspace，不属于公开主站内容或公开站点导航。具体公式、档位、阈值、流程和实现由 Finance 当前验收边界、当前代码／测试和最新明确的 Finance specialist decision 共同约束；GLOSSARY 不维护 implementation state。
 
 | 术语 | 简短定义 |
 | --- | --- |
@@ -105,7 +106,7 @@ GLOSSARY 只记录跨模块、跨 Phase、容易被误解或存在命名漂移�
 | **仓位偏离预警** | 当持仓相对目标范围发生重要偏离时，Finance 提供的状态提示和再平衡提醒。 |
 | **三级熔断** | Finance 的分级风险保护机制；具体级别、触发、解除和沟通规则不在本词汇表定义。 |
 
-详细规则见 [`docs/finance-requirements-20260703.json`](docs/finance-requirements-20260703.json)、[`docs/final-requirements-finance.json`](docs/final-requirements-finance.json) 和 [`docs/acceptance-finance.md`](docs/acceptance-finance.md)。
+高层可观察能力边界见 [`docs/acceptance-finance.md`](docs/acceptance-finance.md)；实现现实仍以 current code / tests / production evidence 为准。
 
 ## 不纳入本词汇表与维护规则
 
@@ -122,6 +123,9 @@ GLOSSARY 只记录跨模块、跨 Phase、容易被误解或存在命名漂移�
 | Public Timeline | 公开时间线 | 公开足迹时间线 |
 | 足迹来源事件 | — | 系统足迹事件 |
 | 豹猫卫星 | 豹猫星座（仅视觉形态） | HAS 三态信号卫星 |
+| Home Cursor Meteor | 鼠标流星尾（仅 Home 语境） | Content 弱化流星尾 |
+| Content Paw Trail | 猫爪轨迹、Paw Trail | Content cursor meteor |
+| Content Click Feedback | Content 点击反馈 | Content cursor meteor |
 | Planet Focus | Focus | 星球详情页 |
 | Entry Display | — | Hero Display |
 
