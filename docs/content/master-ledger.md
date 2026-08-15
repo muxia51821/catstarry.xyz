@@ -1469,104 +1469,224 @@ Do not restore Track as parent/curriculum、replace Track × Graph complementary
 
 # 16. Historical Implementation Dependency Map
 
-Sections 16–20 preserve the completed delivery / acceptance sequence as historical traceability. They are not current implementation order。
+> **§16–20 preserve the completed delivery / acceptance sequence as historical traceability. They are not Phase 8 current workflow, current backlog, or instructions to rerun old gates.**
 
 ```text
 MASTER LEDGER / GOVERNANCE FREEZE
                 │
                 ▼
 CURRENT IMPLEMENTATION INVENTORY
+(read-only first)
                 │
-                ▼
-CONTENT FAMILY SHARED IMPLEMENTATION
-                │
-                ▼
-SHARED ACCEPTANCE
-                │
-       ┌────────┼──────────────┐
-       ▼        ▼              ▼
-   PROJECTS    BLOG           FEED
-       │        │              │
-       ▼        ▼              ▼
-Implementation Implementation Implementation
-       │        │              │
-       ▼        ▼              ▼
-Acceptance   Acceptance      Acceptance
-       └────────┬──────────────┘
-                ▼
-CONTENT INTEGRATION PREVIEW
-                │
-LEARN PRODUCT / ARCHITECTURE / IMPLEMENTATION
-                │
-                ▼
+                ├──────── Shared confirmed dependencies ────────┐
+                │                                               │
+                ▼                                               │
+CONTENT FAMILY SHARED IMPLEMENTATION                            │
+only genuinely shared items                                    │
+                │                                               │
+                ▼                                               │
+SHARED ACCEPTANCE                                               │
+                │                                               │
+       ┌────────┼──────────────┐                                │
+       ▼        ▼              ▼                                │
+   PROJECTS    BLOG           FEED                               │
+       │        │              │                                │
+       │        │      Architecture Preflight                    │
+       │        │              │                                │
+       ▼        ▼              ▼                                │
+Implementation Implementation Implementation                    │
+       │        │              │                                │
+       ▼        ▼              ▼                                │
+Acceptance   Acceptance      Acceptance                          │
+       └────────┬──────────────┘                                │
+                ▼                                               │
+CONTENT INTEGRATION PREVIEW                                     │
+(three closed modules may proceed)                              │
+                                                                │
+LEARN PRODUCT CLOSURE ───────────────────────────────────────────┘
+        │
+        ▼
+Ledger Learn Update
+        │
+        ▼
+Learn Implementation
+        │
+        ▼
+Learn Acceptance
+        │
+        ▼
 ALL FOUR MODULES READY
-                │
-                ▼
+        │
+        ▼
 CONTENT INTEGRATION & ACCEPTANCE
-                │
-                ▼
+        │
+        ▼
 RELEASE / DEPLOYMENT
 ```
+
+The diagram records the closure-era dependency order only. Current Phase 8 work is sequenced from the current task, current evidence and `docs/workflow-orchestration.md`.
 
 ---
 
 # 17. Historical Wave Order
 
+The original Wave 0 → Projects → Blog → Feed / parallel Learn sequence is complete. It remains here to explain how the accepted Family state was reached.
+
 ## Wave 0 — Governance Documentation Freeze
 
-Canonical governance package was persisted before implementation sequencing。
+The closure-era governance package required:
+
+1. Persist reconciled Family Contract.
+2. Persist this Master Ledger.
+3. Persist Conflict / Reconciliation Register.
+4. Persist Implementation Dependency Map.
+5. Reconcile ADR/document truth where already unequivocal or create explicit pending reconciliation tasks.
+
+This was a **documentation-only governance freeze**. At that point it did not itself reconcile production code or authorize deployment.
 
 ## Wave 1 — Shared Implementation
 
-Shared Cream Gallery / token / focus / return primitives only where genuinely shared。
+After current repository inventory, only genuinely shared items were candidates for shared implementation, including:
+
+- Cream Gallery semantic token reconciliation；
+- Klein Blue interaction token；
+- focus-visible primitives；
+- return-to-Star-Map shell；
+- genuinely shared low-level primitives。
+
+The historical rule was not to pre-assume that every candidate required code changes.
 
 ## Wave 2 — Projects
 
-Used as the lowest architecture-risk module / canary for Family rules。
+Projects was selected early because it had the smallest architecture risk, was already Product-closed, retained a mostly valid structure, and acted as a canary that Family work would preserve the Projects elevation exception.
 
 ## Wave 3 — Blog
 
-Closed Product, larger visual / composition scope than Projects。
+Blog followed as a closed and product-complete module with a larger visual/composition scope than Projects.
 
 ## Wave 4 — Feed
 
-Architecture Preflight preceded production implementation of D — Quiet Deposition。
+Feed required Architecture Preflight before its production implementation because runtime, owner, media, pagination and cross-module projection seams were materially deeper. The implementation target was D — Quiet Deposition plus the accepted Product contracts.
 
-## Parallel Learn Track
+## Historical Parallel Product Track — Learn
 
-Learn Product / Architecture closure proceeded separately before final four-module integration。
+Learn Product Closure proceeded separately while the already-closed modules could advance. It then completed Product / Architecture / Visual closure, implementation and acceptance before final four-module integration.
 
 ---
 
 # 18. Historical Module Acceptance Gates
 
+These were the module-level acceptance targets used during the closure-era implementation sequence.
+
 ## Projects
 
-Verify shadow/lift、arrow、copy、Tags、mobile、Empty、ending、real screenshot quality。
+Verify:
+
+- shadow/lift preserved；
+- arrow neutral/Klein Blue；
+- exact copy；
+- Tags；
+- mobile；
+- Empty；
+- ending；
+- real screenshot quality。
 
 ## Blog
 
-Verify Archive no Card、1120 measure、Summary reveal / mobile visibility、≈760 Reading、Tonal Paper、return hierarchy、Previous/Next、Share/Giscus、responsive/a11y。
+Verify:
+
+- Archive no Card；
+- ≈1120 archive measure；
+- Desktop Summary reveal；
+- Mobile Summary visible；
+- Article ≈760 reading measure；
+- Tonal Paper only；
+- return hierarchy；
+- Previous/Next；
+- Paper boundary；
+- Share/Giscus；
+- responsive/a11y。
 
 ## Feed
 
-Verify D、equal Activity rank、three grammars、chronology、media、Clip states、source projection、owner/authorship states、Loading/Error/Empty/Pagination、Mobile。
+Verify:
+
+- D — Quiet Deposition, not old Card Feed；
+- equal Activity rank；
+- three grammars；
+- chronology；
+- exact labels/actions；
+- Native media；
+- Clip states；
+- source projection；
+- Owner states；
+- authoring；
+- Loading/Error/Empty/Pagination；
+- Mobile；
+- relevant Visual Lab parity。
 
 ## Learn
 
-Verify accepted Product / Architecture / Visual boundary before final module acceptance。
+Verify the accepted Product / Architecture / Visual boundary, including Knowledge Map / Track × Graph, durable Public Note reading, lifecycle semantics, responsive behavior and accessibility.
 
 ---
 
 # 19. Historical Content Integration Preview Gate
 
-Early cross-module preview was used after shared work and closed-module implementations passed their module gates to detect integration regression before final acceptance。
+The closure-era integration preview began after shared Family work and the ready closed modules passed their own acceptance gates. Its purpose was to detect cross-module regressions before final Family acceptance; it was not itself Final Content Family Acceptance.
+
+The preview checked that shared implementation did not flatten module exceptions and that real journeys between Home / Content modules still behaved coherently.
 
 ---
 
 # 20. Historical Final Content Integration & Acceptance Gate
 
-Final integration required Blog / Feed / Learn / Projects and shared Family work to pass their gates, then verified Product preservation、Cream Gallery continuity、module surface differences、navigation、responsive behavior、state handling、cross-module lifecycle and regression safety。
+Final Content Integration required Blog / Feed / Learn / Projects and genuinely shared Family work to pass their respective gates.
+
+The final review covered:
+
+## Product
+
+All Closure / Ledger decisions preserved.
+
+## Visual
+
+Cream Gallery continuity without template sameness.
+
+## Surface
+
+Expected module differences remained:
+
+- Blog editorial / tonal；
+- Feed quiet deposition；
+- Learn knowledge structure；
+- Projects full object / elevation。
+
+## Navigation
+
+Real journeys worked, including global return and nested parent-return semantics.
+
+## Responsive
+
+Desktop / mobile product logic remained intact.
+
+## Interaction
+
+Shared CSS or primitives did not overreach into module-specific behavior.
+
+## State
+
+Loading / Empty / Error / Auth states remained correct where applicable.
+
+## Cross-module lifecycle
+
+Blog / Projects / Learn Footprints followed their source contracts and the Feed public projection preserved accepted visibility semantics.
+
+## Regression
+
+Superseded historical UI / product patterns did not re-enter the Family.
+
+The gate is now complete historical evidence; it is not a Phase 8 gate that must be rerun for ordinary maintenance.
 
 ---
 
