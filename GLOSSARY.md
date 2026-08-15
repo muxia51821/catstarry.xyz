@@ -9,8 +9,6 @@ GLOSSARY 只记录跨模块、跨 Phase、容易被误解或存在命名漂移�
 详细事实按职责分工存放：
 
 - `CONTEXT.md`：Agent 快速上下文和少量高频摘要。
-- `AGENTS.md`：Agent 行为、权限、Git 与 production safety。
-- `docs/workflow-orchestration.md`：Phase 8 执行调度、Touch-on-Conflict 与高风险流程。
 - `docs/architecture.md` 及子文档：技术架构、数据模型、API、存储和数据流。
 - `DESIGN.md`：三画布、视觉状态、资产和动效设计事实。
 - `docs/agents/frontend-rules.md`：前端施工规则和验收约束。
