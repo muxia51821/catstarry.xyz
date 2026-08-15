@@ -104,11 +104,10 @@ catstarry.xyz/
 |     |- migrations/              #     Finance current schema and audit tables
 |     `- src/                     #     index、routes、modules、tasks；具体文件以当前目录为准
 |
-|- docs/                           # 项目文档（不部署）：architecture、adr、agents 等
-|
-|- .scratch/                      # 开发 issue + PRD
-|- teach/                         # Teach skill workspace（不部署，仅生成内容）
-|- _archive/                      # 历史产物归档
+|= docs/                          # current docs；tracked historical evidence 在 docs/_archive/
+|= .scratch/                      # 开发 issue + PRD
+|= teach/                         # Teach skill workspace（不部署，仅生成内容）
+|= _archive/                      # 本地 ignored scratch；不是 tracked governance archive
 |
 |- astro.config.mjs
 |- wrangler.jsonc                 # Site Worker staging config + FEED_API binding
