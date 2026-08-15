@@ -22,7 +22,7 @@
 | Content / Cream Gallery | `/blog`、`/feed`、`/learn`、`/projects` | 阅读优先、Warm Ink、restrained Hairline、module-specific surfaces |
 | Finance / Cyber Arena | `f.catstarry.xyz` | 深色数据面、数字与精确操作优先 |
 
-页面继续使用 current canvas semantic boundary；不要把 Home 的空间装饰传播到 Content / Finance，也不要用 shared CSS 抹平 Content module differences。
+主站页面继续使用 `data-canvas="home|content|finance"` 作为 canvas semantic boundary；不要把 Home 的空间装饰传播到 Content / Finance，也不要用 shared CSS 抹平 Content module differences。Selector 组织可以演进，但 canvas identity 本身不能因为局部重构消失。
 
 ### Pointer signatures
 
@@ -34,13 +34,45 @@ Paw Trail 是 movement effect；Click Feedback 是独立 pointer-down response�
 
 Pointer enhancement 只在合适的 fine-pointer 环境启用，并尊重 `prefers-reduced-motion`。
 
+当前 `src/scripts/content-meteor.ts` 文件名与一部分 `--cursor-meteor-*` token 是历史兼容命名；该代码现在实现的是 Content Click Feedback，而不是 Content movement meteor。不要从 legacy filename / token name 反推新的 Design semantics，也不要继续扩展“Content Meteor”概念。
+
 ## 3. CSS 与 token
 
-- `src/styles/main.css` 是主站 canonical global style entry；维护 current import graph，不创建第二套全局入口。
-- Shared CSS / token 只表达真实 shared semantics，不要求不同模块获得相同最终 appearance。
-- 优先复用已有 semantic / component token；不要在多个页面重复散落 raw color、spacing 或 motion constants。
-- runtime geometry、random seed、pointer gait、orbit phase、scheduler、state-machine timing 等不应仅为了“统一”提升为 global token。
-- 修改 shared selector / token 前检查所有真实 consumers，尤其避免：Blog Card 化、Feed Card 化、Learn structural surface Card 化、Projects elevation 被压平。
+`src/styles/main.css` 是主站 canonical global style entry。当前 global chain 从 `variables.css`、`typography.css`、`components.css` 进入，并另外加载 Content pointer styles；维护 current import graph，不创建第二套全局入口。
+
+### 3.1 三层 token implementation contract
+
+`src/styles/variables.css` 当前实现三层结构：
+
+1. **Primitive**：原始色阶、材质、type / spacing / radius / motion scale；
+2. **Semantic**：品牌、canvas、材料和 interaction role；
+3. **Component**：稳定组件视觉接口。
+
+施工约束：
+
+- Component CSS 优先消费 Semantic / Component token，不直接复制 Primitive raw value 到多个 consumer；
+- shared token 只表达真实 shared semantics，不要求不同模块获得相同最终 appearance；
+- 一个变量存在于 `variables.css`，不等于它仍拥有 Design authority；使用前同时检查 `DESIGN.md` 的当前语义和真实 consumer；
+- unused / legacy token 不得成为恢复旧 UI 的理由；
+- component-local custom property 可以用于局部 runtime-driven visual interface，例如 Paw Trail；它不会因此自动升级为 global Layer 3 token；
+- runtime geometry、random seed、pointer gait、orbit phase、scheduler、state-machine timing 不应仅为了“统一”提升为 global token。
+
+### 3.2 当前主要 namespace
+
+| Design role | Implementation namespace / boundary |
+| --- | --- |
+| Canvas / brand | `--home-*`、`--content-*`、`--finance-*`、`--klein-*` + shared semantic aliases |
+| Deep Space | `--space-*`；random field geometry 仍由 runtime 拥有 |
+| Planet / Star Map | `--planet-*`、`--star-map-*`、`--interaction-*` |
+| HAS | `--has-*`；orbit phase / period / scheduling 不进 CSS contract |
+| Leopard Cat | `--leopardcat-*`；node geometry / burst physics 在 runtime |
+| Home Cursor Meteor | `--cursor-meteor-*` 的 active Design semantics 只属于 Home movement signature |
+| Content Paw Trail | `--content-paw-*` component-local interface；exact gait / lifetime / speed threshold 在 runtime |
+| Content Click Feedback | 当前实现复用少量 legacy cursor-meteor color tokens；这是兼容实现，不是 canonical Design namespace |
+
+`variables.css` 中仍可能保留早期 Blog/Feed Card、Footprint surface 或 Content meteor 相关变量。除非当前 Design semantics 与真实 consumer 同时要求，否则不要把这些遗留变量重新接回页面。
+
+修改 shared selector / token 前检查所有真实 consumers，尤其避免：Blog Card 化、Feed Card 化、Learn structural surface Card 化、Projects elevation 被压平。
 
 ## 4. Typography 与 CJK
 
