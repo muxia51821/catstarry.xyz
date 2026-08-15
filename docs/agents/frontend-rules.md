@@ -1,121 +1,139 @@
-# Phase 5 前端施工规则
+# catstarry.xyz 前端施工规则
 
-> 状态：**原型已验证，Phase 5 仅可微调非核心参数。**
+> 状态：**Phase 8 current frontend implementation rules。**
 >
-> 用途：所有 Phase 5 前端开发线程在写页面、组件、样式或交互前必须阅读本文件。它把已锁定的设计契约转为施工约束；不替代 PRD、ADR、验收清单或架构文档。
+> 用途：把已确认的 Product / Architecture / Design 边界转成前端施工约束。它不替代 Product Contract、Architecture、`DESIGN.md`、current source 或 task-specific acceptance，也不要求 Phase 8 的每个小改动重新执行 Phase 4 / 5 productionization 流程。
 
 ## 1. 权威来源与适用范围
 
-执行时按职责区分事实来源：
+前端任务先按问题职责恢复足够真源，不使用一份固定“全仓库阅读清单”：
 
-1. `AGENTS.md`：全局权限、行为和 Git 规则；
-2. `docs/workflow-orchestration.md`：Phase 顺序、执行调度和 F 先行；
-3. 产品事实：对应模块的 final requirements、验收清单与 triage 后 issue；
-4. 架构事实：对应 ADR 与 `docs/architecture*.md`；
-5. 设计事实：`DESIGN.md`；
-6. 已落地视觉接口：`src/styles/variables.css`、`typography.css`、`components.css`、`main.css`；
-7. 本文件：将上述已锁定事实提炼为 Phase 5 前端施工检查项，不得反向覆盖任何上游事实来源。
+1. `AGENTS.md`：权限、行为、Git 与安全边界；
+2. `CONTEXT.md`：稳定项目概览；
+3. 当前任务对应的 Product authority：Content 从 `docs/content/README.md` 进入 Family Contract / Master Ledger；其他模块读取其 current-facing Product / acceptance source；
+4. 技术边界：`docs/architecture.md`、相关 architecture child / ADR；
+5. 视觉与交互方向：`DESIGN.md`；
+6. 当前实现事实：相关页面、组件、styles、runtime、tests；
+7. 本文件：只负责施工 guardrails，不得反向覆盖上游 Product / Architecture / Design。
 
-不同维度的文件发生冲突时，不得用本文件自行裁决；应指出冲突，并按产品、架构或设计所属维度返回对应事实来源复核。
+`docs/workflow-orchestration.md` 负责 Phase 8 任务如何分类、升级和验证；历史 final requirements、旧 acceptance、prototype 或旧 Wave sequencing 不是默认 Product authority。
 
-## 2. 不可重新裁决的总原则
+发生冲突时先判断冲突属于 Product、Architecture、Design 还是 implementation drift。不要因为 current code 存在某行为就自动把它提升成设计规范，也不要因为旧文档存在某句历史要求就恢复已 Supersede 的行为。
 
-- 三画布、Home 的空间叙事、Star Map → Focus → action、About 双路径、HAS 边界、豹猫身份、selected planet assets 与 Phase 4.3 的 CJK/无障碍结论均已锁定。
-- Phase 5 可以实现它们，但不得把它们改造成新的产品或视觉方向。不能把 Home 恢复为内容首页、时间线、卡片集合、`Recently` 或跨模块聚合入口。
-- Blog、Feed、Learn、Projects 的真实内容只属于各自功能页；Home Focus 只承担观察、短说明和明确 action，不加载板块内容。
-- 前端只消费已锁定的公共契约；不得窥探或呈现 Public Footprint、D1、KV、R2、Worker bindings 等底层物理结构。
-- 遇到需要改变用户路径、数据语义、资产身份、画布分工或核心视觉状态的需求，必须回到对应 PRD / ADR / 流程治理，不能在组件内“顺手优化”。
+## 2. Durable frontend boundaries
 
-## 3. 三画布必须分离
+- 三画布、Home 的空间叙事、`Star Map → Focus → action`、About 双路径、HAS 语义、豹猫身份与 selected planet identity 属于已确认边界；普通维护不得顺手改成新的产品方向。
+- Home 不恢复为内容首页、时间线、Card wall、`Recently` 或跨模块聚合入口。Blog / Feed / Learn / Projects 的真实内容属于各自功能页；Home Focus 只承担观察、短说明与 destination action。
+- Content Family 共享 Cream Gallery、semantic token 与 accessibility language，但不共享统一 Card、Opening、width、radius、Tag、pagination、footer 或 hover treatment。
+- 前端不得把底层 storage / API / Worker / D1 / KV / R2 机制直接泄露成 Public Copy 或视觉层级。需要改变这些技术合同的任务回 Architecture，而不是在组件中发明新语义。
+- 在既有合同内修 bug、补状态、优化实现或做明确授权的新能力可以直接实施；只有真正改变 Product / Architecture / Design contract 时才升级，不以“Phase 5 只能微调”阻塞 Phase 8 正常维护。
 
-| 画布                    | 页面                                    | 必须保持                                                                | 明确禁止                                                |
-| ----------------------- | --------------------------------------- | ----------------------------------------------------------------------- | ------------------------------------------------------- |
-| Home / Deep Space       | `/`                                     | 深空星域、暖性地质星球、克制 Klein Blue 交互、空间导航与 About 原地展开 | 内容卡片墙、混合时间线、自动巡航、把所有页面铺成宇宙页  |
-| Content / Cream Gallery | `/blog`、`/feed`、`/learn`、`/projects` | 奶油画廊、内容可读性、暖墨正文、细线和克制材质残响                      | 复制 Home 的大面积星空、星球详情页、重粒子背景          |
-| Finance / Cyber Arena   | `f.catstarry.xyz`                       | 深色数据面、数字优先、JetBrains Mono、涨跌与精确操作                    | Entry Display、星球标签、鼠标流星尾或干扰读数的装饰动效 |
+## 3. 三画布与 pointer interaction 必须分离
 
-- 页面根节点必须使用既有 `data-canvas="home"`、`data-canvas="content"` 或 `data-canvas="finance"` 语义，以消费对应 canvas token。
-- 鼠标流星尾：Home 完整但克制，Content 弱化，Finance 关闭；首屏一次性 DISCOVER MORE 流星不是 cursor meteor。
+| 画布 | 页面 | 必须保持 | Pointer signature |
+| --- | --- | --- | --- |
+| Home / Deep Space | `/` | 深空星域、暖性地质星球、空间导航、About 原地展开 | **Cursor Meteor**：movement signature，完整但克制 |
+| Content / Cream Gallery | `/blog`、`/feed`、`/learn`、`/projects` | 奶油画廊、内容可读性、Warm Ink、restrained Hairline | **Paw Trail + independent Click Feedback** |
+| Finance / Cyber Arena | `f.catstarry.xyz` | 深色数据面、数字优先、精确操作 | **neither** |
+
+- 页面继续使用既有 `data-canvas="home|content|finance"` 语义消费对应 canvas styling；若 current source 改变 selector 组织，保持 canvas semantic boundary，而不是把某个 selector 名当成永久 Product contract。
+- Content Paw Trail 是 movement effect；Click Feedback 是独立 pointer-down response。两者都不是弱化版 Home Cursor Meteor，也不得因为历史 implementation filename 带有 `meteor` 就恢复旧语义。
+- 这些装饰性 pointer effects 只在合适的 fine-pointer / hover 环境启用，并尊重 `prefers-reduced-motion`；它们不能承载 information、navigation 或 required feedback。
+- 首屏 DISCOVER MORE meteor 与 Home Cursor Meteor 仍是不同语义。
 - 类别颜色只是冗余提示，不能成为内容类型、状态或操作结果的唯一编码。
 
-## 4. Canonical CSS 与 token 施工规则
+## 4. Canonical CSS、token 与 runtime ownership
 
-- `src/styles/main.css` 是 Phase 5 正式前端的 canonical 全局入口，导入顺序固定为 `variables.css` → `typography.css` → `components.css`。
-- `src/layouts/Base.astro` 已切换到 `src/styles/main.css` 入口（2026-08-06 核验）；旧 `src/styles/global.css` 为历史遗留死文件（生产零引用），不得被新页面或新组件重新引用。
-- `global.css` 保留为死文件（零引用零风险），不做清理；任何新模块不得引用。
-- 组件只消费 Layer 2（语义）或 Layer 3（组件）token；不得在页面或组件中直接绑定 Layer 1 原始色值、尺寸或动效值。
-- 新增样式优先复用现有 token 和 selector/state interface。确有新视觉角色时，先补齐语义 token，再由组件 token 映射；不能用一批局部 CSS custom properties 绕过三层结构。
-- 不把滚动阶段、Focus 顺序、星图随机 seed、星团坐标、轨道相位、豹猫粒子物理、鼠标采样或路由状态塞入 CSS token。它们是 runtime-owned。
-- CSS 只负责已定义的视觉、响应式和 `data-*` 状态表现；运行时负责几何、时序、随机性、状态机与导航触发。
-- 不复制 Phase 4.2 原型 toolbar、mock selector、readout 或实验 JavaScript 到生产页面。已落入 canonical CSS 的接口可复用，但原型不是生产组件实现。
-- 修改 canonical CSS 后至少验证：PostCSS 可解析、custom-property 无未解析引用、相关页面 build 通过，并检查 reduced-motion 分支。
+- `src/styles/main.css` 是主站 canonical global style entry。维护 current import graph，不创建第二套全局入口，也不要因为文档曾记录三项 import 就假定 import list 永久固定。
+- 修改全局 style entry、token 或 shared selector 前先读 current imports / consumers，避免把历史 dead stylesheet、prototype CSS 或已退出使用的接口重新接回 production。
+- 组件优先消费已有 semantic / component token；不要在多个页面散落重复 raw color、spacing、motion constants 来绕过现有设计系统。
+- 只有确有新的 durable visual role 时才新增 semantic token。一次性 layout tuning、runtime geometry、random seed、pointer gait、轨道 phase、scheduler、state-machine timing 不应为了“规范化”全部上升为 global token。
+- CSS 负责 visual / responsive / state presentation；runtime 负责几何、时序、随机性、状态机、数据读取与 navigation trigger。边界以 current implementation / architecture 为准，不机械复制 Phase 4 prototype 的 toolbar、mock selector 或 experimental JS。
+- Shared primitive ≠ shared final appearance。任何 shared CSS 改动都要检查是否意外 Card-normalize Blog / Feed / Learn / Projects，或抹掉 Projects 已确认的 elevation exception。
 
-## 5. 排版与 CJK 是硬性验收
+## 5. Typography 与 CJK
 
 - 中文正文至少 16px，行高至少 1.85；中文标题至少 1.35，说明文字至少 1.65。
-- 中文使用 `HarmonyOS Sans SC` 等既有 CJK fallback；常用字重不高于 500，不用 700+ 伪造“粗黑科技感”。
-- 中文字距保持 `0` 或 `normal`；负字距只允许纯英文或数字标题。中文 Display / Heading 继续使用已有 `:lang(zh*)` 规则，不自行覆盖为英文排版参数。
-- 唯一例外：品牌角标（如 `.xiaohongshu-mark` 中的“小红书”）可突破字重 ≤500 与负字距限制，仅限用于品牌身份标识，不得推广到普通中文标题或正文。
-- 保留 `text-spacing-trim`、`hanging-punctuation` 与 `:lang(zh)` / `:lang(zh-Hans)` / `:lang(zh-CN)` 的渐进增强。
-- 中英、中文与数字之间约 1/4em 的自动间距属于 Phase 5 的浏览器侧实现项；实现时不得以破坏复制、搜索、读屏或断行的手工空格替代。
-- 星球标签默认可低声量，但 hover / keyboard focus 后必须达到正文可读对比度；中文标签和 action 不使用英文式全大写或大字距。
+- 中文使用既有 CJK fallback；常用字重不高于 500，不用 700+ 制造“粗黑科技感”。
+- 中文字距保持 `0` 或 `normal`；负字距只允许纯英文 / 数字 display。品牌自身 identity mark 如确有既有例外，不扩展到普通正文和标题。
+- 保留 `text-spacing-trim`、`hanging-punctuation` 与 `:lang(zh*)` 的渐进增强。
+- 中英 / 中文与数字混排当前由 browser-native `text-autospace` 处理；code / preformatted content 使用 no-autospace。**不要恢复 JS spacing，也不要插入破坏复制、搜索、读屏或断行的手工空格。**
+- CJK 规则是可读性合同，不要求每个局部组件重新发明一套中文 typography overrides。
 
-## 6. Home 实现合同
+## 6. Module-specific guardrails
 
-### 6.1 叙事与导航
+### 6.1 Home
 
-- Home 依次为 Entry → Approach → Overview → Focus → footer release；Overview 和后续 Focus 是同一片星图，不建立第二张地图。
-- Overview 固定五颗完整星球：About、Blog、Feed、Learn、Projects。语义区域固定为 About 右上远端、Blog 左上、Feed 中右近景、Projects 左下、Learn 右下；深度不表达栏目优先级。
-- 默认自然滚动 Focus 顺序为 About → Feed → Blog → Projects → Learn，但点击星球、键盘和侧边航行索引必须可直接抵达任一 Focus，不能要求“通关”。
-- 星球标签常驻且可发现；所有星球还必须有普通文字导航入口。不得把导航变成只有 hover 才能理解的艺术海报。
-- Star Map 不自动旋转、自动巡航或持续改变焦点。Drift 是唯一主构图；只可在既定语义区域内基于证据微调，不得每次加载随机换位。
+- 保持 Entry → Approach → Overview → Focus → footer release 的同一连续星域；Overview 与 Focus 不建立第二张地图。
+- 五颗星球保持 About / Blog / Feed / Learn / Projects 的既有 identity 与语义区域；深度和自然滚动顺序不表达栏目优先级。点击、键盘和航行入口必须可直接抵达目标 Focus。
+- Blog / Feed / Learn / Projects 只有在 Focus action 后进入功能页；About 保持直接可访问主路径 + 豹猫彩蛋路径。豹猫不是理解 About 的前置条件，About 星球绝不爆炸。
+- HAS 只服务四颗功能星球，表达 `active / stable / dormant` 的低音量活动状态，不是 unread badge、内容预览或第二导航。有效投影缺失时不能伪装成 `dormant`。
+- `active / stable` 可以按已确认设计做低频完整轨道运动，hover / focus 可减速；`dormant` 静态；reduced motion 下运动退化为静态材质 / orbit residue / accessible text。不得由 HAS 自动巡航、改变 Star Map focus 或制造 notification-style blinking。
+- `docs/design/assets/planets/selected/` 对应的 Overview / Focus / Mobile **identity** 是当前设计基线。不得因早期 prototype 的 placeholder 文字擅自重生成、换成相似星球或混用历史候选。性能、preload/lazy、2x、CDN 等按实际任务证据处理。
+- 精确 runtime selector、orbit phase、pulse interval、豹猫节点参数、Home state-machine timing 由 current source / tests 拥有；本文件不维护第二份 selector ledger。
 
-### 6.2 Focus、action 与 About
+### 6.2 Content Family
 
-- Blog、Feed、Learn、Projects 的 Focus 只显示近景、名称、极短说明和明确 action；action 后才执行短、可中断、不锁滚动的 Planet Push 并进入功能页。
-- About 有两条通往同一展开态的路径：总览直接点击 / Focus action 的可访问主路径，以及豹猫星座彩蛋路径。主路径不得要求发现豹猫。
-- 豹猫仅是 About 附近的低音量 Klein Blue companion：桌面两次独立点击（不是浏览器 `dblclick`），触控单次激活，reduced motion 直接进入；只有豹猫粒子爆开，About 星球绝不爆炸。
-- About 展开后保留低音量、不可交互的残余签名；关闭、返回或离开后回收到 rest。不得恢复独立蓝色 companion body，也不得把豹猫变成 Home 主角。
+Content 任务先读 `docs/content/README.md` 路由到对应 Product truth；以下只保留最关键的 shared guard：
 
-### 6.3 HAS 与 selected assets
+- **Blog**：Archive 不 Card 化；Reading 保持 Tonal Paper 语义。不要用 shared surface rule恢复 border / shadow / radius。
+- **Feed**：D — Quiet Deposition；Native Note / Clip / Footprint equal S2 rank、different grammar。不要恢复 Native high-card / Footprint low-row 或 system-log hierarchy。
+- **Learn**：Knowledge Structure + Reading。Knowledge Map = Track directory × Graph；Track 是 domain context，不是 Public Note parent / curriculum；不要重新引入虚假 public progress / completion hierarchy。Public Note / Track index 不默认 Full Card / shadow / lift。
+- **Projects**：Full Object Card、static shadow、hover lift、stronger hover shadow 是已确认 exception；不要因为 Family quietness 或 shared CSS flatten 掉它。
+- Top-level Content 的 `返回星图` 指向 Home Star Map / Overview 语义；nested child 优先返回真正 parent。Learn Public Note primary return Learn corpus，不因 Track context 强制改为 track-nested identity。
+- Content Paw Trail / Click Feedback 是 shared canvas-level enhancement，不得压过文本、表单、media viewer 或 module-specific interaction，也不把其精确 gait / opacity 写成跨模块 Product rule。
 
-- HAS 只服务 Blog、Feed、Learn、Projects 四颗功能星球；About 与豹猫永不参与。它只表达 `active`、`stable`、`dormant`，不是未读提醒、内容预览或第二套导航。
-- 缺少有效静态投影时，四颗信标必须全部隐藏；不得把数据不可用伪装成 `dormant`。状态须通过材质、轨道残留、受限运动和可访问文字共同表达，不能只靠颜色。
-- Home 生产 state vocabulary（2026-08-06 核验）：`data-has-state="active|stable|dormant|unavailable"`、`data-planet-state="ready"`、`data-cat-state="reveal|charged|burst|recovering"`、`.about-zone.ready`（交互开关，非状态机）；`data-attention` 与 `.attention` class、轨道前后层（canonical `data-orbit-layer/depth` vs 生产 `.back`/`.front`）为未收敛待裁决项；轨道路径、相位、周期和 pulse scheduler 仍由运行时控制。
-- 星球必须使用 `docs/design/assets/planets/selected/` 中已选的同源 Overview / Focus / Mobile 身份，不重新生成、替换为相似星球或混用 Phase 4.2 历史候选。
-- Overview 是完整球体，Focus 使用同一母版的细节裁切，Mobile 保留同一主地貌。是否需要大屏 2x 母版、资源优先级、preload / lazy 与 CDN/R2 策略，须在生产接入时以实际性能证据裁决，不得假定已完成。
+### 6.3 Finance
 
-## 7. 交互、响应式与性能底线
+- Finance 保持独立 Cyber Arena 与精确数据操作，不继承 Home 星图、豹猫、Cursor Meteor 或 Content Paw Trail / Click Feedback。
+- Finance 的业务行为、行情 provider、数据模型和操作合同不由本文件裁决；任务应读取对应 current Finance evidence。
 
-- 所有可操作目标使用原生语义元素或等价语义；星球、侧边索引、Focus action、返回和豹猫入口必须有可见 `:focus-visible`、键盘操作和合理焦点恢复。
-- 触控不得依赖 hover；关键入口的命中尺寸至少使用 `--interaction-hit-size`（现有 coarse-pointer 规则）。
-- 必须检查 1366×768 与 390×844；移动端包含安全区、可读标签、Focus copy、返回路径和无水平溢出。390×844 下还须检查 125% 缩放。
-- `prefers-reduced-motion: reduce` 是正式功能分支：停止连续动画与粒子物理，HAS 退化为静态材质，豹猫跳过爆开，cursor meteor 隐藏，导航和内容仍可完整使用。
-- 动效优先 `transform` / `opacity`，避免高成本大面积 blur、逐节点独立 filter、无限循环或与阅读和数据操作竞争的特效。
-- 每个模块在交付前按自身范围验证：CJK、键盘、触控、reduced motion、两个视口、无横向溢出、控制台无错误，以及相关 build。生产页面还必须补做真实内容长度、资源加载、LCP、CLS 与设备字体矩阵检查。
+## 7. Responsive、accessibility 与 performance
 
-## 8. 允许的微调与必须升级处理
+- 所有 required action 使用原生语义元素或等价语义，提供可见 `:focus-visible`、键盘路径和合理焦点恢复。
+- 触控不能依赖 hover；重要 information / action 必须有 non-hover equivalent。
+- `prefers-reduced-motion: reduce` 是正式功能分支：装饰性 motion 可关闭，但 navigation、content、state meaning 与 required feedback 必须保留。
+- 动效优先低成本 `transform` / `opacity`；避免无必要的大面积 blur、逐节点长期 filter 或与阅读 / 数据操作竞争的持续特效。
+- 不把一个历史 release 的固定 viewport / performance checklist 变成所有 Phase 8 小改动的强制全量 Gate。验证深度应匹配改动范围与风险。
 
-仅在不改变语义、状态、画布、资产身份或用户路径的前提下，允许根据实际页面证据微调：间距、断点内布局、文本最大宽度、selected asset 的同源裁切对齐、低成本光学强度和资源加载阈值。
+## 8. Verification follows affected behavior
 
-以下情况不是“微调”，必须停止并回到对应真源处理：
+最低验证不是“一套永远相同的矩阵”，而是覆盖本次真正触及的合同：
 
-- 改变三画布分工、Home 信息架构、Focus / action 关系、About 双路径或豹猫行为；
-- 改变 HAS 数据来源、状态集合、Home 聚合边界或 `unavailable` 降级语义；
-- 替换 selected 星球身份、重生成资产、把 Planet Focus 变成内容详情页；
-- 新增或改变尚未被现有 PRD、ADR、架构文档或当前任务明确授权的 API、Worker 调用、数据 schema、鉴权逻辑、Cloudflare adapter 或依赖；按已锁定公共契约实现和消费已有接口，不属于升级处理。
-- 用页面局部样式绕过 canonical token、CJK 或 reduced-motion 契约。
+| 改动类型 | 至少验证 |
+| --- | --- |
+| 普通页面 / CSS 局部修复 | relevant build / type or syntax check + affected page + no obvious regression |
+| Typography / CJK | 中文真实内容、混排、overflow / wrap；涉及 spacing 时确认 `text-autospace` / code exception |
+| Interaction / focus / dialog | keyboard、focus-visible、Escape / focus restore（如适用）、touch equivalent |
+| Motion / pointer effect | fine/coarse pointer boundary、reduced motion、effect 不遮挡 required content |
+| Responsive layout | 实际受影响的 narrow / wide failure points；不是无条件重跑所有历史 viewport |
+| Shared CSS / token / layout primitive | 至少检查所有真实 consumers，特别是 Content 四模块的 exception 是否被抹平 |
+| Asset / loading / performance | resource failure path、loading strategy、LCP / CLS 或其他与改动直接相关指标 |
+| Architecture / API-facing frontend change | current contract、error/degraded state、相关 integration tests / production-like path |
 
-## 9. 明确不纳入本文件
+高风险或跨模块改动可以扩大回归范围；低风险两行 CSS 修复不应自动升级成完整 release acceptance。反过来，涉及 shared token、navigation、auth、publication lifecycle 或 global runtime 的改动也不能只做一张局部截图就宣称完成。
 
-- 不实现任何 Home、Blog、Feed、Learn、Projects 或 Finance 业务代码；
-- 不定义 Worker、D1、KV、R2、CI/CD、鉴权、API、绑定或部署细节；这些由共享基础设施 F 和对应架构/ADR 负责；
-- 不裁决 PRD、Public Footprint 业务规则、HAS 计算规则、内容模型、CMS 行为或验收标准；
-- 不指定正式生产资源加载策略、CDN/R2 配置、2x 星球母版结论或真实数据故障恢复；
-- 不修改 `DESIGN.md` 的视觉方向，不重新执行或替代 Phase 4.2 / 4.3 原型验收。
+## 9. 何时必须升级而不是顺手改
 
-## 10. 开发线程交接清单
+以下变化超出普通前端 implementation discretion，应回到对应职责真源：
 
-开始前确认：已阅读本文件、相关 PRD / ADR / issue、`DESIGN.md` 对应章节和 canonical CSS。
+- 改变三画布分工、Home 信息架构、Focus / action、About 双路径、HAS 产品语义或 selected planet identity；
+- 改变 Content Family 已关闭的 Card / Feed rank / Learn Track-Graph / Projects elevation 等 Product / Design contract；
+- 改变公开 lifecycle、source-event semantics、数据 schema、auth boundary、Worker / service binding 或 deployment topology；
+- 用局部实现绕过 canonical CJK、accessibility、reduced-motion 或明确 Architecture boundary；
+- current source 与 Product / Architecture / Design authority 出现真实冲突，且无法在 task scope 内确认哪一方是 drift。
 
-提交前确认：仅在授权范围内改动；未修改设计方向；CJK、键盘、触控、reduced-motion 和目标视口通过；未把 `.codex/` 或参考素材加入暂存；按路径限定提交文件。
+升级的目标是解决具体 authority conflict，不是恢复旧 Phase 顺序或制造新的治理层。
+
+## 10. 本文件不负责什么
+
+- 不定义 Worker、D1、KV、R2、CI/CD、鉴权、API、binding 或 deployment 的详细实现；这些回 current Architecture / DEPLOY / source。
+- 不裁决 Content Product lifecycle、Feed Footprint 业务规则、Learn publication semantics、HAS 计算规则或 Finance 业务需求；这些回各自 Product / Architecture authority。
+- 不维护当前 selector、branch、SHA、release status、production status 或一份重复的 CSS inventory。
+- 不要求重新执行 Phase 4.2 / 4.3 prototype acceptance；历史 prototype 只在具体设计问题需要追溯时读取。
+
+## 11. 交接检查
+
+开始前：确认已读当前任务真正相关的 Product / Architecture / Design 与 source，而不是机械读取全部历史材料。
+
+提交前：确认改动仍在授权范围；相关 contract 得到对应验证；没有把 `.codex/`、scratch 或参考素材误纳入提交；如果改动触及 durable Product / Architecture / Design truth，按 Touch-on-Conflict 只同步直接相关 current doc。
