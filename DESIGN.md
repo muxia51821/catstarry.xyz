@@ -151,6 +151,7 @@ Design 负责定义角色与 namespace contract；具体 consumer、selector 与
 | Home Activity Signal | `--has-*` | body / rim / band / orbit / state visual contract；orbit phase、period、depth、pulse scheduling runtime-owned |
 | Leopard Cat | `--leopardcat-*` | contour / link / aura / node / residue visual contract；节点坐标、burst physics、recovery runtime-owned |
 | Home Cursor Meteor | `--cursor-meteor-*` | 只对应 Home movement signature 的设计语义；不能据此恢复 Content movement meteor |
+| Learn local material surfaces | module-local `--learn-*` derived from Cream Gallery / geo semantics | `canvas / field / functional / engraving` 是 Learn visual roles；它们不是新的 Family-wide palette 或 token obligation |
 | Content Paw Trail | component-local `--content-paw-*` interface | Paw visual interface 可使用局部 custom properties；exact gait / spacing / lifetime / speed threshold runtime-owned |
 | Content Click Feedback | semantic behavior is canonical；当前不规定独立全局 token namespace | Klein Blue core / echo 是 Design truth；不得从 legacy implementation naming 推导新的 Content Meteor 设计 |
 | Public Footprint | no dedicated framed-surface token obligation | Footprint 与 Native equal S2 rank；任何遗留 surface token 都不能反向恢复 Card / system-row hierarchy |
@@ -358,16 +359,51 @@ Design unit = **Activity**。Native Note、Native Clip、Public Footprint equal 
 - 不把 Footprint 画成 system-log row；
 - chronology 由 year / date / time 与 vertical rhythm 承担。
 
-### 9.3 Learn
+### 9.3 Learn — Knowledge Structure + Reading
 
-- Learn = **Knowledge Structure + Reading**。
-- Knowledge Map = Track directory × Graph。
-- Track 是 categorical / domain directory；Graph 是 relational / exploratory directory。
-- Track 是 Note 的重要 context，但不是 parent / curriculum。
-- Public Note 是 durable reading surface；Track / Note list 不默认 Full Card、shadow 或 lift。
-- Search 是 secondary retrieval utility。
-- Recent Knowledge 由 publication / substantive revision lifecycle 驱动，不把普通 maintenance edit 放大成 freshness signal。
-- 不引入虚假的 public completion / progress / XP / gamification。
+Learn 是 Cream Gallery 内的 knowledge system，不是独立 dashboard，也不是 LMS。其视觉层级分为 **Knowledge Field / Reading Field / Functional Local Surface**：宽屏空间用于结构与关系，长文阅读宽度保持受限；code、table、Wikilink preview、owner row 等局部功能表面可以有必要边界，但不把所有对象 Card 化。
+
+#### Opening and Knowledge Map
+
+- Learn opening 保持简洁；中文 motto 与 Latin motto 固定为两行，不因视口合并成一行。
+- Home 只存在一个 **Knowledge Map**。Track directory、Graph 与 compact Search 属于同一知识结构系统，不拆成互相竞争的 hero / dashboard panels。
+- Knowledge Map 使用 warm Cream / geological field；Graph 不使用黑底、洋红主题、发光星座或独立宇宙画布。
+- Track identity 主要由 label、空间 clustering 与 whitespace 建立；不默认使用大色块或 bordered Track region。
+- Search 非 sticky、视觉次于 Knowledge Map heading；active search 不隐藏 Graph、Tracks 或 Recent Knowledge。
+
+#### Graph
+
+- Graph nodes = Public Notes；edges = normalized explicit Note relations。shared Track 不产生 edge，也不表达 prerequisite。
+- Layout 是 deterministic、Track-aware 的空间聚类；允许真实的不均匀、稀疏区、密集区与 cross-Track bridge，不为了几何对称牺牲可读性。
+- 可读优先顺序：**label readability > node separation > relation legibility > visual symmetry**。
+- Node 是低音量小点，标题始终可读；当前 accepted visual class 约为 5px resting / 6px active dot、14px class label。可点击 / 触控 hit area 必须明显大于视觉点。
+- Relation 使用 restrained Hairline；active relation 转 Klein Blue 并轻微加强。不要 arrows、dash-type encoding、edge-type colors、bundling、glow 或 decorative S-curve。
+- Graph 是 bounded content-aware field，不做 full-screen Graph，也不随 node count 无限增长。large-corpus scaling 在真实证据出现前保持 Parked。
+- Hover / focus 可轻微放大 node、将 title / direct relation 变 Klein Blue，并软化无关节点；keyboard focus 必须清楚可见。
+
+#### Track directory / Track page
+
+- Track 是 categorical / domain directory，不是 curriculum、Note parent 或 colored taxonomy badge。
+- Home Track directory 使用 plain text；辅助 count 可以在 hover / focus 时出现，但不能改变布局宽度，也不成为主视觉。
+- Track page 是稳定单列 browse field：Track title / description → plain Section anchors → Section groups → frameless Note rows。
+- 不使用 Track slug eyebrow、top count pill、`PUBLISHED NOTES`、Section pills、Note Cards、Note dates 或 recent chronology。
+- Track page 宽屏可以增加 whitespace 与 row composition，但不变成 2/3-column Note grid，也不拉长正文行长。
+
+#### Public Note / relations
+
+- Public Note primary return = `返回 Learn`，不是返回 Track；Track / Section 是 context，不形成 ontology breadcrumb。
+- Header 显示 Track / Section context、first publication date、仅在 substantive revision 后出现的 revision date、H1 与 excerpt；不公开 Mission、Batch、completion、source URL、maintenance modified date 或默认 tags。
+- Reading 使用 fluid outer shell + bounded body measure；body 保持约 720–760px class，header 可以略宽。宽屏额外空间服务 Related rail / chapter navigation / breathing room，而不是增长阅读行长。
+- Related Notes 与 Graph / Wikilink 使用同一 normalized relation truth。Wide 可使用低音量 relation rail；当 rail 开始损害阅读宽度时移到正文后方。
+- Wikilink 是可直接导航的正文关系入口；preview 是辅助而非第二层 Card system。
+- Preview 页面与 Public Note 使用同一 reading grammar；owner/private chrome 可以不同，但不能扭曲真实 Public Note layout。
+
+#### Recent / mobile / sparse corpus
+
+- Recent Knowledge 最多 5 条 frameless lifecycle rows；Title primary、excerpt secondary、Track/Section tertiary、event/date low weight。不要 Cards、tag pills、shadow、lift、CTA 或 raw maintenance modified date。
+- Mobile 保留同一 Graph capability、same nodes / relations / Tracks；使用 portrait-specific reflow，不隐藏 Graph、不替换成普通 list、不要求页面横向滚动。
+- 0 Public Notes 时只显示真实 empty state，不画 fake Graph / Track / Recent / CTA；1–2 Notes 使用真实节点，不放大节点或虚构 relation。
+- 不为了让 Graph 看起来丰富而制造 Public Notes 或关系。
 
 ### 9.4 Projects
 
