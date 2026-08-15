@@ -4,16 +4,19 @@
 
 ### Learn
 
-- 将 Public Learn 的普通发布可见性转为 production runtime 管理：Production Admin 支持 Publish / Hide / Show，公开 Learn 页面、Feed 投影、RSS 与 sitemap 按运行时 publication state 读取；本地 Preview 保持只读生命周期管理。
+- 将 Public Learn 的普通发布可见性转为 production runtime 管理：Owner Admin 支持 Publish / Hide / Show，公开 Learn 页面、Feed 投影、RSS 与 sitemap 按运行时 publication state 读取；本地 Preview 保持只读生命周期管理。
 - 增加 Learn 公开关系校验与部署后 revision / relation metadata 同步；首次正式发布与后续 revision 使用不同写入边界，历史 `learn_section_completed` 保持只读兼容。
 
 ### Content Family
 
 - 为 Cream Gallery 增加独立的 Content Paw Trail，并保留与其分离的 click feedback；Home Cursor Meteor 与 Finance 交互边界保持独立，fine-pointer / reduced-motion 降级继续生效。
 
-### Governance
+### Governance / Documentation
 
 - 将 Phase 8 工作流与 Agent governance 调整为 current-first、按职责读取和 bounded Touch-on-Conflict；移除 Dashboard / mandatory cold-start 作为正常维护入口的依赖，并同步共享术语边界。
+- 完成 current-facing Product、Design、Architecture、Frontend、Acceptance 与 onboarding 文档的 reality reconciliation：保留仍有效的机制与接口合同，移除已 superseded 的 current-looking 结论，并将旧 Design 2.1 原样归档为历史参考。
+- 对齐 Home Activity Signal、Blog / Learn publication、Public Timeline、Finance scheduled market、Design → CSS token、Projects release / Footprint 和 ADR-005 source-projection 边界；明确 implementation、acceptance、merge、deployment 与 production evidence 彼此独立。
+- 完成 cold-start reading path 收敛：新 Agent / Session 从 `AGENTS.md` → `CONTEXT.md` 进入，再按任务读取 Product、Architecture、Design/Frontend、Routes 或 Deployment current source。本轮是 repository documentation reconciliation，不代表 production 重新部署。
 
 ## 2026-08-14 — Content Family lifecycle and validation hardening
 
