@@ -10,7 +10,7 @@
 
 > 本合同描述当前 canonical governance state；本轮 Content Family production release 已完成。
 
-原子需求、状态、implementation drift、Architecture Revalidate 与 Acceptance Gate 见 [`master-ledger.md`](master-ledger.md)；历史冲突为何这样收敛见 [`reconciliation-register.md`](reconciliation-register.md)；实施顺序见 [`implementation-dependency-map.md`](implementation-dependency-map.md)。
+原子需求、状态、implementation drift、Architecture Revalidate 与 Acceptance Gate 见 [`master-ledger.md`](master-ledger.md)。历史冲突 rationale 与旧 implementation sequencing 已归档于 [`../_archive/content-governance/reconciliation-register.md`](../_archive/content-governance/reconciliation-register.md) 和 [`../_archive/content-governance/implementation-dependency-map.md`](../_archive/content-governance/implementation-dependency-map.md)；它们不是当前 Phase 8 执行计划。
 
 ---
 
@@ -404,7 +404,7 @@ Projects/source side owns Project update event semantics；Feed 只消费与展�
 
 ### 8.3 Learn → Feed
 
-Feed presentation `LEARN · 更新` 已 Confirmed；Learn publication lifecycle 与 manifest v2 integration 已 accepted / merged。Public Note 首次发布产生 `learn_note_published`，后续明确修订产生 `learn_note_revised`；`learn_section_completed` 仅保留 legacy readable compatibility。
+Feed presentation `LEARN · 更新` 已 Confirmed；Learn publication lifecycle integration 已 accepted / merged。Public Note 首次发布产生 `learn_note_published`，后续明确修订产生 `learn_note_revised`；`learn_section_completed` 仅保留 legacy readable compatibility。具体 runtime storage、deploy sync schema 和 relation metadata 属于 Architecture / implementation 事实，不在 Family Product Contract 固定版本号。
 
 ---
 
