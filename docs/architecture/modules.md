@@ -24,7 +24,7 @@
 │  - Site SSR → Feed: FEED_API Service Binding；local preview → localhost HTTP │
 ├────────────────────────────────────────────┤ ← Seam B: CF Bindings / shared contracts
 │  Layer 3: Adapters (shared/ + Worker-local) │  函数调用 → 副作用
-│  - shared/auth.ts: 认证 adapter             │
+│  - shared/auth.ts: session token / session lookup / role helper             │
 │  - shared/cors.ts: CORS adapter             │
 │  - feed-store / activity-signal-store       │
 │  - shared/types.ts: 类型（无实现）          │
@@ -59,7 +59,8 @@ catstarry.xyz/
 |  |  |  |- category/[...category].astro # 分类页 (SSR)
 |  |  |  |- tag/[...tag].astro    #   标签页 (SSR)
 |  |  |  |- rss.xml.ts            #   Blog + Learn RSS 2.0 (SSR)
-|  |  |  `- preview/[slug].astro  #   Blog owner preview (SSR)
+|  |  |  |- preview/[slug].astro  #   Blog owner preview (SSR)
+|  |  |  `- admin/lifecycle.ts    #   Site → Feed Blog lifecycle proxy (SSR route)
 |  |  |= feed/                    # 碎碎念板块
 |  |  |  |- index.astro           #   时间线 (SSR)
 |  |  |  `- admin.astro           #   Feed / Blog 管理后台 (SSR, 需认证)
@@ -69,7 +70,7 @@ catstarry.xyz/
 |  |  |  |- preview/[slug].astro  #   owner 预览 (SSR)
 |  |  |  |- track/[track].astro   #   Track 页 (SSR, runtime gated)
 |  |  |  |- admin.astro           #   lifecycle 管理 (SSR, 需认证)
-|  |  |  `- admin/lifecycle.ts    #   Site → Feed lifecycle proxy (SSR route)
+|  |  |  `- admin/lifecycle.ts    #   Site → Feed Learn lifecycle proxy (SSR route)
 |  |  `- projects/
 |  |     `- index.astro           # 项目展示 (SSG)
 |  |= components/                 # React islands / Astro UI components
@@ -84,7 +85,7 @@ catstarry.xyz/
 |
 |= shared/                        # Workers + Astro 共享 contracts / utility
 |  |- types.ts                    #   全站 API 类型（接口契约）
-|  |- auth.ts                     #   认证 adapter：bcrypt verify + session + 限流
+|  |- auth.ts                     #   session token 解析、主站/Finance session lookup、role helper
 |  |- security.ts                 #   timing-safe 等跨 runtime 安全工具
 |  `- cors.ts                     #   CORS adapter：header 常量 + middleware
 |
@@ -128,7 +129,7 @@ catstarry.xyz/
 | Module                           | Interface                                                | Implementation Depth                                             | 为什么深                                                                                                                |
 | -------------------------------- | -------------------------------------------------------- | ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
 | **shared/auth.ts**               | `getMainSiteSession` / `getFinanceSession` | 主站 KV 优先、D1 session fallback；Finance 独立 KV；cookie token 与 role 校验 | 两个 Worker 共用 session token 解析和状态类型，但使用不同的存储边界。 |
-| **Public Timeline 模块**         | `FeedStore.listPublic(cursor, limit)` | `feed_posts` 与 `public_footprints` 读取、统一排序、游标分页、来源 lifecycle 可见性过滤 | 页面只学习统一的 `TimelineEntry` 读取结果；原生 Feed 与 Public Footprint 的写模型差异留在 store 内部。 |
+| **Public Timeline 模块**         | `FeedStore.listPublic(...) → PaginatedResponse<TimelineEntry>` | `feed_posts` 与 `public_footprints` 读取、统一排序、游标分页，并接收当前 Blog published / Learn public source set 做来源 lifecycle 过滤 | 页面只学习统一的 `TimelineEntry` 读取结果；原生 Feed 与 Public Footprint 的写模型差异留在 store 内部。 |
 | **Public Footprint Writer**      | `recordFootprint(candidate) → { created, footprint }` | 幂等键、快照固化、来源／版本校验、独立可见性；Learn Note 发布／修订事件与旧小节完成事件兼容读取 | 三个来源模块复用同一写入语义；删除它会让 Blog、Learn、Projects 各自实现去重和快照。 |
 | **Learn publication lifecycle** | `/api/learn/publications` + owner admin + internal sync | D1 runtime publication state、首次发布原子足迹、Hide/Show、revision sync v3、relation validation / manifest | source Markdown、公开投影、owner lifecycle 与 deploy metadata 是不同边界，需要在一个 route group 中维持不变量。 |
 | **Activity Signal Projection**  | `refreshActivitySignals(env)` | 四源公开资格筛选、7/60 天状态计算、完整对象发布和失败保留 | Home 只读取固定 Manifest；四源查询、阈值与恢复留在 feed-api 内部。 |
@@ -289,7 +290,7 @@ Public request → Site Worker SSR
     → D1 learn_publications(public)
     → source + runtime state 合成当前 public corpus
 
-Production Admin → PATCH /learn/admin/lifecycle
+Owner Admin → PATCH /learn/admin/lifecycle
     → Site proxy → PATCH /api/learn/admin/publications
     → first Publish: D1 publication + first footprint
     → Hide / Show: visibility only, no duplicate first footprint
@@ -300,7 +301,7 @@ successful production deploy
     → AUTH_KV learn:relation-manifest
 ```
 
-`learn:relation-manifest` 表达已部署 source 的 Note relation metadata，用于 owner lifecycle mutation 前验证当前 public relation set；它不是 relation database。Local Preview 可以读取 owner state 和预览内容，但 lifecycle mutation 明确只读。
+Production runtime 的 Owner Admin 是正式 publication authority；Local Preview 可以读取 owner state 和预览内容，但 lifecycle mutation 明确只读。`learn:relation-manifest` 表达已部署 source 的 Note relation metadata，用于 owner lifecycle mutation 前验证当前 public relation set；它不是 relation database。
 
 ---
 
@@ -311,7 +312,7 @@ shared/                 ← 无业务 runtime ownership；跨层 contracts / uti
   ↓ import
 workers/*/              ← import shared/*, 使用 env.DB/KV/R2
 
-src/server helpers      ← import shared/types.ts；通过 FEED_API binding 发 Request
+src/lib/server/         ← import shared/types.ts；通过 FEED_API binding 发 Request
 src/pages/ SSR          ← 调用 server helpers / render source
 browser components      ← same-origin HTTP APIs
 src/content.config.ts   ← collection schema
@@ -388,7 +389,7 @@ URL or direct browser-to-R2 contract is part of the current architecture.
 
 | 注意事项               | 现有设计                                                                                                                            |
 | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| **TTL 设置**           | ✅ session TTL 12h，rate-limit TTL 5min，view dedup TTL 24h                                                                         |
+| **TTL 设置**           | ✅ main session 12h；login rate-limit 5min；view dedup 24h；view-record rate-limit key 120s |
 | **Blog lifecycle**     | `blog:lifecycle-manifest:v1` / `blog:published-manifest` 由 Feed Worker 管理当前 Blog runtime projection。 |
 | **Learn relations**    | `learn:relation-manifest` 保存 deployed source relation metadata，无 TTL；它不是 publication state 或 relation database。 |
 | **blog-metadata**      | 已退役。ADR-006 删除其 Home KV bridge，不再评估大小或最终一致性。                                                                        |
