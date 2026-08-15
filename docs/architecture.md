@@ -40,8 +40,8 @@
  / (SSG)     │  Home                                     │
  /projects/* │  Projects (SSG)                           │
              │                                           │
- /blog/*     │  Blog public / preview / admin (SSR)      │
- /feed/*     │  Feed public / admin (SSR)                │
+ /blog/*     │  Blog public / preview (SSR)              │
+ /feed/*     │  Feed public / admin + Blog lifecycle (SSR)│
  /learn/*    │  Learn public / preview / admin (SSR)     │
  sitemap/RSS │  runtime public projections (SSR)         │
              └───────────────────┬───────────────────────┘
