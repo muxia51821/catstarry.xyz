@@ -82,11 +82,13 @@ Pointer enhancement 只在合适的 fine-pointer 环境启用，并尊重 `prefe
 - 保留 current CJK fallback、`:lang(zh*)`、`text-spacing-trim` 与 `hanging-punctuation` 的渐进增强。
 - 中英 / 中文与数字混排使用 browser-native `text-autospace`；code / preformatted content 使用 no-autospace。
 - 不恢复 JS spacing，也不插入破坏复制、搜索、读屏或断行的手工空格。
+- 已存在的品牌 identity mark（例如 Home About 内 `.xiaohongshu-mark`）可以保留其专用字重 / spacing treatment；该例外只服务品牌标识，不传播到普通中文标题、正文或 Content typography。
 
 ## 5. Accessibility 与 motion
 
 - Required actions 使用原生语义元素或等价语义，并提供可见 `:focus-visible`。
 - Hover 信息必须有 keyboard / touch equivalent；触控不能依赖 hover 才能理解或操作。
+- 共享 touch target 应继续使用现有 `--interaction-hit-size` 等 interaction token，而不是在各模块散落更小的局部命中尺寸。
 - Dialog / overlay 按实际行为处理 focus entry、Escape、focus restore 和 background interaction。
 - `prefers-reduced-motion: reduce` 是正式功能分支：装饰性 motion 可以关闭，但 navigation、state meaning 与 required feedback 必须保留。
 - 动效优先低成本 `transform` / `opacity`；避免无必要的大面积 blur、长期 filter 或与阅读 / 数据操作竞争的持续特效。
@@ -112,7 +114,19 @@ Top-level Content 的 global exit 返回 Home Star Map / Overview。Learn Public
 - HAS 只服务四颗功能星球并表达 `active / stable / dormant`；数据不可用不能伪装成 `dormant`。
 - `active / stable` 可低频完整公转，hover / focus 可减速；`dormant` 静态；reduced motion 下停止连续运动。
 - `docs/design/assets/planets/selected/` 的 Overview / Focus / Mobile identity 是当前设计基线。性能、加载与资源策略按实际任务证据处理。
-- 精确 selector、orbit phase、pulse interval、豹猫粒子参数和 Home state-machine timing 由 current source / tests 负责。
+
+### 7.1 Stable Home state interface
+
+以下 state vocabulary 由 current runtime / CSS contract test共同约束，属于实现接口，不应在普通重构中随意改名或重新合并：
+
+- `data-has-state="active|stable|dormant|unavailable"`：HAS presentation state；
+- `data-planet-state="ready"`：Planet ready interaction state；
+- `data-cat-state="reveal|charged|burst|recovering"`：豹猫 interaction state；
+- `.about-zone.ready`：About interaction switch，不是豹猫状态机替代品。
+
+Legacy generic `data-state`、`.planet.ready` 与 `.about-zone.revealed/.charged/.burst/.recovering` 不应恢复。Component-local Home state 不写回 `body.dataset`。
+
+轨道 phase / period、pulse scheduler、星图随机 geometry、豹猫粒子参数与 Home state-machine timing 仍由 runtime 拥有；这里锁定的是 selector/state seam，不复制 volatile tuning constants。
 
 ## 8. Responsive 与性能
 
