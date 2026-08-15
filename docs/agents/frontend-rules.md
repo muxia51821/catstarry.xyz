@@ -38,7 +38,9 @@ Pointer enhancement 只在合适的 fine-pointer 环境启用，并尊重 `prefe
 
 ## 3. CSS 与 token
 
-`src/styles/main.css` 是主站 canonical global style entry。当前 global chain 从 `variables.css`、`typography.css`、`components.css` 进入，并另外加载 Content pointer styles；维护 current import graph，不创建第二套全局入口。
+`src/styles/main.css` 是主站 canonical global style entry；`src/layouts/Base.astro` 当前从该入口加载主站全局 CSS。当前 global chain 从 `variables.css`、`typography.css`、`components.css` 进入，并另外加载 Content pointer styles；维护 current import graph，不创建第二套全局入口。
+
+`src/styles/global.css` 仍存在于仓库，但 current production source 没有 consumer。它保存的是早期 Slice 的独立色板、Card、680px 等旧样式，不属于当前 global style graph；不得因为文件存在而重新 import 或把其中 token / component treatment 当作 current Design authority。
 
 ### 3.1 三层 token implementation contract
 
@@ -144,7 +146,7 @@ Legacy generic `data-state`、`.planet.ready` 与 `.about-zone.revealed/.charged
 | Interaction / dialog | keyboard、focus、touch；Escape / focus restore 如适用 |
 | Motion / pointer | fine/coarse pointer、reduced motion、内容遮挡 |
 | Responsive | 实际受影响的 narrow / wide failure point |
-| Shared CSS / token | 所有真实 consumers 与 module exceptions |
+| Shared CSS / token | CSS/build 可解析；检查新增/修改 custom-property 的定义与真实 consumer；检查所有受影响 consumers 与 module exceptions |
 | Asset / performance | loading / failure path + 相关性能指标 |
 | API-facing frontend | current contract、error/degraded state、相关 integration path |
 
