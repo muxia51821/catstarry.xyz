@@ -2,7 +2,7 @@
 
 > 当前执行手册。catstarry.xyz 已进入 Phase 8 长期维护；Phase 0–7 只保留为历史背景，不再作为每个维护任务必须重新经过的流程。
 >
-> 完整、可复用的 Phase 0–8 网站生命周期参考见 `docs/workflow-orchestration-phase0-8.md`；它用于历史理解和未来新项目，不是当前 Phase 8 的 mandatory workflow。
+> 完整、可复用的 Phase 0–8 网站生命周期参考已归档于 `docs/_archive/governance/workflow-orchestration-phase0-8.md`；它用于历史理解和未来新项目，不是当前 Phase 8 的 mandatory workflow。
 
 ---
 
