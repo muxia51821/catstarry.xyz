@@ -36,7 +36,7 @@ const CATEGORY_ALIASES = new Map([
 ]);
 const state = {
   session: null, holdings: null, trades: [], pe: [], circuit: null, reviews: [], notifications: null,
-  accessLog: [], importReview: [], monthly: [], cashFlows: [], assetSnapshots: [], riskSignals: null, cashFlowsError: null, assetSnapshotsError: null, riskSignalsError: null, assetSeries: null, assetView: 'month', plan: null, memos: [], rules: [], rebalances: [], editingTrade: null, editingMemo: null, editingCashFlow: null,
+  accessLog: [], importReview: [], monthly: [], cashFlows: [], accountEvents: [], assetSnapshots: [], riskSignals: null, cashFlowsError: null, assetSnapshotsError: null, riskSignalsError: null, assetSeries: null, assetView: 'month', plan: null, memos: [], rules: [], rebalances: [], editingTrade: null, editingMemo: null, editingCashFlow: null, editingAccountEvent: null,
   tradePaging: { cursors: [null], nextCursor: null, page: 0 }, accessPaging: { cursors: [null], nextCursor: null, page: 0 },
 };
 const viewerGuidance = { hasVisitedHoldings: false, monthlyPromptShown: false };
@@ -98,7 +98,7 @@ function showApp() {
   $('[data-role]').textContent = isAdmin() ? 'ADMIN · READ / WRITE' : 'CATI · READ ONLY';
   viewerGuidance.hasVisitedHoldings = false;
   viewerGuidance.monthlyPromptShown = false;
-  for (const node of $$('[data-open-trade], [data-open-review], [data-open-risk], [data-export-archive], [data-open-monthly], [data-open-plan], [data-open-memo], [data-open-rules], [data-open-cash-flow], [data-open-asset-snapshot]')) node.hidden = !isAdmin();
+  for (const node of $$('[data-open-trade], [data-open-review], [data-open-risk], [data-export-archive], [data-open-monthly], [data-open-plan], [data-open-memo], [data-open-rules], [data-open-cash-flow], [data-open-account-event], [data-open-asset-snapshot]')) node.hidden = !isAdmin();
 }
 
 async function loadDashboard() {
@@ -125,15 +125,17 @@ async function loadDashboard() {
     state.assetSeries = await request(`/api/assets/series?view=${state.assetView}`).catch(() => null);
     const optional = await Promise.all([
       request('/api/cash-flows').then((data) => ({ data, error: null })).catch((error) => ({ data: null, error })),
+      request('/api/account-events').then((data) => ({ data, error: null })).catch((error) => ({ data: null, error })),
       request('/api/assets/snapshots').then((data) => ({ data, error: null })).catch((error) => ({ data: null, error })),
       request('/api/risk/signals').then((data) => ({ data, error: null })).catch((error) => ({ data: null, error })),
     ]);
     state.cashFlows = optional[0].data?.cash_flows ?? [];
     state.cashFlowsError = optional[0].error;
-    state.assetSnapshots = optional[1].data?.snapshots ?? [];
-    state.assetSnapshotsError = optional[1].error;
-    state.riskSignals = optional[2].data;
-    state.riskSignalsError = optional[2].error;
+    state.accountEvents = optional[1].data?.account_events ?? [];
+    state.assetSnapshots = optional[2].data?.snapshots ?? [];
+    state.assetSnapshotsError = optional[2].error;
+    state.riskSignals = optional[3].data;
+    state.riskSignalsError = optional[3].error;
     renderDashboard();
     setStatus($('[data-dashboard-status]'), '');
   } finally {
@@ -143,7 +145,7 @@ async function loadDashboard() {
 
 function renderDashboard() {
   state.tradePaging.cursors = [null]; state.tradePaging.page = 0; state.accessPaging.cursors = [null]; state.accessPaging.page = 0;
-  renderCircuitBanner(); renderSummary(); renderOverview(); renderHoldings(); renderPositions(); renderPe(); renderTrades(); renderMonthly(); renderCashFlows(); renderAssetSnapshots(); renderPlan(); renderReviews(); renderRiskSignals(); renderMemos(); renderRules(); renderAccessLog(); renderImportReview();
+  renderCircuitBanner(); renderSummary(); renderOverview(); renderHoldings(); renderPositions(); renderPe(); renderTrades(); renderMonthly(); renderCashFlows(); renderAccountEvents(); renderAssetSnapshots(); renderPlan(); renderReviews(); renderRiskSignals(); renderMemos(); renderRules(); renderAccessLog(); renderImportReview();
 }
 
 function renderCircuitBanner() {
@@ -262,12 +264,15 @@ function renderTrades() {
   replace($('[data-trades-body]'), rows.map((row) => {
     const actions = el('td', { text: '—' });
     if (isAdmin()) { const edit = el('button', { className: 'text-button', text: '修改', attrs: { type: 'button' }, dataset: { editTrade: row.id } }); const remove = el('button', { className: 'text-button text-button--danger', text: '删除', attrs: { type: 'button' }, dataset: { deleteTrade: row.id } }); actions.replaceChildren(el('div', { className: 'row-actions' }, edit, remove)); }
-    return el('tr', {}, el('td', { className: 'table-data', text: row.trade_date }), el('td', { className: 'table-text', text: row.ticker_name || row.ticker }), el('td', { className: row.direction === 'sell' ? 'trade-sell' : 'trade-buy', text: row.direction === 'buy' ? '买入' : '卖出' }), el('td', { className: 'table-data', text: valueOrDash(row.quantity) }), el('td', { className: 'table-data', text: valueOrDash(row.price, money) }), el('td', { className: 'table-text' }, categoryLabel(row.position_category)), actions);
+    const memo = row.memo_reason ? `${row.memo_reason_source === 'reconstructed_confirmed' ? '事后确认：' : '原始记录：'}${row.memo_reason.slice(0, 44)}${row.memo_reason.length > 44 ? '…' : ''}` : '—';
+    if (isAdmin() && !row.memo_id) actions.firstElementChild?.append(el('button', { className: 'text-button', text: '补理由', attrs: { type: 'button' }, dataset: { memoTrade: row.id } }));
+    return el('tr', {}, el('td', { className: 'table-data', text: row.trade_date }), el('td', { className: 'table-text', text: row.ticker_name || row.ticker }), el('td', { className: row.direction === 'sell' ? 'trade-sell' : 'trade-buy', text: row.direction === 'buy' ? '买入' : '卖出' }), el('td', { className: 'table-data', text: valueOrDash(row.quantity) }), el('td', { className: 'table-data', text: valueOrDash(row.price, money) }), el('td', { className: 'table-text' }, categoryLabel(row.position_category)), el('td', { className: 'table-text', text: memo }), actions);
   }));
   $('[data-trades-empty]').hidden = rows.length > 0;
   renderPagination('trade');
   for (const button of $$('[data-edit-trade]')) button.addEventListener('click', () => openTradeEdit(Number(button.dataset.editTrade)));
   for (const button of $$('[data-delete-trade]')) button.addEventListener('click', () => deleteTrade(Number(button.dataset.deleteTrade)));
+  for (const button of $$('[data-memo-trade]')) button.addEventListener('click', () => openMemoForTrade(Number(button.dataset.memoTrade), button));
 }
 
 function renderMonthly() {
@@ -301,6 +306,15 @@ function renderCashFlows() {
   $('[data-cash-flows-error]').hidden = !state.cashFlowsError;
   for (const button of $$('[data-edit-cash-flow]')) button.addEventListener('click', () => openCashFlowEdit(Number(button.dataset.editCashFlow), button));
   for (const button of $$('[data-delete-cash-flow]')) button.addEventListener('click', () => deleteCashFlow(Number(button.dataset.deleteCashFlow)));
+}
+
+const ACCOUNT_EVENT_TYPES = { dividend: '红利', dividend_tax: '红利税', split: 'ETF 分拆', repo_start: '逆回购发生', repo_maturity: '逆回购回款', refund: '退款', other: '其他' };
+function renderAccountEvents() {
+  const rows = state.accountEvents ?? [];
+  replace($('[data-account-events-body]'), rows.slice(0, 16).map((row) => el('tr', {}, el('td', { className: 'table-data', text: `${row.event_date}${row.event_time ? ` ${row.event_time}` : ''}` }), el('td', { text: ACCOUNT_EVENT_TYPES[row.event_type] ?? row.event_type }), el('td', { text: row.ticker_name || row.ticker || '—' }), el('td', { className: 'table-data', text: valueOrDash(row.amount, money) }), el('td', { text: row.note || '—' }), el('td', {}, isAdmin() ? el('div', { className: 'row-actions' }, el('button', { className: 'text-button', text: '编辑', attrs: { type: 'button' }, dataset: { editAccountEvent: row.id } }), el('button', { className: 'text-button text-button--danger', text: '删除', attrs: { type: 'button' }, dataset: { deleteAccountEvent: row.id } })) : null))));
+  $('[data-account-events-empty]').hidden = rows.length > 0;
+  for (const button of $$('[data-edit-account-event]')) button.addEventListener('click', () => openAccountEventEdit(Number(button.dataset.editAccountEvent), button));
+  for (const button of $$('[data-delete-account-event]')) button.addEventListener('click', () => deleteAccountEvent(Number(button.dataset.deleteAccountEvent)));
 }
 
 function renderAssetSnapshots() {
@@ -517,6 +531,12 @@ async function deleteCashFlow(id) {
   try { await request(`/api/cash-flows/${id}`, { method: 'DELETE', body: '{}' }); await loadDashboard(); setStatus($('[data-dashboard-status]'), '现金流已删除。', 'success'); }
   catch (error) { setStatus($('[data-dashboard-status]'), error.message, 'error'); }
 }
+const accountEventDialog = $('[data-account-event-dialog]'); const accountEventForm = $('[data-account-event-form]');
+function openAccountEventNew(trigger) { state.editingAccountEvent = null; accountEventForm.reset(); accountEventForm.elements.event_date.value = localDateForInput(); $('h2', accountEventDialog).textContent = '记录账户事件'; $('button[type="submit"]', accountEventForm).textContent = '保存账户事件'; setStatus($('[data-account-event-status]'), ''); openDialog(accountEventDialog, trigger); }
+function openAccountEventEdit(id, trigger) { const event = state.accountEvents.find((row) => Number(row.id) === id); if (!event) return; state.editingAccountEvent = event; accountEventForm.reset(); for (const [key, value] of Object.entries(event)) if (accountEventForm.elements[key]) accountEventForm.elements[key].value = value ?? ''; $('h2', accountEventDialog).textContent = '编辑账户事件'; $('button[type="submit"]', accountEventForm).textContent = '保存修改'; setStatus($('[data-account-event-status]'), ''); openDialog(accountEventDialog, trigger); }
+for (const trigger of $$('[data-open-account-event]')) trigger.addEventListener('click', (event) => openAccountEventNew(event.currentTarget));
+accountEventForm.addEventListener('submit', async (event) => { event.preventDefault(); const submit = $('button[type="submit"]', accountEventForm); submit.disabled = true; try { const editing = state.editingAccountEvent; await request(editing ? `/api/account-events/${editing.id}` : '/api/account-events', { method: editing ? 'PATCH' : 'POST', body: JSON.stringify(Object.fromEntries(new FormData(accountEventForm))) }); setDialogOpen(accountEventDialog, false); await loadDashboard(); } catch (error) { setStatus($('[data-account-event-status]'), error.message, 'error'); } finally { submit.disabled = false; } });
+async function deleteAccountEvent(id) { if (!window.confirm('删除后会保留审计记录，是否继续？')) return; try { await request(`/api/account-events/${id}`, { method: 'DELETE', body: '{}' }); await loadDashboard(); setStatus($('[data-dashboard-status]'), '账户事件已删除。', 'success'); } catch (error) { setStatus($('[data-dashboard-status]'), error.message, 'error'); } }
 connectPostDialog('[data-asset-snapshot-dialog]', '[data-open-asset-snapshot]', (form) => { form.elements.snapshot_at.value = new Date().toISOString().slice(0, 16); form.elements.is_complete.checked = true; }, '/api/assets/snapshots', (data, form) => ({ ...data, is_complete: form.elements.is_complete.checked }));
 const memoDialog = $('[data-memo-dialog]'); const memoForm = $('[data-memo-form]');
 $('[data-open-memo]').addEventListener('click', (event) => openMemoNew(event.currentTarget));
@@ -546,6 +566,7 @@ function openMemoNew(trigger) {
   state.editingMemo = null; memoForm.reset(); memoForm.elements.trade_id.disabled = false; populateMemoTrades(); setMemoTradeSnapshot();
   $('[data-memo-dialog-title]').textContent = '记录投资判断'; $('[data-memo-dialog-copy]').textContent = '每笔交易只能关联一条备忘录。交易信息会作为历史快照保存，不能在备忘录中修改。'; $('[data-memo-submit]').textContent = '保存备忘录'; setStatus($('[data-memo-status]'), ''); openDialog(memoDialog, trigger);
 }
+function openMemoForTrade(id, trigger) { openMemoNew(trigger); memoForm.elements.trade_id.value = String(id); setMemoTradeSnapshot(); }
 function openMemoEdit(id, trigger) {
   const memo = state.memos.find((row) => Number(row.id) === id); if (!memo) return;
   state.editingMemo = memo; memoForm.reset(); populateMemoTrades(memo.trade_id); memoForm.elements.trade_id.disabled = true; memoForm.elements.reason.value = memo.reason ?? ''; memoForm.elements.note.value = memo.note ?? ''; memoForm.elements.stop_loss_triggered.checked = Boolean(memo.stop_loss_triggered); setMemoTradeSnapshot();

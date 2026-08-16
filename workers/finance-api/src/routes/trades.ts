@@ -10,6 +10,9 @@ interface TradeInput {
   price?: unknown;
   position_category?: unknown;
   reason?: unknown;
+  trade_time?: unknown;
+  fee?: unknown;
+  net_cash_amount?: unknown;
 }
 
 interface HoldingSnapshot {
@@ -29,8 +32,14 @@ interface TradeRow {
   price: number;
   position_category: string;
   reason: string | null;
+  trade_time: string | null;
+  fee: number | null;
+  net_cash_amount: number | null;
   created_by: string | null;
   deleted_at: string | null;
+  memo_id?: number | null;
+  memo_reason?: string | null;
+  memo_reason_source?: string | null;
 }
 
 export const HOLDING_UPSERT_SQL = `WITH input (
@@ -93,13 +102,15 @@ async function listTrades(request: Request, env: FinanceEnv): Promise<Response> 
   const filter = { start: start ?? null, end: end ?? null, ticker: ticker || null, direction: direction || null };
   const cursor = decodeCursor(url.searchParams.get('cursor'), filter);
   if (cursor instanceof Response) return cursor;
-  const clauses = ['deleted_at IS NULL']; const values: unknown[] = [];
-  if (filter.start) { clauses.push('trade_date >= ?'); values.push(filter.start); }
-  if (filter.end) { clauses.push('trade_date <= ?'); values.push(filter.end); }
-  if (filter.ticker) { clauses.push('ticker = ?'); values.push(filter.ticker); }
-  if (filter.direction) { clauses.push('direction = ?'); values.push(filter.direction); }
-  if (cursor) { clauses.push('(trade_date < ? OR (trade_date = ? AND id < ?))'); values.push(cursor.sort, cursor.sort, cursor.id); }
-  const rows = await env.DB.prepare(`SELECT * FROM trades WHERE ${clauses.join(' AND ')} ORDER BY trade_date DESC, id DESC LIMIT ?`).bind(...values, limit + 1).all<TradeRow>();
+  const clauses = ['t.deleted_at IS NULL']; const values: unknown[] = [];
+  if (filter.start) { clauses.push('t.trade_date >= ?'); values.push(filter.start); }
+  if (filter.end) { clauses.push('t.trade_date <= ?'); values.push(filter.end); }
+  if (filter.ticker) { clauses.push('t.ticker = ?'); values.push(filter.ticker); }
+  if (filter.direction) { clauses.push('t.direction = ?'); values.push(filter.direction); }
+  if (cursor) { clauses.push('(t.trade_date < ? OR (t.trade_date = ? AND t.id < ?))'); values.push(cursor.sort, cursor.sort, cursor.id); }
+  const rows = await env.DB.prepare(`SELECT t.*, m.id AS memo_id, m.reason AS memo_reason, m.reason_source AS memo_reason_source
+    FROM trades t LEFT JOIN finance_memos m ON m.trade_id = t.id AND m.deleted_at IS NULL
+    WHERE ${clauses.join(' AND ')} ORDER BY t.trade_date DESC, t.id DESC LIMIT ?`).bind(...values, limit + 1).all<TradeRow>();
   const items = rows.results.slice(0, limit); const last = items.at(-1);
   return json({ trades: items, items, nextCursor: rows.results.length > limit && last ? encodeCursor({ sort: last.trade_date, id: last.id, filter }) : null });
 }
@@ -128,17 +139,13 @@ async function createTrade(request: Request, env: FinanceEnv): Promise<Response>
   if (input.direction === 'sell' && Number(current?.quantity ?? 0) < input.quantity) {
     return apiError(409, 'insufficient_holding', 'Sell quantity exceeds the current holding');
   }
-  const sameDay = await env.DB.prepare(`SELECT id FROM trades
-    WHERE ticker = ? AND trade_date = ? AND deleted_at IS NULL LIMIT 1`).bind(input.ticker, input.trade_date).first();
-  if (sameDay) return apiError(409, 'duplicate_trade_day', 'One online trade per ticker per day preserves an auditable holding snapshot');
-
   const now = new Date().toISOString();
   const results = await env.DB.batch([
     env.DB.prepare(HOLDING_UPSERT_SQL).bind(input.trade_date, input.ticker, input.direction, input.quantity, input.price, input.position_category),
     env.DB.prepare(`INSERT INTO trades (
-      trade_date, ticker, ticker_name, direction, quantity, price, position_category, reason, needs_review, created_at, created_by
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`)
-      .bind(input.trade_date, input.ticker, input.ticker_name, input.direction, input.quantity, input.price, input.position_category, input.reason, now, session.username),
+      trade_date, trade_time, ticker, ticker_name, direction, quantity, price, fee, net_cash_amount, position_category, reason, needs_review, created_at, created_by
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`)
+      .bind(input.trade_date, input.trade_time, input.ticker, input.ticker_name, input.direction, input.quantity, input.price, input.fee, input.net_cash_amount, input.position_category, input.reason, now, session.username),
   ]);
   const id = Number(results[1]?.meta.last_row_id);
   await env.DB.prepare(`INSERT INTO finance_trade_audit (trade_id, action, actor, occurred_at, after_json)
@@ -167,9 +174,9 @@ async function updateTrade(request: Request, env: FinanceEnv, id: number): Promi
   if (!next) return apiError(409, 'insufficient_holding', 'The edited sell quantity exceeds the holding before this trade');
   const now = new Date().toISOString();
   await env.DB.batch([
-    env.DB.prepare(`UPDATE trades SET ticker_name = ?, direction = ?, quantity = ?, price = ?, position_category = ?, reason = ?,
+    env.DB.prepare(`UPDATE trades SET ticker_name = ?, direction = ?, quantity = ?, price = ?, trade_time = ?, fee = ?, net_cash_amount = ?, position_category = ?, reason = ?,
       updated_at = ?, updated_by = ? WHERE id = ? AND deleted_at IS NULL`)
-      .bind(input.ticker_name, input.direction, input.quantity, input.price, input.position_category, input.reason, now, session.username, id),
+      .bind(input.ticker_name, input.direction, input.quantity, input.price, input.trade_time, input.fee, input.net_cash_amount, input.position_category, input.reason, now, session.username, id),
     env.DB.prepare(`UPDATE holdings_snapshots SET quantity = ?, avg_cost = ?, position_category = ?
       WHERE ticker = ? AND snapshot_date = ?`)
       .bind(next.quantity, next.avg_cost, input.position_category, existing.ticker, existing.trade_date),
@@ -245,10 +252,19 @@ function normalizeTrade(value: TradeInput) {
   const price = Number(value.price);
   const position_category = typeof value.position_category === 'string' ? value.position_category.trim() : '';
   const reason = typeof value.reason === 'string' ? value.reason.trim() || null : null;
+  const trade_time = value.trade_time === undefined || value.trade_time === null || value.trade_time === '' ? null : typeof value.trade_time === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(value.trade_time.trim()) ? value.trade_time.trim() : undefined;
+  const fee = optionalFinite(value.fee);
+  const net_cash_amount = optionalFinite(value.net_cash_amount);
   if (!validDate(trade_date) || !/^[A-Z0-9.-]{2,24}$/.test(ticker) || !['buy', 'sell'].includes(String(direction))) return null;
   if (!Number.isFinite(quantity) || quantity <= 0 || quantity > 1e15 || !Number.isFinite(price) || price <= 0 || price > 1e12 || !Number.isFinite(quantity * price)) return null;
-  if (!position_category || position_category.length > 64 || (ticker_name?.length ?? 0) > 100 || (reason?.length ?? 0) > 2_000) return null;
-  return { trade_date, ticker, ticker_name, direction: direction as 'buy' | 'sell', quantity, price, position_category, reason };
+  if (!position_category || position_category.length > 64 || (ticker_name?.length ?? 0) > 100 || (reason?.length ?? 0) > 2_000 || trade_time === undefined || fee === undefined || net_cash_amount === undefined || (fee !== null && fee < 0)) return null;
+  return { trade_date, trade_time, ticker, ticker_name, direction: direction as 'buy' | 'sell', quantity, price, fee, net_cash_amount, position_category, reason };
+}
+
+function optionalFinite(value: unknown): number | null | undefined {
+  if (value === undefined || value === null || value === '') return null;
+  const number = Number(value);
+  return Number.isFinite(number) && Math.abs(number) <= 1e15 ? number : undefined;
 }
 
 function validDate(value: string): boolean {

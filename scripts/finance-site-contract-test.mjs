@@ -24,7 +24,7 @@ assert.doesNotMatch(script, /setMonth\(/, 'confirmation periods must come from t
 assert.doesNotMatch(script, /innerHTML|insertAdjacentHTML|scrollIntoView/);
 assert.doesNotMatch(`${html}\n${script}\n${worker}`, /password\s*[:=]\s*["'][^"']+["']/i);
 assert.doesNotMatch(`${html}\n${script}`, /feed-api\.catstarry\.workers\.dev/);
-assert.doesNotMatch(`${html}\n${script}`, /data-open-account|data-account-list|\/api\/accounts/);
+assert.doesNotMatch(`${html}\n${script}`, /data-open-account(?!-event)|data-account-list|\/api\/accounts/);
 assert.match(html, /data-tab="entry"/);
 assert.match(html, /data-tab="overview"/);
 assert.match(html, /data-tab="holdings"/);
@@ -51,6 +51,7 @@ assert.match(html, /data-cash-flows-body/);
 assert.match(html, /data-asset-snapshots-body/);
 assert.match(html, /data-risk-signals-list/);
 assert.match(script, /\/api\/cash-flows/);
+assert.match(script, /\/api\/account-events/);
 assert.match(script, /\/api\/assets\/snapshots/);
 assert.match(script, /\/api\/risk\/signals/);
 assert.match(html, /风险信号暂时无法读取/);

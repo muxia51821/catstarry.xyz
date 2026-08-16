@@ -52,6 +52,7 @@
     "test:finance:import": "node scripts/finance-import-contract-test.mjs",
     "test:finance:import:snapshots": "node scripts/finance-import-snapshots-contract-test.mjs",
     "test:finance:workbook-import": "node scripts/finance-workbook-import-contract-test.mjs",
+    "test:finance:history-import": "node scripts/finance-history-import-contract-test.mjs",
     "test:finance:xlsx": "node --experimental-transform-types --import ./scripts/register-typescript-loader.mjs scripts/finance-xlsx-contract-test.mjs",
     "test:finance:http": "node --experimental-transform-types --import ./scripts/register-typescript-loader.mjs scripts/finance-http-contract-test.mjs",
     "test:finance:market": "node --experimental-transform-types --import ./scripts/register-typescript-loader.mjs scripts/finance-market-contract-test.mjs",

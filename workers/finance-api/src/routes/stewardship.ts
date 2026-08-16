@@ -56,8 +56,8 @@ async function saveMemo(request: Request, env: FinanceEnv) {
   const existing = await env.DB.prepare('SELECT id FROM finance_memos WHERE trade_id = ? AND deleted_at IS NULL LIMIT 1').bind(input.trade_id).first<{ id: number }>();
   if (existing) return apiError(409, 'memo_exists_for_trade', 'A trade can have only one active memo');
   const now = new Date().toISOString();
-  const result = await env.DB.prepare(`INSERT INTO finance_memos (trade_id, memo_date, ticker, position_category, operation_type, reason, stop_loss_triggered, note, created_at, created_by)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(input.trade_id, trade.trade_date, trade.ticker, trade.position_category, trade.direction, input.reason, input.stop_loss_triggered, input.note, now, session.username).run();
+  const result = await env.DB.prepare(`INSERT INTO finance_memos (trade_id, memo_date, ticker, position_category, operation_type, reason, reason_source, stop_loss_triggered, note, created_at, created_by)
+    VALUES (?, ?, ?, ?, ?, ?, 'original', ?, ?, ?, ?)`).bind(input.trade_id, trade.trade_date, trade.ticker, trade.position_category, trade.direction, input.reason, input.stop_loss_triggered, input.note, now, session.username).run();
   return json({ memo: await env.DB.prepare('SELECT * FROM finance_memos WHERE id = ?').bind(result.meta.last_row_id).first() }, 201);
 }
 

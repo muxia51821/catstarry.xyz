@@ -491,26 +491,43 @@ async function exportArchive(request: Request, env: FinanceEnv): Promise<Respons
   if (!Number.isInteger(year) || year < 2000 || year > 2200) return apiError(400, 'invalid_year', 'year must be between 2000 and 2200');
   const start = `${year}-01-01`;
   const end = `${year + 1}-01-01`;
-  const [trades, snapshots, monthly, review, confirmations] = await Promise.all([
-    env.DB.prepare('SELECT trade_date, ticker, ticker_name, direction, quantity, price, position_category, reason, needs_review FROM trades WHERE trade_date >= ? AND trade_date < ? ORDER BY trade_date, id')
+  const [trades, snapshots, accountEvents, cashFlows, assets, memos, monthlyRecords, monthly, rebalances, review, confirmations] = await Promise.all([
+    env.DB.prepare('SELECT trade_date, trade_time, ticker, ticker_name, direction, quantity, price, fee, net_cash_amount, position_category, reason, needs_review FROM trades WHERE trade_date >= ? AND trade_date < ? ORDER BY trade_date, id')
       .bind(start, end).all<Record<string, unknown>>(),
     env.DB.prepare('SELECT snapshot_date, ticker, quantity, avg_cost, position_category FROM holdings_snapshots WHERE snapshot_date >= ? AND snapshot_date < ? ORDER BY snapshot_date, ticker, id')
       .bind(start, end).all<Record<string, unknown>>(),
+    env.DB.prepare('SELECT event_date, event_time, event_type, ticker, ticker_name, quantity, reference_value, amount, position_category, note FROM finance_account_events WHERE deleted_at IS NULL AND event_date >= ? AND event_date < ? ORDER BY event_date, id')
+      .bind(start, end).all<Record<string, unknown>>(),
+    env.DB.prepare('SELECT occurred_on, contributor, flow_type, bonus_source_year, baseline_amount, confirmed_amount, manager_share_offset, net_amount, note FROM finance_cash_flows WHERE deleted_at IS NULL AND occurred_on >= ? AND occurred_on < ? ORDER BY occurred_on, id')
+      .bind(start, end).all<Record<string, unknown>>(),
+    env.DB.prepare('SELECT snapshot_at, snapshot_date, holdings_value, cash_value, total_value, source, is_complete, incomplete_reason FROM finance_asset_snapshots WHERE deleted_at IS NULL AND snapshot_date >= ? AND snapshot_date < ? ORDER BY snapshot_at, id')
+      .bind(start, end).all<Record<string, unknown>>(),
+    env.DB.prepare('SELECT trade_id, memo_date, ticker, operation_type, reason, reason_source, note, stop_loss_triggered FROM finance_memos WHERE deleted_at IS NULL AND memo_date >= ? AND memo_date < ? ORDER BY memo_date, id')
+      .bind(start, end).all<Record<string, unknown>>(),
+    env.DB.prepare('SELECT year_month, muxia_invest, cati_invest, end_total, sse300_pe, sse500_pe, sse1000_pe, blue_chip_temp, summary, remark FROM monthly_records WHERE deleted_at IS NULL AND year_month >= ? AND year_month < ? ORDER BY year_month')
+      .bind(`${year}-01`, `${year + 1}-01`).all<Record<string, unknown>>(),
     env.DB.prepare(`SELECT substr(trade_date, 1, 7) AS period,
         SUM(CASE WHEN direction = 'buy' THEN quantity * price ELSE 0 END) AS buy_value,
         SUM(CASE WHEN direction = 'sell' THEN quantity * price ELSE 0 END) AS sell_value,
         COUNT(*) AS trade_count
       FROM trades WHERE trade_date >= ? AND trade_date < ? GROUP BY period ORDER BY period`)
       .bind(start, end).all<Record<string, unknown>>(),
+    env.DB.prepare('SELECT year, executed_on, adjustments, reason, created_at, created_by, confirmed_by, confirmed_at FROM finance_rebalance_records WHERE year = ? ORDER BY id').bind(year).all<Record<string, unknown>>(),
     env.DB.prepare('SELECT year, calculation_json, summary, calculated_at, confirmed_by, confirmed_at FROM annual_reviews WHERE year = ?')
       .bind(year).all<Record<string, unknown>>(),
     env.DB.prepare('SELECT period, username, confirmed_at FROM monthly_confirmations WHERE period >= ? AND period < ? ORDER BY period, username')
       .bind(`${year}-01`, `${year + 1}-01`).all<Record<string, unknown>>(),
   ]);
   const workbook = buildXlsx([
-    sheet('Trades', ['trade_date', 'ticker', 'ticker_name', 'direction', 'quantity', 'price', 'position_category', 'reason', 'needs_review'], trades.results),
+    sheet('Trades', ['trade_date', 'trade_time', 'ticker', 'ticker_name', 'direction', 'quantity', 'price', 'fee', 'net_cash_amount', 'position_category', 'reason', 'needs_review'], trades.results),
     sheet('Holding Snapshots', ['snapshot_date', 'ticker', 'quantity', 'avg_cost', 'position_category'], snapshots.results),
-    sheet('Monthly Summary', ['period', 'buy_value', 'sell_value', 'trade_count'], monthly.results),
+    sheet('Account Events', ['event_date', 'event_time', 'event_type', 'ticker', 'ticker_name', 'quantity', 'reference_value', 'amount', 'position_category', 'note'], accountEvents.results),
+    sheet('Cash Flows', ['occurred_on', 'contributor', 'flow_type', 'bonus_source_year', 'baseline_amount', 'confirmed_amount', 'manager_share_offset', 'net_amount', 'note'], cashFlows.results),
+    sheet('Asset Snapshots', ['snapshot_at', 'snapshot_date', 'holdings_value', 'cash_value', 'total_value', 'source', 'is_complete', 'incomplete_reason'], assets.results),
+    sheet('Investment Memos', ['trade_id', 'memo_date', 'ticker', 'operation_type', 'reason', 'reason_source', 'note', 'stop_loss_triggered'], memos.results),
+    sheet('Monthly Records', ['year_month', 'muxia_invest', 'cati_invest', 'end_total', 'sse300_pe', 'sse500_pe', 'sse1000_pe', 'blue_chip_temp', 'summary', 'remark'], monthlyRecords.results),
+    sheet('Monthly Trade Summary', ['period', 'buy_value', 'sell_value', 'trade_count'], monthly.results),
+    sheet('Rebalances', ['year', 'executed_on', 'adjustments', 'reason', 'created_at', 'created_by', 'confirmed_by', 'confirmed_at'], rebalances.results),
     sheet('Annual Review', ['year', 'calculation_json', 'summary', 'calculated_at', 'confirmed_by', 'confirmed_at'], review.results),
     sheet('Confirmations', ['period', 'username', 'confirmed_at'], confirmations.results),
   ]);

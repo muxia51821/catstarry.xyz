@@ -58,12 +58,12 @@ def workbook_sheets(path: Path):
                 values = {}
                 for cell in row.findall(NS + 'c'):
                     raw = cell.findtext(NS + 'v')
-                    if raw is None:
-                        continue
-                    if cell.attrib.get('t') == 's':
-                        value = shared[int(raw)]
-                    elif cell.attrib.get('t') == 'inlineStr':
+                    if cell.attrib.get('t') == 'inlineStr':
                         value = ''.join(cell.itertext())
+                    elif raw is None:
+                        continue
+                    elif cell.attrib.get('t') == 's':
+                        value = shared[int(raw)]
                     else:
                         try:
                             value = float(raw) if '.' in raw else int(raw)
