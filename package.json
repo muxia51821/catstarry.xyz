@@ -44,6 +44,7 @@
     "test:finance:site": "node scripts/finance-site-contract-test.mjs",
     "test:finance:ui": "node scripts/finance-ui-regression.mjs",
     "finance:preview": "node scripts/finance-preview.mjs",
+    "finance:preview:history": "node scripts/finance-preview-history.mjs",
     "test:preview:local": "node scripts/local-preview.mjs --smoke-only",
     "test:preview:lifecycle": "node scripts/local-preview-lifecycle-test.mjs",
     "preview:local": "node scripts/local-preview.mjs",
