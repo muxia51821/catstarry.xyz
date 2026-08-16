@@ -21,6 +21,7 @@ _legacy = importlib.util.module_from_spec(_legacy_spec); _legacy_spec.loader.exe
 workbook_sheets, date_value, number, sql = _legacy.workbook_sheets, _legacy.date_value, _legacy.number, _legacy.sql
 
 EXPECTED = {'trades': 61, 'memos': 51, 'account_events': 16, 'cash_flows': 4, 'holdings_snapshots': 10, 'asset_snapshots': 1}
+SHANGHAI_OFFSET = dt.timezone(dt.timedelta(hours=8))
 
 def text(value):
     return value.strip() if isinstance(value, str) else ''
@@ -62,8 +63,8 @@ def combine_note(note, retrospective):
 
 def timestamp(value):
     if isinstance(value, (int, float)) and 20_000 < value < 80_000:
-        base = dt.datetime(1899, 12, 30, tzinfo=dt.timezone.utc)
-        return (base + dt.timedelta(days=float(value))).isoformat(timespec='milliseconds').replace('+00:00', 'Z')
+        local = dt.datetime(1899, 12, 30) + dt.timedelta(days=float(value))
+        return local.replace(tzinfo=SHANGHAI_OFFSET).astimezone(dt.timezone.utc).isoformat(timespec='milliseconds').replace('+00:00', 'Z')
     day = date_value(value)
     return f'{day}T00:00:00.000Z' if day else None
 
@@ -76,6 +77,7 @@ def main():
     parser.add_argument('sql_output', type=Path)
     parser.add_argument('report_output', type=Path)
     parser.add_argument('--expected-counts', help='JSON count override used only by the synthetic contract fixture')
+    parser.add_argument('--d1-ready', action='store_true', help='omit outer BEGIN/COMMIT for wrangler d1 execute --file')
     args = parser.parse_args()
     if not args.workbook.is_file(): raise SystemExit('Workbook does not exist')
     if args.sql_output.exists() or args.report_output.exists(): raise SystemExit('Output already exists; choose new paths')
@@ -88,10 +90,8 @@ def main():
     batch = 'historical-' + hashlib.sha256(args.workbook.read_bytes()).hexdigest()[:20]
     actor = f'historical-import:{batch}'
     now = '2026-08-16T00:00:00.000Z'
-    statements = [
-        'BEGIN;',
-        insert('finance_workbook_imports', ['batch_id', 'source_name', 'source_rows', 'imported_rows', 'review_rows', 'created_at'], [batch, args.workbook.name, sum(expected.values()), sum(expected.values()), 0, now]),
-    ]
+    statements = [] if args.d1_ready else ['BEGIN;']
+    statements.append(insert('finance_workbook_imports', ['batch_id', 'source_name', 'source_rows', 'imported_rows', 'review_rows', 'created_at'], [batch, args.workbook.name, sum(expected.values()), sum(expected.values()), 0, now]))
     trade_rows, memo_rows, event_rows, flow_rows, holding_rows, asset_rows = [], [], [], [], [], []
 
     headers, rows = rows_by_header(sheets['操作记录'], 1)
@@ -157,7 +157,7 @@ def main():
     for row in flow_rows: statements.append(insert('finance_cash_flows', ['occurred_on','contributor','flow_type','bonus_source_year','baseline_amount','confirmed_amount','manager_share_offset','net_amount','note','created_at','created_by'], [row['date'],row['contributor'],'monthly_investment',None,row['baseline'],row['confirmed'],row['offset'],row['confirmed'],row['note'],now,actor]))
     for row in holding_rows: statements.append(insert('holdings_snapshots', ['snapshot_date','ticker','quantity','avg_cost','position_category'], [row['date'],row['ticker'],row['quantity'],row['cost'],row['category']]))
     for row in asset_rows: statements.append(insert('finance_asset_snapshots', ['snapshot_at','snapshot_date','holdings_value','cash_value','total_value','source','is_complete','incomplete_reason','created_at','created_by'], [row['at'],row['date'],row['holdings'],row['cash'],row['total'],row['source'],row['complete'],None,now,actor]))
-    statements.append('COMMIT;')
+    if not args.d1_ready: statements.append('COMMIT;')
     report = {'batch_id': batch, 'source_name': args.workbook.name, 'expected': expected, 'actual': actual, 'unresolved_rows': 0, 'synthetic_records': 0, 'excluded_broker_only_trades': 5, 'asset_reconciliation': {'holdings_value': holdings_value, 'cash_value': cash_value, 'total_value': total_value, 'balanced': True}, 'holdings_snapshot_mapping': holding_rows}
     args.sql_output.write_text('\n'.join(statements) + '\n', encoding='utf-8')
     args.report_output.write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
