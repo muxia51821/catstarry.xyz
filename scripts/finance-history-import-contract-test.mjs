@@ -10,9 +10,16 @@ const run = promisify(execFile); const root = await mkdtemp(path.join(os.tmpdir(
 const python = process.platform === 'win32' ? 'python' : 'python3'; const expected = { trades: 2, memos: 2, account_events: 1, cash_flows: 1, holdings_snapshots: 1, asset_snapshots: 1 };
 try {
   const workbook = path.join(root, 'fixture.xlsx'); const output = path.join(root, 'history.sql'); const reportPath = path.join(root, 'report.json');
+  const d1Output = path.join(root, 'history-d1.sql'); const d1ReportPath = path.join(root, 'report-d1.json');
   await run(python, ['scripts/finance-history-import-fixture.py', workbook], { windowsHide: true });
   const { stdout } = await run(python, ['scripts/finance-import-history.py', workbook, output, reportPath, '--expected-counts', JSON.stringify(expected)], { windowsHide: true });
   assert.deepEqual(JSON.parse(stdout).actual, expected);
+  await run(python, ['scripts/finance-import-history.py', workbook, d1Output, d1ReportPath, '--expected-counts', JSON.stringify(expected), '--d1-ready'], { windowsHide: true });
+  const d1Sql = await readFile(d1Output, 'utf8');
+  assert.doesNotMatch(d1Sql, /^BEGIN;/, 'D1-ready SQL must not include an outer BEGIN');
+  assert.doesNotMatch(d1Sql, /COMMIT;\s*$/, 'D1-ready SQL must not include an outer COMMIT');
+  assert.match(d1Sql, /2026-06-01T04:00:00\.000Z/, 'Shanghai wall time must normalize to UTC');
+
   const database = new DatabaseSync(':memory:');
   for (const file of (await readdir('workers/finance-api/migrations')).filter((file) => file.endsWith('.sql')).sort()) database.exec(await readFile(path.join('workers/finance-api/migrations', file), 'utf8'));
   const sql = await readFile(output, 'utf8'); database.exec(sql);
@@ -20,6 +27,7 @@ try {
   assert.equal(database.prepare("SELECT COUNT(*) AS count FROM finance_memos WHERE reason_source = 'reconstructed_confirmed'").get().count, 1);
   assert.equal(database.prepare('SELECT COUNT(*) AS count FROM finance_account_events').get().count, 1);
   assert.equal(database.prepare('SELECT COUNT(*) AS count FROM finance_cash_flows').get().count, 1);
+  assert.equal(database.prepare('SELECT snapshot_at FROM finance_asset_snapshots').get().snapshot_at, '2026-06-01T04:00:00.000Z');
   assert.throws(() => database.exec(sql), /UNIQUE/, 'the accepted-workbook batch must not run twice'); database.close();
 } finally { await rm(root, { recursive: true, force: true }); }
 console.log('Finance historical import contract passed.');
