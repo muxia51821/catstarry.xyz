@@ -36,7 +36,7 @@ CREATE TABLE finance_memos (
   position_category TEXT,
   operation_type TEXT,
   reason TEXT NOT NULL,
-  reason_source TEXT,
+  reason_source TEXT CHECK (reason_source IS NULL OR reason_source IN ('original', 'reconstructed_confirmed')),
   stop_loss_triggered INTEGER NOT NULL DEFAULT 0 CHECK (stop_loss_triggered IN (0, 1)),
   note TEXT,
   created_at TEXT NOT NULL,

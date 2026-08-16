@@ -265,6 +265,7 @@ function renderTrades() {
     const actions = el('td', { text: '—' });
     if (isAdmin()) { const edit = el('button', { className: 'text-button', text: '修改', attrs: { type: 'button' }, dataset: { editTrade: row.id } }); const remove = el('button', { className: 'text-button text-button--danger', text: '删除', attrs: { type: 'button' }, dataset: { deleteTrade: row.id } }); actions.replaceChildren(el('div', { className: 'row-actions' }, edit, remove)); }
     const memo = row.memo_reason ? `${row.memo_reason_source === 'reconstructed_confirmed' ? '事后确认：' : '原始记录：'}${row.memo_reason.slice(0, 44)}${row.memo_reason.length > 44 ? '…' : ''}` : '—';
+    if (isAdmin() && row.memo_id) actions.firstElementChild?.append(el('button', { className: 'text-button', text: '改理由', attrs: { type: 'button' }, dataset: { editMemoFromTrade: row.memo_id } }));
     if (isAdmin() && !row.memo_id) actions.firstElementChild?.append(el('button', { className: 'text-button', text: '补理由', attrs: { type: 'button' }, dataset: { memoTrade: row.id } }));
     return el('tr', {}, el('td', { className: 'table-data', text: row.trade_date }), el('td', { className: 'table-text', text: row.ticker_name || row.ticker }), el('td', { className: row.direction === 'sell' ? 'trade-sell' : 'trade-buy', text: row.direction === 'buy' ? '买入' : '卖出' }), el('td', { className: 'table-data', text: valueOrDash(row.quantity) }), el('td', { className: 'table-data', text: valueOrDash(row.price, money) }), el('td', { className: 'table-text' }, categoryLabel(row.position_category)), el('td', { className: 'table-text', text: memo }), actions);
   }));
@@ -273,6 +274,7 @@ function renderTrades() {
   for (const button of $$('[data-edit-trade]')) button.addEventListener('click', () => openTradeEdit(Number(button.dataset.editTrade)));
   for (const button of $$('[data-delete-trade]')) button.addEventListener('click', () => deleteTrade(Number(button.dataset.deleteTrade)));
   for (const button of $$('[data-memo-trade]')) button.addEventListener('click', () => openMemoForTrade(Number(button.dataset.memoTrade), button));
+  for (const button of $$('[data-edit-memo-from-trade]')) button.addEventListener('click', () => openMemoEdit(Number(button.dataset.editMemoFromTrade), button));
 }
 
 function renderMonthly() {

@@ -10,6 +10,25 @@ let currentRole = null;
 let viewerConfirmed = false;
 let initialSessionRequest = true;
 let riskSignalsFailure = false;
+const historicalMemos = Array.from({ length: 13 }, (_, index) => {
+  const id = 13 - index;
+  return {
+    id,
+    trade_id: id === 1 ? 1 : 100 + id,
+    memo_date: `2026-07-${String(10 + id).padStart(2, '0')}`,
+    ticker: '510300',
+    ticker_name: '沪深300ETF',
+    trade_quantity: 100,
+    trade_price: 12,
+    position_category: 'A股宽基指数底仓',
+    operation_type: 'buy',
+    reason: id === 1 ? 'historical fixture memo' : `newer fixture memo ${id}`,
+    note: null,
+    stop_loss_triggered: 0,
+    created_at: '2026-07-24T09:00:00.000Z',
+    updated_at: '2026-07-24T09:00:00.000Z',
+  };
+});
 const fixtures = {
   '/api/auth/session': { authenticated: false, username: null, role: null },
   '/api/holdings': {
@@ -23,7 +42,7 @@ const fixtures = {
     positions: [{ position_category: 'core', current_ratio: 1, target_ratio: 1, lower_ratio: 0.8, upper_ratio: 1, suggestedChange: 0, status: 'normal' }],
     market_overview: { label: '上证指数', current_value: 3452.17, change: 18.24, change_pct: .5312, market_time: '2026-07-30 15:00' },
   },
-  '/api/trades': { trades: [{ id: 1, trade_date: '2026-07-24', ticker: '510300', ticker_name: '沪深300ETF', direction: 'buy', quantity: 100, price: 12, position_category: 'A股宽基指数底仓', reason: 'fixture trade', created_by: 'contract-admin' }] },
+  '/api/trades': { trades: [{ id: 1, trade_date: '2026-07-24', ticker: '510300', ticker_name: '沪深300ETF', direction: 'buy', quantity: 100, price: 12, position_category: 'A股宽基指数底仓', reason: 'fixture trade', created_by: 'contract-admin', memo_id: 1, memo_reason: 'historical fixture memo', memo_reason_source: 'original' }] },
   '/api/pe': { indexes: [{ ticker: 'CSI300_PE', display_name: '沪深 300 PE-TTM', pe_ttm: 12.5, temperature: { zone: 'normal', suggestion: 'normal_dca' } }, { ticker: 'CSI500_PE', display_name: '中证 500 PE-TTM', pe_ttm: 22.8 }, { ticker: 'CSI1000_PE', display_name: '中证 1000 PE-TTM', pe_ttm: 31.4 }, { ticker: 'STAR50_PE', display_name: '科创 50 PE-TTM', pe_ttm: 48.2 }, { ticker: 'NASDAQ100_PE', display_name: '纳斯达克 100 PE', pe_ttm: 36.1 }] },
   '/api/circuit': { active: null },
   '/api/review': { reviews: [{ year: 2026, summary: 'fixture annual review', calculation: { dietz: { returnRate: .08 } }, confirmed_at: null, confirmed_by: null }] },
@@ -33,7 +52,7 @@ const fixtures = {
   '/api/assets/snapshots': { snapshots: [{ id: 1, snapshot_at: '2026-07-31T15:00', snapshot_date: '2026-07-31', total_value: 12600, source: 'fixture statement', is_complete: 1, incomplete_reason: null, created_at: '2026-07-31T15:10:00.000Z' }] },
   '/api/risk/signals': { single_position_loss: null, worst_ticker: null, monthly_drawdown: null, annual_drawdown: null, data_complete: false, missing_reasons: ['完整资产快照不足，组合回撤数据积累中。'], signals: [{ level: 'yellow', reason: 'fixture signal' }] },
   '/api/plan': { plan: { initial_capital: 100000, monthly_invest: 5000, months_year1: 7, months_year2plus: 12, rate_low: .03, rate_base: .06, rate_high: .1, bonus1: 50000, bonus2to4: 35000, start_year: 2026, end_year: 2030, updated_at: '2026-07-25T10:00:00.000Z' } },
-  '/api/memos': { memos: [{ id: 1, trade_id: 1, memo_date: '2026-07-24', ticker: '510300', ticker_name: '沪深300ETF', trade_quantity: 100, trade_price: 12, position_category: 'A股宽基指数底仓', operation_type: 'buy', reason: 'fixture memo', note: null, stop_loss_triggered: 0, created_at: '2026-07-24T09:00:00.000Z', updated_at: '2026-07-24T09:00:00.000Z' }] },
+  '/api/memos': { memos: historicalMemos },
   '/api/risk-rules': { rules: [{ rule_key: 'risk', value: { single_position_active_cap: .5, loss_pause_ratio: .15, stop_loss_ratio: .3, rebalance_deviation: .05 } }, { rule_key: 'temperature', value: { freeze: 10, low: 12, normal: 16, high: 20 } }] },
   '/api/rebalances': { rebalances: [{ id: 1, year: 2026, executed_on: '2026-12-20', adjustments: 'fixture rebalance', reason: 'fixture', confirmed_at: null, confirmed_by: null }] },
   '/api/access-log': { access_log: [{ username: 'contract-admin', action: 'login', occurred_at: '2026-07-25T10:00:00.000Z' }] },
@@ -94,8 +113,17 @@ const server = createServer(async (request, response) => {
   }
   if (url.pathname === '/api/plan' && request.method === 'PUT') return json(response, 200, { plan: JSON.parse(await readBody(request)) });
   if (url.pathname === '/api/memos' && request.method === 'POST') return json(response, 201, { memo: JSON.parse(await readBody(request)) });
-  if (url.pathname === '/api/memos/1' && request.method === 'PATCH') { Object.assign(fixtures['/api/memos'].memos[0], JSON.parse(await readBody(request)), { updated_at: '2026-07-30T10:00:00.000Z' }); return json(response, 200, { memo: fixtures['/api/memos'].memos[0] }); }
-  if (url.pathname === '/api/memos/1' && request.method === 'DELETE') { fixtures['/api/memos'].memos = []; return json(response, 200, { deleted: true }); }
+  const memoMatch = url.pathname.match(/^\/api\/memos\/(\d+)$/);
+  if (memoMatch && request.method === 'PATCH') {
+    const memo = fixtures['/api/memos'].memos.find((row) => row.id === Number(memoMatch[1]));
+    if (!memo) return json(response, 404, { message: 'memo fixture missing' });
+    Object.assign(memo, JSON.parse(await readBody(request)), { updated_at: '2026-07-30T10:00:00.000Z' });
+    return json(response, 200, { memo });
+  }
+  if (memoMatch && request.method === 'DELETE') {
+    fixtures['/api/memos'].memos = fixtures['/api/memos'].memos.filter((row) => row.id !== Number(memoMatch[1]));
+    return json(response, 200, { deleted: true });
+  }
   if (url.pathname === '/api/risk-rules' && request.method === 'PUT') { requestRecord.body = JSON.parse(await readBody(request)); return json(response, 200, { saved: true }); }
   if (url.pathname === '/api/review/confirm' && request.method === 'POST') { fixtures['/api/review'].reviews[0].confirmed_at = '2026-12-31T00:00:00.000Z'; fixtures['/api/review'].reviews[0].confirmed_by = 'contract-viewer'; return json(response, 200, { confirmed: true }); }
   if (url.pathname === '/api/rebalances/1/confirm' && request.method === 'POST') { fixtures['/api/rebalances'].rebalances[0].confirmed_at = '2026-12-31T00:00:00.000Z'; fixtures['/api/rebalances'].rebalances[0].confirmed_by = 'contract-viewer'; return json(response, 200, { confirmed: true }); }
@@ -393,16 +421,23 @@ try {
   await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27 });
   await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27 });
   await waitFor(`!document.querySelector('[data-memo-dialog]').open`, 'memo dialog close');
-  await evaluate(`document.querySelector('[data-edit-memo="1"]').click()`);
+  await evaluate(`document.querySelector('[data-edit-memo-from-trade="1"]').click()`);
   await waitFor(`document.querySelector('[data-memo-dialog]').open && document.querySelector('[data-memo-dialog-title]').textContent === '编辑投资备忘录'`, 'memo edit dialog');
   diagnostics.checks.memoEdit = await evaluate(`(() => {
     const form = document.querySelector('[data-memo-form]');
-    return { tradeLocked: form.elements.trade_id.disabled, snapshotHasAmount: document.querySelector('[data-memo-trade-total]').textContent !== '—', cancelVisible: Boolean(document.querySelector('[data-cancel-memo]').getClientRects().length) };
+    return {
+      tradeLocked: form.elements.trade_id.disabled,
+      snapshotHasAmount: document.querySelector('[data-memo-trade-total]').textContent !== '—',
+      cancelVisible: Boolean(document.querySelector('[data-cancel-memo]').getClientRects().length),
+      tradeAction: document.querySelector('[data-edit-memo-from-trade="1"]').textContent,
+      memoPanelHasHistorical: Boolean(document.querySelector('[data-memo-list] [data-edit-memo="1"]')),
+      reason: form.elements.reason.value,
+    };
   })()`);
   await evaluate(`(() => { const form = document.querySelector('[data-memo-form]'); form.elements.reason.value = 'updated fixture memo'; form.requestSubmit(); })()`);
   await waitFor(`!document.querySelector('[data-memo-dialog]').open`, 'memo edit completion');
-  await evaluate(`(() => { window.confirm = () => true; document.querySelector('[data-delete-memo="1"]').click(); })()`);
-  await waitFor(`document.querySelectorAll('[data-memo-list] article').length === 0`, 'memo deletion completion');
+  await evaluate(`(() => { window.confirm = () => true; document.querySelector('[data-delete-memo="13"]').click(); })()`);
+  await waitFor(`!document.querySelector('[data-delete-memo="13"]')`, 'memo deletion completion');
 
   await evaluate(`document.querySelector('[data-open-review]').click()`);
   await waitFor(`document.querySelector('[data-review-dialog]').open`, 'annual review dialog');
@@ -556,7 +591,7 @@ try {
     assetSnapshotRows: 1,
     riskSignalRows: 7,
     planValues: 4,
-    memoRows: 1,
+    memoRows: 12,
     accessCollapsed: true,
     financeFont: 'Geist, "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif',
     tradeActionVisible: true,
@@ -607,7 +642,7 @@ try {
   assert.equal(diagnostics.checks.reducedMotionTab, 'auto');
   assert.equal(diagnostics.checks.tradeFilters, true);
   assert.deepEqual(diagnostics.checks.memoTradeLink, { required: true, options: 2, snapshot: '交易日期2026-07-24标的510300 · 沪深300ETF买入或卖出买入成交数量100成交价格¥12.00成交金额¥1,200.00仓位类别A股宽基指数', checkboxCompact: true });
-  assert.deepEqual(diagnostics.checks.memoEdit, { tradeLocked: true, snapshotHasAmount: true, cancelVisible: true });
+  assert.deepEqual(diagnostics.checks.memoEdit, { tradeLocked: true, snapshotHasAmount: true, cancelVisible: true, tradeAction: '改理由', memoPanelHasHistorical: false, reason: 'historical fixture memo' });
   assert.equal(diagnostics.checks.riskRuleSaved, true);
   assert.deepEqual(diagnostics.checks.reviewModal, { appInert: true, activeName: 'year' });
   assert.deepEqual(diagnostics.checks.riskModal, { appInert: true, activeName: 'annualDrawdown' });
@@ -635,7 +670,7 @@ try {
   assert.equal(requests.filter((item) => item.method === 'PATCH' && item.pathname === '/api/trades/1').length, 1);
   assert.equal(requests.filter((item) => item.method === 'DELETE' && item.pathname === '/api/trades/1').length, 1);
   assert.equal(requests.filter((item) => item.method === 'PATCH' && item.pathname === '/api/memos/1').length, 1);
-  assert.equal(requests.filter((item) => item.method === 'DELETE' && item.pathname === '/api/memos/1').length, 1);
+  assert.equal(requests.filter((item) => item.method === 'DELETE' && item.pathname === '/api/memos/13').length, 1);
   assert.equal(requests.filter((item) => item.method === 'POST' && item.pathname === '/api/cash-flows').length, 1);
   assert.equal(requests.filter((item) => item.method === 'PATCH' && item.pathname === '/api/cash-flows/1').length, 1);
   assert.equal(requests.filter((item) => item.method === 'DELETE' && item.pathname === '/api/cash-flows/1').length, 1);

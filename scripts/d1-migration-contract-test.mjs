@@ -138,6 +138,15 @@ assert.match(
     .all().map(({ detail }) => detail).join(' '),
   /idx_finance_trades_date/,
 );
+finance.prepare(`INSERT INTO finance_memos (memo_date, reason, reason_source, created_at, created_by)
+  VALUES (?, ?, ?, ?, ?)`)
+  .run('2026-08-16', 'Original historical reason', 'original', '2026-08-16T00:00:00.000Z', 'migration-contract');
+finance.prepare(`INSERT INTO finance_memos (memo_date, reason, reason_source, created_at, created_by)
+  VALUES (?, ?, ?, ?, ?)`)
+  .run('2026-08-16', 'Reconstructed historical reason', 'reconstructed_confirmed', '2026-08-16T00:00:00.000Z', 'migration-contract');
+assert.throws(() => finance.prepare(`INSERT INTO finance_memos (memo_date, reason, reason_source, created_at, created_by)
+  VALUES (?, ?, ?, ?, ?)`)
+  .run('2026-08-16', 'Unsupported reason source', 'inferred', '2026-08-16T00:00:00.000Z', 'migration-contract'), /CHECK constraint failed/);
 finance.close();
 
 console.log('D1 migration repeat-run contract passed.');

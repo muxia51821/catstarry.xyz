@@ -476,7 +476,20 @@ assert.equal((await fetchWorker(`/api/access-log?limit=50&username=other&cursor=
 const archive = await fetchWorker('/api/archive?year=2026', { headers: { Cookie: adminCookie } });
 assert.equal(archive.status, 200);
 assert.match(archive.headers.get('content-type') ?? '', /spreadsheetml/);
-assert.deepEqual([...new Uint8Array(await archive.arrayBuffer()).subarray(0, 4)], [0x50, 0x4b, 0x03, 0x04]);
+const archiveBytes = new Uint8Array(await archive.arrayBuffer());
+assert.deepEqual([...archiveBytes.subarray(0, 4)], [0x50, 0x4b, 0x03, 0x04]);
+const archiveFiles = readStoredZip(archiveBytes);
+for (const [name, columns] of [
+  ['Trades', ['trade_time', 'fee', 'net_cash_amount']],
+  ['Holding Snapshots', ['snapshot_date', 'avg_cost', 'position_category']],
+  ['Account Events', ['event_type', 'reference_value', 'amount']],
+  ['Cash Flows', ['flow_type', 'manager_share_offset', 'net_amount']],
+  ['Asset Snapshots', ['total_value', 'is_complete', 'incomplete_reason']],
+  ['Investment Memos', ['trade_id', 'reason_source', 'stop_loss_triggered']],
+]) {
+  const sheet = archiveSheet(archiveFiles, name);
+  for (const column of columns) assert.match(sheet, new RegExp(`<t xml:space="preserve">${column}</t>`), `${name} must include ${column}`);
+}
 const sameDayFirst = await fetchWorker('/api/trades', { method: 'POST', headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify({ trade_date: '2026-08-01', ticker: '159999', direction: 'buy', quantity: 100, price: 1, position_category: 'other' }) });
 const sameDaySecond = await fetchWorker('/api/trades', { method: 'POST', headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify({ trade_date: '2026-08-01', ticker: '159999', direction: 'buy', quantity: 100, price: 2, position_category: 'other' }) });
 assert.equal(sameDayFirst.status, 201); assert.equal(sameDaySecond.status, 201, 'same-day same-ticker online trades are allowed');
@@ -559,3 +572,35 @@ assert.equal((await fetchWorker('/api/accounts', {
 })).status, 404);
 
 console.log('Finance HTTP contract passed.');
+
+function readStoredZip(source) {
+  const view = new DataView(source.buffer, source.byteOffset, source.byteLength);
+  const end = findSignature(view, 0x06054b50);
+  assert.ok(end >= 0, 'archive ZIP end record is missing');
+  const files = new Map();
+  let cursor = view.getUint32(end + 16, true);
+  for (let index = 0; index < view.getUint16(end + 10, true); index += 1) {
+    assert.equal(view.getUint32(cursor, true), 0x02014b50, 'archive ZIP central record is invalid');
+    assert.equal(view.getUint16(cursor + 10, true), 0, 'archive ZIP must use stored entries');
+    const size = view.getUint32(cursor + 24, true); const nameLength = view.getUint16(cursor + 28, true); const extraLength = view.getUint16(cursor + 30, true); const commentLength = view.getUint16(cursor + 32, true); const local = view.getUint32(cursor + 42, true);
+    const name = new TextDecoder().decode(source.subarray(cursor + 46, cursor + 46 + nameLength));
+    const localNameLength = view.getUint16(local + 26, true); const localExtraLength = view.getUint16(local + 28, true); const data = local + 30 + localNameLength + localExtraLength;
+    files.set(name, source.subarray(data, data + size));
+    cursor += 46 + nameLength + extraLength + commentLength;
+  }
+  return files;
+}
+
+function archiveSheet(files, name) {
+  const workbook = new TextDecoder().decode(files.get('xl/workbook.xml'));
+  const match = new RegExp(`<sheet name="${name}" sheetId="\\d+" r:id="rId(\\d+)"/>`).exec(workbook);
+  assert.ok(match, `archive must include ${name}`);
+  const sheet = files.get(`xl/worksheets/sheet${match[1]}.xml`);
+  assert.ok(sheet, `archive must include ${name} XML`);
+  return new TextDecoder().decode(sheet);
+}
+
+function findSignature(view, signature) {
+  for (let offset = view.byteLength - 22; offset >= 0; offset -= 1) if (view.getUint32(offset, true) === signature) return offset;
+  return -1;
+}
