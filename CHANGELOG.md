@@ -1,5 +1,14 @@
 # 更新记录
 
+## 2026-08-16 — Governance documentation reality reconciliation
+
+### Governance / Documentation
+
+- 完成 current-facing Product、Design、Architecture、Frontend、Acceptance 与 onboarding 文档的 reality reconciliation：保留仍有效的机制与接口合同，移除已 superseded 的 current-looking 结论，并将旧 Design 2.1 原样归档为历史参考。
+- 对齐 Home Activity Signal、Blog / Learn publication、Public Timeline、Finance scheduled market、Design → CSS token、Projects release / Footprint 和 ADR-005 source-projection 边界；明确 implementation、acceptance、merge、deployment 与 production evidence 彼此独立。
+- 完成 cold-start reading path 收敛：新 Agent / Session 从 `AGENTS.md` → `CONTEXT.md` 进入，再按任务读取 Product、Architecture、Design/Frontend、Routes 或 Deployment current source。
+- 本轮是 repository documentation reconciliation，不代表 production 重新部署。
+
 ## 2026-08-15 — Learn runtime publication and Content interaction follow-up
 
 ### Learn
@@ -11,12 +20,9 @@
 
 - 为 Cream Gallery 增加独立的 Content Paw Trail，并保留与其分离的 click feedback；Home Cursor Meteor 与 Finance 交互边界保持独立，fine-pointer / reduced-motion 降级继续生效。
 
-### Governance / Documentation
+### Governance
 
 - 将 Phase 8 工作流与 Agent governance 调整为 current-first、按职责读取和 bounded Touch-on-Conflict；移除 Dashboard / mandatory cold-start 作为正常维护入口的依赖，并同步共享术语边界。
-- 完成 current-facing Product、Design、Architecture、Frontend、Acceptance 与 onboarding 文档的 reality reconciliation：保留仍有效的机制与接口合同，移除已 superseded 的 current-looking 结论，并将旧 Design 2.1 原样归档为历史参考。
-- 对齐 Home Activity Signal、Blog / Learn publication、Public Timeline、Finance scheduled market、Design → CSS token、Projects release / Footprint 和 ADR-005 source-projection 边界；明确 implementation、acceptance、merge、deployment 与 production evidence 彼此独立。
-- 完成 cold-start reading path 收敛：新 Agent / Session 从 `AGENTS.md` → `CONTEXT.md` 进入，再按任务读取 Product、Architecture、Design/Frontend、Routes 或 Deployment current source。本轮是 repository documentation reconciliation，不代表 production 重新部署。
 
 ## 2026-08-14 — Content Family lifecycle and validation hardening
 
