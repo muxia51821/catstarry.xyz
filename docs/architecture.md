@@ -1,246 +1,224 @@
 # 架构总览 (Architecture)
 
-> catstarry.xyz 全站架构总览 — 模块关系图 + 数据流向 + 技术栈映射
-> 当前架构事实来源：主站与 Finance Worker 的 current-state 结构、数据流和边界。
+> catstarry.xyz 的系统拓扑、主要数据流和 durable technical boundaries。
 
-## 使用边界
+按任务继续读取：
 
-本文件只提供全站架构边界和主要数据流。按任务分支继续阅读：
+- schema、存储、Content Collection、API 类型：`docs/architecture/data-model.md`
+- module seam、目录结构、Worker route group、scheduled handler：`docs/architecture/modules.md`
+- session、cookie、角色和认证：`docs/architecture/auth.md`
+- deployment wiring 与 release 操作：`docs/DEPLOY.md`
 
-- schema、存储、Content Collection 或 API 类型任务：读取 `docs/architecture/data-model.md`；逐表结构以 migrations、字段行为以当前查询和 route 实现为准。
-- 模块边界、seam、目录定位或 scheduled handler 任务：读取 `docs/architecture/modules.md`；目录和实现以当前文件系统与代码为准。
-- session、cookie、角色或认证任务：读取 `docs/architecture/auth.md`；认证行为以当前认证实现为准。
-
-不需要上述分支时，不继续加载子文档。
+逐表字段、目录、route implementation 和环境状态以 migrations、current source、tests 与必要的 deployment evidence 为准。
 
 ---
 
 ## 技术栈映射
 
-| 层            | 选型                                | 部署 / 运行位置   | 用途                                      |
-| ------------- | ----------------------------------- | ----------------- | ----------------------------------------- |
-| **前端框架**  | Astro (hybrid: SSG + SSR)           | CF Site Worker    | 主站静态与运行时页面渲染                  |
-| **交互组件**  | React 19 + Astro / 自定义组件       | Astro islands / Site Worker | Feed 发布、管理后台、Home 交互 |
-| **API**       | CF Workers (feed-api + finance-api) | wrangler deploy   | 数据读写、认证、Cron 任务                 |
-| **数据库**    | D1 (catstarry-db + finance-db)      | CF                | 原生 Feed、公开足迹、Learn publication、交易、阅读量、session |
-| **缓存/配置** | KV                                  | CF                | 阅读量去重、认证、生命周期 manifest、Learn relation metadata、限流 |
-| **文件存储**  | R2（catstarry-media + home-projections） | CF             | /feed 媒体文件 + Home 最小活动状态静态投影 |
-| **CI / Release** | GitHub Actions validation + PowerShell / wrangler release runners | GitHub + 显式 release runner | PR/main 验证；生产部署与部署后 publication sync 分开执行 |
-| **域名**      | catstarry.xyz + f.catstarry.xyz     | CF DNS            | 主站 + 财务子域名                         |
+| 层 | 选型 | 运行位置 | 用途 |
+| --- | --- | --- | --- |
+| 前端框架 | Astro hybrid (SSG + SSR) | Cloudflare Site Worker | 主站页面渲染 |
+| 交互组件 | React 19 + Astro / 自定义组件 | Astro islands / Site Worker | Home、Feed 与 owner UI |
+| 主站 API | `feed-api` Cloudflare Worker | Cloudflare Workers | Feed、auth、views、Blog/Learn lifecycle、Home activity projection |
+| Finance API | `finance-api` Cloudflare Worker | Cloudflare Workers | Finance 数据、认证、行情与 scheduled tasks |
+| 数据库 | D1 (`catstarry-db`, `finance-db`) | Cloudflare | 主站与 Finance 持久数据 |
+| KV | AUTH / VIEW / Finance auth 等 namespaces | Cloudflare | session、去重/限流、publication metadata 等 |
+| 文件存储 | R2 | Cloudflare | Feed media、Home activity projection |
+| Finance 前端 | Cloudflare Pages | `f.catstarry.xyz` | 内部 Finance workspace |
+| Validation / Release | GitHub Actions + explicit PowerShell / wrangler runners | GitHub / operator environment | CI validation、production deploy、deploy-success publication sync |
 
 ---
 
-## 模块关系图
+## 系统拓扑
 
+```text
+                  catstarry.xyz
+             Cloudflare Site Worker
+       ┌──────────────────────────────┐
+       │ Astro                       │
+       │                              │
+       │ Home / Projects        SSG   │
+       │ Blog / Feed / Learn    SSR   │
+       │ owner / preview routes SSR   │
+       │ sitemap / RSS          SSR   │
+       └──────────────┬───────────────┘
+                      │
+            FEED_API Service Binding
+       (Local Preview 可使用 localhost HTTP)
+                      │
+       ┌──────────────▼───────────────┐
+       │ feed-api Worker              │
+       │ Feed / auth / views          │
+       │ Blog / Learn lifecycle       │
+       │ Public Footprint             │
+       │ Home activity projection     │
+       └───────┬────────┬────────┬────┘
+               │        │        │
+              D1       KV       R2
+
+
+              f.catstarry.xyz
+       ┌──────────────────────────────┐
+       │ Cloudflare Pages            │
+       └──────────────┬───────────────┘
+                      │ same-origin API
+       ┌──────────────▼───────────────┐
+       │ finance-api Worker           │
+       │ auth / records / market      │
+       │ risk / scheduled refresh     │
+       └────────────┬─────────┬───────┘
+                    │         │
+                   D1        KV
 ```
-                  catstarry.xyz (Cloudflare Site Worker)
-             ┌───────────────────────────────────────────┐
-             │                   Astro                   │
-             │                                           │
- / (SSG)     │  Home                                     │
- /projects/* │  Projects (SSG)                           │
-             │                                           │
- /blog/*     │  Blog public / preview (SSR)              │
- /feed/*     │  Feed public / admin + Blog lifecycle (SSR) │
- /learn/*    │  Learn public / preview / admin (SSR)     │
- sitemap/RSS │  runtime public projections (SSR)         │
-             └───────────────────┬───────────────────────┘
-                                 │
-                    FEED_API Service Binding
-              (local preview only: localhost HTTP fallback)
-                                 │
-             ┌───────────────────▼───────────────────────┐
-             │              feed-api Worker              │
-             │ /api/feed /api/views /api/auth            │
-             │ /api/blog /api/learn /activity-signals    │
-             └───────┬──────────────┬──────────────┬─────┘
-                     │              │              │
-                    D1             KV              R2
-              catstarry-db       AUTH/VIEW       media /
-              + publications                    projections
 
-
-                    f.catstarry.xyz (独立 CF Pages)
-                    ┌──────────────────────────────────┐
-                    │     finance-api Worker           │
-                    │  ┌──────────────────────────┐    │
-                    │  │ Finance auth / dashboard │    │
-                    │  │ records / stewardship    │    │
-                    │  │ trades / market refresh  │    │
-                    │  │ Cron: refresh-market-data│    │
-                    │  └──────┬───────┬───────────┘    │
-                    │         │       │                │
-                    │  ┌──────▼──┐ ┌──▼──────────┐    │
-                    │  │ D1      │ │ KV           │    │
-                    │  │finance  │ │FINANCE_AUTH  │    │
-                    │  │-db      │ │_KV           │    │
-                    │  └─────────┘ └──────────────┘    │
-                    └──────────────────────────────────┘
-```
+Astro Site source 与 Worker source 不直接互相 import。Site SSR 需要主站 API 时通过 `FEED_API` transport 调用 Feed Worker；浏览器继续使用同源 `/api/*`。
 
 ---
 
-## 数据流向
+## 主要数据流
 
-### Blog 发布与公开足迹流
+### Blog publication
 
-```
+```text
 Blog Markdown / MDX source
-    ↓ successful production deploy
-受保护 deploy manifest sync
-    ↓ 初始化时只建立 lifecycle baseline，不回填历史足迹
-    ↓ 之后保留已有 owner lifecycle；新 source 可带入 source state
-Blog runtime lifecycle manifest（AUTH_KV）
-    ↓ 首次进入 published 且 ever_published=false
-    ├─ owner lifecycle action
-    └─ eligible deploy sync
-Public Footprint Writer
-    ↓ first-production-v1（幂等）
-D1 public_footprints
+        │
+        ├─ owner lifecycle action
+        │      → runtime lifecycle state
+        │      → never-published → published 时创建 first-publication Footprint（幂等）
+        │
+        └─ successful production deploy sync
+               → 首次 lifecycle baseline 只初始化，不回填历史 Footprint
+               → 后续同步保留 owner state
+               → eligible new published source 如从未发布，可创建同一 first-publication Footprint
+
+runtime published set
+        → Site SSR Blog routes / RSS / sitemap
 ```
 
-Blog 的公开页面由 Site Worker SSR 读取 source，再通过 `/api/blog/publications` 的 runtime published projection 过滤。`draft` / `withdrawn` source 不因为存在于 repository 就自动公开。
+Blog source、runtime lifecycle、公开 projection 与 historical Footprint 是不同边界。Owner Publish 与 eligible deploy sync 共享 `first-production-v1` publication identity；首次 baseline 不回填历史 Blog 足迹，Withdraw / Restore 不产生第二条 first-publication Footprint。
 
-### Learn runtime 发布与修订流
+### Learn publication
 
-```
+```text
 Learn Markdown source
-    │
-    ├─ Owner Admin: first Publish
-    │      → D1 learn_publications(public)
-    │      + learn_note_published footprint（同一 D1 batch）
-    │
-    ├─ Owner Admin: Hide / Show
-    │      → 更新 runtime visibility
-    │      → 保留首次 published_at，不创建重复首次发布足迹
-    │
-    └─ successful production deploy sync v3
-           → 只处理已经存在的 publication record
-           → public revision: learn_note_revised footprint + last_revised_at
-           → hidden revision: 仅更新 revision metadata
-           → AUTH_KV learn:relation-manifest（deployed source relation metadata）
+        │
+        ├─ owner first Publish
+        │      → D1 learn_publications
+        │      → first publication footprint
+        │
+        ├─ owner Hide / Show
+        │      → runtime visibility
+        │
+        └─ successful production deploy sync
+               → existing publication revision metadata
+               → public revision footprint（如适用）
+               → deployed relation metadata
 ```
 
-Production runtime 的 Owner Admin 是正式 publication authority；Local Preview 明确只读。Learn first Publish 与 deployment 是两个不同边界：deploy sync v3 不创建新的 publication record，也不回填首次发布。公开 `/learn`、Note、Track、RSS 与 sitemap 均从 source Markdown 与 runtime publication state 合成当前公开投影；source `withdrawn` / `superseded` 不进入正常公开 corpus。withdrawn Note 的直接历史 URL 是保留例外。
+Learn first Publish 与 deployment 是不同边界。部署同步不创建新的 publication identity。公开 Learn index、Note、Track、RSS 和 sitemap 由 Markdown source 与 runtime publication state 合成；`withdrawn` direct historical Note route 是兼容例外，不重新进入正常 public corpus。
 
-### Feed 与 Public Footprint 写入流
+### Feed / Public Timeline
 
-```
-碎碎念 / 剪藏 → POST /api/feed → D1 feed_posts
+```text
+碎碎念 / 剪藏
+    → D1 feed_posts
 
 Blog / Learn / Projects 足迹来源事件
-    → 对应 lifecycle / publication / footprint route
-    → D1 public_footprints（来源身份与展示快照）
-
-旧 `learn_section_completed` 只保留 legacy readable compatibility；当前 Learn 写入语义是 Note 首次发布与修订事件。
+    → D1 public_footprints
 
 feed_posts + public_footprints
-    → GET /api/feed 的 Public Timeline 读取投影
+    → Public Timeline projection
+    → source lifecycle filtering
+    → (occurred_at, id) cursor pagination
     → /feed
 ```
 
-### Feed 浏览流（访客）
+`feed_posts` 与 `public_footprints` 是独立写模型；Public Timeline 只在读取时统一。Blog Footprint 受当前 published Blog set gate；正常 Learn Note Footprint 受 `learn_publications` 的 public set gate；legacy `learn_section_completed` 保持兼容读取。Home 不消费 Public Timeline。
 
-```
-访客 → /feed → Astro SSR 输出 Feed 页面壳
-        → FeedApp client:load
-        → 浏览器 useEffect 调用 loadPublicTimeline()
-        → GET /api/feed
-        → Public Timeline 模块 → D1 feed_posts + public_footprints
-        → 统一排序、游标分页、当前可见性过滤 → React 渲染时间线
-```
+当前 `/feed` 页面由 Astro 输出页面壳，`FeedApp` island 在浏览器读取 `/api/feed` 并渲染时间线。
 
-这是 current-state documentation，不是 SSR / client 的长期架构裁决。首次时间线数据是否改为 Astro SSR fetch，仍属于 [`docs/content/master-ledger.md`](content/master-ledger.md) 的 `ARCH-REV-007` / Feed Architecture Preflight。
+### Home 星图与 Activity Signal
 
-### Home 星图导航流
-
-```
-访客 → / → Astro SSG 输出宇宙入口与星图导航壳
-                 ↓
-          客户端 island：滚动阶段、短推进、About 原地展开
-                 ↓
-          静态目的地配置：/blog、/feed、/learn、/projects
-                 ↓
-          仅读取固定静态资源 activity-signals.json
-          → Blog / Feed / Learn / Projects 的最小状态
-
-不请求 /api/home，不读取跨模块最新内容；静态资源不含标题、正文、摘要、链接、
-时间线、数量、精确时间或访客未读状态。
+```text
+/ (SSG)
+  → Entry / Star Map / Focus / About
+  → static destinations
+  → browser GET /activity-signals.json
+       → blog / feed / learn / projects
+       → active / stable / dormant only
 ```
 
-### Home Activity Signal 投影流
+Home 不请求 `/api/home`，不读取跨模块标题、摘要、列表、数量、精确时间或最近内容。
 
+Activity Signal 的生成链路：
+
+```text
+合资格公开事件写入 / 删除 / visibility 或 publication lifecycle 变化
+    → Feed Worker refreshActivitySignals()
+    → ActivitySignalStore 读取最新合资格公开事件
+         ├─ Feed: public feed_posts + 合资格 public_footprints 的较新值
+         ├─ Blog: public Footprint + 当前 published Blog source gate
+         ├─ Learn: 正常 Note Footprint + learn_publications public gate
+         │         （legacy learn_section_completed 保留兼容资格）
+         └─ Projects: public Project Footprint
+    → 7 天 / 60 天阈值计算 active / stable / dormant
+    → 完整替换 HOME_PROJECTIONS/activity-signals.json
+    → Home browser 只在 schema/state 全部有效时应用四态
+
+每小时 `0 * * * *`
+    → Feed Worker scheduled handler
+    → refreshActivitySignals()
+    → 即使没有新事件，也让 7 天 / 60 天状态自然迁移
 ```
-合资格公开事件写入或可见性变化
-    → Activity Signal Projection（feed-api 内部 module）
-    → D1 仅查询最新合资格公开事件
-    → 计算 blog / feed / learn / projects 的 active / stable / dormant
-    → 原子替换 home-projections/activity-signals.json
-    → Home StarMap island 读取固定静态资源
 
-每小时校正任务 → 重新计算投影
-    （使无新事件的状态也能在 7 天、60 天阈值后自然变化）
-```
+来源 mutation 是事实来源，Activity Signal 是派生 projection。异步投影刷新失败不回滚已经成功的来源 mutation；已有完整 R2 对象保持到下一次成功发布。`/activity-signals.json` 缺失时返回不可用；对象超过内部 3 小时 freshness boundary 时返回 503。Home 遇到缺失、过期、请求失败或无效 manifest 时不应用 Activity state，因此隐藏活动卫星而不是误报为 `dormant`。
 
-来源事件仍是事实来源；投影发布失败不得回滚来源事件。保留上一份完整投影并由后续校正任务修复；资源缺失、无效或超过内部新鲜度阈值时，Home 隐藏活动卫星，不得误报为 `dormant`。
+ADR-007 记录这一静态投影决策；具体 query / storage seam 见 `docs/architecture/modules.md` 与 `docs/architecture/data-model.md`。
 
 ### Finance current-state 数据流
 
-```
-Finance Cron (*/15 * * * * 或 30 7 * * 1-5)
-    → refresh-market-data.ts
-    → 可选 MARKET_PROVIDER_URL，或内置 Tencent / TradingView；Sina 作为 A 股报价 fallback
-    → market_data 与 finance_market_indexes
-
-Finance 页面
-    → finance-api routes
-    → holdings / market / pe / risk / review 等读取接口
-    → Finance workspace
-```
-
-### 认证流
-
-```
-未登录用户 → /feed → 页面内登录交互
-    ↓ 点击
-登录面板 → POST /api/auth/login → bcrypt 验证 → KV session → Set-Cookie
-    ↓ 成功后
-右下角 →「+」发布按钮出现
-12h 后 → session 过期 → KV TTL 自动清除 → 回到未登录状态
-
-Site Worker 的 owner SSR / lifecycle proxy 在 production-like runtime 通过 `FEED_API` Service Binding 调用 Feed Worker；本地 preview 才使用 localhost HTTP fallback。
-Finance 使用独立 FINANCE_AUTH_KV 和独立 cookie，不与主站 session 共享。
+```text
+f.catstarry.xyz (Cloudflare Pages)
+    → same-origin Finance API
+    → finance-api Worker
+         ├─ auth
+         ├─ trades
+         ├─ monthly / plan / cash-flow / asset records
+         ├─ risk / memo / rebalance / workbook review
+         └─ dashboard / market reads
+    → finance D1 + FINANCE_AUTH_KV
 ```
 
----
+行情刷新是独立 scheduled flow：
 
-## 产出物清单
+```text
+Cron: `*/15 * * * *` 或 `30 7 * * 1-5`
+    → finance-api scheduled handler
+    → refreshMarketData()
+         ├─ 如配置 MARKET_PROVIDER_URL：使用受控 HTTPS provider
+         └─ 否则使用内置 provider path
+              ├─ Tencent：A 股/ETF、上证指数与支持的 PE-TTM
+              ├─ TradingView：NASDAQ-100 指数快照
+              └─ Sina：疑似 stale A 股 / 上证报价 fallback
+    → 读取 active holdings 以确定需要刷新的持仓 ticker
+    → 写入 market_data / finance_market_indexes
+```
 
-| 文件                                        | 内容                                                                            | 步骤      |
-| ------------------------------------------- | ------------------------------------------------------------------------------- | --------- |
-| `docs/architecture/data-model.md`           | D1 schema + KV + R2 + Content Collections + API 类型定义                        | 3.1       |
-| `docs/architecture/modules.md`              | 目录结构 + 模块边界 + Workers 路由                                              | 3.2 + 3.3 |
-| `docs/architecture/auth.md`                 | /feed + finance 鉴权方案                                                        | 3.4       |
-| `docs/adr/001-d1-split.md`                  | 1 个 D1 vs 2 个                                                                 | 3.5       |
-| `docs/adr/002-blog-metadata-kv-bridge.md`   | 已被 ADR-006 对其 Home 聚合用途 supersede                                      | 历史      |
-| `docs/adr/003-worker-count.md`              | 2 个 Worker vs 多 Worker                                                        | 3.5       |
-| `docs/adr/004-feed-visibility-two-state.md` | visibility 两状态 vs 三状态                                                     | 3.5       |
-| `docs/adr/005-public-footprint-separate-storage.md` | 原生帖子与 Public Footprint 分存、Public Timeline 统一读取              | accepted |
-| `docs/adr/006-retire-home-aggregation-and-kv-bridge.md` | 退役 Home 聚合与 KV bridge                                           | accepted |
-| `docs/adr/007-home-activity-signal-static-projection.md` | Home 最小活动状态的静态投影、刷新与降级                        | accepted |
-| `docs/architecture.md`                      | 本文件（架构总览）                                                              | 汇总      |
-| `DESIGN.md`                                 | 根目录视觉设计系统；目录以文件当前版本为准                                      | 4.1       |
+部分 provider 数据缺失时记录 missing items 并保留可用结果；刷新整体失败时不清空既有市场数据，继续保留上一份有效快照。Finance 的业务记录、行情、审计和认证均留在独立 Finance 边界，不进入 Content Family 数据链路。逐表结构见 `docs/architecture/data-model.md`。
+
+### Authentication
+
+主站 owner session 由 Feed Worker 管理，Site SSR owner routes 通过 `FEED_API` transport 验证；浏览器通过同源 auth routes 登录。Finance 使用独立 session storage 与 cookie，不与主站共享认证状态。完整 session / cookie / role 规则见 `docs/architecture/auth.md`。
 
 ---
 
 ## 架构边界
 
-- 主站由 Cloudflare Site Worker 承载 Astro hybrid output；Finance 仍是独立 Pages + Finance Worker，不把两者混为同一 deployment unit。
-- Site Worker 的 server-side owner/publication 读取通过 `FEED_API` Service Binding 调用 Feed Worker；本地 preview 允许 localhost HTTP fallback。Astro source 与 Worker source 仍不直接互相 import。
-- Blog 与 Learn 的公开页面都是 runtime-gated SSR；source 文件存在不等于当前公开。
-- Learn Markdown 是 canonical source；D1 `learn_publications` 是正常公开可见性与发布时间的 runtime authority；KV `learn:relation-manifest` 只是已部署 source relation metadata，不是 relation database。
-- Learn first Publish 是 owner runtime lifecycle action；successful deploy sync v3 只负责已发布 Note 的 revision metadata / revision footprint 与 relation manifest，不承担首次发布。
-- Home 只读取 `activity-signals.json`，不读取 Public Timeline，也不恢复 `/api/home` 或已退役的 `blog-metadata` KV bridge。
-- `feed_posts` 与 `public_footprints` 是两个独立写模型；`Public Timeline` 只在读取时统一排序和分页。
-- Finance 使用独立 Worker、D1、认证 KV 和页面，不进入公开主站内容链路。
-- 双 D1、Feed / Finance API Worker split、Feed 两态可见性、Home 静态活动投影和 Learn Markdown canonical source 分别由 ADR-001、003、004、007、008 约束。
+- 主站 deployment unit 是 Cloudflare Site Worker；Finance frontend 是独立 Cloudflare Pages deployment。
+- Site SSR 与 Feed Worker 通过 Request boundary 解耦，不直接 import Worker implementation。
+- Blog / Learn source presence 不等于 public visibility；两者的公开 route 都受 runtime publication lifecycle 约束。
+- Public Footprint 与原生 Feed 记录分存；Public Timeline 是统一读取 projection。
+- Learn Markdown 是 canonical source；runtime publication state 不存 Note 正文；deployed relation metadata 不构成 relation database。
+- Home 只消费最小 Activity Signal static projection；projection failure 不改变来源事实，也不恢复跨模块内容聚合。
+- 主站与 Finance 保持独立 runtime、数据和认证边界；Finance scheduled market refresh 不属于主站 Content pipeline。
+- Durable architecture decisions 由 `docs/adr/` 记录；current implementation details 由对应 architecture child、source 和 tests 负责。

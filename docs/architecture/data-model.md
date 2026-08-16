@@ -1,32 +1,31 @@
 # 数据模型 (Data Model)
 
-> catstarry.xyz 全站数据结构定义 — D1 schema + KV namespace + Content Collection schema + API 类型定义
-> 当前主站与 Finance 数据概念模型；字段和索引以 migrations 与当前查询实现为准。
+> catstarry.xyz 全站数据结构定义 — D1 schema + KV namespace + Content Collection schema + API 类型定义。
 
-本文件按需读取：仅在 schema、存储、Content Collection 或 API 类型任务中进入本文件。逐表结构以 migrations、字段行为以当前查询和 route 实现为准。
+本文件描述当前概念模型与关键不变量；逐表字段和索引以 migrations、当前查询与 route 实现为准。
 
 ---
 
 ## 架构决策：数据库拆分
 
-| 数据库         | D1 Binding                 | 用途                                   |
-| -------------- | -------------------------- | -------------------------------------- |
-| `catstarry-db` | `env.DB`（主站 Worker）    | /feed 帖子、公开足迹、Learn runtime publication、/blog 阅读量、认证 session |
-| `finance-db`   | `env.DB`（finance Worker） | 交易记录、持仓快照、行情数据、熔断日志 |
+| 数据库 | D1 Binding | 用途 |
+| --- | --- | --- |
+| `catstarry-db` | `env.DB`（主站 Worker） | Feed、Public Footprint、Learn publication、Blog views、主站 session |
+| `finance-db` | `env.DB`（Finance Worker） | Finance 交易、资产、行情、风险与审计数据 |
 
-**理由**：财务数据隔离更安全（ADR-001）。主站 D1 同时承载原生 Feed、公开足迹、Learn runtime publication、阅读量和认证；Home 不查询它做内容聚合。ADR-007 的内部投影 module 可读取最小事件事实，但 Home 页面本身不获得 D1 访问权。
+财务数据保持独立数据库（ADR-001）。Home 页面不直接访问主站 D1；Home Activity Signal 由 Feed Worker 内部 projection module 计算后发布为静态资源。
 
 ---
 
 ## 1. 主站 D1 — `catstarry-db`
 
-### 1.1 feed_posts 表
+### 1.1 `feed_posts`
 
-/feed 板块的帖子和剪藏内容。
+Feed 原生 Note / Clip 写模型。
 
 ```sql
 CREATE TABLE IF NOT EXISTS feed_posts (
-  id         TEXT PRIMARY KEY,              -- UUID；当前由 crypto.randomUUID() 生成
+  id         TEXT PRIMARY KEY,
   type       TEXT NOT NULL CHECK(type IN ('note','clip')),
   content    TEXT,
   media_json TEXT,
@@ -40,23 +39,17 @@ CREATE TABLE IF NOT EXISTS feed_posts (
 );
 ```
 
-**字段说明**：
+| 字段 | 说明 |
+| --- | --- |
+| `id` | UUID；当前由 `crypto.randomUUID()` 生成。排序不依赖 UUID 时间语义 |
+| `type` | `note` / `clip` |
+| `content` | Note / Clip 的个人内容，可为空 |
+| `media_json` | Feed R2 keys 的 JSON array |
+| `link_*` | Clip 外部对象 metadata |
+| `visibility` | `public` / `private` |
+| `created_at` / `updated_at` | ISO 8601 timestamps |
 
-| 字段           | 类型    | 约束                 | 说明                                       |
-| -------------- | ------- | -------------------- | ------------------------------------------ |
-| `id`           | TEXT PK | UUID                 | 当前由 Web Crypto `crypto.randomUUID()` 生成；不依赖 UUID 自身表达时间顺序 |
-| `type`         | TEXT    | `note` or `clip`     | 帖子类型                                   |
-| `content`      | TEXT    | 可为空（纯图碎碎念） | 文字内容                                   |
-| `media_json`   | TEXT    | JSON 数组            | R2 key 列表，如 `["feed/2026-07/abc.jpg"]` |
-| `link_url`     | TEXT    | clip 类型必填        | 剪藏目标 URL                               |
-| `link_title`   | TEXT    |                      | og:title 自动抓取                          |
-| `link_summary` | TEXT    |                      | og:description                             |
-| `link_image`   | TEXT    |                      | og:image URL                               |
-| `visibility`   | TEXT    | `public`/`private`   | 公开/仅我可见                              |
-| `created_at`   | TEXT    | NOT NULL, ISO 8601   | 创建时间                                   |
-| `updated_at`   | TEXT    | NOT NULL, ISO 8601   | 最后更新时间                               |
-
-**当前 migrations 建立的主要索引**：
+主要索引：
 
 ```sql
 CREATE INDEX idx_feed_posts_created ON feed_posts(created_at DESC);
@@ -68,11 +61,11 @@ CREATE INDEX idx_feed_posts_type_timeline
   ON feed_posts(type, created_at DESC, id DESC);
 ```
 
-`GET /api/feed` 不是 `feed_posts` 的单表查询。当前 Public Timeline 在 `FeedStore` 中把 `feed_posts` 与 `public_footprints` 统一投影后，按 `(occurred_at, id)` 排序和 cursor 分页，并应用当前 Blog / Learn source lifecycle 过滤；见 1.3。
+`GET /api/feed` 不是 `feed_posts` 单表查询；Public Timeline 见 1.3。
 
-### 1.2 public_footprints 表
+### 1.2 `public_footprints`
 
-`public_footprints` 是 Public Footprint 的独立写模型。它记录已经发生、可公开展示的 Blog 发布、Learn Note 发布／修订和 Projects 实质更新，并兼容读取历史 Learn 小节完成事件；不存原生碎碎念或剪藏。创建时固化来源身份和展示快照，但不表示整条记录的所有字段都绝对不可变；`visibility` 可以独立变化。
+Public Footprint 独立写模型。它记录 Blog 首次发布、Learn Note 首次发布 / 修订、Projects meaningful update，并兼容读取历史 Learn completion event；原生 Note / Clip 不写入本表。
 
 ```sql
 CREATE TABLE IF NOT EXISTS public_footprints (
@@ -94,39 +87,44 @@ CREATE INDEX idx_public_footprints_source ON public_footprints(source_module, so
 
 | 字段 | 说明 |
 | --- | --- |
-| `source_ref` | 来源稳定标识，例如 Blog slug、Learn Public Note slug（legacy row 可保留旧 section reference）、Projects project id |
-| `source_version` | 本次足迹对应的明确发布／完成／更新标识；不是普通 `lastModified` |
-| `snapshot_json` | 创建时标题、摘要、链接、来源名称和事件展示文案；之后不随来源普通编辑改写 |
-| `idempotency_key` | 同一来源版本只产生一次足迹的唯一键 |
-| `visibility` | 足迹独立公开或隐藏；不向来源内容传播 |
+| `source_ref` | 来源稳定标识：Blog slug、Learn Note slug、Projects project id；legacy Learn row 可保留旧 section reference |
+| `source_version` | 本次公开事件的明确版本身份 |
+| `snapshot_json` | event-time 展示快照；普通来源编辑不改写 |
+| `idempotency_key` | 同一公开事件只写一次 |
+| `visibility` | Footprint 自身 public / private；不向来源传播 |
 
-| 来源 | `source_ref` | `source_version` | `idempotency_key` |
-| --- | --- | --- | --- |
-| Blog | `slug` | `first-production-v1` | `blog:{slug}:first-production-v1` |
-| Learn | Public Note slug；legacy row 可保留旧 section reference | 首次发布 `first-production-v1`；revision 使用 `r:{timestamp}`；legacy row 可保留旧 completion identity | `learn:{slug}:{source_version}` |
-| Projects | 稳定 `project_id` | 木下显式给出的 `update_id` | `projects:{project_id}:{update_id}` |
+| 来源 | `source_version` | `idempotency_key` |
+| --- | --- | --- |
+| Blog | `first-production-v1` | `blog:{slug}:first-production-v1` |
+| Learn | first publication `first-production-v1`；revision `r:{timestamp}`；legacy row 保留旧 identity | `learn:{slug}:{source_version}` |
+| Projects | source-defined `update_id` | `projects:{project_id}:{update_id}` |
 
-Projects Footprint snapshot 的 canonical destination 是 `/projects/`；Projects Card 自身仍以 external `project.url` 作为 whole-card destination。
+Projects Footprint 的 canonical destination 是 `/projects/`；Project Card 本身继续使用 external `project.url`。
 
-Blog collection 仍保留可选的 `publication_id` 字段，但当前生产同步脚本不读取它；Blog 首次 publication identity 使用 `first-production-v1`。是否将 `publication_id` 重新定为 Blog 的发布身份，待木下确认。
+Blog collection 的可选 `publication_id` 目前不参与 publication identity；current sync 使用 `first-production-v1`。
 
-**来源生命周期**：写入成功后，足迹的存储与 event-time snapshot 独立于来源。来源普通编辑不改写 snapshot；来源隐藏、删除或链接失效不级联删除 Footprint record；木下仍可独立把足迹设为 private。
+**生命周期不变量**：
 
-存储独立不等于公开投影独立。Blog Footprint 只有 source 当前处于 runtime published projection 时进入 Public Timeline。正常 Learn Note footprint 只有 `source_ref` 当前位于 D1 public publication set 时进入 Public Timeline；旧 `learn_section_completed` 是 legacy readable exception，不受新的 Note publication visibility gate 过滤。来源恢复公开时复用原足迹，不创建 duplicate first-publication record。
+- event-time snapshot 与 source 后续普通编辑解耦；
+- source hide / delete 不级联删除 Footprint record；
+- Footprint 自身 visibility 可以独立变化；
+- storage independence 不等于 public projection independence；
+- Blog Footprint 只有 source 当前处于 published projection 时进入 Public Timeline；
+- 正常 Learn Note Footprint 只有 source 当前位于 runtime public publication set 时进入 Public Timeline；
+- legacy `learn_section_completed` 保持 readable compatibility；
+- source 恢复公开时复用既有 Footprint，不创建 duplicate first-publication record。
+
+Dead-destination / tombstone 的 UI 行为不由本数据模型定义；读取 projection 必须继续遵守对应 Product / Architecture contract。
 
 ### 1.3 Public Timeline 读取投影
 
-`feed_posts` 与 `public_footprints` 不合并为写表。`GET /api/feed` 由 Public Timeline 模块把两个写模型 `UNION ALL` 成统一 row shape，再按 `(occurred_at, id)` 排序和游标分页，返回 `TimelineEntry`。该投影不是 D1 表，也不应被 Home 使用。
+`feed_posts` 与 `public_footprints` 不合并为持久写表。`FeedStore.listPublic(...)` 将二者统一为 `TimelineEntry`，按 `(occurred_at, id)` 排序和 cursor pagination，并应用 Blog / Learn 当前 publication projection。
 
-当前内部 `TimelineEntry.kind` 仍使用 `system_footprint` 作为稳定代码 discriminator；面向项目共享语言时 canonical term 为 `Public Footprint`。内部类型名不改变产品语义。
-
-`FeedStore.listPublic(...)` 接收 runtime published Blog slugs 与 public Learn slugs：Blog Footprint 按当前 Blog published manifest 过滤；Learn Note Footprint 按 D1 `learn_publications` 的 public set 过滤，legacy `learn_section_completed` 保持可读。Hard-delete tombstone / known-dead destination 的精确行为仍保留为后续边界。
+内部 `TimelineEntry.kind` 仍使用 `system_footprint` 作为 code discriminator；项目共享术语是 `Public Footprint`。
 
 ### 1.4 Home Activity Signal 静态投影
 
-Home Activity Signal 不是 D1 表、不是 Public Timeline 的简化响应，也不是 `/api/home` 的替代。它是 `Activity Signal Projection` 内部计算后发布的固定静态对象。
-
-**公开契约**：
+Home Activity Signal 不是 D1 表、不是 Public Timeline 的缩略响应，也不是 `/api/home`。它由 `Activity Signal Projection` 计算并发布为固定静态对象。
 
 ```json
 {
@@ -142,18 +140,21 @@ Home Activity Signal 不是 D1 表、不是 Public Timeline 的简化响应，�
 
 | 规则 | 约束 |
 | --- | --- |
-| 允许字段 | `schema_version` 与四颗功能星球各自的 `state` |
-| 状态值 | `active`（≤7 天）、`stable`（>7 且≤60 天）、`dormant`（>60 天或无公开活动） |
-| 来源 | Blog / Learn / Projects 取最新公开 Public Footprint；Feed 取公开原生帖子与公开 Public Footprint 中较新者 |
-| About | 不得出现在投影中；豹猫卫星不参与活动状态 |
-| 禁止字段 | 标题、正文、摘要、链接、列表、时间线、事件数、精确时间、事件／来源标识、`generated_at`、unread/read |
-| 失败降级 | Home 隐藏活动卫星，不能把不可用状态视为 `dormant` |
+| 允许字段 | `schema_version` + 四个 module 的 `state` |
+| 状态 | `active`（≤7 天）、`stable`（>7 且≤60 天）、`dormant`（>60 天或无公开活动） |
+| Blog 来源 | 最新 `visibility='public'` 且 source 仍在当前 published Blog set 的 Blog Footprint |
+| Learn 来源 | 正常 Note Footprint 需 source 位于 `learn_publications.visibility='public'`；legacy `learn_section_completed` 保留兼容资格 |
+| Projects 来源 | 最新 public Project Footprint |
+| Feed 来源 | public native Feed 与上述合资格 public Footprint 中较新的活动时间 |
+| About | 不进入 projection |
+| 禁止 | 内容、标题、摘要、链接、精确时间、数量、unread/read |
+| unavailable | Home 隐藏信号卫星，不映射成 `dormant` |
 
-投影在合资格公开事件写入、原生帖子删除或可见性变化、Public Footprint 可见性变化后刷新；每小时完整校正一次，以覆盖 7 天和 60 天的自然状态迁移。来源内容删除不级联删除 Public Footprint，保持 ADR-005 的来源生命周期。
+Projection 在相关公开事件 / visibility / publication lifecycle 变化后刷新，并由 hourly scheduled refresh 覆盖时间阈值自然迁移。该对象是派生状态，不反向成为来源事件事实。
 
-### 1.5 blog_views 表
+### 1.5 `blog_views`
 
-`blog_views` 保存按 slug / 日期聚合后的计数；当前写入由 `blog_view_visitors` 的 INSERT trigger 驱动。
+按 slug / date 聚合 Blog view count；当前计数由 `blog_view_visitors` INSERT trigger 驱动。
 
 ```sql
 CREATE TABLE IF NOT EXISTS blog_views (
@@ -165,9 +166,9 @@ CREATE TABLE IF NOT EXISTS blog_views (
 );
 ```
 
-### 1.6 blog_view_visitors 表
+### 1.6 `blog_view_visitors`
 
-`blog_view_visitors` 是持久化阅读者去重边界。相同 `(slug, view_date, visitor_hash)` 只能插入一次；成功插入后 trigger 对 `blog_views` 增量计数。`VIEW_KV` 的 daily key 是快速去重层，不替代这张 D1 表。
+持久化 visitor 去重边界。相同 `(slug, view_date, visitor_hash)` 只允许插入一次；`VIEW_KV` 是快速去重 / rate-limit 层，不替代 D1 uniqueness。
 
 ```sql
 CREATE TABLE IF NOT EXISTS blog_view_visitors (
@@ -182,9 +183,9 @@ CREATE INDEX IF NOT EXISTS idx_blog_view_visitors_created
   ON blog_view_visitors (created_at);
 ```
 
-### 1.7 auth_sessions 表
+### 1.7 `auth_sessions`
 
-主站认证 session 持久化记录（/feed 登录后 12h 有效期）；KV 是优先读取层，D1 用作 fallback 与登出删除的持久记录。
+主站 session 持久化 fallback；KV 是优先读取层。
 
 ```sql
 CREATE TABLE IF NOT EXISTS auth_sessions (
@@ -194,17 +195,13 @@ CREATE TABLE IF NOT EXISTS auth_sessions (
   expires_at TEXT NOT NULL,
   ip         TEXT
 );
-```
 
-**索引**：
-
-```sql
 CREATE INDEX idx_auth_sessions_expires ON auth_sessions(expires_at);
 ```
 
-### 1.8 learn_publications 表
+### 1.8 `learn_publications`
 
-`learn_publications` 是 Learn 正常公开生命周期的 runtime state。它不存 Note 正文，也不替代 Markdown source。
+Learn 正常 public lifecycle 的 runtime state；不存 Note content，也不替代 Markdown source。
 
 ```sql
 CREATE TABLE IF NOT EXISTS learn_publications (
@@ -221,30 +218,32 @@ CREATE INDEX IF NOT EXISTS idx_learn_publications_visibility
 
 | 字段 | 语义 |
 | --- | --- |
-| `slug` | 对应 Learn Markdown source 的稳定 slug |
-| `visibility` | runtime public / hidden；决定正常公开投影是否包含该 Note |
-| `published_at` | 首次正式 Publish 时间；Hide / Show 不重置 |
-| `last_revised_at` | 已同步到 runtime 的最近 revision metadata；可以为空 |
-| `updated_at` | runtime lifecycle / revision metadata 最近更新时间 |
+| `slug` | Learn source stable slug |
+| `visibility` | runtime `public` / `hidden` |
+| `published_at` | first formal Publish；Hide / Show 不重置 |
+| `last_revised_at` | 最近同步的 revision metadata |
+| `updated_at` | runtime lifecycle / revision metadata 更新时间 |
 
 **生命周期不变量**：
 
-- Owner Admin 的首次 Publish 创建 runtime record；正式 publication authority 位于 production runtime，Local Preview mutation 明确只读。
-- 首次 Publish 在同一 D1 batch 中创建 `learn_publications` record 和 `learn_note_published` first footprint。
-- Hide / Show 只更新 runtime visibility，保留 `published_at`，不重复创建首次发布 footprint。
-- production deploy sync v3 不创建新的 publication record，也不回填 first publication。
-- deploy sync 只处理已经存在的 publication：public revision 可创建 `learn_note_revised` footprint；hidden revision 只更新 revision metadata。
-- source `withdrawn` / `superseded` 不进入正常 public corpus，即使存在旧 runtime record；withdrawn direct historical route 是页面层兼容例外。
+- first Publish 创建 runtime record，并在同一 D1 batch 创建 `learn_note_published` first footprint；
+- Hide / Show 保留 `published_at`，不重复 first publication；
+- production deploy sync 不创建 publication record，也不回填 first publication；
+- public revision 可创建 `learn_note_revised` footprint；hidden revision 只更新 metadata；
+- source `withdrawn` / `superseded` 不进入正常 public corpus；withdrawn direct URL 是页面兼容例外；
+- Local Preview 不允许 lifecycle mutation。
 
-Repository 已包含 `0004_learn_publications.sql`。某个远端环境是否已经实际应用该 migration 属于 deployment / production evidence，不能仅从 repository migration 存在推断。
+Repository migration `0004_learn_publications.sql` 定义该表；远端环境是否已应用 migration 由 deployment evidence 决定。
 
 ---
 
-## 2. 财务 D1 — `finance-db`
+## 2. Finance D1 — `finance-db`
 
-### 2.1 trades 表
+Finance schema 已跨 `0001`–`0006` migrations 演进。本节维护当前概念表族与关键核心表；逐列定义、index、trigger 与 migration order 仍以 Finance migrations 为准。
 
-每笔 A 股/ETF 交易记录。当前 migration 还补充 `created_by`、更新时间、软删除和 review 字段，并由 `finance_trade_audit` 保存变更审计。
+### 2.1 `trades`
+
+A 股 / ETF 交易业务字段：
 
 ```sql
 CREATE TABLE IF NOT EXISTS trades (
@@ -261,11 +260,9 @@ CREATE TABLE IF NOT EXISTS trades (
 );
 ```
 
-`trades` 的 current migration 还包含 `created_at`、`created_by`、`updated_at`、`updated_by`、`deleted_at` 和 `deleted_by`；上面的字段表只展示交易业务核心字段。
+Current migrations 另包含 creator/updater、soft-delete、review metadata，并由 `finance_trade_audit` 保存交易重要变更。
 
-### 2.2 holdings_snapshots 表
-
-持仓快照（定时执行或交易后更新）。
+### 2.2 `holdings_snapshots`
 
 ```sql
 CREATE TABLE IF NOT EXISTS holdings_snapshots (
@@ -279,9 +276,9 @@ CREATE TABLE IF NOT EXISTS holdings_snapshots (
 );
 ```
 
-### 2.3 market_data 表
+`refreshMarketData()` 使用最新正数量持仓快照确定 built-in provider 需要刷新的 active holding tickers。
 
-行情数据（Worker Cron 定时拉取）。
+### 2.3 `market_data`
 
 ```sql
 CREATE TABLE IF NOT EXISTS market_data (
@@ -294,285 +291,161 @@ CREATE TABLE IF NOT EXISTS market_data (
 );
 ```
 
-### 2.4 circuit_breaker_log 表
+保存持仓报价与 PE-TTM records；指数展示快照使用独立 `finance_market_indexes`。
 
-三级熔断触发日志。
+### 2.4 `circuit_breaker_log`
 
 ```sql
 CREATE TABLE IF NOT EXISTS circuit_breaker_log (
-  id          INTEGER PRIMARY KEY AUTOINCREMENT,
-  level       TEXT NOT NULL CHECK(level IN ('yellow','red','black')),
-  reason      TEXT NOT NULL,
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  level        TEXT NOT NULL CHECK(level IN ('yellow','red','black')),
+  reason       TEXT NOT NULL,
   triggered_at TEXT NOT NULL,
-  resolved_at TEXT
+  resolved_at  TEXT
 );
 ```
 
-当前 Finance migrations 还包含以下概念组：
+### 2.5 Current Finance table-family registry
 
-- `finance_market_indexes`：指数快照，保存展示值、涨跌、市场状态和抓取时间；
-- `monthly_records`、`plan_params`：月度记录和计划参数；
-- `finance_cash_flows`、`finance_asset_snapshots`：真实现金流与资产快照；
-- `position_limits`、`finance_investment_rules`、`finance_memos`、`finance_rebalance_records`：仓位与 stewardship 记录；
-- `finance_trade_audit`、`finance_plan_audit`、`finance_cash_flow_audit`、`finance_rule_audit`：审计记录；
-- `finance_access_log`、`finance_import_batches`、`finance_import_review`、`finance_workbook_imports`、`finance_workbook_review` 及其 audit 表：访问、导入和 workbook review 状态。
+| Family | Current tables | 职责 |
+| --- | --- | --- |
+| Trading / holdings | `trades`, `holdings_snapshots`, `finance_trade_audit` | 交易、持仓快照与交易审计 |
+| Market | `market_data`, `finance_market_indexes` | 持仓/PE records 与指数快照 |
+| Limits / reviews | `position_limits`, `annual_reviews`, `monthly_confirmations`, `finance_review_confirmations`, `finance_circuit_resolution_confirmations` | 仓位约束、年度/月度确认与熔断解除确认 |
+| Monthly / plan | `monthly_records`, `plan_params`, `finance_plan_audit` | 月度记录、长期计划参数与计划审计 |
+| Cash / assets | `finance_cash_flows`, `finance_asset_snapshots`, `finance_cash_flow_audit` | 真实现金流、资产快照与现金流审计 |
+| Stewardship | `finance_investment_rules`, `finance_rule_audit`, `finance_memos`, `finance_rebalance_records` | 投资规则、备忘录与再平衡记录 |
+| Access / import | `finance_access_log`, `finance_import_batches`, `finance_import_review` | 访问记录与基础导入/review |
+| Workbook import | `finance_workbook_imports`, `finance_workbook_review`, `finance_workbook_review_audit` | workbook 导入、待复核行与 resolution audit |
+| Circuit | `circuit_breaker_log` | 熔断触发与 resolved state |
 
-以上列表用于说明概念边界，不替代 migrations 的逐表 schema。
+`finance_accounts` 曾在 `0003_candidate_parity.sql` 创建，但 `0004_financial_stewardship.sql` 明确删除；它不是 current Finance table。
+
+这个 registry 用于让维护者知道某个 Finance 数据概念应去哪个表族查找；它不替代 migrations 的逐表 schema，也不表示 repository migration 文件已经在某个远端环境应用。
 
 ---
 
 ## 3. KV Namespace
 
-| Namespace   | Key Pattern          | 用途                               | TTL        |
-| ----------- | -------------------- | ---------------------------------- | ---------- |
-| **VIEW_KV** | `view:{date}:{slug}:{visitorHash}` | 阅读量快速去重记录               | 24h        |
-| **VIEW_KV** | `ratelimit:views:{minute}:{visitorHash}` | 阅读记录速率限制                | 120s       |
-| **AUTH_KV** | `user:{username}`    | 主站用户密码 bcrypt hash          | 永久       |
-| **AUTH_KV** | `session:{token}`    | 主站登录 session                   | 12h        |
-| **AUTH_KV** | `ratelimit:login:{ip}` | 主站登录限流计数器               | 5min       |
-| **AUTH_KV** | `blog:lifecycle-manifest:v1` / `blog:published-manifest` | Blog runtime lifecycle / public projection | 无 TTL |
-| **AUTH_KV** | `learn:relation-manifest` | 已部署 Learn source 的 relation metadata；用于 lifecycle relation validation，不是 publication state | 无 TTL |
-| **FINANCE_AUTH_KV** | `user:{username}` | Finance 用户与角色 | 永久 |
-| **FINANCE_AUTH_KV** | `session:{token}` | Finance session | 12h |
-| **FINANCE_AUTH_KV** | `ratelimit:login:{hash}` | Finance 登录限流 | 5min |
+| Namespace | Key Pattern | 用途 | TTL |
+| --- | --- | --- | --- |
+| `VIEW_KV` | `view:{date}:{slug}:{visitorHash}` | Blog view 快速去重 | 24h |
+| `VIEW_KV` | `ratelimit:views:{minute}:{visitorHash}` | Blog view rate limit | 120s |
+| `AUTH_KV` | `user:{username}` | 主站 bcrypt user record | permanent |
+| `AUTH_KV` | `session:{token}` | 主站 session | 12h |
+| `AUTH_KV` | `ratelimit:login:{ip}` | 主站 login rate limit | 5min |
+| `AUTH_KV` | `blog:lifecycle-manifest:v1` / `blog:published-manifest` | Blog runtime lifecycle / public projection | no TTL |
+| `AUTH_KV` | `learn:relation-manifest` | deployed Learn relation metadata | no TTL |
+| `FINANCE_AUTH_KV` | `user:{username}` | Finance user / role | permanent |
+| `FINANCE_AUTH_KV` | `session:{token}` | Finance session | 12h |
+| `FINANCE_AUTH_KV` | `ratelimit:login:{hash}` | Finance login rate limit | 5min |
 
 ---
 
-## 4. R2 Bucket
+## 4. R2
 
-| Bucket | 路径模式 | 用途 |
+| Bucket | Key | 用途 |
 | --- | --- | --- |
-| `catstarry-media` | `feed/{YYYY-MM}/{uuid}.{ext}` | /feed 媒体文件 |
-| `home-projections` | `activity-signals.json` | Home 最小活动状态固定资源 |
+| `catstarry-media` | `feed/{YYYY-MM}/{uuid}.{ext}` | Feed media |
+| `home-projections` | `activity-signals.json` | Home Activity Signal static projection |
 
-Bucket 的账户级 CORS / delivery 配置属于 Cloudflare 环境事实；本文件不从 repository 推断其当前生产值。
-
----
-
-## 5. Content Collections（Astro）
-
-### 5.1 blog collection
-
-Blog collection 由 `src/content.config.ts` 定义；loader 读取 `src/data/blog`，接受 `.md` 与 `.mdx`。
-
-```typescript
-// 当前字段：title, date, category, tags, description,
-// slug?, state (draft/published/withdrawn), legacy draft?, publication_id?
-```
-
-### 5.2 learn collection
-
-Learn collection 由 `src/content.config.ts` 定义；loader 读取 `src/data/learn`，当前只接受 `.md`。
-
-```typescript
-// 当前字段：
-// slug, title, track, section?, tags,
-// state? (draft/published/superseded/withdrawn),
-// publishedAt?, revisedAt?,
-// legacy/transitional: draft?, publishDate?, lastModified?,
-// excerpt?
-```
-
-Learn source 不包含 runtime visibility record。正常发布可见性由 D1 `learn_publications` 拥有；source `state` 仍用于 source-level historical semantics（特别是 `withdrawn` / `superseded`）和 legacy/transitional readers。
-
-当前 source schema 不包含 `completionId`、`parentSlug` 或 `sourceUrl`。旧 `learn_section_completed` 的兼容性存在于历史 Public Footprint event record，而不是继续通过 Learn Markdown frontmatter 维护。
-
-这与 ADR-008 的边界一致：Learn public note 当前 canonical source 为 Markdown；Blog 仍可读取 MDX，但不代表 Learn runtime 支持 MDX。
+Account-level delivery / CORS configuration belongs to Cloudflare environment wiring, not this repository data model。
 
 ---
 
-## 6. Blog production lifecycle sync
+## 5. Astro Content Collections
 
-Blog 继续以 Markdown / MDX frontmatter 为内容源，`state` 是必填生命周期字段；runtime lifecycle manifest 位于 `AUTH_KV`。
+### 5.1 Blog
 
-```
+`src/content.config.ts` loads `src/data/blog` Markdown / MDX。
+
+主要字段：`title`、`date`、`category`、`tags`、`description`、`slug?`、`state` (`draft|published|withdrawn`) 以及 legacy / optional fields。
+
+`publication_id` 是当前不参与 publication identity 的 optional field；publication lifecycle 由 runtime Blog state 与 current sync contract 决定。
+
+### 5.2 Learn
+
+`src/content.config.ts` loads canonical Markdown from `src/data/learn`。
+
+主要字段：`slug`、`title`、`track`、`section?`、`tags`、source `state?`、`publishedAt?`、`revisedAt?` 及 transitional legacy metadata。
+
+Learn source 不包含 runtime visibility record。正常 public visibility 由 D1 `learn_publications` 拥有；source `withdrawn` / `superseded` 保持 source-level historical semantics。
+
+Current source schema 不包含 `completionId`、`parentSlug` 或 `sourceUrl`。Legacy `learn_section_completed` 只存在于 historical Footprint records，不由 current Learn frontmatter 维护。
+
+ADR-008 规定 Public Learn canonical source 为 Markdown；Blog 的 MDX capability 不传播给 Learn。
+
+---
+
+## 6. Blog lifecycle sync
+
+```text
 Blog source
-    ↓ successful production deploy
-protected deploy manifest sync
-    ↓ first initialization: 建立 lifecycle baseline，created=0
-    ↓ later sync: 保留已有 owner state；新 source 带入 source state
-runtime Blog lifecycle manifest
-    ↓ never-published → published
-    ├─ eligible deploy sync
-    └─ owner lifecycle PATCH
-Public Footprint Writer
-    ↓ source_version = first-production-v1（同一幂等身份）
-D1 public_footprints
+   ↓ successful production deploy / owner lifecycle action
+runtime lifecycle state
+   ↓ never-published → published
+first-production-v1 footprint（幂等）
 ```
 
-**约束**：
+关键不变量：
 
-- 当前 Blog 幂等键使用 `blog:{slug}:first-production-v1`，不使用 `publication_id`、deployment id 或普通 Git SHA。
-- `state` 必须明确为 `draft`、`published` 或 `withdrawn`；缺失 state 的新内容在 authoring / manifest boundary 失败。
-- 第一次建立 lifecycle manifest 时不回填历史 Blog publication footprint。
-- baseline 之后，never-published source 首次进入 `published` 时可以由合资格 deploy sync 或 owner lifecycle action 创建同一 first-publication footprint。
-- Withdraw / Restore 不重复生成首次发布；普通编辑、部署失败和幂等重复 sync 不应制造 duplicate。
-- `publication_id` 是否成为未来 Blog 发布身份，待木下确认；本文件不提前裁决产品契约。
+- first publication idempotency key：`blog:{slug}:first-production-v1`；
+- source `state` 为 `draft` / `published` / `withdrawn`；
+- initial lifecycle baseline 不回填历史 Blog publication footprint；
+- baseline 之后，never-published source 第一次进入 `published` 可由 eligible deploy sync 或 owner lifecycle action 创建 first footprint；
+- Withdraw / Restore 不重复 first publication；
+- 普通编辑、失败 deploy 和重复 sync 不制造 duplicate；
+- `publication_id` 不属于 current Blog publication identity。
 
-Blog lifecycle 与 Learn lifecycle 不合并成一套 generic publication framework：Blog runtime state 当前在 KV manifest；Learn runtime publication state 当前在 D1 `learn_publications`。
+Blog lifecycle 与 Learn lifecycle 保持不同 storage / transition model，不合并为 generic publication framework。
 
 ---
 
-## 7. API 类型定义
+## 7. Shared API type ownership
 
-### 7.1 共享类型 (shared/)
+跨 Site / Worker 的 canonical declarations 位于 `shared/types.ts`。本节只维护职责索引，不复制完整 TypeScript shape。
 
-```typescript
-// shared/types.ts（节选）
+| 类型 / family | 职责 |
+| --- | --- |
+| `PostType` / `Visibility` / `FeedPost` | Feed 原生 Note / Clip 与公开/私有状态的跨层 contract |
+| `FootprintSource` / `FootprintEventType` / `PublicFootprint` | Public Footprint 来源、事件与 event-time snapshot contract |
+| `TimelineEntry` / `PaginatedResponse<T>` | Public Timeline 统一读取 projection 与 cursor pagination contract |
+| `BlogLifecycleState` / `BlogLifecycleEntry` | Blog runtime lifecycle 与 Site / Feed Worker 间的 publication contract |
+| `LearnPublicationVisibility` / `LearnPublicationRecord` | Learn runtime public / hidden lifecycle contract |
+| `ActivityState` / `ActivitySignalsManifest` | Home Activity Signal 固定静态 projection contract |
+| auth request / response / session types | 主站与 Finance 各自认证 API 的跨层 payload / status contract |
 
-export type PostType = "note" | "clip";
-export type Visibility = "public" | "private";
-export type FootprintSource = "blog" | "learn" | "projects";
-export type FootprintEventType =
-  | "blog_published"
-  | "learn_section_completed"
-  | "learn_note_published"
-  | "learn_note_revised"
-  | "project_updated";
-export type ActivityState = "active" | "stable" | "dormant";
-export type BlogLifecycleState = "draft" | "published" | "withdrawn";
-
-export interface BlogLifecycleEntry {
-  slug: string;
-  title: string;
-  summary: string;
-  state: BlogLifecycleState;
-}
-
-export type LearnPublicationVisibility = "public" | "hidden";
-
-export interface LearnPublicationRecord {
-  slug: string;
-  visibility: LearnPublicationVisibility;
-  published_at: string;
-  last_revised_at: string | null;
-  updated_at: string;
-}
-
-export interface ActivitySignalsManifest {
-  schema_version: 1;
-  signals: Record<"blog" | "feed" | "learn" | "projects", { state: ActivityState }>;
-}
-
-export interface FeedPost {
-  id: string;
-  type: PostType;
-  content: string | null;
-  media_json: string | null;
-  link_url: string | null;
-  link_title: string | null;
-  link_summary: string | null;
-  link_image: string | null;
-  visibility: Visibility;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface PublicFootprint {
-  id: string;
-  source_module: FootprintSource;
-  source_ref: string;
-  source_version: string;
-  event_type: FootprintEventType;
-  snapshot_json: string;
-  occurred_at: string;
-  visibility: Visibility;
-}
-
-export interface TimelineEntry {
-  id: string;
-  kind: "native_post" | "system_footprint";
-  occurred_at: string;
-  visibility: Visibility;
-  projection_state?: "public" | "own_private" | "source_hidden";
-  payload: FeedPost | PublicFootprint;
-}
-
-export interface PaginatedResponse<T> {
-  items: T[];
-  cursor: string | null;
-  has_more: boolean;
-}
-
-export interface BlogViewCount {
-  slug: string;
-  count: number;
-}
-
-export interface LoginRequest {
-  username: string;
-  password: string;
-}
-
-export interface LoginResponse {
-  token: string;
-  expires_at: string;
-}
-
-export interface SessionStatus {
-  authenticated: boolean;
-  username: string | null;
-}
-```
+具体字段、union 成员和新增类型以 `shared/types.ts` 为准。修改跨层 shape 时应更新该 canonical declaration 及其真实 consumers；本数据模型只在类型 family 的职责发生变化时同步。
 
 ---
 
-## 8. 实体关系图
+## 8. 关系摘要
 
-```
-catstarry-db                    finance-db
-┌─────────────┐                ┌──────────────────┐
-│ feed_posts  │                │ trades           │
-│  id (PK)    │                │  id (PK)         │
-│  type       │                │  ticker          │
-│  content    │                │  direction       │
-│  media_json │                │  quantity, price │
-│  visibility │                │  position_category│
-│  created_at │                └────────┬─────────┘
-└─────────────┘                         │
-┌──────────────────┐                    │
-│ public_footprints│                    │
-│ id (PK)          │                    │
-│ source_module    │                    │
-│ source_ref       │                    │
-│ source_version   │                    │
-│ snapshot_json    │                    │
-│ visibility       │                    │
-│ idempotency_key  │                    │
-└──────────────────┘                    │
-┌──────────────────┐                    │
-│ learn_publications│                   │
-│ slug (PK)        │                    │
-│ visibility       │                    │
-│ published_at     │                    │
-│ last_revised_at  │                    │
-│ updated_at       │                    │
-└──────────────────┘                    │
-┌──────────────────┐           ┌────────▼─────────┐
-│ blog_view_visitors│          │ holdings_snapshots│
-│ slug/view_date PK │          │ ticker, quantity │
-│ visitor_hash PK   │          │ avg_cost         │
-└────────┬─────────┘           └────────┬─────────┘
-         │ trigger                     │
-┌────────▼────┐               ┌────────▼─────────┐
-│ blog_views  │               │ market_data      │
-│ slug/date   │               │ ticker, price    │
-│ count       │               │ pe_ttm           │
-└─────────────┘               └────────┬─────────┘
-┌──────────────┐                       │
-│ auth_sessions│              ┌────────▼─────────┐
-│ token (PK)   │              │ circuit_breaker_ │
-│ username     │              │ log              │
-│ expires_at   │              │ level, reason    │
-└──────────────┘              └──────────────────┘
+```text
+catstarry-db
+  feed_posts ─────────────┐
+                          ├─ Public Timeline read projection
+  public_footprints ──────┘
 
-KV:                                      R2:
-  view:{date}:{slug}:{visitorHash}         catstarry-media/
-  ratelimit:views:{minute}:{visitorHash}     feed/2026-07/uuid.jpg
-  user:{username}
-  session:{token}                         home-projections/
-  ratelimit:login:{ip}                      activity-signals.json
-  blog:lifecycle-manifest:v1
-  blog:published-manifest
-  learn:relation-manifest
+  learn_publications ───── Learn runtime public visibility
+
+  blog_view_visitors ─trigger→ blog_views
+  auth_sessions ────────── main-site session fallback
+
+AUTH / VIEW KV
+  sessions / users / rate limits
+  Blog lifecycle metadata
+  Learn relation metadata
+
+R2
+  Feed media
+  Home activity projection
+
+finance-db
+  trades / holdings_snapshots
+  market_data / finance_market_indexes
+  monthly_records / plan_params
+  finance_cash_flows / finance_asset_snapshots
+  position_limits / finance_investment_rules / finance_memos / finance_rebalance_records
+  access / import / workbook-review / audit families
 ```

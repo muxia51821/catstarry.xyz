@@ -1,6 +1,8 @@
 # 财务面板验收清单
 
 > 木下验收用。按实际操作流程组织。不说技术术语。
+>
+> **使用边界：** 本清单记录 Finance 的用户验收标准，不是 current implementation / production status Dashboard。未勾选条目不代表代码一定缺失，代码存在也不能自行覆盖本清单的 Product intent；若 current implementation 与某条验收标准冲突，应先查是否有更晚的 Finance Product 裁决。一次性历史数据迁移是否已经完成，只能由 source workbook、migration audit 与 production data evidence 验证，不能从 repository 文件或本清单推断。
 
 ## 1. 访问和登录
 

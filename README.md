@@ -25,8 +25,10 @@ Finance 是独立的内部工作区，不属于公开 Content Family。
 
 ## 项目文档
 
-- [CONTEXT.md](CONTEXT.md)：快速项目定向与少量长期事实
+新 Agent / Session 的最小入口：先读 [AGENTS.md](AGENTS.md) 了解行为、权限与 production safety，再读 [CONTEXT.md](CONTEXT.md) 完成项目定向；随后按任务进入对应 current source。
+
 - [AGENTS.md](AGENTS.md)：Agent 行为、Git 权限与 production safety
+- [CONTEXT.md](CONTEXT.md)：快速项目定向与少量长期事实
 - [docs/workflow-orchestration.md](docs/workflow-orchestration.md)：当前 Phase 8 维护工作流
 - [docs/content/README.md](docs/content/README.md)：Content Family 产品治理入口
 - [docs/architecture.md](docs/architecture.md)：当前技术架构入口
