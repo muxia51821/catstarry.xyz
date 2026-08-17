@@ -179,7 +179,7 @@
 
   .finance-tab {
     flex: 0 0 auto;
-    min-width: max-content;
+    min-width: 84px;
   }
 
   .dashboard-grid > [data-pane="planning"],
