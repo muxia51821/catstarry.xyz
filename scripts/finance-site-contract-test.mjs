@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-const [html, css, script, headers, worker, operationsUi, operationsCss, operationsRoute, legacyReviewRoute, operationMigration] = await Promise.all([
+const [html, css, script, headers, worker, operationsUi, operationsCss, activityRoute, operationsRoute, legacyReviewRoute, operationMigration] = await Promise.all([
   readFile('finance-site/index.html', 'utf8'),
   readFile('finance-site/styles.css', 'utf8'),
   readFile('finance-site/app.js', 'utf8'),
@@ -9,6 +9,7 @@ const [html, css, script, headers, worker, operationsUi, operationsCss, operatio
   readFile('workers/finance-api/src/index.ts', 'utf8'),
   readFile('finance-site/operations-ui.js', 'utf8'),
   readFile('finance-site/operations.css', 'utf8'),
+  readFile('workers/finance-api/src/routes/activity.ts', 'utf8'),
   readFile('workers/finance-api/src/routes/operations.ts', 'utf8'),
   readFile('workers/finance-api/src/routes/legacy-import-review.ts', 'utf8'),
   readFile('workers/finance-api/migrations/0008_operation_history.sql', 'utf8'),
@@ -87,9 +88,12 @@ assert.match(script, /setStatus\(\$\('\[data-dashboard-status\]'\), ''\)/);
 
 assert.match(html, /<link rel="stylesheet" href="\/operations\.css">/);
 assert.match(html, /<script src="\/operations-ui\.js" defer><\/script>/);
+assert.match(operationsUi, /账户动态/);
+assert.match(operationsUi, /\/api\/activity/);
 assert.match(operationsUi, /数据变更记录/);
 assert.match(operationsUi, /\/api\/change-log/);
 assert.match(operationsUi, /\/api\/workbook-review/);
+assert.match(operationsUi, /activityCursor/);
 assert.match(operationsUi, /nextCursor/);
 assert.match(operationsUi, /Asia\/Shanghai/);
 assert.match(operationsUi, /operation-history-ready/);
@@ -97,13 +101,16 @@ assert.match(operationsUi, /operation-workbook-review-ready/);
 assert.match(operationsUi, /resetSessionSurfaces/);
 assert.match(operationsUi, /sessionEpoch/);
 assert.doesNotMatch(operationsUi, /window\.fetch\s*=/, 'records extension must not monkey-patch global fetch');
-assert.doesNotMatch(operationsUi, /\boffset\b/i, 'data change log must use cursor pagination');
-assert.doesNotMatch(operationsUi, /audit_strength|provenance/i, 'internal evidence taxonomy must not be exposed by the user-facing change-log module');
+assert.doesNotMatch(operationsUi, /\boffset\b/i, 'Activity and change log must use cursor pagination');
+assert.doesNotMatch(operationsUi, /audit_strength|provenance/i, 'internal evidence taxonomy must not be exposed by the records UI');
 assert.doesNotMatch(operationsCss, /\.operation-history-ready \[data-access-panel\]/, 'data change log must not hide the auxiliary security access log');
 assert.match(operationsCss, /\.operation-workbook-review-ready \[data-import-review-panel\]/);
 assert.doesNotMatch(operationsCss, /^\[data-access-panel\][\s,]/m, 'security access log must not be hidden by records extension CSS');
+assert.match(operationsCss, /\.activity-row/);
 assert.match(operationsCss, /\.operation-panel-summary/);
 
+assert.match(worker, /handleActivity/);
+assert.match(worker, /pathname === '\/api\/activity'/);
 assert.match(worker, /handleChangeLog/);
 assert.match(worker, /pathname === '\/api\/change-log'/);
 assert.doesNotMatch(worker, /pathname === '\/api\/operations'/);
@@ -115,6 +122,20 @@ assert.match(legacyReviewRoute, /INSERT INTO finance_legacy_import_review_actor_
 assert.match(legacyReviewRoute, /DELETE FROM finance_legacy_import_review_actor_context/);
 assert.match(legacyReviewRoute, /SET status = 'resolved', resolution_note = \?, resolved_at = \?/);
 assert.doesNotMatch(legacyReviewRoute, /auditEnvelope|__finance_operation_history_v1/);
+
+assert.match(activityRoute, /export async function handleActivity/);
+assert.match(activityRoute, /requireFinanceRole\(request, env\)/);
+assert.match(activityRoute, /FROM trades t WHERE t\.deleted_at IS NULL/);
+assert.match(activityRoute, /FROM finance_cash_flows f WHERE f\.deleted_at IS NULL/);
+assert.match(activityRoute, /FROM finance_account_events e WHERE e\.deleted_at IS NULL/);
+assert.match(activityRoute, /FROM finance_asset_snapshots s/);
+assert.match(activityRoute, /s\.is_complete = 1/);
+assert.match(activityRoute, /historical_backfill/);
+assert.match(activityRoute, /history_import/);
+assert.match(activityRoute, /export function humanizeActivity/);
+assert.match(activityRoute, /份额数量已调整/);
+assert.doesNotMatch(activityRoute, /finance_.*_audit|finance_access_log|circuit_breaker_log|monthly_confirmations|finance_rebalance_records/, 'Activity must be built from business facts only');
+assert.doesNotMatch(activityRoute, /\bOFFSET\b/i);
 
 assert.match(operationsRoute, /business_date/);
 assert.match(operationsRoute, /occurred_at/);
