@@ -158,6 +158,7 @@ class MemoryStatement {
       this.database.accounts.push(account);
       return { meta: { changes: 1, last_row_id: account.id } };
     }
+    if (this.sql.startsWith('INSERT INTO finance_legacy_import_review_actor_context')) return { meta: { changes: 1 } };
     if (this.sql.startsWith('UPDATE finance_import_review')) {
       const [resolution_note, resolved_at, id] = this.values;
       const row = this.database.importReview.find((item) => item.id === id && item.status === 'pending');
@@ -165,6 +166,7 @@ class MemoryStatement {
       Object.assign(row, { status: 'resolved', resolution_note, resolved_at });
       return { meta: { changes: 1 } };
     }
+    if (this.sql.startsWith('DELETE FROM finance_legacy_import_review_actor_context')) return { meta: { changes: 1 } };
     if (this.sql.startsWith('INSERT OR IGNORE INTO monthly_confirmations')) {
       const [period, username] = this.values;
       const key = `${period}:${username}`;
@@ -234,7 +236,7 @@ class MemoryStatement {
     }
     if (this.sql.startsWith('SELECT * FROM trades')) return { results: [...this.database.trades].filter((trade) => !trade.deleted_at).reverse() };
     if (this.sql.startsWith('SELECT m.*, t.ticker_name')) return { results: [...this.database.memos].filter((memo) => !memo.deleted_at).reverse().map((memo) => {
-      const trade = this.database.trades.find((item) => item.id === memo.trade_id);
+      const trade = this.database.trades.find((item) => item.trade_id === trade.id);
       return { ...memo, ticker_name: trade?.ticker_name ?? null, trade_quantity: trade?.quantity ?? null, trade_price: trade?.price ?? null };
     }) };
     if (this.sql.startsWith('SELECT * FROM monthly_records')) return { results: [...this.database.monthlyRecords].filter((record) => !record.deleted_at).reverse() };
@@ -275,16 +277,8 @@ const fetchWorker = (pathname, init = {}) => worker.fetch(new Request(`https://f
 const trusted = { Origin: 'https://f.catstarry.xyz', 'Content-Type': 'application/json' };
 
 env.FINANCE_SITE_ORIGIN = 'https://f-staging.catstarry.xyz';
-assert.equal((await fetchWorker('/api/auth/login', {
-  method: 'POST',
-  headers: trusted,
-  body: '{}',
-})).status, 403, 'configured Finance staging Worker must reject the production Origin');
-assert.equal((await fetchWorker('/api/auth/login', {
-  method: 'POST',
-  headers: { Origin: env.FINANCE_SITE_ORIGIN, 'Content-Type': 'application/json' },
-  body: '{}',
-})).status, 400, 'configured Finance staging Origin must reach request validation');
+assert.equal((await fetchWorker('/api/auth/login', { method: 'POST', headers: trusted, body: '{}' })).status, 403, 'configured Finance staging Worker must reject the production Origin');
+assert.equal((await fetchWorker('/api/auth/login', { method: 'POST', headers: { Origin: env.FINANCE_SITE_ORIGIN, 'Content-Type': 'application/json' }, body: '{}' })).status, 400, 'configured Finance staging Origin must reach request validation');
 delete env.FINANCE_SITE_ORIGIN;
 
 assert.equal((await fetchWorker('/api/auth/login', { method: 'POST', body: '{}' })).status, 403);
@@ -292,11 +286,7 @@ assert.equal((await fetchWorker('/api/auth/login', { method: 'POST', headers: tr
 assert.deepEqual(await fetchWorker('/api/auth/session', { headers: { Cookie: 'token=%GG' } }).then((response) => response.json()), { authenticated: false, username: null });
 assert.equal((await fetchWorker('/api/auth/login', { method: 'POST', headers: trusted, body: JSON.stringify({ username: 'admin', password: 'x'.repeat(5_000) }) })).status, 413);
 for (const invalidBody of ['null', '[]', '"credentials"']) {
-  assert.equal((await fetchWorker('/api/auth/login', {
-    method: 'POST',
-    headers: trusted,
-    body: invalidBody,
-  })).status, 400, 'non-object Finance JSON must be rejected as a client error');
+  assert.equal((await fetchWorker('/api/auth/login', { method: 'POST', headers: trusted, body: invalidBody })).status, 400, 'non-object Finance JSON must be rejected as a client error');
 }
 
 async function login(username) {
@@ -313,24 +303,10 @@ assert.equal((await fetchWorker('/api/archive?year=2026', { headers: { Cookie: v
 assert.equal((await fetchWorker('/api/access-log', { headers: { Cookie: viewerCookie } })).status, 403);
 assert.equal((await fetchWorker('/api/import-review', { headers: { Cookie: viewerCookie } })).status, 403);
 assert.equal((await fetchWorker('/api/notifications', { headers: { Cookie: viewerCookie } })).status, 200);
-assert.equal((await fetchWorker('/api/confirmations/monthly', {
-  method: 'POST',
-  headers: { ...trusted, Cookie: viewerCookie },
-  body: JSON.stringify({ period: '2026-13' }),
-})).status, 400);
-assert.equal((await fetchWorker('/api/confirmations/monthly', {
-  method: 'POST',
-  headers: { ...trusted, Cookie: viewerCookie },
-  body: JSON.stringify({ period: '2000-01' }),
-})).status, 409);
-const confirmablePeriod = (await fetchWorker('/api/notifications', {
-  headers: { Cookie: viewerCookie },
-}).then((response) => response.json())).monthly_confirmation.period;
-assert.equal((await fetchWorker('/api/confirmations/monthly', {
-  method: 'POST',
-  headers: { ...trusted, Cookie: viewerCookie },
-  body: JSON.stringify({ period: confirmablePeriod }),
-})).status, 200);
+assert.equal((await fetchWorker('/api/confirmations/monthly', { method: 'POST', headers: { ...trusted, Cookie: viewerCookie }, body: JSON.stringify({ period: '2026-13' }) })).status, 400);
+assert.equal((await fetchWorker('/api/confirmations/monthly', { method: 'POST', headers: { ...trusted, Cookie: viewerCookie }, body: JSON.stringify({ period: '2000-01' }) })).status, 409);
+const confirmablePeriod = (await fetchWorker('/api/notifications', { headers: { Cookie: viewerCookie } }).then((response) => response.json())).monthly_confirmation.period;
+assert.equal((await fetchWorker('/api/confirmations/monthly', { method: 'POST', headers: { ...trusted, Cookie: viewerCookie }, body: JSON.stringify({ period: confirmablePeriod }) })).status, 200);
 
 const adminCookie = await login('admin');
 assert.equal((await fetchWorker('/api/account-events', { headers: { Cookie: viewerCookie } })).status, 200, 'viewers can read account events');
@@ -340,124 +316,41 @@ assert.equal(accountEventCreated.status, 201, 'administrator can create an inter
 assert.equal((await fetchWorker('/api/account-events/1', { method: 'PATCH', headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify({ event_date: '2026-07-25', event_type: 'dividend_tax', ticker: '510300', amount: -1, note: 'tax' }) })).status, 200, 'administrator can update an internal account event');
 assert.equal((await fetchWorker('/api/account-events/1', { method: 'DELETE', headers: { ...trusted, Cookie: adminCookie }, body: '{}' })).status, 200, 'administrator can soft-delete an internal account event');
 assert.equal((await fetchWorker('/api/trades', { method: 'POST', headers: { ...trusted, Cookie: adminCookie }, body: '{}' })).status, 400);
-assert.equal((await fetchWorker('/api/circuit/evaluate', {
-  method: 'POST',
-  headers: { ...trusted, Cookie: adminCookie },
-  body: '{}',
-})).status, 400, 'incomplete circuit metrics must not be accepted');
-assert.equal((await fetchWorker('/api/circuit/999999999999999999999/confirm-resolve', {
-  method: 'PATCH',
-  headers: { ...trusted, Cookie: adminCookie },
-  body: '{}',
-})).status, 404, 'direct circuit resolution is retired in favour of two-role confirmation');
-assert.equal((await fetchWorker('/api/import-review/999999999999999999999', {
-  method: 'PATCH',
-  headers: { ...trusted, Cookie: adminCookie },
-  body: JSON.stringify({ resolution_note: 'bounded' }),
-})).status, 400);
-const created = await fetchWorker('/api/trades', {
-  method: 'POST',
-  headers: { ...trusted, Cookie: adminCookie },
-  body: JSON.stringify({
-    trade_date: '2026-07-25',
-    ticker: '510300',
-    ticker_name: '沪深300ETF',
-    direction: 'buy',
-    quantity: 100,
-    price: 4.25,
-    trade_time: '09:30',
-    fee: 0.12,
-    net_cash_amount: -425.12,
-    position_category: 'broad-index',
-    reason: 'contract',
-  }),
-});
+assert.equal((await fetchWorker('/api/circuit/evaluate', { method: 'POST', headers: { ...trusted, Cookie: adminCookie }, body: '{}' })).status, 400, 'incomplete circuit metrics must not be accepted');
+assert.equal((await fetchWorker('/api/circuit/999999999999999999999/confirm-resolve', { method: 'PATCH', headers: { ...trusted, Cookie: adminCookie }, body: '{}' })).status, 404, 'direct circuit resolution is retired in favour of two-role confirmation');
+assert.equal((await fetchWorker('/api/import-review/999999999999999999999', { method: 'PATCH', headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify({ resolution_note: 'bounded' }) })).status, 400);
+const created = await fetchWorker('/api/trades', { method: 'POST', headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify({ trade_date: '2026-07-25', ticker: '510300', ticker_name: '沪深300ETF', direction: 'buy', quantity: 100, price: 4.25, trade_time: '09:30', fee: 0.12, net_cash_amount: -425.12, position_category: 'broad-index', reason: 'contract' }) });
 assert.equal(created.status, 201, await created.clone().text());
 assert.deepEqual((await created.clone().json()).trade.fee, 0.12, 'optional online trade fee is persisted');
-assert.equal((await fetchWorker('/api/memos', {
-  method: 'POST', headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify({ reason: 'linked investment decision' }),
-})).status, 400, 'a memo must select a trade');
-assert.equal((await fetchWorker('/api/memos', {
-  method: 'POST', headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify({ trade_id: 999, reason: 'missing trade' }),
-})).status, 404, 'a memo trade must exist and remain active');
-const memoCreated = await fetchWorker('/api/memos', {
-  method: 'POST', headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify({
-    trade_id: 1,
-    memo_date: '1999-01-01',
-    ticker: 'CLIENT-SUPPLIED',
-    position_category: 'client-category',
-    operation_type: 'client-operation',
-    reason: 'linked investment decision',
-    stop_loss_triggered: true,
-    note: 'memo note',
-  }),
-});
+assert.equal((await fetchWorker('/api/memos', { method: 'POST', headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify({ reason: 'linked investment decision' }) })).status, 400, 'a memo must select a trade');
+assert.equal((await fetchWorker('/api/memos', { method: 'POST', headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify({ trade_id: 999, reason: 'missing trade' }) })).status, 404, 'a memo trade must exist and remain active');
+const memoCreated = await fetchWorker('/api/memos', { method: 'POST', headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify({ trade_id: 1, memo_date: '1999-01-01', ticker: 'CLIENT-SUPPLIED', position_category: 'client-category', operation_type: 'client-operation', reason: 'linked investment decision', stop_loss_triggered: true, note: 'memo note' }) });
 assert.equal(memoCreated.status, 201, await memoCreated.clone().text());
 const memoSnapshot = (await memoCreated.json()).memo;
-assert.deepEqual(
-  { trade_id: memoSnapshot.trade_id, memo_date: memoSnapshot.memo_date, ticker: memoSnapshot.ticker, position_category: memoSnapshot.position_category, operation_type: memoSnapshot.operation_type },
-  { trade_id: 1, memo_date: '2026-07-25', ticker: '510300', position_category: 'broad-index', operation_type: 'buy' },
-  'memo trade fields must be copied from the active trade, not trusted from the client',
-);
-assert.equal((await fetchWorker('/api/memos/1', {
-  method: 'PUT', headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify({
-    trade_id: 1, reason: 'updated investment decision', stop_loss_triggered: false, note: 'updated memo note', ticker: 'untrusted',
-  }),
-})).status, 200, 'PUT memo updates retain a server-derived snapshot');
-assert.equal((await fetchWorker('/api/memos', {
-  method: 'POST', headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify({ trade_id: 1, reason: 'duplicate memo' }),
-})).status, 409, 'one active trade must have at most one active memo');
-assert.equal((await fetchWorker('/api/memos/1', {
-  method: 'PATCH', headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify({ trade_id: 999, reason: 'reassign memo', stop_loss_triggered: false }),
-})).status, 409, 'editing a memo must not reassign its linked trade');
+assert.deepEqual({ trade_id: memoSnapshot.trade_id, memo_date: memoSnapshot.memo_date, ticker: memoSnapshot.ticker, position_category: memoSnapshot.position_category, operation_type: memoSnapshot.operation_type }, { trade_id: 1, memo_date: '2026-07-25', ticker: '510300', position_category: 'broad-index', operation_type: 'buy' }, 'memo trade fields must be copied from the active trade, not trusted from the client');
+assert.equal((await fetchWorker('/api/memos/1', { method: 'PUT', headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify({ trade_id: 1, reason: 'updated investment decision', stop_loss_triggered: false, note: 'updated memo note', ticker: 'untrusted' }) })).status, 200, 'PUT memo updates retain a server-derived snapshot');
+assert.equal((await fetchWorker('/api/memos', { method: 'POST', headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify({ trade_id: 1, reason: 'duplicate memo' }) })).status, 409, 'one active trade must have at most one active memo');
+assert.equal((await fetchWorker('/api/memos/1', { method: 'PATCH', headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify({ trade_id: 999, reason: 'reassign memo', stop_loss_triggered: false }) })).status, 409, 'editing a memo must not reassign its linked trade');
 env.DB.activeBlackCircuit = true;
-for (const [method, pathname, body] of [
-  ['POST', '/api/trades', { trade_date: '2026-07-26', ticker: '510500', direction: 'buy', quantity: 1, price: 5, position_category: 'broad-index' }],
-  ['PATCH', '/api/trades/1', { trade_date: '2026-07-25', ticker: '510300', direction: 'buy', quantity: 120, price: 4.3, position_category: 'broad-index' }],
-  ['DELETE', '/api/trades/1', {}],
-]) {
+for (const [method, pathname, body] of [['POST', '/api/trades', { trade_date: '2026-07-26', ticker: '510500', direction: 'buy', quantity: 1, price: 5, position_category: 'broad-index' }], ['PATCH', '/api/trades/1', { trade_date: '2026-07-25', ticker: '510300', direction: 'buy', quantity: 120, price: 4.3, position_category: 'broad-index' }], ['DELETE', '/api/trades/1', {}]]) {
   const response = await fetchWorker(pathname, { method, headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify(body) });
   assert.equal(response.status, 409, `active black circuit must block ${method} ${pathname}`);
   assert.equal((await response.json()).error.code, 'black_circuit_active');
 }
 env.DB.activeBlackCircuit = false;
-assert.equal((await fetchWorker('/api/trades', {
-  method: 'POST', headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify({
-    trade_date: '2026-07-24', ticker: '510300', direction: 'buy', quantity: 1, price: 4.2, position_category: 'broad-index',
-  }),
-})).status, 409, 'backdated online trades must be rejected');
-assert.equal((await fetchWorker('/api/trades', {
-  method: 'POST', headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify({
-    trade_date: '2026-02-31', ticker: '510500', direction: 'buy', quantity: 1, price: 5, position_category: 'broad-index',
-  }),
-})).status, 400, 'calendar-invalid trade dates must be rejected');
+assert.equal((await fetchWorker('/api/trades', { method: 'POST', headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify({ trade_date: '2026-07-24', ticker: '510300', direction: 'buy', quantity: 1, price: 4.2, position_category: 'broad-index' }) })).status, 409, 'backdated online trades must be rejected');
+assert.equal((await fetchWorker('/api/trades', { method: 'POST', headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify({ trade_date: '2026-02-31', ticker: '510500', direction: 'buy', quantity: 1, price: 5, position_category: 'broad-index' }) })).status, 400, 'calendar-invalid trade dates must be rejected');
 assert.equal((await fetchWorker('/api/trades', { headers: { Cookie: adminCookie } }).then((response) => response.json())).trades.length, 1);
-assert.equal((await fetchWorker('/api/trades/1', {
-  method: 'PATCH', headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify({
-    trade_date: '2026-07-25', ticker: '510300', ticker_name: '沪深300ETF', direction: 'buy', quantity: 120, price: 4.3, position_category: 'broad-index', reason: 'corrected contract',
-  }),
-})).status, 200, 'the latest standalone online trade can be edited');
-assert.equal((await fetchWorker('/api/trades/1', {
-  method: 'DELETE', headers: { ...trusted, Cookie: adminCookie }, body: '{}',
-})).status, 200, 'the latest standalone online trade can be soft-deleted');
+assert.equal((await fetchWorker('/api/trades/1', { method: 'PATCH', headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify({ trade_date: '2026-07-25', ticker: '510300', ticker_name: '沪深300ETF', direction: 'buy', quantity: 120, price: 4.3, position_category: 'broad-index', reason: 'corrected contract' }) })).status, 200, 'the latest standalone online trade can be edited');
+assert.equal((await fetchWorker('/api/trades/1', { method: 'DELETE', headers: { ...trusted, Cookie: adminCookie }, body: '{}' })).status, 200, 'the latest standalone online trade can be soft-deleted');
 assert.equal((await fetchWorker('/api/trades', { headers: { Cookie: adminCookie } }).then((response) => response.json())).trades.length, 0);
 const memosAfterTradeDelete = await fetchWorker('/api/memos', { headers: { Cookie: adminCookie } }).then((response) => response.json());
 assert.equal(memosAfterTradeDelete.memos.length, 1, 'soft-deleting a trade must not delete its memo');
-assert.deepEqual(
-  { memo_date: memosAfterTradeDelete.memos[0].memo_date, ticker: memosAfterTradeDelete.memos[0].ticker, position_category: memosAfterTradeDelete.memos[0].position_category, operation_type: memosAfterTradeDelete.memos[0].operation_type },
-  { memo_date: '2026-07-25', ticker: '510300', position_category: 'broad-index', operation_type: 'buy' },
-  'memo snapshot must remain readable after the source trade is soft-deleted',
-);
-assert.equal((await fetchWorker('/api/memos', {
-  method: 'POST', headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify({ trade_id: 1, reason: 'deleted trade cannot be linked' }),
-})).status, 404, 'new memos cannot select a soft-deleted trade');
-assert.equal((await fetchWorker('/api/memos/1', {
-  method: 'DELETE', headers: { ...trusted, Cookie: adminCookie }, body: '{}',
-})).status, 200, 'an administrator can soft-delete a memo');
+assert.deepEqual({ memo_date: memosAfterTradeDelete.memos[0].memo_date, ticker: memosAfterTradeDelete.memos[0].ticker, position_category: memosAfterTradeDelete.memos[0].position_category, operation_type: memosAfterTradeDelete.memos[0].operation_type }, { memo_date: '2026-07-25', ticker: '510300', position_category: 'broad-index', operation_type: 'buy' }, 'memo snapshot must remain readable after the source trade is soft-deleted');
+assert.equal((await fetchWorker('/api/memos', { method: 'POST', headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify({ trade_id: 1, reason: 'deleted trade cannot be linked' }) })).status, 404, 'new memos cannot select a soft-deleted trade');
+assert.equal((await fetchWorker('/api/memos/1', { method: 'DELETE', headers: { ...trusted, Cookie: adminCookie }, body: '{}' })).status, 200, 'an administrator can soft-delete a memo');
 assert.equal((await fetchWorker('/api/memos', { headers: { Cookie: adminCookie } }).then((response) => response.json())).memos.length, 0, 'soft-deleted memos must not be listed');
-for (let id = 2; id <= 102; id += 1) {
-  env.DB.trades.push({ id, trade_date: '2026-07-30', ticker: '510300', ticker_name: '沪深300ETF', direction: 'buy', quantity: 1, price: 4.2, position_category: 'broad-index', reason: null, deleted_at: null });
-}
+for (let id = 2; id <= 102; id += 1) env.DB.trades.push({ id, trade_date: '2026-07-30', ticker: '510300', ticker_name: '沪深300ETF', direction: 'buy', quantity: 1, price: 4.2, position_category: 'broad-index', reason: null, deleted_at: null });
 const firstTradePage = await fetchWorker('/api/trades?limit=50&ticker=510300&direction=buy', { headers: { Cookie: adminCookie } }).then((response) => response.json());
 assert.equal(firstTradePage.items.length, 50);
 assert.ok(firstTradePage.nextCursor, 'trade pagination must return a cursor after the first 50 rows');
@@ -479,14 +372,7 @@ assert.match(archive.headers.get('content-type') ?? '', /spreadsheetml/);
 const archiveBytes = new Uint8Array(await archive.arrayBuffer());
 assert.deepEqual([...archiveBytes.subarray(0, 4)], [0x50, 0x4b, 0x03, 0x04]);
 const archiveFiles = readStoredZip(archiveBytes);
-for (const [name, columns] of [
-  ['Trades', ['trade_time', 'fee', 'net_cash_amount']],
-  ['Holding Snapshots', ['snapshot_date', 'avg_cost', 'position_category']],
-  ['Account Events', ['event_type', 'reference_value', 'amount']],
-  ['Cash Flows', ['flow_type', 'manager_share_offset', 'net_amount']],
-  ['Asset Snapshots', ['total_value', 'is_complete', 'incomplete_reason']],
-  ['Investment Memos', ['trade_id', 'reason_source', 'stop_loss_triggered']],
-]) {
+for (const [name, columns] of [['Trades', ['trade_time', 'fee', 'net_cash_amount']], ['Holding Snapshots', ['snapshot_date', 'avg_cost', 'position_category']], ['Account Events', ['event_type', 'reference_value', 'amount']], ['Cash Flows', ['flow_type', 'manager_share_offset', 'net_amount']], ['Asset Snapshots', ['total_value', 'is_complete', 'incomplete_reason']], ['Investment Memos', ['trade_id', 'reason_source', 'stop_loss_triggered']]]) {
   const sheet = archiveSheet(archiveFiles, name);
   for (const column of columns) assert.match(sheet, new RegExp(`<t xml:space="preserve">${column}</t>`), `${name} must include ${column}`);
 }
@@ -499,77 +385,34 @@ assert.equal((await fetchWorker('/api/notifications', { headers: { Cookie: admin
 const pendingReview = await fetchWorker('/api/import-review?status=pending', { headers: { Cookie: adminCookie } }).then((response) => response.json());
 assert.equal(pendingReview.review.length, 1);
 assert.deepEqual(pendingReview.review[0].raw, { ticker: 'BAD' });
-assert.equal((await fetchWorker('/api/import-review/1', {
-  method: 'PATCH',
-  headers: { ...trusted, Cookie: adminCookie },
-  body: JSON.stringify({ resolution_note: '' }),
-})).status, 400);
-assert.equal((await fetchWorker('/api/import-review/1', {
-  method: 'PATCH',
-  headers: { ...trusted, Cookie: adminCookie },
-  body: JSON.stringify({ resolution_note: 'Corrected through the online trade form' }),
-})).status, 200);
-assert.equal((await fetchWorker('/api/import-review/1', {
-  method: 'PATCH',
-  headers: { ...trusted, Cookie: adminCookie },
-  body: JSON.stringify({ resolution_note: 'duplicate resolution' }),
-})).status, 409);
+assert.equal((await fetchWorker('/api/import-review/1', { method: 'PATCH', headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify({ resolution_note: '' }) })).status, 400);
+assert.equal((await fetchWorker('/api/import-review/1', { method: 'PATCH', headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify({ resolution_note: 'Corrected through the online trade form' }) })).status, 200);
+assert.equal((await fetchWorker('/api/import-review/1', { method: 'PATCH', headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify({ resolution_note: 'duplicate resolution' }) })).status, 409);
 assert.equal((await fetchWorker('/api/import-review?status=pending', { headers: { Cookie: adminCookie } }).then((response) => response.json())).review.length, 0);
 
 assert.equal((await fetchWorker('/api/monthly', { headers: { Cookie: viewerCookie } })).status, 200);
 assert.equal((await fetchWorker('/api/plan', { headers: { Cookie: viewerCookie } })).status, 200);
 assert.equal((await fetchWorker('/api/accounts', { headers: { Cookie: viewerCookie } })).status, 404, 'Account structure is outside the joint-investment product');
-assert.equal((await fetchWorker('/api/monthly', {
-  method: 'PUT', headers: { ...trusted, Cookie: viewerCookie }, body: JSON.stringify({ year_month: '2026-07' }),
-})).status, 403);
-assert.equal((await fetchWorker('/api/monthly', {
-  method: 'PUT', headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify({
-    year_month: '2026-07', muxia_invest: 5000, cati_invest: 0, end_total: 12600, sse300_pe: 12.5, summary: 'contract monthly record',
-  }),
-})).status, 200);
+assert.equal((await fetchWorker('/api/monthly', { method: 'PUT', headers: { ...trusted, Cookie: viewerCookie }, body: JSON.stringify({ year_month: '2026-07' }) })).status, 403);
+assert.equal((await fetchWorker('/api/monthly', { method: 'PUT', headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify({ year_month: '2026-07', muxia_invest: 5000, cati_invest: 0, end_total: 12600, sse300_pe: 12.5, summary: 'contract monthly record' }) })).status, 200);
 assert.equal((await fetchWorker('/api/monthly', { headers: { Cookie: adminCookie } }).then((response) => response.json())).records.length, 1);
-assert.equal((await fetchWorker('/api/plan', {
-  method: 'PUT', headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify({
-    initial_capital: 100000, monthly_invest: 5000, months_year1: 7, months_year2plus: 12,
-    rate_low: .03, rate_base: .06, rate_high: .1, bonus1: 50000, bonus2to4: 35000, start_year: 2026, end_year: 2030,
-  }),
-})).status, 200);
+assert.equal((await fetchWorker('/api/plan', { method: 'PUT', headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify({ initial_capital: 100000, monthly_invest: 5000, months_year1: 7, months_year2plus: 12, rate_low: .03, rate_base: .06, rate_high: .1, bonus1: 50000, bonus2to4: 35000, start_year: 2026, end_year: 2030 }) })).status, 200);
 assert.equal((await fetchWorker('/api/plan', { headers: { Cookie: adminCookie } }).then((response) => response.json())).plan.monthly_invest, 5000);
-assert.equal((await fetchWorker('/api/risk-rules', {
-  method: 'PUT', headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify({ rule_key: 'temperature', value: { freeze: 8, low: 12, normal: 18, high: 24 } }),
-})).status, 200);
+assert.equal((await fetchWorker('/api/risk-rules', { method: 'PUT', headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify({ rule_key: 'temperature', value: { freeze: 8, low: 12, normal: 18, high: 24 } }) })).status, 200);
 assert.equal(env.DB.rules.get('temperature'), JSON.stringify({ freeze: 8, low: 12, normal: 18, high: 24 }));
 assert.equal(env.DB.ruleAudits.at(-1)?.rule_key, 'temperature');
-assert.equal((await fetchWorker('/api/risk-rules', {
-  method: 'PUT', headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify({ rule_key: 'temperature', value: { freeze: 12, low: 10, normal: 18, high: 24 } }),
-})).status, 400, 'PE temperature boundaries must be strictly increasing');
-assert.equal((await fetchWorker('/api/monthly', {
-  method: 'PUT', headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify({
-    year_month: '2026-12', muxia_invest: 1000, cati_invest: 500, end_total: 120000, summary: 'year-end record',
-  }),
-})).status, 200);
-const annual = await fetchWorker('/api/review/calculate', {
-  method: 'POST', headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify({
-    year: 2026,
-    summary: 'derived annual review',
-    modifiedDietz: { beginningValue: 1, endingValue: 2, periodDays: 1, cashFlows: [{ amount: 9_999_999, day: 0 }] },
-    currentValue: 2,
-    historicalMaximumValue: 3,
-  }),
-});
+assert.equal((await fetchWorker('/api/risk-rules', { method: 'PUT', headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify({ rule_key: 'temperature', value: { freeze: 12, low: 10, normal: 18, high: 24 } }) })).status, 400, 'PE temperature boundaries must be strictly increasing');
+assert.equal((await fetchWorker('/api/monthly', { method: 'PUT', headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify({ year_month: '2026-12', muxia_invest: 1000, cati_invest: 500, end_total: 120000, summary: 'year-end record' }) })).status, 200);
+const annual = await fetchWorker('/api/review/calculate', { method: 'POST', headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify({ year: 2026, summary: 'derived annual review', modifiedDietz: { beginningValue: 1, endingValue: 2, periodDays: 1, cashFlows: [{ amount: 9_999_999, day: 0 }] }, currentValue: 2, historicalMaximumValue: 3 }) });
 assert.equal(annual.status, 200);
 const annualPayload = await annual.json();
 assert.equal(annualPayload.calculation.dietz.beginningValue, 100000, 'annual review must derive beginning value from the Finance plan');
 assert.equal(annualPayload.calculation.dietz.endingValue, 120000, 'annual review must derive ending value from the December record');
 assert.equal(annualPayload.calculation.dietz.netCashFlow, 6500, 'annual review must ignore browser-provided cash flows');
-const incompleteAnnual = await fetchWorker('/api/review/calculate', {
-  method: 'POST', headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify({ year: 2027, summary: 'must not calculate' }),
-});
+const incompleteAnnual = await fetchWorker('/api/review/calculate', { method: 'POST', headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify({ year: 2027, summary: 'must not calculate' }) });
 assert.equal(incompleteAnnual.status, 409);
 assert.equal((await incompleteAnnual.json()).error.code, 'missing_annual_data');
-assert.equal((await fetchWorker('/api/accounts', {
-  method: 'POST', headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify({ name: 'forbidden' }),
-})).status, 404);
+assert.equal((await fetchWorker('/api/accounts', { method: 'POST', headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify({ name: 'forbidden' }) })).status, 404);
 
 console.log('Finance HTTP contract passed.');
 
