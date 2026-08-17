@@ -36,6 +36,8 @@ interface TradeRow {
   fee: number | null;
   net_cash_amount: number | null;
   created_by: string | null;
+  updated_at: string | null;
+  updated_by: string | null;
   deleted_at: string | null;
   memo_id?: number | null;
   memo_reason?: string | null;
@@ -146,10 +148,11 @@ async function createTrade(request: Request, env: FinanceEnv): Promise<Response>
       trade_date, trade_time, ticker, ticker_name, direction, quantity, price, fee, net_cash_amount, position_category, reason, needs_review, created_at, created_by
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`)
       .bind(input.trade_date, input.trade_time, input.ticker, input.ticker_name, input.direction, input.quantity, input.price, input.fee, input.net_cash_amount, input.position_category, input.reason, now, session.username),
+    env.DB.prepare(`INSERT INTO finance_trade_audit (trade_id, action, actor, occurred_at, after_json)
+      SELECT last_insert_rowid(), 'created', ?, ?, ? WHERE changes() = 1`)
+      .bind(session.username, now, JSON.stringify(input)),
   ]);
   const id = Number(results[1]?.meta.last_row_id);
-  await env.DB.prepare(`INSERT INTO finance_trade_audit (trade_id, action, actor, occurred_at, after_json)
-    VALUES (?, 'created', ?, ?, ?)`).bind(id, session.username, now, JSON.stringify(input)).run();
   return json({
     trade: { id, ...input, created_at: now, created_by: session.username },
     holding: await latestHolding(env, input.ticker),
@@ -173,17 +176,19 @@ async function updateTrade(request: Request, env: FinanceEnv, id: number): Promi
   const next = calculateHolding(previous, input);
   if (!next) return apiError(409, 'insufficient_holding', 'The edited sell quantity exceeds the holding before this trade');
   const now = new Date().toISOString();
-  await env.DB.batch([
+  const results = await env.DB.batch([
     env.DB.prepare(`UPDATE trades SET ticker_name = ?, direction = ?, quantity = ?, price = ?, trade_time = ?, fee = ?, net_cash_amount = ?, position_category = ?, reason = ?,
-      updated_at = ?, updated_by = ? WHERE id = ? AND deleted_at IS NULL`)
-      .bind(input.ticker_name, input.direction, input.quantity, input.price, input.trade_time, input.fee, input.net_cash_amount, input.position_category, input.reason, now, session.username, id),
-    env.DB.prepare(`UPDATE holdings_snapshots SET quantity = ?, avg_cost = ?, position_category = ?
-      WHERE ticker = ? AND snapshot_date = ?`)
-      .bind(next.quantity, next.avg_cost, input.position_category, existing.ticker, existing.trade_date),
+      updated_at = ?, updated_by = ? WHERE id = ? AND deleted_at IS NULL AND updated_at IS ?`)
+      .bind(input.ticker_name, input.direction, input.quantity, input.price, input.trade_time, input.fee, input.net_cash_amount, input.position_category, input.reason, now, session.username, id, existing.updated_at ?? null),
     env.DB.prepare(`INSERT INTO finance_trade_audit (trade_id, action, actor, occurred_at, before_json, after_json)
-      VALUES (?, 'updated', ?, ?, ?, ?)`)
+      SELECT ?, 'updated', ?, ?, ?, ? WHERE changes() = 1`)
       .bind(id, session.username, now, JSON.stringify(existing), JSON.stringify(input)),
+    env.DB.prepare(`UPDATE holdings_snapshots SET quantity = ?, avg_cost = ?, position_category = ?
+      WHERE ticker = ? AND snapshot_date = ?
+        AND EXISTS (SELECT 1 FROM trades WHERE id = ? AND updated_at = ? AND updated_by = ? AND deleted_at IS NULL)`)
+      .bind(next.quantity, next.avg_cost, input.position_category, existing.ticker, existing.trade_date, id, now, session.username),
   ]);
+  if ((results[0]?.meta.changes ?? 0) === 0) return apiError(409, 'stale_trade', 'Trade changed before this edit could be committed; reload and retry');
   return json({ trade: { id, ...input, updated_at: now, updated_by: session.username }, holding: await latestHolding(env, existing.ticker) });
 }
 
@@ -195,15 +200,17 @@ async function deleteTrade(request: Request, env: FinanceEnv, id: number): Promi
   if (existing instanceof Response) return existing;
   const previous = await previousHolding(env, existing.ticker, existing.trade_date);
   const now = new Date().toISOString();
-  await env.DB.batch([
-    env.DB.prepare('UPDATE trades SET deleted_at = ?, deleted_by = ? WHERE id = ? AND deleted_at IS NULL').bind(now, session.username, id),
-    env.DB.prepare(`UPDATE holdings_snapshots SET quantity = ?, avg_cost = ?, position_category = ?
-      WHERE ticker = ? AND snapshot_date = ?`)
-      .bind(Number(previous?.quantity ?? 0), Number(previous?.avg_cost ?? 0), previous?.position_category ?? existing.position_category, existing.ticker, existing.trade_date),
+  const results = await env.DB.batch([
+    env.DB.prepare('UPDATE trades SET deleted_at = ?, deleted_by = ? WHERE id = ? AND deleted_at IS NULL AND updated_at IS ?').bind(now, session.username, id, existing.updated_at ?? null),
     env.DB.prepare(`INSERT INTO finance_trade_audit (trade_id, action, actor, occurred_at, before_json)
-      VALUES (?, 'deleted', ?, ?, ?)`)
+      SELECT ?, 'deleted', ?, ?, ? WHERE changes() = 1`)
       .bind(id, session.username, now, JSON.stringify(existing)),
+    env.DB.prepare(`UPDATE holdings_snapshots SET quantity = ?, avg_cost = ?, position_category = ?
+      WHERE ticker = ? AND snapshot_date = ?
+        AND EXISTS (SELECT 1 FROM trades WHERE id = ? AND deleted_at = ? AND deleted_by = ?)`)
+      .bind(Number(previous?.quantity ?? 0), Number(previous?.avg_cost ?? 0), previous?.position_category ?? existing.position_category, existing.ticker, existing.trade_date, id, now, session.username),
   ]);
+  if ((results[0]?.meta.changes ?? 0) === 0) return apiError(409, 'stale_trade', 'Trade changed before this delete could be committed; reload and retry');
   return json({ deleted: true, holding: await latestHolding(env, existing.ticker) });
 }
 
