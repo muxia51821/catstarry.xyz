@@ -1,8 +1,9 @@
 -- Historical valuation follows a facts + quotes model.
 -- finance_security_prices stores one canonical raw/unadjusted close per security/day;
 -- source is provenance for that chosen close, not a competing quote namespace.
+-- price_status distinguishes an observed close from an explicitly validated carry-forward.
 -- finance_asset_valuations is a rebuildable cache; it is not accounting source-of-truth.
--- finance_asset_snapshots remains legacy/reconciliation evidence and is not copied here.
+-- finance_asset_snapshots remains reconciliation evidence and is not copied here.
 
 CREATE TABLE IF NOT EXISTS finance_security_prices (
   ticker TEXT NOT NULL,
@@ -10,6 +11,7 @@ CREATE TABLE IF NOT EXISTS finance_security_prices (
   close REAL NOT NULL CHECK (close > 0),
   source TEXT NOT NULL,
   adjustment TEXT NOT NULL DEFAULT 'raw' CHECK (adjustment = 'raw'),
+  price_status TEXT NOT NULL DEFAULT 'observed' CHECK (price_status IN ('observed', 'carried_forward')),
   observed_at TEXT,
   created_at TEXT NOT NULL,
   created_by TEXT NOT NULL,
