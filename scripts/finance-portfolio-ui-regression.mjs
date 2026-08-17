@@ -6,14 +6,22 @@ import { launchIsolatedBrowser } from './lib/isolated-browser.mjs';
 
 const requests = [];
 let mode = 'normal';
+const securities = [
+  { ticker: '000021', instrument_type: 'stock', security_attribute: '消费电子', attribute_source: 'eastmoney' },
+  { ticker: '300750', instrument_type: 'stock', security_attribute: '电池', attribute_source: 'eastmoney' },
+];
+const holdings = [
+  { ticker: '000021', ticker_name: '深科技', quantity: 100, avg_cost: 39.97, price: 40.23, market_value: 4023, pnl: 26, position_category: '主动操作仓（A股）', stale: false },
+  { ticker: '300750', ticker_name: '宁德时代', quantity: 100, avg_cost: 395, price: 393.93, market_value: 39393, pnl: -107, position_category: '主动操作仓（A股）', stale: false },
+];
 const trades = [
-  { id: 2, trade_date: '2026-08-13', ticker: '000021', ticker_name: '深科技', direction: 'buy', quantity: 100, price: 40.23 },
-  { id: 1, trade_date: '2026-08-07', ticker: '300750', ticker_name: '宁德时代', direction: 'buy', quantity: 100, price: 393.93 },
+  { id: 2, trade_date: '2026-08-13', ticker: '000021', ticker_name: '深科技', direction: 'buy', quantity: 100, price: 40.23, position_category: '主动操作仓（A股）', security_attribute: '消费电子' },
+  { id: 1, trade_date: '2026-08-07', ticker: '300750', ticker_name: '宁德时代', direction: 'buy', quantity: 100, price: 393.93, position_category: '主动操作仓（A股）', security_attribute: '电池' },
 ];
 
 const html = `<!doctype html><html><head>
 <meta charset="utf-8"><meta name="finance-api-base" content="">
-<style>.metric{padding:12px}.overview-trade{display:flex;justify-content:space-between}</style>
+<style>.metric{padding:12px}.overview-trade{display:flex;justify-content:space-between}.panel{padding:12px}.table-scroll{overflow:auto}</style>
 <link rel="stylesheet" href="/portfolio.css">
 </head><body>
 <div data-app hidden>
@@ -24,9 +32,22 @@ const html = `<!doctype html><html><head>
     <span data-net-worth-state>3 个已核验月末快照</span>
     <p data-net-worth-empty>旧快照文案</p>
     <div data-overview-trades></div><p data-overview-trades-empty>empty</p>
+
+    <section class="panel"><div class="table-scroll"><table><thead><tr><th>标的</th><th>数量</th><th>成本</th><th>现价</th><th>市值</th><th>盈亏</th></tr></thead><tbody data-holdings-body></tbody></table></div><p data-holdings-empty hidden></p></section>
+    <section class="panel">
+      <form data-trade-filters><label>开始<input name="start"></label><label>结束<input name="end"></label><label>标的<input name="ticker"></label><label>方向<select name="direction"><option value="">全部</option><option value="buy">买入</option></select></label><button type="submit">筛选</button><button type="reset">清除</button></form>
+      <div class="table-scroll"><table><thead><tr><th>日期</th><th>标的</th><th>方向</th><th>数量</th><th>价格</th><th>类别</th><th>操作理由</th><th>操作</th></tr></thead><tbody data-trades-body>
+        <tr><td>2026-08-13</td><td>深科技</td><td>买入</td><td>100</td><td>¥40.23</td><td>主动操作仓</td><td>—</td><td>—</td></tr>
+        <tr><td>2026-08-07</td><td>宁德时代</td><td>买入</td><td>100</td><td>¥393.93</td><td>主动操作仓</td><td>—</td><td>—</td></tr>
+      </tbody></table></div>
+    </section>
   </main>
 </div>
-<script>window.__fetchBeforePortfolio = window.fetch;</script>
+<script>
+window.__fetchBeforePortfolio = window.fetch;
+window.__tradeFilterSubmission = '';
+document.querySelector('[data-trade-filters]').addEventListener('submit', (event) => { event.preventDefault(); window.__tradeFilterSubmission = new URLSearchParams(new FormData(event.currentTarget)).toString(); });
+</script>
 <script src="/portfolio-ui.js" defer></script>
 </body></html>`;
 
@@ -52,9 +73,17 @@ const server = createServer(async (request, response) => {
       total_status: 'reconciled',
     });
   }
+  if (url.pathname === '/api/holdings') {
+    if (mode === 'fail') return json(response, 503, { message: 'holdings unavailable' });
+    return json(response, 200, { holdings, total_market_value: 43416 });
+  }
+  if (url.pathname === '/api/securities') {
+    if (mode === 'fail') return json(response, 503, { message: 'securities unavailable' });
+    return json(response, 200, { securities, count: securities.length });
+  }
   if (url.pathname === '/api/trades') {
     if (mode === 'fail') return json(response, 503, { message: 'trades unavailable' });
-    assert.equal(url.searchParams.get('limit'), '5');
+    assert.equal(url.searchParams.get('limit'), '50');
     return json(response, 200, { trades, nextCursor: null });
   }
   response.statusCode = 404;
@@ -104,7 +133,7 @@ try {
   await delay(80);
   assert.equal(requests.filter((item) => item.pathname.startsWith('/api/')).length, 0, 'Portfolio UI must wait for the main dashboard load boundary');
   await evaluate(`document.querySelector('[data-dashboard]').setAttribute('aria-busy','false')`);
-  await waitFor(`document.querySelector('[data-account-breakdown]') && document.querySelectorAll('[data-overview-trades] .portfolio-overview-trade').length === 2`, 'Portfolio overview data');
+  await waitFor(`document.querySelector('[data-account-breakdown]') && document.querySelectorAll('[data-overview-trades] .portfolio-overview-trade').length === 2 && document.querySelectorAll('[data-holdings-body] tr').length === 2 && document.querySelector('[data-security-attribute-column]')`, 'Portfolio overview and classification data');
 
   const overview = await evaluate(`({
     total: document.querySelector('[data-total-value]')?.textContent,
@@ -113,6 +142,12 @@ try {
     firstTrade: document.querySelector('[data-overview-trades] .portfolio-overview-trade strong')?.textContent,
     historyState: document.querySelector('[data-net-worth-state]')?.textContent,
     historyEmpty: document.querySelector('[data-net-worth-empty]')?.textContent,
+    holdingHeaders: [...document.querySelectorAll('[data-holdings-body]')][0].closest('table').querySelector('thead tr').textContent,
+    holdingFirst: document.querySelector('[data-holdings-body] tr')?.textContent,
+    tradeHeaders: document.querySelector('[data-trades-body]').closest('table').querySelector('thead tr').textContent,
+    tradeFirst: document.querySelector('[data-trades-body] tr')?.textContent,
+    roleColor: getComputedStyle(document.querySelector('.portfolio-role-badge')).getPropertyValue('--portfolio-role-color').trim(),
+    securityStyle: getComputedStyle(document.querySelector('.portfolio-security-attribute')).backgroundColor,
   })`);
   assert.match(overview.total ?? '', /130,424\.20/);
   assert.match(overview.status ?? '', /已对账.*2026-08-16/);
@@ -120,6 +155,24 @@ try {
   assert.match(overview.firstTrade ?? '', /买入.*100.*40\.23/);
   assert.equal(overview.historyState, '3 个完整月末历史估值');
   assert.match(overview.historyEmpty ?? '', /canonical raw close/);
+  assert.match(overview.holdingHeaders ?? '', /标的组合角色证券属性数量成本现价市值盈亏/);
+  assert.match(overview.holdingFirst ?? '', /深科技.*主动操作仓.*消费电子/s);
+  assert.match(overview.tradeHeaders ?? '', /类别|组合角色/);
+  assert.match(overview.tradeHeaders ?? '', /证券属性/);
+  assert.match(overview.tradeFirst ?? '', /消费电子/);
+  assert.equal(overview.roleColor, '#6685ff', 'Portfolio Role must retain its stable category color');
+  assert.ok(overview.securityStyle, 'Security Attribute is rendered as a neutral badge, not a second taxonomy color system');
+
+  // Holdings filtering operates over the complete current holdings set owned by the portfolio composition module.
+  await evaluate(`(() => { const select=document.querySelector('[name="portfolio_holding_attribute"]'); select.value='电池'; select.dispatchEvent(new Event('change', { bubbles:true })); })()`);
+  await waitFor(`document.querySelectorAll('[data-holdings-body] tr').length === 1 && document.querySelector('[data-holdings-body]')?.textContent.includes('宁德时代')`, 'Holdings security attribute filter');
+
+  // Trade filters are inserted into the existing FormData contract; the main app/server remains responsible for filtering/pagination.
+  const submitted = await evaluate(`(() => { const role=document.querySelector('[name="position_category"]'); const attribute=document.querySelector('[name="security_attribute"]'); role.value='主动操作仓（A股）'; attribute.value='消费电子'; document.querySelector('[data-trade-filters]').requestSubmit(); return window.__tradeFilterSubmission; })()`);
+  assert.match(submitted, /position_category=/);
+  assert.match(submitted, /security_attribute=/);
+  assert.match(decodeURIComponent(submitted), /主动操作仓（A股）/);
+  assert.match(decodeURIComponent(submitted), /消费电子/);
 
   // Asset view copy remains derived-history language after the legacy app rewrites its state text.
   await evaluate(`(() => { document.querySelector('[data-net-worth-state]').textContent='4 个已核验周末快照'; document.querySelector('[data-asset-view="month"]').classList.remove('is-active'); document.querySelector('[data-asset-view="week"]').classList.add('is-active'); document.querySelector('[data-asset-view="week"]').click(); })()`);
@@ -137,7 +190,7 @@ try {
 
   assert.deepEqual(diagnostics.consoleProblems, []);
   assert.deepEqual(diagnostics.exceptions, []);
-  console.log('Finance portfolio overview browser regression passed.');
+  console.log('Finance portfolio overview and classification browser regression passed.');
 } finally {
   cdp?.close();
   await browser?.close();
