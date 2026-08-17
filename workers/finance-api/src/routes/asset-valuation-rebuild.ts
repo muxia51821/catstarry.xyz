@@ -28,7 +28,6 @@ type ValuationRow = {
   source: 'derived';
   calculated_at: string;
 };
-
 type PositionReverseFact = {
   date: string;
   time: string;
@@ -168,7 +167,8 @@ function buildValuation(input: {
     const current = positions.get(fact.ticker) ?? 0;
     const previous = fact.direction === 'buy' ? current - fact.quantity : current + fact.quantity;
     if (previous < -EPSILON) problems.push(`${fact.key} 反推后产生负持仓。`);
-    if (Math.abs(previous) < EPSILON) positions.delete(fact.ticker); else positions.set(fact.ticker, Math.max(0, previous));
+    if (Math.abs(previous) < EPSILON) positions.delete(fact.ticker);
+    else positions.set(fact.ticker, Math.max(0, previous));
   }
 
   let cash = input.anchorCash;
@@ -321,17 +321,17 @@ async function rawPrices(env: FinanceEnv, startDate: string, endDate: string) {
 async function replaceValuationRange(env: FinanceEnv, startDate: string, endDate: string, rows: ValuationRow[]) {
   const statements = [env.DB.prepare('DELETE FROM finance_asset_valuations WHERE valuation_date >= ? AND valuation_date <= ?').bind(startDate, endDate)];
   if (rows.length) {
-    const values = rows.map(() => '(?,?,?,?,?,?,?,?,?,?,?,?,?)').join(',');
+    const values = rows.map(() => '(?,?,?,?,?,?,?,?,?,?,?,?)').join(',');
     const bindings: unknown[] = [];
     for (const row of rows) bindings.push(
       row.valuation_date, row.securities_value, row.cash_value, row.other_assets_value, row.total_value,
       row.held_position_count, row.priced_position_count, row.is_complete, row.incomplete_reason,
-      row.price_source, row.source, row.calculated_at, 'facts+raw-close',
+      row.price_source, row.source, row.calculated_at,
     );
     statements.push(env.DB.prepare(`INSERT INTO finance_asset_valuations (
       valuation_date, securities_value, cash_value, other_assets_value, total_value,
       held_position_count, priced_position_count, is_complete, incomplete_reason,
-      price_source, source, calculated_at, source
+      price_source, source, calculated_at
     ) VALUES ${values}`).bind(...bindings));
   }
   await env.DB.batch(statements);
