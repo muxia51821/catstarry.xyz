@@ -67,7 +67,7 @@ export async function handleAccountState(request: Request, env: FinanceEnv): Pro
   const facts = await cashFactsAfter(env, reconciliation.snapshot_date);
   const cash = projectCash(reconciliation.cash_value, facts);
   const totalAssets = holdings.complete && cash.status !== 'incomplete' && repoState.status !== 'incomplete'
-    ? holdings.market_value + Number(cash.value) + Number(repoState.value)
+    ? Number(holdings.market_value) + Number(cash.value) + Number(repoState.value)
     : null;
 
   return json({
