@@ -7,6 +7,7 @@ import { apiError } from './lib/http';
 import { handleAccountState } from './routes/account-state';
 import { handleActivity } from './routes/activity';
 import { handleAssetHistory } from './routes/asset-history';
+import { handleAssetValuationRebuild } from './routes/asset-valuation-rebuild';
 import { handleFinanceAuth, type FinanceEnv } from './routes/auth';
 import { handleDashboard } from './routes/dashboard';
 import { handleLegacyImportReviewWrite } from './routes/legacy-import-review';
@@ -41,6 +42,7 @@ export default {
       else if (pathname === '/api/activity') response = await handleActivity(request, env);
       else if (pathname === '/api/change-log') response = await handleChangeLog(request, env);
       else if (pathname === '/api/assets/series') response = await handleAssetHistory(request, env);
+      else if (pathname === '/api/assets/valuations/rebuild') response = await handleAssetValuationRebuild(request, env);
       else if (/^\/api\/import-review\/\d+$/.test(pathname) && request.method === 'PATCH') response = await handleLegacyImportReviewWrite(request, env, pathname);
       else if (pathname === '/api/trades' || /^\/api\/trades\/\d+$/.test(pathname)) response = await handleTrades(request, env);
       else if (pathname.startsWith('/api/monthly') || pathname === '/api/plan' || pathname.startsWith('/api/cash-flows') || pathname.startsWith('/api/account-events') || pathname.startsWith('/api/assets/')) {
