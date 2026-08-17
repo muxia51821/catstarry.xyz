@@ -7,6 +7,7 @@
     <meta name="finance-api-base" content="">
     <title>Finance · catstarry.xyz</title>
     <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/operations.css">
   </head>
   <body>
     <section class="login-shell" data-login>
@@ -191,5 +192,6 @@
     <dialog class="notification-dialog" data-notification-dialog><form method="dialog" class="dialog-card"><header><div><p class="eyebrow">MONTHLY CONFIRMATION</p><h2>月度查阅确认</h2></div></header><p data-notification-copy></p><footer><p class="form-status" data-notification-status role="status"></p><button type="button" data-confirm-notification>确认已查阅</button></footer></form></dialog>
     <dialog class="objection-dialog" data-objection-dialog><form method="dialog" class="dialog-card" data-objection-form><header><div><p class="eyebrow">BLACK CIRCUIT</p><h2>提出重大异议</h2></div><button class="icon-button" type="button" data-close-dialog aria-label="关闭">×</button></header><p>提交后所有操作应立即暂停，直到双方确认新的计划参数。</p><label>异议说明<textarea name="reason" required maxlength="2000"></textarea></label><footer><p class="form-status" data-objection-status role="status"></p><button class="button-danger" type="submit" value="default">确认并触发</button></footer></form></dialog>
     <script src="/app.js" defer></script>
+    <script src="/operations-ui.js" defer></script>
   </body>
 </html>

@@ -6,6 +6,7 @@ import {
 import { apiError } from './lib/http';
 import { handleFinanceAuth, type FinanceEnv } from './routes/auth';
 import { handleDashboard } from './routes/dashboard';
+import { handleOperations } from './routes/operations';
 import { handleRecords } from './routes/records';
 import { handleStewardship } from './routes/stewardship';
 import { handleTrades } from './routes/trades';
@@ -32,6 +33,7 @@ export default {
     try {
       let response: Response;
       if (pathname.startsWith('/api/auth/')) response = await handleFinanceAuth(request, env, pathname);
+      else if (pathname === '/api/operations') response = await handleOperations(request, env);
       else if (pathname === '/api/trades' || /^\/api\/trades\/\d+$/.test(pathname)) response = await handleTrades(request, env);
       else if (pathname.startsWith('/api/monthly') || pathname === '/api/plan' || pathname.startsWith('/api/cash-flows') || pathname.startsWith('/api/account-events') || pathname.startsWith('/api/assets/')) {
         response = await handleRecords(request, env, pathname);

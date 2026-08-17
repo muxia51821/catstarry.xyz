@@ -57,6 +57,12 @@ const fixtures = {
   '/api/rebalances': { rebalances: [{ id: 1, year: 2026, executed_on: '2026-12-20', adjustments: 'fixture rebalance', reason: 'fixture', confirmed_at: null, confirmed_by: null }] },
   '/api/access-log': { access_log: [{ username: 'contract-admin', action: 'login', occurred_at: '2026-07-25T10:00:00.000Z' }] },
   '/api/import-review': { review: [{ id: 1, batch_id: 'fixture-batch', row_number: 3, record_kind: 'trade', status: 'pending', raw: { ticker: 'BAD' } }] },
+  '/api/operations': {
+    items: [{ key: 'trade:1', occurred_at: '2026-08-16T14:32:18.000Z', actor: 'contract-admin', action: 'updated', entity_type: 'trade', entity_id: '1', business_date: '2026-07-24', title: '修改交易 · 沪深300ETF', summary: '价格 12 → 12.6', changes: [{ field: 'price', label: '价格', before: 12, after: 12.6 }] }],
+    nextOffset: null,
+    coverage: { note: 'fixture operation coverage' },
+  },
+  '/api/workbook-review': { review: [{ id: 11, batch_id: 'fixture-canonical-batch', sheet_name: 'trades', row_number: 8, record_kind: 'trade', reason: 'fixture canonical review', status: 'pending', raw: { ticker: 'BAD2' } }] },
 };
 
 const server = createServer(async (request, response) => {
@@ -131,6 +137,14 @@ const server = createServer(async (request, response) => {
     fixtures['/api/import-review'].review = [];
     return json(response, 200, { id: 1, status: 'resolved' });
   }
+  if (url.pathname.startsWith('/api/workbook-review')) {
+    if (currentRole !== 'admin') return json(response, 403, { message: 'admin only' });
+    if (url.pathname === '/api/workbook-review' && request.method === 'GET') return json(response, 200, fixtures['/api/workbook-review']);
+    if (url.pathname === '/api/workbook-review/11' && request.method === 'PATCH') {
+      fixtures['/api/workbook-review'].review = [];
+      return json(response, 200, { id: 11, status: 'resolved' });
+    }
+  }
   if (url.pathname === '/api/auth/logout' && request.method === 'POST') {
     currentRole = null;
     return json(response, 200, { authenticated: false });
@@ -141,7 +155,9 @@ const server = createServer(async (request, response) => {
     '/': ['finance-site/index.html', 'text/html; charset=utf-8'],
     '/index.html': ['finance-site/index.html', 'text/html; charset=utf-8'],
     '/styles.css': ['finance-site/styles.css', 'text/css; charset=utf-8'],
+    '/operations.css': ['finance-site/operations.css', 'text/css; charset=utf-8'],
     '/app.js': ['finance-site/app.js', 'text/javascript; charset=utf-8'],
+    '/operations-ui.js': ['finance-site/operations-ui.js', 'text/javascript; charset=utf-8'],
     '/fonts/Geist-Variable.ttf': ['finance-site/fonts/Geist-Variable.ttf', 'font/ttf'],
     '/fonts/JetBrainsMono-Variable.ttf': ['finance-site/fonts/JetBrainsMono-Variable.ttf', 'font/ttf'],
     '/fonts/HarmonyOS-Sans-SC.ttf': ['finance-site/fonts/HarmonyOS-Sans-SC.ttf', 'font/ttf'],
@@ -214,6 +230,7 @@ try {
     form.requestSubmit();
   })()`);
   await waitFor(`document.querySelector('[data-app]')?.hidden === false && document.querySelector('[data-total-value]')?.textContent !== '—'`, 'Finance dashboard');
+  await waitFor(`document.querySelectorAll('[data-operation-list] details').length === 1 && document.querySelectorAll('[data-canonical-review-list] article').length === 1`, 'Operation History panels');
   await delay(400);
 
   diagnostics.checks.rendered = await evaluate(`({
@@ -223,6 +240,10 @@ try {
     peSegments: document.querySelectorAll('[data-pe-list] .pe-scale__segment').length,
     accessRows: document.querySelectorAll('[data-access-list] p').length,
     importReviewRows: document.querySelectorAll('[data-import-review-list] article').length,
+    operationRows: document.querySelectorAll('[data-operation-list] details').length,
+    canonicalReviewRows: document.querySelectorAll('[data-canonical-review-list] article').length,
+    accessHidden: getComputedStyle(document.querySelector('[data-access-panel]')).display === 'none',
+    legacyReviewHidden: getComputedStyle(document.querySelector('[data-import-review-panel]')).display === 'none',
     monthlyRows: document.querySelectorAll('[data-monthly-list] article').length,
     cashFlowRows: document.querySelectorAll('[data-cash-flows-body] tr').length,
     assetSnapshotRows: document.querySelectorAll('[data-asset-snapshots-body] tr').length,
@@ -265,14 +286,22 @@ try {
     input.dispatchEvent(new Event('input', { bubbles: true }));
     row.querySelector('button').click();
   })()`);
-  await waitFor(`document.querySelectorAll('[data-import-review-list] article').length === 0`, 'import review resolution');
+  await waitFor(`document.querySelectorAll('[data-import-review-list] article').length === 0`, 'legacy import review resolution');
   diagnostics.checks.importReviewResolved = true;
 
+  await evaluate(`document.querySelector('[data-tab="records"]').click()`);
+  await waitFor(`!document.querySelector('[data-operation-list]').closest('[data-pane]').hidden && document.querySelectorAll('[data-canonical-review-list] article').length === 1`, 'records Operation History');
   await evaluate(`(() => {
-    const button = document.querySelector('[data-open-trade]');
-    button.focus();
-    button.click();
+    const row = document.querySelector('[data-canonical-review-list] article');
+    const input = row.querySelector('input');
+    input.value = 'Resolved through canonical Workbook Review';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    row.querySelector('button').click();
   })()`);
+  await waitFor(`document.querySelectorAll('[data-canonical-review-list] article').length === 0`, 'canonical workbook review resolution');
+  diagnostics.checks.canonicalReviewResolved = true;
+
+  await evaluate(`(() => { const button = document.querySelector('[data-open-trade]'); button.focus(); button.click(); })()`);
   await waitFor(`document.querySelector('[data-trade-dialog]').open`, 'trade dialog');
   diagnostics.checks.modal = await evaluate(`(() => {
     const dialog = document.querySelector('[data-trade-dialog]');
@@ -291,35 +320,19 @@ try {
   await evaluate(`(() => {
     const form = document.querySelector('[data-trade-form]');
     const values = { ticker: '510300', ticker_name: '沪深 300 ETF', position_category: 'A股宽基指数底仓', quantity: '100', price: '12.6' };
-    for (const [name, value] of Object.entries(values)) {
-      const input = form.elements[name];
-      input.value = value;
-      input.dispatchEvent(new Event('input', { bubbles: true }));
-    }
+    for (const [name, value] of Object.entries(values)) { const input = form.elements[name]; input.value = value; input.dispatchEvent(new Event('input', { bubbles: true })); }
     form.requestSubmit();
   })()`);
   await waitFor(`document.querySelector('[data-trade-status]').textContent === '已保存，可继续录入下一笔。'`, 'continuous trade entry completion');
   diagnostics.checks.tradeEntry = await evaluate(`(() => {
-    const dialog = document.querySelector('[data-trade-dialog]');
-    const form = document.querySelector('[data-trade-form]');
-    const total = document.querySelector('[data-trade-total]').textContent;
-    return {
-      remainsOpen: dialog.open,
-      dateRetained: Boolean(form.elements.trade_date.value),
-      categoryRetained: form.elements.position_category.value === 'A股宽基指数底仓',
-      tickerCleared: form.elements.ticker.value === '',
-      totalReset: total === '输入数量和价格后自动计算',
-      focus: document.activeElement === form.elements.ticker,
-    };
+    const dialog = document.querySelector('[data-trade-dialog]'); const form = document.querySelector('[data-trade-form]'); const total = document.querySelector('[data-trade-total]').textContent;
+    return { remainsOpen: dialog.open, dateRetained: Boolean(form.elements.trade_date.value), categoryRetained: form.elements.position_category.value === 'A股宽基指数底仓', tickerCleared: form.elements.ticker.value === '', totalReset: total === '输入数量和价格后自动计算', focus: document.activeElement === form.elements.ticker };
   })()`);
   await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27 });
   await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27 });
   await waitFor(`!document.querySelector('[data-trade-dialog]').open`, 'Escape trade dialog close');
   await waitFor(`document.querySelector('[data-app]').inert === false`, 'modal background restoration');
-  diagnostics.checks.modalRestored = await evaluate(`({
-    background: document.querySelector('[data-app]').inert === false,
-    focus: document.activeElement === document.querySelector('[data-open-trade]'),
-  })`);
+  diagnostics.checks.modalRestored = await evaluate(`({ background: document.querySelector('[data-app]').inert === false, focus: document.activeElement === document.querySelector('[data-open-trade]') })`);
 
   await evaluate(`document.querySelector('[data-edit-trade="1"]').click()`);
   await waitFor(`document.querySelector('[data-trade-dialog]').open && document.querySelector('[data-trade-dialog-title]').textContent === '修改最新交易'`, 'trade edit dialog');
@@ -362,266 +375,103 @@ try {
     await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27 });
     await waitFor(`!document.querySelector('${dialog}').open`, `${dialog} close`);
   }
-  diagnostics.checks.management = await evaluate(`({
-    editAvailable: Boolean(document.querySelector('[data-edit-trade="1"]')),
-    monthlyEntryAvailable: !document.querySelector('[data-open-monthly]').hidden,
-    planEntryAvailable: !document.querySelector('[data-open-plan]').hidden,
-    memoEntryAvailable: !document.querySelector('[data-open-memo]').hidden,
-    rulesEntryAvailable: !document.querySelector('[data-open-rules]').hidden,
-  })`);
+  diagnostics.checks.management = await evaluate(`({ editAvailable: Boolean(document.querySelector('[data-edit-trade="1"]')), monthlyEntryAvailable: !document.querySelector('[data-open-monthly]').hidden, planEntryAvailable: !document.querySelector('[data-open-plan]').hidden, memoEntryAvailable: !document.querySelector('[data-open-memo]').hidden, rulesEntryAvailable: !document.querySelector('[data-open-rules]').hidden })`);
   await evaluate(`(() => { document.querySelector('[data-open-rules]').click(); const form = document.querySelector('[data-rules-form]'); const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; const values = { single_position_active_cap: '.5', loss_pause_ratio: '.15', stop_loss_ratio: '.3', take_profit_ratio: '.2', rebalance_deviation: '.05', freeze: '10', low: '12', normal: '16', high: '20' }; for (const [name, value] of Object.entries(values)) { set.call(form.elements[name], value); form.elements[name].dispatchEvent(new Event('input', { bubbles: true })); } form.requestSubmit(); })()`);
   await waitFor(`!document.querySelector('[data-rules-dialog]').open`, 'risk rule save');
   diagnostics.checks.riskRuleSaved = true;
 
   diagnostics.checks.tabs = [];
   for (const tab of ['overview', 'entry', 'holdings', 'review', 'planning', 'records']) {
-    await evaluate(`document.querySelector('[data-tab="${tab}"]').click()`);
-    await delay(200);
-    diagnostics.checks.tabs.push(await evaluate(`(() => {
-      const button = document.querySelector('[data-tab="${tab}"]');
-      return { tab: '${tab}', active: button.classList.contains('is-active'), pressed: button.getAttribute('aria-pressed') === 'true', visible: [...document.querySelectorAll('[data-pane="${tab}"]')].some((node) => !node.hidden), activeBackground: getComputedStyle(button).backgroundColor };
-    })()`));
+    await evaluate(`document.querySelector('[data-tab="${tab}"]').click()`); await delay(200);
+    diagnostics.checks.tabs.push(await evaluate(`(() => { const button = document.querySelector('[data-tab="${tab}"]'); return { tab: '${tab}', active: button.classList.contains('is-active'), pressed: button.getAttribute('aria-pressed') === 'true', visible: [...document.querySelectorAll('[data-pane="${tab}"]')].some((node) => !node.hidden), activeBackground: getComputedStyle(button).backgroundColor }; })()`));
   }
   await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
-  diagnostics.checks.reducedMotionTab = await evaluate(`(() => {
-    let behavior = null;
-    const original = window.scrollTo;
-    window.scrollTo = (options) => { behavior = options.behavior; };
-    document.querySelector('[data-tab="overview"]').click();
-    window.scrollTo = original;
-    return behavior;
-  })()`);
+  diagnostics.checks.reducedMotionTab = await evaluate(`(() => { let behavior = null; const original = window.scrollTo; window.scrollTo = (options) => { behavior = options.behavior; }; document.querySelector('[data-tab="overview"]').click(); window.scrollTo = original; return behavior; })()`);
   await send('Emulation.setEmulatedMedia', { features: [] });
   await evaluate(`document.querySelector('[data-tab="entry"]').click()`);
-  await evaluate(`(() => {
-    const form = document.querySelector('[data-trade-filters]');
-    form.elements.ticker.value = '510300';
-    form.elements.direction.value = 'buy';
-    form.requestSubmit();
-  })()`);
+  await evaluate(`(() => { const form = document.querySelector('[data-trade-filters]'); form.elements.ticker.value = '510300'; form.elements.direction.value = 'buy'; form.requestSubmit(); })()`);
   await waitFor(`document.querySelector('[data-trade-pagination]').textContent.includes('第 1 页')`, 'trade filters');
   await evaluate(`document.querySelector('[data-trade-filters] button[type="reset"]').click()`);
   diagnostics.checks.tradeFilters = true;
 
   await evaluate(`document.querySelector('[data-open-memo]').click()`);
   await waitFor(`document.querySelector('[data-memo-dialog]').open`, 'memo dialog for linked trade');
-  diagnostics.checks.memoTradeLink = await evaluate(`(() => {
-    const dialog = document.querySelector('[data-memo-dialog]');
-    const form = dialog.querySelector('[data-memo-form]');
-    const select = form.elements.trade_id;
-    select.value = '1';
-    select.dispatchEvent(new Event('change', { bubbles: true }));
-    return {
-      required: select.required,
-      options: select.options.length,
-      snapshot: dialog.querySelector('[data-memo-trade-snapshot]').textContent.replace(/\s+/g, ' ').trim(),
-      checkboxCompact: getComputedStyle(dialog.querySelector('[name="stop_loss_triggered"]')).width !== '100%',
-    };
-  })()`);
+  diagnostics.checks.memoTradeLink = await evaluate(`(() => { const dialog = document.querySelector('[data-memo-dialog]'); const form = dialog.querySelector('[data-memo-form]'); const select = form.elements.trade_id; select.value = '1'; select.dispatchEvent(new Event('change', { bubbles: true })); return { required: select.required, options: select.options.length, snapshot: dialog.querySelector('[data-memo-trade-snapshot]').textContent.replace(/\s+/g, ' ').trim(), checkboxCompact: getComputedStyle(dialog.querySelector('[name="stop_loss_triggered"]')).width !== '100%' }; })()`);
   await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27 });
   await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27 });
   await waitFor(`!document.querySelector('[data-memo-dialog]').open`, 'memo dialog close');
   await evaluate(`document.querySelector('[data-edit-memo-from-trade="1"]').click()`);
   await waitFor(`document.querySelector('[data-memo-dialog]').open && document.querySelector('[data-memo-dialog-title]').textContent === '编辑投资备忘录'`, 'memo edit dialog');
-  diagnostics.checks.memoEdit = await evaluate(`(() => {
-    const form = document.querySelector('[data-memo-form]');
-    return {
-      tradeLocked: form.elements.trade_id.disabled,
-      snapshotHasAmount: document.querySelector('[data-memo-trade-total]').textContent !== '—',
-      cancelVisible: Boolean(document.querySelector('[data-cancel-memo]').getClientRects().length),
-      tradeAction: document.querySelector('[data-edit-memo-from-trade="1"]').textContent,
-      memoPanelHasHistorical: Boolean(document.querySelector('[data-memo-list] [data-edit-memo="1"]')),
-      reason: form.elements.reason.value,
-    };
-  })()`);
+  diagnostics.checks.memoEdit = await evaluate(`(() => { const form = document.querySelector('[data-memo-form]'); return { tradeLocked: form.elements.trade_id.disabled, snapshotHasAmount: document.querySelector('[data-memo-trade-total]').textContent !== '—', cancelVisible: Boolean(document.querySelector('[data-cancel-memo]').getClientRects().length), tradeAction: document.querySelector('[data-edit-memo-from-trade="1"]').textContent, memoPanelHasHistorical: Boolean(document.querySelector('[data-memo-list] [data-edit-memo="1"]')), reason: form.elements.reason.value }; })()`);
   await evaluate(`(() => { const form = document.querySelector('[data-memo-form]'); form.elements.reason.value = 'updated fixture memo'; form.requestSubmit(); })()`);
   await waitFor(`!document.querySelector('[data-memo-dialog]').open`, 'memo edit completion');
   await evaluate(`(() => { window.confirm = () => true; document.querySelector('[data-delete-memo="13"]').click(); })()`);
   await waitFor(`!document.querySelector('[data-delete-memo="13"]')`, 'memo deletion completion');
 
-  await evaluate(`document.querySelector('[data-open-review]').click()`);
-  await waitFor(`document.querySelector('[data-review-dialog]').open`, 'annual review dialog');
-  diagnostics.checks.reviewModal = await evaluate(`({
-    appInert: document.querySelector('[data-app]').inert,
-    activeName: document.activeElement?.name ?? null,
-  })`);
+  await evaluate(`document.querySelector('[data-open-review]').click()`); await waitFor(`document.querySelector('[data-review-dialog]').open`, 'annual review dialog');
+  diagnostics.checks.reviewModal = await evaluate(`({ appInert: document.querySelector('[data-app]').inert, activeName: document.activeElement?.name ?? null })`);
   await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27 });
   await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27 });
   await waitFor(`!document.querySelector('[data-review-dialog]').open && document.querySelector('[data-app]').inert === false`, 'annual review dialog close');
 
-  await evaluate(`document.querySelector('[data-open-risk]').click()`);
-  await waitFor(`document.querySelector('[data-risk-dialog]').open`, 'risk evaluation dialog');
-  diagnostics.checks.riskModal = await evaluate(`({
-    appInert: document.querySelector('[data-app]').inert,
-    activeName: document.activeElement?.name ?? null,
-  })`);
+  await evaluate(`document.querySelector('[data-open-risk]').click()`); await waitFor(`document.querySelector('[data-risk-dialog]').open`, 'risk evaluation dialog');
+  diagnostics.checks.riskModal = await evaluate(`({ appInert: document.querySelector('[data-app]').inert, activeName: document.activeElement?.name ?? null })`);
   await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27 });
   await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27 });
   await waitFor(`!document.querySelector('[data-risk-dialog]').open && document.querySelector('[data-app]').inert === false`, 'risk evaluation dialog close');
 
   diagnostics.checks.viewports = [];
-  for (const { width, height } of [
-    { width: 1440, height: 900 },
-    { width: 1366, height: 768 },
-    { width: 1024, height: 768 },
-    { width: 768, height: 1024 },
-    { width: 430, height: 932 },
-    { width: 390, height: 844 },
-    { width: 360, height: 800 },
-  ]) {
-    await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: width < 768 });
-    await delay(100);
-    diagnostics.checks.viewports.push(await evaluate(`({
-      width: ${width},
-      height: ${height},
-      noHorizontalOverflow: document.documentElement.scrollWidth <= document.documentElement.clientWidth,
-      dashboardColumns: getComputedStyle(document.querySelector('.dashboard-grid')).gridTemplateColumns.split(' ').length,
-    })`));
+  for (const { width, height } of [{ width: 1440, height: 900 }, { width: 1366, height: 768 }, { width: 1024, height: 768 }, { width: 768, height: 1024 }, { width: 430, height: 932 }, { width: 390, height: 844 }, { width: 360, height: 800 }]) {
+    await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: width < 768 }); await delay(100);
+    diagnostics.checks.viewports.push(await evaluate(`({ width: ${width}, height: ${height}, noHorizontalOverflow: document.documentElement.scrollWidth <= document.documentElement.clientWidth, dashboardColumns: getComputedStyle(document.querySelector('.dashboard-grid')).gridTemplateColumns.split(' ').length })`));
   }
   await send('Emulation.setDeviceMetricsOverride', { width: 360, height: 800, deviceScaleFactor: 1, mobile: true });
-  diagnostics.checks.textZoom = await evaluate(`(() => {
-    document.documentElement.style.fontSize = '200%';
-    return {
-      noHorizontalOverflow: document.documentElement.scrollWidth <= document.documentElement.clientWidth,
-      controlsRemainVisible: [...document.querySelectorAll('[data-app] button:not([hidden])')]
-        .filter((button) => button.getClientRects().length > 0)
-        .every((button) => {
-          const rect = button.getBoundingClientRect();
-          return rect.width > 0 && rect.height > 0;
-        }),
-    };
-  })()`);
+  diagnostics.checks.textZoom = await evaluate(`(() => { document.documentElement.style.fontSize = '200%'; return { noHorizontalOverflow: document.documentElement.scrollWidth <= document.documentElement.clientWidth, controlsRemainVisible: [...document.querySelectorAll('[data-app] button:not([hidden])')].filter((button) => button.getClientRects().length > 0).every((button) => { const rect = button.getBoundingClientRect(); return rect.width > 0 && rect.height > 0; }) }; })()`);
   await evaluate(`document.documentElement.style.removeProperty('font-size')`);
 
   await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
-  diagnostics.checks.mobileTextZoom125 = await evaluate(`(() => {
-    document.documentElement.style.fontSize = '125%';
-    const sessionButtons = [...document.querySelectorAll('.session-tools button:not([hidden])')];
-    const sessionTops = sessionButtons.map((button) => button.getBoundingClientRect().top);
-    const result = {
-      noHorizontalOverflow: document.documentElement.scrollWidth <= document.documentElement.clientWidth,
-      sessionControlsAligned: sessionTops.every((top) => Math.abs(top - sessionTops[0]) < 1),
-      sessionControlsReachable: sessionButtons.every((button) => {
-        const rect = button.getBoundingClientRect();
-        return rect.left >= 0 && rect.right <= document.documentElement.clientWidth && rect.height >= 44;
-      }),
-      tabTouchTargets: [...document.querySelectorAll('[data-tab]')].every((button) => button.getBoundingClientRect().height >= 44),
-    };
-    document.documentElement.style.removeProperty('font-size');
-    return result;
-  })()`);
+  diagnostics.checks.mobileTextZoom125 = await evaluate(`(() => { document.documentElement.style.fontSize = '125%'; const sessionButtons = [...document.querySelectorAll('.session-tools button:not([hidden])')]; const sessionTops = sessionButtons.map((button) => button.getBoundingClientRect().top); const result = { noHorizontalOverflow: document.documentElement.scrollWidth <= document.documentElement.clientWidth, sessionControlsAligned: sessionTops.every((top) => Math.abs(top - sessionTops[0]) < 1), sessionControlsReachable: sessionButtons.every((button) => { const rect = button.getBoundingClientRect(); return rect.left >= 0 && rect.right <= document.documentElement.clientWidth && rect.height >= 44; }), tabTouchTargets: [...document.querySelectorAll('[data-tab]')].every((button) => button.getBoundingClientRect().height >= 44) }; document.documentElement.style.removeProperty('font-size'); return result; })()`);
 
   await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
-  await evaluate(`document.querySelector('[data-tab="holdings"]').click()`);
-  await delay(100);
-  await capture('finance-holdings-mobile-390.png');
-  await evaluate(`document.querySelector('[data-open-trade]').click()`);
-  await waitFor(`document.querySelector('[data-trade-dialog]').open`, 'mobile trade dialog');
-  diagnostics.checks.mobileTradeEntry = await evaluate(`(() => {
-    const dialog = document.querySelector('[data-trade-dialog]');
-    const actions = dialog.querySelector('[data-cancel-trade]').parentElement;
-    return {
-      noHorizontalOverflow: document.documentElement.scrollWidth <= document.documentElement.clientWidth,
-      singleColumnFields: getComputedStyle(dialog.querySelector('.form-grid')).gridTemplateColumns.split(' ').length === 1,
-      scrollableDialog: getComputedStyle(dialog).overflowY === 'auto',
-      actionButtonsReachable: [...actions.querySelectorAll('button')].every((button) => button.getBoundingClientRect().height >= 44),
-    };
-  })()`);
+  await evaluate(`document.querySelector('[data-tab="holdings"]').click()`); await delay(100); await capture('finance-holdings-mobile-390.png');
+  await evaluate(`document.querySelector('[data-open-trade]').click()`); await waitFor(`document.querySelector('[data-trade-dialog]').open`, 'mobile trade dialog');
+  diagnostics.checks.mobileTradeEntry = await evaluate(`(() => { const dialog = document.querySelector('[data-trade-dialog]'); const actions = dialog.querySelector('[data-cancel-trade]').parentElement; return { noHorizontalOverflow: document.documentElement.scrollWidth <= document.documentElement.clientWidth, singleColumnFields: getComputedStyle(dialog.querySelector('.form-grid')).gridTemplateColumns.split(' ').length === 1, scrollableDialog: getComputedStyle(dialog).overflowY === 'auto', actionButtonsReachable: [...actions.querySelectorAll('button')].every((button) => button.getBoundingClientRect().height >= 44) }; })()`);
   await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27 });
   await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27 });
   await waitFor(`!document.querySelector('[data-trade-dialog]').open`, 'mobile trade dialog close');
 
-  await evaluate(`document.querySelector('[data-logout]').click()`);
-  await waitFor(`!document.querySelector('[data-login]').hidden`, 'viewer login screen');
-  await evaluate(`(() => {
-    const form = document.querySelector('[data-login-form]');
-    const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
-    set.call(form.elements.username, 'contract-viewer');
-    form.elements.username.dispatchEvent(new Event('input', { bubbles: true }));
-    set.call(form.elements.password, 'ephemeral-viewer-password');
-    form.elements.password.dispatchEvent(new Event('input', { bubbles: true }));
-    form.requestSubmit();
-  })()`);
-  await waitFor(`
-    document.querySelector('[data-login]')?.hidden === true
-    && document.querySelector('[data-app]')?.hidden === false
-    && document.querySelector('[data-role]')?.textContent === 'CATI · READ ONLY'
-    && document.querySelector('[data-total-value]')?.textContent !== '—'
-    && document.querySelector('[data-dashboard-status]')?.textContent === ''
-    && !document.querySelector('[data-notification-dialog]')?.open
-  `, 'viewer dashboard without monthly confirmation');
-  diagnostics.checks.viewer = await evaluate(`({
-    role: document.querySelector('[data-role]').textContent,
-    tradeHidden: document.querySelector('[data-open-trade]').hidden,
-    reviewHidden: document.querySelector('[data-open-review]').hidden,
-    exportHidden: document.querySelector('[data-export-archive]').hidden,
-    riskHidden: document.querySelector('[data-open-risk]').hidden,
-    cashFlowActions: document.querySelectorAll('[data-edit-cash-flow], [data-delete-cash-flow]').length,
-    prompt: document.querySelector('[data-notification-copy]').textContent,
-    appInert: document.querySelector('[data-app]').inert,
-  })`);
-  await evaluate(`document.querySelector('[data-tab="holdings"]').click()`);
-  await waitFor(`!document.querySelector('[data-notification-dialog]').open && [...document.querySelectorAll('[data-pane="holdings"]')].some((node) => !node.hidden)`, 'viewer holdings before monthly confirmation');
+  await evaluate(`document.querySelector('[data-logout]').click()`); await waitFor(`!document.querySelector('[data-login]').hidden`, 'viewer login screen');
+  await evaluate(`(() => { const form = document.querySelector('[data-login-form]'); const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; set.call(form.elements.username, 'contract-viewer'); form.elements.username.dispatchEvent(new Event('input', { bubbles: true })); set.call(form.elements.password, 'ephemeral-viewer-password'); form.elements.password.dispatchEvent(new Event('input', { bubbles: true })); form.requestSubmit(); })()`);
+  await waitFor(`document.querySelector('[data-login]')?.hidden === true && document.querySelector('[data-app]')?.hidden === false && document.querySelector('[data-role]')?.textContent === 'CATI · READ ONLY' && document.querySelector('[data-total-value]')?.textContent !== '—' && document.querySelector('[data-dashboard-status]')?.textContent === '' && !document.querySelector('[data-notification-dialog]')?.open`, 'viewer dashboard without monthly confirmation');
+  diagnostics.checks.viewer = await evaluate(`({ role: document.querySelector('[data-role]').textContent, tradeHidden: document.querySelector('[data-open-trade]').hidden, reviewHidden: document.querySelector('[data-open-review]').hidden, exportHidden: document.querySelector('[data-export-archive]').hidden, riskHidden: document.querySelector('[data-open-risk]').hidden, cashFlowActions: document.querySelectorAll('[data-edit-cash-flow], [data-delete-cash-flow]').length, prompt: document.querySelector('[data-notification-copy]').textContent, appInert: document.querySelector('[data-app]').inert })`);
+  await evaluate(`document.querySelector('[data-tab="records"]').click()`);
+  await waitFor(`document.querySelector('.operation-history-panel') && !document.querySelector('.operation-history-panel').hidden && document.querySelector('.operation-review-panel').hidden`, 'viewer Operation History without admin review surface');
+  diagnostics.checks.viewerOperationHistory = true;
+  await evaluate(`document.querySelector('[data-tab="holdings"]').click()`); await waitFor(`!document.querySelector('[data-notification-dialog]').open && [...document.querySelectorAll('[data-pane="holdings"]')].some((node) => !node.hidden)`, 'viewer holdings before monthly confirmation');
   diagnostics.checks.viewerHoldingsFirst = true;
-  await evaluate(`document.querySelector('[data-tab="review"]').click()`);
-  await waitFor(`document.querySelector('[data-notification-dialog]').open`, 'viewer monthly confirmation after holdings');
+  await evaluate(`document.querySelector('[data-tab="review"]').click()`); await waitFor(`document.querySelector('[data-notification-dialog]').open`, 'viewer monthly confirmation after holdings');
   diagnostics.checks.viewerPromptAfterHoldings = true;
-  await evaluate(`document.querySelector('[data-confirm-notification]').click()`);
-  await waitFor(`!document.querySelector('[data-notification-dialog]').open && document.querySelector('[data-app]').inert === false`, 'viewer monthly confirmation completion');
-  await evaluate(`document.querySelector('[data-tab="planning"]').click()`);
-  await waitFor(`!document.querySelector('[data-notification-dialog]').open`, 'confirmed viewer does not receive another monthly confirmation');
-  await evaluate(`document.querySelector('[data-tab="review"]').click()`);
-  await waitFor(`Boolean(document.querySelector('[data-confirm-review]')) && Boolean(document.querySelector('[data-confirm-rebalance]'))`, 'viewer review and rebalance confirmations');
-  await evaluate(`document.querySelector('[data-confirm-review]').click()`);
-  await waitFor(`!document.querySelector('[data-confirm-review]')`, 'viewer annual review confirmation');
-  await evaluate(`document.querySelector('[data-confirm-rebalance]').click()`);
-  await waitFor(`!document.querySelector('[data-confirm-rebalance]')`, 'viewer rebalance confirmation');
+  await evaluate(`document.querySelector('[data-confirm-notification]').click()`); await waitFor(`!document.querySelector('[data-notification-dialog]').open && document.querySelector('[data-app]').inert === false`, 'viewer monthly confirmation completion');
+  await evaluate(`document.querySelector('[data-tab="planning"]').click()`); await waitFor(`!document.querySelector('[data-notification-dialog]').open`, 'confirmed viewer does not receive another monthly confirmation');
+  await evaluate(`document.querySelector('[data-tab="review"]').click()`); await waitFor(`Boolean(document.querySelector('[data-confirm-review]')) && Boolean(document.querySelector('[data-confirm-rebalance]'))`, 'viewer review and rebalance confirmations');
+  await evaluate(`document.querySelector('[data-confirm-review]').click()`); await waitFor(`!document.querySelector('[data-confirm-review]')`, 'viewer annual review confirmation');
+  await evaluate(`document.querySelector('[data-confirm-rebalance]').click()`); await waitFor(`!document.querySelector('[data-confirm-rebalance]')`, 'viewer rebalance confirmation');
   diagnostics.checks.viewerConfirmations = true;
 
   console.log(JSON.stringify(diagnostics, null, 2));
   assert.deepEqual(diagnostics.checks.rendered, {
-    role: 'ADMIN · READ / WRITE',
-    holdings: 3,
-    pe: 5,
-    peSegments: 25,
-    accessRows: 1,
-    importReviewRows: 1,
-    monthlyRows: 2,
-    cashFlowRows: 1,
-    assetSnapshotRows: 1,
-    riskSignalRows: 7,
-    planValues: 4,
-    memoRows: 12,
-    accessCollapsed: true,
-    financeFont: 'Geist, "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif',
-    tradeActionVisible: true,
-    reviewActionVisible: true,
-    riskActionVisible: true,
-    loginStatusCleared: true,
-    dashboardStatusCleared: true,
-    workbookReviewAbsent: true,
-    monthlyPeFieldsAbsent: true,
-    loginSurvivesInitialSessionRace: true,
-    loginLayerRemoved: true,
-    entryStripRemoved: true,
-    overviewActive: true,
-    overviewChartPoints: 2,
-    overviewChartSvg: true,
-    overviewUsesFullGrid: true,
-    dashboardNotBusy: true,
-    tabPressedState: [
-      { tab: 'overview', pressed: 'true' },
-      { tab: 'entry', pressed: 'false' },
-      { tab: 'holdings', pressed: 'false' },
-      { tab: 'review', pressed: 'false' },
-      { tab: 'planning', pressed: 'false' },
-      { tab: 'records', pressed: 'false' },
-    ],
-    holdingsSummary: ['沪深300ETF57.1%', '纳斯达克100ETF28.6%', '黄金ETF14.3%'],
-    categoryDistribution: 3,
-    fontsLoaded: true,
+    role: 'ADMIN · READ / WRITE', holdings: 3, pe: 5, peSegments: 25, accessRows: 1, importReviewRows: 1,
+    operationRows: 1, canonicalReviewRows: 1, accessHidden: true, legacyReviewHidden: true,
+    monthlyRows: 2, cashFlowRows: 1, assetSnapshotRows: 1, riskSignalRows: 7, planValues: 4, memoRows: 12, accessCollapsed: true,
+    financeFont: 'Geist, "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif', tradeActionVisible: true,
+    reviewActionVisible: true, riskActionVisible: true, loginStatusCleared: true, dashboardStatusCleared: true, workbookReviewAbsent: true,
+    monthlyPeFieldsAbsent: true, loginSurvivesInitialSessionRace: true, loginLayerRemoved: true, entryStripRemoved: true, overviewActive: true,
+    overviewChartPoints: 2, overviewChartSvg: true, overviewUsesFullGrid: true, dashboardNotBusy: true,
+    tabPressedState: [{ tab: 'overview', pressed: 'true' }, { tab: 'entry', pressed: 'false' }, { tab: 'holdings', pressed: 'false' }, { tab: 'review', pressed: 'false' }, { tab: 'planning', pressed: 'false' }, { tab: 'records', pressed: 'false' }],
+    holdingsSummary: ['沪深300ETF57.1%', '纳斯达克100ETF28.6%', '黄金ETF14.3%'], categoryDistribution: 3, fontsLoaded: true,
   });
   assert.equal(diagnostics.checks.importReviewResolved, true);
+  assert.equal(diagnostics.checks.canonicalReviewResolved, true);
   assert.deepEqual(diagnostics.checks.modal, { appInert: true, activeInside: true, activeName: 'ticker', sections: ['标的', '本次操作'], cancelVisible: true, categoryOptions: ['主动操作仓（A股）', 'A股宽基指数底仓', '美股ETF（A股跨境ETF）', '黄金ETF', '机动仓（货币ETF）', '其他'], placeholderUsesUiFont: true, reasonAbsent: true });
   assert.deepEqual(diagnostics.checks.tradeEntry, { remainsOpen: true, dateRetained: true, categoryRetained: true, tickerCleared: true, totalReset: true, focus: true });
   assert.deepEqual(diagnostics.checks.modalRestored, { background: true, focus: true });
@@ -631,14 +481,7 @@ try {
   assert.deepEqual(diagnostics.checks.riskSignals, { rows: 7, signal: '黄色关注', incomplete: true });
   assert.equal(diagnostics.checks.riskSignalsFailureIsolated, true);
   assert.equal(diagnostics.checks.tabs.every((item) => item.active && item.pressed && item.visible), true, 'each Finance path must expose its own pane and active state');
-  assert.deepEqual(diagnostics.checks.tabs.map((item) => [item.tab, item.activeBackground]), [
-    ['overview', 'rgb(53, 86, 253)'],
-    ['entry', 'rgb(94, 175, 158)'],
-    ['holdings', 'rgb(212, 201, 78)'],
-    ['review', 'rgb(255, 184, 41)'],
-    ['planning', 'rgb(183, 130, 242)'],
-    ['records', 'rgb(90, 104, 120)'],
-  ]);
+  assert.deepEqual(diagnostics.checks.tabs.map((item) => [item.tab, item.activeBackground]), [['overview', 'rgb(53, 86, 253)'], ['entry', 'rgb(94, 175, 158)'], ['holdings', 'rgb(212, 201, 78)'], ['review', 'rgb(255, 184, 41)'], ['planning', 'rgb(183, 130, 242)'], ['records', 'rgb(90, 104, 120)']]);
   assert.equal(diagnostics.checks.reducedMotionTab, 'auto');
   assert.equal(diagnostics.checks.tradeFilters, true);
   assert.deepEqual(diagnostics.checks.memoTradeLink, { required: true, options: 2, snapshot: '交易日期2026-07-24标的510300 · 沪深300ETF买入或卖出买入成交数量100成交价格¥12.00成交金额¥1,200.00仓位类别A股宽基指数', checkboxCompact: true });
@@ -652,16 +495,8 @@ try {
   assert.deepEqual(diagnostics.checks.textZoom, { noHorizontalOverflow: true, controlsRemainVisible: true });
   assert.deepEqual(diagnostics.checks.mobileTextZoom125, { noHorizontalOverflow: true, sessionControlsAligned: true, sessionControlsReachable: true, tabTouchTargets: true });
   assert.deepEqual(diagnostics.checks.mobileTradeEntry, { noHorizontalOverflow: true, singleColumnFields: true, scrollableDialog: true, actionButtonsReachable: true });
-  assert.deepEqual(diagnostics.checks.viewer, {
-    role: 'CATI · READ ONLY',
-    tradeHidden: true,
-    reviewHidden: true,
-    exportHidden: true,
-    riskHidden: true,
-    cashFlowActions: 0,
-    prompt: '',
-    appInert: false,
-  });
+  assert.deepEqual(diagnostics.checks.viewer, { role: 'CATI · READ ONLY', tradeHidden: true, reviewHidden: true, exportHidden: true, riskHidden: true, cashFlowActions: 0, prompt: '', appInert: false });
+  assert.equal(diagnostics.checks.viewerOperationHistory, true);
   assert.equal(diagnostics.checks.viewerHoldingsFirst, true);
   assert.equal(diagnostics.checks.viewerPromptAfterHoldings, true);
   assert.equal(diagnostics.checks.viewerConfirmations, true);
@@ -679,7 +514,9 @@ try {
   assert.equal(requests.filter((item) => item.method === 'POST' && item.pathname === '/api/review/confirm').length, 1);
   assert.equal(requests.filter((item) => item.method === 'POST' && item.pathname === '/api/rebalances/1/confirm').length, 1);
   assert.equal(requests.filter((item) => item.method === 'PATCH' && item.pathname === '/api/import-review/1').length, 1);
-  assert.equal(requests.some((item) => item.pathname.startsWith('/api/workbook-review')), false);
+  assert.equal(requests.filter((item) => item.method === 'PATCH' && item.pathname === '/api/workbook-review/11').length, 1);
+  assert.equal(requests.some((item) => item.pathname === '/api/operations'), true);
+  assert.equal(requests.some((item) => item.pathname === '/api/workbook-review'), true);
   const ruleRequests = requests.filter((item) => item.method === 'PUT' && item.pathname === '/api/risk-rules');
   assert.equal(ruleRequests.length, 2);
   assert.deepEqual(ruleRequests.map((item) => item.body.rule_key).sort(), ['risk', 'temperature']);

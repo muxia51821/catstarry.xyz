@@ -1,12 +1,16 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-const [html, css, script, headers, worker] = await Promise.all([
+const [html, css, script, headers, worker, operationsUi, operationsCss, operationsRoute, operationMigration] = await Promise.all([
   readFile('finance-site/index.html', 'utf8'),
   readFile('finance-site/styles.css', 'utf8'),
   readFile('finance-site/app.js', 'utf8'),
   readFile('finance-site/_headers', 'utf8'),
   readFile('workers/finance-api/src/index.ts', 'utf8'),
+  readFile('finance-site/operations-ui.js', 'utf8'),
+  readFile('finance-site/operations.css', 'utf8'),
+  readFile('workers/finance-api/src/routes/operations.ts', 'utf8'),
+  readFile('workers/finance-api/migrations/0008_operation_history.sql', 'utf8'),
 ]);
 
 for (const marker of ['data-login-form', 'data-open-trade', 'data-holdings-body', 'data-position-list', 'data-pe-list', 'data-objection', 'data-open-review', 'data-export-archive', 'data-access-list', 'data-open-rules']) {
@@ -21,7 +25,7 @@ assert.match(css, /prefers-reduced-motion/);
 assert.match(script, /\.inert = true/);
 assert.match(script, /state\.notifications\?\.monthly_confirmation\?\.period/);
 assert.doesNotMatch(script, /setMonth\(/, 'confirmation periods must come from the Shanghai-time server contract');
-assert.doesNotMatch(script, /innerHTML|insertAdjacentHTML|scrollIntoView/);
+assert.doesNotMatch(`${script}\n${operationsUi}`, /innerHTML|insertAdjacentHTML|scrollIntoView/);
 assert.doesNotMatch(`${html}\n${script}\n${worker}`, /password\s*[:=]\s*["'][^"']+["']/i);
 assert.doesNotMatch(`${html}\n${script}`, /feed-api\.catstarry\.workers\.dev/);
 assert.doesNotMatch(`${html}\n${script}`, /data-open-account(?!-event)|data-account-list|\/api\/accounts/);
@@ -79,4 +83,33 @@ assert.doesNotMatch(html, /name="sse300_pe"|name="sse500_pe"|name="sse1000_pe"|n
 assert.match(css, /\.trade-total strong\[data-placeholder\]/);
 assert.match(script, /setStatus\(\$\('\[data-dashboard-status\]'\), ''\)/);
 
+assert.match(html, /<link rel="stylesheet" href="\/operations\.css">/);
+assert.match(html, /<script src="\/operations-ui\.js" defer><\/script>/);
+assert.match(operationsUi, /变更记录/);
+assert.match(operationsUi, /\/api\/operations/);
+assert.match(operationsUi, /\/api\/workbook-review/);
+assert.match(operationsUi, /data-import-review-panel/);
+assert.match(operationsCss, /\[data-access-panel\]/);
+assert.match(operationsCss, /\[data-import-review-panel\]/);
+assert.match(worker, /handleOperations/);
+assert.match(worker, /pathname === '\/api\/operations'/);
+assert.match(operationsRoute, /business_date/);
+assert.match(operationsRoute, /occurred_at/);
+assert.match(operationsRoute, /finance_trade_audit/);
+assert.match(operationsRoute, /finance_memo_audit/);
+assert.match(operationsRoute, /finance_monthly_record_audit/);
+assert.match(operationsRoute, /finance_review_audit/);
+assert.match(operationsRoute, /finance_workbook_review_audit/);
+assert.match(operationsRoute, /annual_reviews ar WHERE ar\.confirmed_at/);
+assert.match(operationsRoute, /monthly_confirmations mc/);
+assert.doesNotMatch(operationsRoute, /finance_access_log/);
+assert.match(operationMigration, /CREATE TABLE IF NOT EXISTS finance_memo_audit/);
+assert.match(operationMigration, /CREATE TABLE IF NOT EXISTS finance_monthly_record_audit/);
+assert.match(operationMigration, /CREATE TABLE IF NOT EXISTS finance_review_audit/);
+assert.match(operationMigration, /Existing Memo \/ Monthly \/ Annual Review rows are deliberately not backfilled/);
+assert.match(operationMigration, /trg_finance_memo_audit_updated/);
+assert.match(operationMigration, /trg_finance_monthly_record_audit_updated/);
+assert.match(operationMigration, /system:annual-review/);
+
+await import('./finance-operation-history-migration-contract.mjs');
 console.log('Finance site contract passed.');
