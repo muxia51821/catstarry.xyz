@@ -8,6 +8,10 @@ export default defineConfig({
   site: 'https://catstarry.xyz',
   adapter: cloudflare({ imageService: 'passthrough' }),
   integrations: [react()],
+  // CI browser regressions inspect application console errors. Astro's development
+  // toolbar is not product runtime and can emit HMR send-before-connect errors while
+  // the dev WebSocket is still starting, so keep it for local development only.
+  devToolbar: { enabled: process.env.CI !== 'true' },
   markdown: {
     processor: unified({ remarkPlugins: [remarkWikilinks] }),
     shikiConfig: {

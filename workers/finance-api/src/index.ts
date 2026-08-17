@@ -4,13 +4,23 @@ import {
   withCors,
 } from '../../../shared/cors';
 import { apiError } from './lib/http';
+import { handleAccountState } from './routes/account-state';
+import { handleActivity } from './routes/activity';
+import { handleAssetHistory } from './routes/asset-history';
+import { handleAssetReconciliations } from './routes/asset-reconciliations';
+import { handleAssetValuationRebuild } from './routes/asset-valuation-rebuild';
 import { handleFinanceAuth, type FinanceEnv } from './routes/auth';
 import { handleDashboard } from './routes/dashboard';
+import { handleLegacyImportReviewWrite } from './routes/legacy-import-review';
+import { handleChangeLog } from './routes/operations';
 import { handleRecords } from './routes/records';
+import { handleSecurities } from './routes/securities';
 import { handleStewardship } from './routes/stewardship';
 import { handleTrades } from './routes/trades';
 import { refreshMarketData } from './tasks/refresh-market-data';
 import { logWorkerError, logWorkerWarning } from '../../../shared/worker-log';
+
+const MARKET_REFRESH_CRONS = new Set(['*/15 * * * *', '30 7 * * 1-5']);
 
 function corsFor(env: FinanceEnv) {
   const configured = env.FINANCE_SITE_ORIGIN?.replace(/\/$/, '');
@@ -21,7 +31,7 @@ function corsFor(env: FinanceEnv) {
 }
 
 export default {
-  async fetch(request, env: FinanceEnv): Promise<Response> {
+  async fetch(request: Request, env: FinanceEnv): Promise<Response> {
     const cors = corsFor(env);
     const preflight = handleCorsPreflight(request, cors);
     if (preflight) return preflight;
@@ -32,6 +42,14 @@ export default {
     try {
       let response: Response;
       if (pathname.startsWith('/api/auth/')) response = await handleFinanceAuth(request, env, pathname);
+      else if (pathname === '/api/account-state') response = await handleAccountState(request, env);
+      else if (pathname === '/api/activity') response = await handleActivity(request, env);
+      else if (pathname === '/api/change-log') response = await handleChangeLog(request, env);
+      else if (pathname === '/api/securities') response = await handleSecurities(request, env);
+      else if (pathname === '/api/assets/series') response = await handleAssetHistory(request, env);
+      else if (pathname === '/api/assets/snapshots') response = await handleAssetReconciliations(request, env);
+      else if (pathname === '/api/assets/valuations/rebuild') response = await handleAssetValuationRebuild(request, env);
+      else if (/^\/api\/import-review\/\d+$/.test(pathname) && request.method === 'PATCH') response = await handleLegacyImportReviewWrite(request, env, pathname);
       else if (pathname === '/api/trades' || /^\/api\/trades\/\d+$/.test(pathname)) response = await handleTrades(request, env);
       else if (pathname.startsWith('/api/monthly') || pathname === '/api/plan' || pathname.startsWith('/api/cash-flows') || pathname.startsWith('/api/account-events') || pathname.startsWith('/api/assets/')) {
         response = await handleRecords(request, env, pathname);
@@ -44,22 +62,16 @@ export default {
       return withCors(response, request, cors);
     } catch (error) {
       logWorkerError('finance_request_failed', { pathname, method: request.method }, error);
-      return withCors(apiError(500, 'internal_error', 'The request could not be completed'), request, cors);
+      return withCors(apiError(500, 'internal_error', 'Finance request failed'), request, cors);
     }
   },
 
-  async scheduled(controller, env, ctx): Promise<void> {
-    if (!['*/15 * * * *', '30 7 * * 1-5'].includes(controller.cron)) return;
-    ctx.waitUntil(refreshMarketData(env).then((result) => {
-      const missing = result.missing;
-      if (missing && (missing.indexes.length > 0 || missing.holdings.length > 0)) {
-        logWorkerWarning('finance_market_refresh_partial', {
-          missing_indexes: missing.indexes,
-          missing_holdings: missing.holdings,
-        });
-      }
-    }).catch((error: unknown) => {
-      logWorkerError('finance_market_refresh_failed_last_valid_snapshot_retained', {}, error);
-    }));
+  async scheduled(controller: ScheduledController, env: FinanceEnv): Promise<void> {
+    if (!MARKET_REFRESH_CRONS.has(controller.cron)) return;
+    try {
+      await refreshMarketData(env);
+    } catch (error) {
+      logWorkerWarning('finance_scheduled_refresh_failed', { cron: controller.cron }, error);
+    }
   },
-} satisfies ExportedHandler<FinanceEnv>;
+};

@@ -1,0 +1,208 @@
+.app-shell {
+  width: min(1920px, 100%);
+}
+
+.portfolio-account-breakdown {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 18px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.portfolio-account-breakdown__row {
+  display: grid;
+  gap: 3px;
+}
+
+.portfolio-account-breakdown__row i {
+  color: var(--muted);
+  font-size: 11px;
+  font-style: normal;
+}
+
+.portfolio-account-breakdown__row b {
+  color: var(--text);
+  font: 500 13px "JetBrains Mono", ui-monospace, monospace;
+}
+
+.portfolio-overview-trade {
+  align-items: center;
+}
+
+.portfolio-overview-trade strong {
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.portfolio-classification-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 14px 0;
+}
+
+.portfolio-classification-filter {
+  display: grid;
+  gap: 6px;
+  min-width: 150px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.portfolio-classification-filter select {
+  min-height: 40px;
+}
+
+.portfolio-role-badge,
+.portfolio-security-attribute {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 28px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.portfolio-role-badge {
+  border: 1px solid color-mix(in srgb, var(--portfolio-role-color) 34%, var(--line));
+  background: color-mix(in srgb, var(--portfolio-role-color) 10%, transparent);
+}
+
+.portfolio-role-badge::before {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--portfolio-role-color);
+  content: "";
+  flex: 0 0 auto;
+}
+
+.portfolio-security-attribute {
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface-strong) 70%, transparent);
+  color: var(--muted);
+}
+
+.portfolio-ticker-code {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 11px;
+}
+
+/* Review is an intentional workspace: Memo is primary, confirmation is supporting governance. */
+.dashboard-grid > [data-pane="review"][aria-labelledby="memo-title"] {
+  grid-column: 1 / -1;
+  order: 100;
+  border-color: color-mix(in srgb, var(--tab-review) 28%, var(--line));
+}
+
+.dashboard-grid > [data-pane="review"][aria-labelledby="review-title"] { order: 110; }
+.dashboard-grid > [data-pane="review"][aria-labelledby="risk-signals-title"] { order: 111; }
+.dashboard-grid > [data-pane="review"][aria-labelledby="confirm-title"] { order: 120; }
+.dashboard-grid > [data-pane="review"].rules-disclosure { order: 121; }
+
+/* Planning uses explicit rows instead of depending on incidental DOM packing. */
+.dashboard-grid > [data-pane="planning"][aria-labelledby="monthly-title"] {
+  grid-column: span 2;
+  order: 200;
+}
+
+.dashboard-grid > [data-pane="planning"][aria-labelledby="plan-title"] {
+  grid-column: span 1;
+  order: 201;
+}
+
+.dashboard-grid > [data-pane="planning"][aria-labelledby="cash-flows-title"],
+.dashboard-grid > [data-pane="planning"][aria-labelledby="account-events-title"],
+.dashboard-grid > [data-pane="planning"][aria-labelledby="asset-snapshots-title"] {
+  grid-column: 1 / -1;
+}
+
+.dashboard-grid > [data-pane="planning"][aria-labelledby="cash-flows-title"] { order: 210; }
+.dashboard-grid > [data-pane="planning"][aria-labelledby="account-events-title"] { order: 211; }
+.dashboard-grid > [data-pane="planning"][aria-labelledby="asset-snapshots-title"] { order: 212; }
+
+.portfolio-reconciliation-field small,
+.portfolio-workspace-note {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+@media (min-width: 900px) {
+  .finance-tabs {
+    overflow-x: visible;
+  }
+
+  .finance-tab {
+    flex: 1 1 0;
+    min-width: 0;
+    text-align: center;
+  }
+}
+
+@media (min-width: 1200px) {
+  .app-shell {
+    padding-inline: clamp(36px, 3vw, 48px);
+  }
+
+  .app-header h1 {
+    font-size: clamp(60px, 3.6vw, 72px);
+    line-height: 1.18;
+  }
+}
+
+@media (min-width: 1600px) {
+  .overview-grid {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+  }
+
+  .overview-grid .panel--span-2 {
+    grid-column: span 8;
+  }
+
+  .overview-grid .panel--span-3 {
+    grid-column: span 4;
+  }
+}
+
+@media (max-width: 899px) {
+  .finance-tabs {
+    overflow-x: auto;
+  }
+
+  .finance-tab {
+    flex: 0 0 auto;
+    min-width: 84px;
+  }
+
+  .dashboard-grid > [data-pane="planning"],
+  .dashboard-grid > [data-pane="review"] {
+    grid-column: 1 / -1 !important;
+  }
+}
+
+@media (max-width: 680px) {
+  .portfolio-account-breakdown {
+    grid-template-columns: 1fr;
+  }
+
+  .portfolio-overview-trade {
+    align-items: flex-start;
+  }
+
+  .portfolio-overview-trade strong {
+    white-space: normal;
+  }
+
+  .portfolio-classification-filter {
+    min-width: min(100%, 180px);
+    flex: 1 1 140px;
+  }
+}

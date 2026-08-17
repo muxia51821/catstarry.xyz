@@ -158,6 +158,7 @@ class MemoryStatement {
       this.database.accounts.push(account);
       return { meta: { changes: 1, last_row_id: account.id } };
     }
+    if (this.sql.startsWith('INSERT INTO finance_legacy_import_review_actor_context')) return { meta: { changes: 1 } };
     if (this.sql.startsWith('UPDATE finance_import_review')) {
       const [resolution_note, resolved_at, id] = this.values;
       const row = this.database.importReview.find((item) => item.id === id && item.status === 'pending');
@@ -165,6 +166,7 @@ class MemoryStatement {
       Object.assign(row, { status: 'resolved', resolution_note, resolved_at });
       return { meta: { changes: 1 } };
     }
+    if (this.sql.startsWith('DELETE FROM finance_legacy_import_review_actor_context')) return { meta: { changes: 1 } };
     if (this.sql.startsWith('INSERT OR IGNORE INTO monthly_confirmations')) {
       const [period, username] = this.values;
       const key = `${period}:${username}`;

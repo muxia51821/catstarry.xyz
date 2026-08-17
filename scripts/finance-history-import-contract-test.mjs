@@ -7,7 +7,7 @@ import { promisify } from 'node:util';
 import { DatabaseSync } from 'node:sqlite';
 
 const run = promisify(execFile); const root = await mkdtemp(path.join(os.tmpdir(), 'catstarry-finance-history-'));
-const python = process.platform === 'win32' ? 'python' : 'python3'; const expected = { trades: 2, memos: 2, account_events: 1, cash_flows: 1, holdings_snapshots: 1, asset_snapshots: 1 };
+const python = process.platform === 'win32' ? 'python' : 'python3'; const expected = { trades: 2, memos: 2, account_events: 2, cash_flows: 1, holdings_snapshots: 1, asset_snapshots: 1 };
 try {
   const workbook = path.join(root, 'fixture.xlsx'); const output = path.join(root, 'history.sql'); const reportPath = path.join(root, 'report.json');
   const d1Output = path.join(root, 'history-d1.sql'); const d1ReportPath = path.join(root, 'report-d1.json');
@@ -25,7 +25,10 @@ try {
   const sql = await readFile(output, 'utf8'); database.exec(sql);
   assert.equal(database.prepare('SELECT COUNT(*) AS count FROM trades').get().count, 2, 'same-day trades must both import');
   assert.equal(database.prepare("SELECT COUNT(*) AS count FROM finance_memos WHERE reason_source = 'reconstructed_confirmed'").get().count, 1);
-  assert.equal(database.prepare('SELECT COUNT(*) AS count FROM finance_account_events').get().count, 1);
+  assert.equal(database.prepare('SELECT COUNT(*) AS count FROM finance_account_events').get().count, 2);
+  const importedRepo = database.prepare("SELECT reference_value, amount FROM finance_account_events WHERE event_type = 'repo_start'").get();
+  assert.equal(importedRepo.reference_value, null, 'historical source_amount must not be promoted to reverse-repo principal');
+  assert.equal(importedRepo.amount, -8000.01, 'historical reverse-repo Broker Cash effect remains exact');
   assert.equal(database.prepare('SELECT COUNT(*) AS count FROM finance_cash_flows').get().count, 1);
   assert.equal(database.prepare('SELECT snapshot_at FROM finance_asset_snapshots').get().snapshot_at, '2026-06-01T04:00:00.000Z');
   assert.throws(() => database.exec(sql), /UNIQUE/, 'the accepted-workbook batch must not run twice'); database.close();

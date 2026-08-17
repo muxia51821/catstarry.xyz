@@ -36,9 +36,6 @@ export async function handleRecords(request: Request, env: FinanceEnv, pathname:
   if (pathname === '/api/account-events' && request.method === 'POST') return saveAccountEvent(request, env);
   if (/^\/api\/account-events\/\d+$/.test(pathname) && request.method === 'PATCH') return updateAccountEvent(request, env, Number(pathname.split('/')[3]));
   if (/^\/api\/account-events\/\d+$/.test(pathname) && request.method === 'DELETE') return deleteAccountEvent(request, env, Number(pathname.split('/')[3]));
-  if (pathname === '/api/assets/snapshots' && request.method === 'GET') return listAssetSnapshots(request, env);
-  if (pathname === '/api/assets/snapshots' && request.method === 'POST') return saveAssetSnapshot(request, env);
-  if (pathname === '/api/assets/series' && request.method === 'GET') return assetSeries(request, env);
   return apiError(404, 'not_found', 'Finance records route not found');
 }
 
@@ -114,7 +111,6 @@ async function savePlan(request: Request, env: FinanceEnv): Promise<Response> {
   ]);
   return json({ plan: { ...(await env.DB.prepare('SELECT * FROM plan_params WHERE id = 1').first<Record<string, unknown>>()), ...contributions } });
 }
-
 
 function normalizeMonthly(value: MonthlyRecordInput) {
   const year_month = string(value.year_month, 7);
@@ -206,26 +202,43 @@ async function saveCashFlow(request: Request, env: FinanceEnv) {
   const body = await readJson<CashFlowInput>(request); if (body instanceof Response) return body;
   const input = normalizeCashFlow(body); if (!input) return apiError(400, 'invalid_cash_flow', 'Cash flow fields are invalid');
   const now = new Date().toISOString();
-  const result = await env.DB.prepare(`INSERT INTO finance_cash_flows (occurred_on, contributor, flow_type, bonus_source_year, baseline_amount, confirmed_amount, manager_share_offset, net_amount, note, created_at, created_by)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(input.occurred_on, input.contributor, input.flow_type, input.bonus_source_year, input.baseline_amount, input.confirmed_amount, input.manager_share_offset, input.net_amount, input.note, now, session.username).run();
-  const id = Number(result.meta.last_row_id); const row = await env.DB.prepare('SELECT * FROM finance_cash_flows WHERE id = ?').bind(id).first();
-  await env.DB.prepare(`INSERT INTO finance_cash_flow_audit (cash_flow_id, action, actor, occurred_at, after_json) VALUES (?, 'created', ?, ?, ?)`).bind(id, session.username, now, JSON.stringify(row)).run();
+  const results = await env.DB.batch([
+    env.DB.prepare(`INSERT INTO finance_cash_flows (occurred_on, contributor, flow_type, bonus_source_year, baseline_amount, confirmed_amount, manager_share_offset, net_amount, note, created_at, created_by)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(input.occurred_on, input.contributor, input.flow_type, input.bonus_source_year, input.baseline_amount, input.confirmed_amount, input.manager_share_offset, input.net_amount, input.note, now, session.username),
+    env.DB.prepare(`INSERT INTO finance_cash_flow_audit (cash_flow_id, action, actor, occurred_at, after_json)
+      SELECT last_insert_rowid(), 'created', ?, ?, ? WHERE changes() = 1`).bind(session.username, now, JSON.stringify(input)),
+  ]);
+  const id = Number(results[0]?.meta.last_row_id);
+  const row = await env.DB.prepare('SELECT * FROM finance_cash_flows WHERE id = ?').bind(id).first();
   return json({ cash_flow: row }, 201);
 }
 async function updateCashFlow(request: Request, env: FinanceEnv, id: number) {
   const session = await requireFinanceRole(request, env, ['admin']); if (session instanceof Response) return session;
   const body = await readJson<CashFlowInput>(request); if (body instanceof Response) return body;
   const input = normalizeCashFlow(body); if (!input || !Number.isSafeInteger(id) || id < 1) return apiError(400, 'invalid_cash_flow', 'Cash flow fields are invalid');
-  const before = await env.DB.prepare('SELECT * FROM finance_cash_flows WHERE id = ? AND deleted_at IS NULL').bind(id).first(); if (!before) return apiError(404, 'not_found', 'Cash flow not found');
-  const now = new Date().toISOString(); const result = await env.DB.prepare(`UPDATE finance_cash_flows SET occurred_on=?, contributor=?, flow_type=?, bonus_source_year=?, baseline_amount=?, confirmed_amount=?, manager_share_offset=?, net_amount=?, note=?, updated_at=?, updated_by=? WHERE id=? AND deleted_at IS NULL`).bind(input.occurred_on, input.contributor, input.flow_type, input.bonus_source_year, input.baseline_amount, input.confirmed_amount, input.manager_share_offset, input.net_amount, input.note, now, session.username, id).run();
-  const after = await env.DB.prepare('SELECT * FROM finance_cash_flows WHERE id = ?').bind(id).first(); await env.DB.prepare(`INSERT INTO finance_cash_flow_audit (cash_flow_id, action, actor, occurred_at, before_json, after_json) VALUES (?, 'updated', ?, ?, ?, ?)`).bind(id, session.username, now, JSON.stringify(before), JSON.stringify(after)).run();
-  return json({ cash_flow: after, updated: (result.meta.changes ?? 0) > 0 });
+  const before = await env.DB.prepare('SELECT * FROM finance_cash_flows WHERE id = ? AND deleted_at IS NULL').bind(id).first<Record<string, unknown>>(); if (!before) return apiError(404, 'not_found', 'Cash flow not found');
+  const now = new Date().toISOString();
+  const afterForAudit = { ...before, ...input, updated_at: now, updated_by: session.username };
+  const results = await env.DB.batch([
+    env.DB.prepare(`UPDATE finance_cash_flows SET occurred_on=?, contributor=?, flow_type=?, bonus_source_year=?, baseline_amount=?, confirmed_amount=?, manager_share_offset=?, net_amount=?, note=?, updated_at=?, updated_by=? WHERE id=? AND deleted_at IS NULL AND updated_at IS ?`).bind(input.occurred_on, input.contributor, input.flow_type, input.bonus_source_year, input.baseline_amount, input.confirmed_amount, input.manager_share_offset, input.net_amount, input.note, now, session.username, id, before.updated_at ?? null),
+    env.DB.prepare(`INSERT INTO finance_cash_flow_audit (cash_flow_id, action, actor, occurred_at, before_json, after_json)
+      SELECT ?, 'updated', ?, ?, ?, ? WHERE changes() = 1`).bind(id, session.username, now, JSON.stringify(before), JSON.stringify(afterForAudit)),
+  ]);
+  if ((results[0]?.meta.changes ?? 0) === 0) return apiError(409, 'stale_cash_flow', 'Cash flow changed before this edit could be committed; reload and retry');
+  const after = await env.DB.prepare('SELECT * FROM finance_cash_flows WHERE id = ?').bind(id).first();
+  return json({ cash_flow: after, updated: true });
 }
 async function deleteCashFlow(request: Request, env: FinanceEnv, id: number) {
   const session = await requireFinanceRole(request, env, ['admin']); if (session instanceof Response) return session;
-  const before = await env.DB.prepare('SELECT * FROM finance_cash_flows WHERE id = ? AND deleted_at IS NULL').bind(id).first(); if (!before) return apiError(404, 'not_found', 'Cash flow not found');
-  const now = new Date().toISOString(); await env.DB.prepare('UPDATE finance_cash_flows SET deleted_at = ?, deleted_by = ? WHERE id = ?').bind(now, session.username, id).run();
-  await env.DB.prepare(`INSERT INTO finance_cash_flow_audit (cash_flow_id, action, actor, occurred_at, before_json) VALUES (?, 'deleted', ?, ?, ?)`).bind(id, session.username, now, JSON.stringify(before)).run(); return json({ deleted: true });
+  const before = await env.DB.prepare('SELECT * FROM finance_cash_flows WHERE id = ? AND deleted_at IS NULL').bind(id).first<Record<string, unknown>>(); if (!before) return apiError(404, 'not_found', 'Cash flow not found');
+  const now = new Date().toISOString();
+  const results = await env.DB.batch([
+    env.DB.prepare('UPDATE finance_cash_flows SET deleted_at = ?, deleted_by = ? WHERE id = ? AND deleted_at IS NULL AND updated_at IS ?').bind(now, session.username, id, before.updated_at ?? null),
+    env.DB.prepare(`INSERT INTO finance_cash_flow_audit (cash_flow_id, action, actor, occurred_at, before_json)
+      SELECT ?, 'deleted', ?, ?, ? WHERE changes() = 1`).bind(id, session.username, now, JSON.stringify(before)),
+  ]);
+  if ((results[0]?.meta.changes ?? 0) === 0) return apiError(409, 'stale_cash_flow', 'Cash flow changed before this delete could be committed; reload and retry');
+  return json({ deleted: true });
 }
 
 type AccountEventInput = {
@@ -233,7 +246,7 @@ type AccountEventInput = {
   quantity?: unknown; reference_value?: unknown; amount?: unknown; position_category?: unknown; note?: unknown;
 };
 
-function normalizeAccountEvent(value: AccountEventInput) {
+export function normalizeAccountEvent(value: AccountEventInput) {
   const event_date = string(value.event_date, 10);
   const event_time = value.event_time === undefined || value.event_time === null || value.event_time === '' ? null : string(value.event_time, 5);
   const event_type = string(value.event_type, 32);
@@ -242,6 +255,11 @@ function normalizeAccountEvent(value: AccountEventInput) {
   const position_category = nullableString(value.position_category, 64); const note = nullableString(value.note, 2_000);
   if (!isoDay.test(event_date) || (event_time !== null && !/^([01]\d|2[0-3]):[0-5]\d$/.test(event_time)) || !['dividend', 'dividend_tax', 'split', 'repo_start', 'repo_maturity', 'refund', 'other'].includes(event_type)
     || ticker === undefined || ticker_name === undefined || quantity === undefined || reference_value === undefined || amount === undefined || position_category === undefined || note === undefined) return null;
+  if (event_type === 'repo_start' || event_type === 'repo_maturity') {
+    if (reference_value === null || reference_value <= 0 || amount === null) return null;
+    if (event_type === 'repo_start' && amount >= 0) return null;
+    if (event_type === 'repo_maturity' && amount <= 0) return null;
+  }
   return { event_date, event_time, event_type, ticker, ticker_name, quantity, reference_value, amount, position_category, note };
 }
 
@@ -256,10 +274,14 @@ async function saveAccountEvent(request: Request, env: FinanceEnv) {
   const body = await readJson<AccountEventInput>(request); if (body instanceof Response) return body;
   const input = normalizeAccountEvent(body); if (!input) return apiError(400, 'invalid_account_event', 'Account event fields are invalid');
   const now = new Date().toISOString();
-  const result = await env.DB.prepare(`INSERT INTO finance_account_events (event_date,event_time,event_type,ticker,ticker_name,quantity,reference_value,amount,position_category,note,created_at,created_by)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`).bind(input.event_date, input.event_time, input.event_type, input.ticker, input.ticker_name, input.quantity, input.reference_value, input.amount, input.position_category, input.note, now, session.username).run();
-  const row = await env.DB.prepare('SELECT * FROM finance_account_events WHERE id = ?').bind(result.meta.last_row_id).first();
-  await env.DB.prepare(`INSERT INTO finance_account_event_audit (account_event_id,action,actor,occurred_at,after_json) VALUES (?,'created',?,?,?)`).bind(result.meta.last_row_id, session.username, now, JSON.stringify(row)).run();
+  const results = await env.DB.batch([
+    env.DB.prepare(`INSERT INTO finance_account_events (event_date,event_time,event_type,ticker,ticker_name,quantity,reference_value,amount,position_category,note,created_at,created_by)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`).bind(input.event_date, input.event_time, input.event_type, input.ticker, input.ticker_name, input.quantity, input.reference_value, input.amount, input.position_category, input.note, now, session.username),
+    env.DB.prepare(`INSERT INTO finance_account_event_audit (account_event_id,action,actor,occurred_at,after_json)
+      SELECT last_insert_rowid(),'created',?,?,? WHERE changes() = 1`).bind(session.username, now, JSON.stringify(input)),
+  ]);
+  const id = Number(results[0]?.meta.last_row_id);
+  const row = await env.DB.prepare('SELECT * FROM finance_account_events WHERE id = ?').bind(id).first();
   return json({ account_event: row }, 201);
 }
 
@@ -267,36 +289,28 @@ async function updateAccountEvent(request: Request, env: FinanceEnv, id: number)
   const session = await requireFinanceRole(request, env, ['admin']); if (session instanceof Response) return session;
   const body = await readJson<AccountEventInput>(request); if (body instanceof Response) return body;
   const input = normalizeAccountEvent(body); if (!input || !Number.isSafeInteger(id) || id < 1) return apiError(400, 'invalid_account_event', 'Account event fields are invalid');
-  const before = await env.DB.prepare('SELECT * FROM finance_account_events WHERE id = ? AND deleted_at IS NULL').bind(id).first(); if (!before) return apiError(404, 'not_found', 'Account event not found');
+  const before = await env.DB.prepare('SELECT * FROM finance_account_events WHERE id = ? AND deleted_at IS NULL').bind(id).first<Record<string, unknown>>(); if (!before) return apiError(404, 'not_found', 'Account event not found');
   const now = new Date().toISOString();
-  await env.DB.prepare(`UPDATE finance_account_events SET event_date=?,event_time=?,event_type=?,ticker=?,ticker_name=?,quantity=?,reference_value=?,amount=?,position_category=?,note=?,updated_at=?,updated_by=? WHERE id=? AND deleted_at IS NULL`).bind(input.event_date, input.event_time, input.event_type, input.ticker, input.ticker_name, input.quantity, input.reference_value, input.amount, input.position_category, input.note, now, session.username, id).run();
+  const afterForAudit = { ...before, ...input, updated_at: now, updated_by: session.username };
+  const results = await env.DB.batch([
+    env.DB.prepare(`UPDATE finance_account_events SET event_date=?,event_time=?,event_type=?,ticker=?,ticker_name=?,quantity=?,reference_value=?,amount=?,position_category=?,note=?,updated_at=?,updated_by=? WHERE id=? AND deleted_at IS NULL AND updated_at IS ?`).bind(input.event_date, input.event_time, input.event_type, input.ticker, input.ticker_name, input.quantity, input.reference_value, input.amount, input.position_category, input.note, now, session.username, id, before.updated_at ?? null),
+    env.DB.prepare(`INSERT INTO finance_account_event_audit (account_event_id,action,actor,occurred_at,before_json,after_json)
+      SELECT ?,'updated',?,?,?,? WHERE changes() = 1`).bind(id, session.username, now, JSON.stringify(before), JSON.stringify(afterForAudit)),
+  ]);
+  if ((results[0]?.meta.changes ?? 0) === 0) return apiError(409, 'stale_account_event', 'Account event changed before this edit could be committed; reload and retry');
   const after = await env.DB.prepare('SELECT * FROM finance_account_events WHERE id = ?').bind(id).first();
-  await env.DB.prepare(`INSERT INTO finance_account_event_audit (account_event_id,action,actor,occurred_at,before_json,after_json) VALUES (?,'updated',?,?,?,?)`).bind(id, session.username, now, JSON.stringify(before), JSON.stringify(after)).run();
   return json({ account_event: after });
 }
 
 async function deleteAccountEvent(request: Request, env: FinanceEnv, id: number) {
   const session = await requireFinanceRole(request, env, ['admin']); if (session instanceof Response) return session;
-  const before = await env.DB.prepare('SELECT * FROM finance_account_events WHERE id = ? AND deleted_at IS NULL').bind(id).first(); if (!before) return apiError(404, 'not_found', 'Account event not found');
-  const now = new Date().toISOString(); await env.DB.prepare('UPDATE finance_account_events SET deleted_at=?, deleted_by=? WHERE id=?').bind(now, session.username, id).run();
-  await env.DB.prepare(`INSERT INTO finance_account_event_audit (account_event_id,action,actor,occurred_at,before_json) VALUES (?,'deleted',?,?,?)`).bind(id, session.username, now, JSON.stringify(before)).run();
+  const before = await env.DB.prepare('SELECT * FROM finance_account_events WHERE id = ? AND deleted_at IS NULL').bind(id).first<Record<string, unknown>>(); if (!before) return apiError(404, 'not_found', 'Account event not found');
+  const now = new Date().toISOString();
+  const results = await env.DB.batch([
+    env.DB.prepare('UPDATE finance_account_events SET deleted_at=?, deleted_by=? WHERE id=? AND deleted_at IS NULL AND updated_at IS ?').bind(now, session.username, id, before.updated_at ?? null),
+    env.DB.prepare(`INSERT INTO finance_account_event_audit (account_event_id,action,actor,occurred_at,before_json)
+      SELECT ?,'deleted',?,?,? WHERE changes() = 1`).bind(id, session.username, now, JSON.stringify(before)),
+  ]);
+  if ((results[0]?.meta.changes ?? 0) === 0) return apiError(409, 'stale_account_event', 'Account event changed before this delete could be committed; reload and retry');
   return json({ deleted: true });
 }
-
-async function listAssetSnapshots(request: Request, env: FinanceEnv) { const session = await requireFinanceRole(request, env); if (session instanceof Response) return session; const result = await env.DB.prepare('SELECT * FROM finance_asset_snapshots WHERE deleted_at IS NULL ORDER BY snapshot_at DESC, id DESC LIMIT 300').all(); return json({ snapshots: result.results }); }
-async function saveAssetSnapshot(request: Request, env: FinanceEnv) {
-  const session = await requireFinanceRole(request, env, ['admin']); if (session instanceof Response) return session;
-  const body = await readJson<Record<string, unknown>>(request); if (body instanceof Response) return body;
-  const snapshot_at = typeof body.snapshot_at === 'string' ? body.snapshot_at.trim() : ''; const source = string(body.source, 64); const holdings_value = Number(body.holdings_value); const cash_value = Number(body.cash_value); const is_complete = body.is_complete === true || body.is_complete === 1 ? 1 : 0; const incomplete_reason = nullableString(body.incomplete_reason, 500);
-  if (!snapshot_at || !source || !Number.isFinite(holdings_value) || holdings_value < 0 || !Number.isFinite(cash_value) || cash_value < 0 || incomplete_reason === undefined || (!is_complete && !incomplete_reason)) return apiError(400, 'invalid_asset_snapshot', 'Asset snapshot fields are invalid');
-  const now = new Date().toISOString(); const total = holdings_value + cash_value;
-  await env.DB.prepare(`INSERT INTO finance_asset_snapshots (snapshot_at, snapshot_date, holdings_value, cash_value, total_value, source, is_complete, incomplete_reason, created_at, created_by) VALUES (?, substr(?,1,10), ?, ?, ?, ?, ?, ?, ?, ?)`)
-    .bind(snapshot_at, snapshot_at, holdings_value, cash_value, total, source, is_complete, incomplete_reason, now, session.username).run(); return json({ created: true, total_value: total }, 201);
-}
-async function assetSeries(request: Request, env: FinanceEnv) {
-  const session = await requireFinanceRole(request, env); if (session instanceof Response) return session; const view = new URL(request.url).searchParams.get('view') ?? 'month'; if (!['week', 'month'].includes(view)) return apiError(400, 'invalid_view', 'view must be week or month');
-  const rows = await env.DB.prepare(`SELECT * FROM finance_asset_snapshots WHERE deleted_at IS NULL AND is_complete = 1 ORDER BY snapshot_at ASC, id ASC LIMIT 600`).all<Record<string, unknown>>();
-  const selected = new Map<string, Record<string, unknown>>(); for (const row of rows.results) { const date = String(row.snapshot_date); const key = view === 'week' ? `${date.slice(0, 4)}-W${isoWeek(date)}` : date.slice(0, 7); selected.set(key, row); }
-  return json({ view, records: [...selected.values()], legacy_monthly_records: view === 'month' ? (await env.DB.prepare('SELECT year_month, end_total FROM monthly_records WHERE deleted_at IS NULL AND end_total IS NOT NULL ORDER BY year_month').all()).results : [] });
-}
-function isoWeek(value: string) { const date = new Date(`${value}T00:00:00Z`); const day = date.getUTCDay() || 7; date.setUTCDate(date.getUTCDate() + 4 - day); const start = new Date(Date.UTC(date.getUTCFullYear(), 0, 1)); return String(Math.ceil((((date.getTime() - start.getTime()) / 86_400_000) + 1) / 7)).padStart(2, '0'); }
