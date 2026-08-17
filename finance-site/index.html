@@ -7,6 +7,7 @@
     <meta name="finance-api-base" content="">
     <title>Finance · catstarry.xyz</title>
     <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/portfolio.css">
     <link rel="stylesheet" href="/operations.css">
   </head>
   <body>
@@ -53,7 +54,7 @@
 
       <main class="dashboard" data-dashboard aria-busy="false">
         <section class="summary-grid" data-pane="overview" aria-label="账户摘要">
-          <article class="metric metric--wide"><span>当前总市值</span><strong data-total-value>—</strong><small data-market-freshness>等待行情快照</small></article>
+          <article class="metric metric--wide"><span>总资产</span><strong data-total-value>—</strong><small data-market-freshness>等待账户状态</small></article>
           <article class="metric"><span>A股行情</span><strong data-market-summary>—</strong><small data-market-freshness-copy>等待指数涨跌数据</small></article>
           <article class="metric"><span>风险状态</span><strong data-circuit-level>—</strong><small data-circuit-action>尚未读取</small></article>
         </section>
@@ -62,7 +63,7 @@
           <section class="panel panel--span-2" aria-labelledby="net-worth-title">
             <header class="panel-header"><div><p class="eyebrow">TOTAL ASSETS</p><h2 id="net-worth-title">总资产</h2></div><div class="asset-view-switch" role="group" aria-label="总资产时间视角"><button class="button-secondary is-active" type="button" data-asset-view="month" aria-pressed="true">月</button><button class="button-secondary" type="button" data-asset-view="week" aria-pressed="false">周</button><span class="data-state" data-net-worth-state>等待数据</span></div></header>
             <div class="net-worth-chart" data-net-worth-chart tabindex="0" aria-label="总资产曲线"></div>
-            <p class="empty-state" data-net-worth-empty hidden>尚无已核验的完整资产快照，曲线不会使用模拟数据补齐。</p>
+            <p class="empty-state" data-net-worth-empty hidden>尚无完整的历史估值。曲线只使用事实记录与 canonical raw close 重建出的完整数据。</p>
           </section>
           <section class="panel panel--span-3" aria-labelledby="overview-trades-title">
             <header class="panel-header"><div><p class="eyebrow">RECENT ACTIVITY</p><h2 id="overview-trades-title">最近交易</h2></div></header>
@@ -192,6 +193,7 @@
     <dialog class="notification-dialog" data-notification-dialog><form method="dialog" class="dialog-card"><header><div><p class="eyebrow">MONTHLY CONFIRMATION</p><h2>月度查阅确认</h2></div></header><p data-notification-copy></p><footer><p class="form-status" data-notification-status role="status"></p><button type="button" data-confirm-notification>确认已查阅</button></footer></form></dialog>
     <dialog class="objection-dialog" data-objection-dialog><form method="dialog" class="dialog-card" data-objection-form><header><div><p class="eyebrow">BLACK CIRCUIT</p><h2>提出重大异议</h2></div><button class="icon-button" type="button" data-close-dialog aria-label="关闭">×</button></header><p>提交后所有操作应立即暂停，直到双方确认新的计划参数。</p><label>异议说明<textarea name="reason" required maxlength="2000"></textarea></label><footer><p class="form-status" data-objection-status role="status"></p><button class="button-danger" type="submit" value="default">确认并触发</button></footer></form></dialog>
     <script src="/app.js" defer></script>
+    <script src="/portfolio-ui.js" defer></script>
     <script src="/operations-ui.js" defer></script>
   </body>
 </html>
