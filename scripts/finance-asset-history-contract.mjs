@@ -61,3 +61,4 @@ assert.equal(db.prepare(`SELECT COUNT(*) AS count FROM finance_asset_valuations 
 
 db.close();
 console.log('Finance derived historical price and valuation cache contract passed.');
+await import('./finance-raw-price-import-contract.mjs');
