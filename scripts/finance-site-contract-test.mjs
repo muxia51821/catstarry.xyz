@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-const [html, css, script, headers, worker, operationsUi, operationsCss, activityRoute, operationsRoute, legacyReviewRoute, operationMigration] = await Promise.all([
+const [html, css, script, headers, worker, operationsUi, operationsCss, accountStateRoute, activityRoute, operationsRoute, legacyReviewRoute, operationMigration] = await Promise.all([
   readFile('finance-site/index.html', 'utf8'),
   readFile('finance-site/styles.css', 'utf8'),
   readFile('finance-site/app.js', 'utf8'),
@@ -9,6 +9,7 @@ const [html, css, script, headers, worker, operationsUi, operationsCss, activity
   readFile('workers/finance-api/src/index.ts', 'utf8'),
   readFile('finance-site/operations-ui.js', 'utf8'),
   readFile('finance-site/operations.css', 'utf8'),
+  readFile('workers/finance-api/src/routes/account-state.ts', 'utf8'),
   readFile('workers/finance-api/src/routes/activity.ts', 'utf8'),
   readFile('workers/finance-api/src/routes/operations.ts', 'utf8'),
   readFile('workers/finance-api/src/routes/legacy-import-review.ts', 'utf8'),
@@ -30,7 +31,7 @@ assert.doesNotMatch(script, /setMonth\(/, 'confirmation periods must come from t
 assert.doesNotMatch(`${script}\n${operationsUi}`, /innerHTML|insertAdjacentHTML|scrollIntoView/);
 assert.doesNotMatch(`${html}\n${script}\n${worker}`, /password\s*[:=]\s*["'][^"']+["']/i);
 assert.doesNotMatch(`${html}\n${script}`, /feed-api\.catstarry\.workers\.dev/);
-assert.doesNotMatch(`${html}\n${script}`, /data-open-account(?!-event)|data-account-list|\/api\/accounts/);
+assert.doesNotMatch(`${html}\n${script}\n${operationsUi}\n${accountStateRoute}`, /data-open-account(?!-event)|data-account-list|\/api\/accounts/, 'Finance must not reintroduce a generic account-management product');
 assert.match(html, /data-tab="entry"/);
 assert.match(html, /data-tab="overview"/);
 assert.match(html, /data-tab="holdings"/);
@@ -88,6 +89,11 @@ assert.match(script, /setStatus\(\$\('\[data-dashboard-status\]'\), ''\)/);
 
 assert.match(html, /<link rel="stylesheet" href="\/operations\.css">/);
 assert.match(html, /<script src="\/operations-ui\.js" defer><\/script>/);
+assert.match(operationsUi, /资产概览/);
+assert.match(operationsUi, /Broker Cash/);
+assert.match(operationsUi, /\/api\/account-state/);
+assert.match(operationsUi, /marketMetricLabel\.textContent = '证券市值'/);
+assert.match(operationsUi, /recordsTab\.textContent = '账户动态'/);
 assert.match(operationsUi, /账户动态/);
 assert.match(operationsUi, /\/api\/activity/);
 assert.match(operationsUi, /数据变更记录/);
@@ -106,9 +112,12 @@ assert.doesNotMatch(operationsUi, /audit_strength|provenance/i, 'internal eviden
 assert.doesNotMatch(operationsCss, /\.operation-history-ready \[data-access-panel\]/, 'data change log must not hide the auxiliary security access log');
 assert.match(operationsCss, /\.operation-workbook-review-ready \[data-import-review-panel\]/);
 assert.doesNotMatch(operationsCss, /^\[data-access-panel\][\s,]/m, 'security access log must not be hidden by records extension CSS');
+assert.match(operationsCss, /\.account-state-body/);
 assert.match(operationsCss, /\.activity-row/);
 assert.match(operationsCss, /\.operation-panel-summary/);
 
+assert.match(worker, /handleAccountState/);
+assert.match(worker, /pathname === '\/api\/account-state'/);
 assert.match(worker, /handleActivity/);
 assert.match(worker, /pathname === '\/api\/activity'/);
 assert.match(worker, /handleChangeLog/);
@@ -122,6 +131,24 @@ assert.match(legacyReviewRoute, /INSERT INTO finance_legacy_import_review_actor_
 assert.match(legacyReviewRoute, /DELETE FROM finance_legacy_import_review_actor_context/);
 assert.match(legacyReviewRoute, /SET status = 'resolved', resolution_note = \?, resolved_at = \?/);
 assert.doesNotMatch(legacyReviewRoute, /auditEnvelope|__finance_operation_history_v1/);
+
+assert.match(accountStateRoute, /export async function handleAccountState/);
+assert.match(accountStateRoute, /requireFinanceRole\(request, env\)/);
+assert.match(accountStateRoute, /latestReconciliation/);
+assert.match(accountStateRoute, /cashFactsAfter/);
+assert.match(accountStateRoute, /projectCash/);
+assert.match(accountStateRoute, /projectRepoAssets/);
+assert.match(accountStateRoute, /net_cash_amount/);
+assert.match(accountStateRoute, /finance_cash_flows/);
+assert.match(accountStateRoute, /finance_account_events/);
+assert.match(accountStateRoute, /historical_backfill/);
+assert.match(accountStateRoute, /history_import/);
+assert.match(accountStateRoute, /t\.trade_date > \?/);
+assert.match(accountStateRoute, /f\.occurred_on > \?/);
+assert.match(accountStateRoute, /e\.event_date > \?/);
+assert.match(accountStateRoute, /未分类账户事件/);
+assert.doesNotMatch(accountStateRoute, /finance_.*_audit|finance_access_log/, 'current cash must project from financial facts rather than audit/security history');
+assert.doesNotMatch(accountStateRoute, /quantity\s*\*\s*price|Math\.floor\(Math\.abs/, 'repo carrying value must not guess principal from a broker quantity/unit convention');
 
 assert.match(activityRoute, /export async function handleActivity/);
 assert.match(activityRoute, /requireFinanceRole\(request, env\)/);
