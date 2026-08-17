@@ -94,3 +94,4 @@ assert.ok(reviewRows.every((row) => row.business_date === null));
 
 db.close();
 console.log('Finance data change-log query and cursor contract passed.');
+await import('./finance-trade-classification-contract.mjs');
