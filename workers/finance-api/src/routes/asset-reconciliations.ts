@@ -12,6 +12,9 @@ type ReconciliationInput = {
 };
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
+const LOCAL_DATETIME = /^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d{1,3})?)?$/;
+const OFFSET_DATETIME = /(?:Z|[+-]\d{2}:\d{2})$/i;
+const SHANGHAI_OFFSET_MS = 8 * 60 * 60 * 1000;
 
 export async function handleAssetReconciliations(request: Request, env: FinanceEnv): Promise<Response> {
   if (request.method === 'GET') return listReconciliations(request, env);
@@ -69,8 +72,7 @@ async function saveReconciliation(request: Request, env: FinanceEnv) {
 }
 
 function normalizeReconciliation(body: ReconciliationInput) {
-  const snapshot_at = typeof body.snapshot_at === 'string' ? body.snapshot_at.trim() : '';
-  const snapshot_date = snapshot_at.slice(0, 10);
+  const observed = normalizeObservedAt(body.snapshot_at);
   const source = typeof body.source === 'string' ? body.source.trim() : '';
   const holdings_value = finiteNonNegative(body.holdings_value);
   const cash_value = finiteNonNegative(body.cash_value);
@@ -80,13 +82,13 @@ function normalizeReconciliation(body: ReconciliationInput) {
   const is_complete = body.is_complete === true || body.is_complete === 1 || body.is_complete === '1' ? 1 : 0;
   const incomplete_reason = nullableText(body.incomplete_reason, 500);
 
-  if (!snapshot_at || snapshot_at.length > 40 || !DAY.test(snapshot_date) || !source || source.length > 64
+  if (!observed || !source || source.length > 64
     || holdings_value === null || cash_value === null || other_assets_value === null
     || incomplete_reason === undefined || (!is_complete && !incomplete_reason)) return null;
 
   return {
-    snapshot_at,
-    snapshot_date,
+    snapshot_at: observed.snapshot_at,
+    snapshot_date: observed.snapshot_date,
     source,
     holdings_value,
     cash_value,
@@ -94,6 +96,29 @@ function normalizeReconciliation(body: ReconciliationInput) {
     is_complete,
     incomplete_reason,
   };
+}
+
+function normalizeObservedAt(value: unknown) {
+  if (typeof value !== 'string') return null;
+  const raw = value.trim();
+  if (!raw || raw.length > 40 || !validDay(raw.slice(0, 10))) return null;
+
+  let parsed: Date;
+  if (LOCAL_DATETIME.test(raw)) parsed = new Date(`${raw}${raw.length === 16 ? ':00' : ''}+08:00`);
+  else if (OFFSET_DATETIME.test(raw)) parsed = new Date(raw);
+  else return null;
+  if (!Number.isFinite(parsed.getTime())) return null;
+
+  const snapshot_date = new Date(parsed.getTime() + SHANGHAI_OFFSET_MS).toISOString().slice(0, 10);
+  if (LOCAL_DATETIME.test(raw) && snapshot_date !== raw.slice(0, 10)) return null;
+  return { snapshot_at: parsed.toISOString(), snapshot_date };
+}
+
+function validDay(value: string) {
+  if (!DAY.test(value)) return false;
+  const [year, month, day] = value.split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
 }
 
 function finiteNonNegative(value: unknown) {
