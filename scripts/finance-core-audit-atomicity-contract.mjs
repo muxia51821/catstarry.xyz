@@ -2,9 +2,10 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { DatabaseSync } from 'node:sqlite';
 
-const [tradesSource, recordsSource] = await Promise.all([
+const [tradesSource, recordsSource, operationMigration] = await Promise.all([
   readFile('workers/finance-api/src/routes/trades.ts', 'utf8'),
   readFile('workers/finance-api/src/routes/records.ts', 'utf8'),
+  readFile('workers/finance-api/migrations/0008_operation_history.sql', 'utf8'),
 ]);
 
 const count = (source, pattern) => source.match(pattern)?.length ?? 0;
@@ -21,6 +22,11 @@ assert.match(recordsSource, /stale_cash_flow/);
 assert.match(recordsSource, /stale_account_event/);
 assert.doesNotMatch(tradesSource, /await env\.DB\.prepare\(`INSERT INTO finance_trade_audit[\s\S]*?\)\.bind\([^\n]+\)\.run\(\)/, 'Trade audit writes must not be standalone writes');
 assert.doesNotMatch(recordsSource, /await env\.DB\.prepare\(`INSERT INTO finance_(?:cash_flow|account_event)_audit[\s\S]*?\)\.bind\([^\n]+\)\.run\(\)/, 'Cash Flow / Account Event audit writes must not be standalone writes');
+
+// Migration-first rollout must not install parallel core audit triggers while an old Worker may still hand-write these audits.
+assert.doesNotMatch(operationMigration, /CREATE TRIGGER[\s\S]*?\bON\s+trades\b/i, '0008 must not double-own Trade auditing');
+assert.doesNotMatch(operationMigration, /CREATE TRIGGER[\s\S]*?\bON\s+finance_cash_flows\b/i, '0008 must not double-own Cash Flow auditing');
+assert.doesNotMatch(operationMigration, /CREATE TRIGGER[\s\S]*?\bON\s+finance_account_events\b/i, '0008 must not double-own Account Event auditing');
 
 // SQLite semantics used by D1 batch(): last_insert_rowid() follows the prior INSERT on the same connection,
 // while changes() reports the immediately preceding completed DML statement.
