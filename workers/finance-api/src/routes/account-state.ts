@@ -22,6 +22,7 @@ type CashFactRow = {
   subtype: string;
   amount: number | null;
   repo_key: string | null;
+  timing_status?: 'after' | 'ambiguous';
 };
 
 export type RepoEventRow = {
@@ -42,6 +43,7 @@ type CurrentHoldingRow = {
 export const SYNTHETIC_RECONCILIATION_SOURCES = ['auto_close', 'historical_backfill', 'history_import'];
 const CASH_ACCOUNT_EVENT_TYPES = new Set(['dividend', 'dividend_tax', 'repo_start', 'repo_maturity', 'refund']);
 const CASH_TOLERANCE = 0.000001;
+const SHANGHAI_OFFSET_MS = 8 * 60 * 60 * 1000;
 
 export async function handleAccountState(request: Request, env: FinanceEnv): Promise<Response> {
   if (request.method !== 'GET') return apiError(405, 'method_not_allowed', 'Method is not allowed');
@@ -73,7 +75,9 @@ export async function readAccountState(env: FinanceEnv) {
     };
   }
 
-  const cash = projectCash(reconciliation.cash_value, await cashFactsAfter(env, reconciliation.snapshot_date));
+  const candidateFacts = await cashFactsOnOrAfter(env, reconciliation.snapshot_date);
+  const cashFacts = selectCashFactsAfterReconciliation(reconciliation, candidateFacts);
+  const cash = projectCash(reconciliation.cash_value, cashFacts);
   const totalAssets = holdings.complete && cash.status !== 'incomplete' && repoState.status !== 'incomplete'
     ? Number(holdings.market_value) + Number(cash.value) + Number(repoState.value)
     : null;
@@ -134,21 +138,39 @@ async function currentHoldings(env: FinanceEnv) {
   };
 }
 
-async function cashFactsAfter(env: FinanceEnv, throughDate: string) {
+async function cashFactsOnOrAfter(env: FinanceEnv, throughDate: string) {
   const rows = await env.DB.prepare(`SELECT * FROM (
       SELECT 'trade:' || t.id AS fact_key, t.trade_date AS business_date, t.trade_time AS business_time,
         'trade' AS kind, t.direction AS subtype, t.net_cash_amount AS amount, NULL AS repo_key
-        FROM trades t WHERE t.deleted_at IS NULL AND t.trade_date > ?
+        FROM trades t WHERE t.deleted_at IS NULL AND t.trade_date >= ?
       UNION ALL
       SELECT 'cash-flow:' || f.id, f.occurred_on, NULL, 'cash_flow', f.flow_type, f.net_amount, NULL
-        FROM finance_cash_flows f WHERE f.deleted_at IS NULL AND f.occurred_on > ?
+        FROM finance_cash_flows f WHERE f.deleted_at IS NULL AND f.occurred_on >= ?
       UNION ALL
       SELECT 'account-event:' || e.id, e.event_date, e.event_time, 'account_event', e.event_type, e.amount,
         COALESCE(NULLIF(e.ticker, ''), NULLIF(e.ticker_name, ''), 'repo')
-        FROM finance_account_events e WHERE e.deleted_at IS NULL AND e.event_date > ?
+        FROM finance_account_events e WHERE e.deleted_at IS NULL AND e.event_date >= ?
     ) facts ORDER BY business_date ASC, COALESCE(business_time, '00:00') ASC, fact_key ASC`)
     .bind(throughDate, throughDate, throughDate).all<CashFactRow>();
   return rows.results.map((row) => ({ ...row, amount: row.amount === null ? null : Number(row.amount) }));
+}
+
+export function selectCashFactsAfterReconciliation(
+  reconciliation: { snapshot_at: string; snapshot_date: string },
+  facts: CashFactRow[],
+) {
+  const cutoff = shanghaiCutoff(reconciliation.snapshot_at);
+  return facts.flatMap<CashFactRow>((fact) => {
+    if (fact.business_date > reconciliation.snapshot_date) return [{ ...fact, timing_status: 'after' }];
+    if (fact.business_date < reconciliation.snapshot_date) return [];
+    if (fact.kind === 'account_event' && fact.subtype === 'split') return [];
+    if (!cutoff || cutoff.date !== reconciliation.snapshot_date) return [{ ...fact, timing_status: 'ambiguous' }];
+    const factMinute = normalizeMinute(fact.business_time);
+    if (!factMinute) return [{ ...fact, timing_status: 'ambiguous' }];
+    if (factMinute > cutoff.minute) return [{ ...fact, timing_status: 'after' }];
+    if (factMinute < cutoff.minute) return [];
+    return [{ ...fact, timing_status: 'ambiguous' }];
+  });
 }
 
 async function allRepoEvents(env: FinanceEnv) {
@@ -167,8 +189,12 @@ export function projectCash(anchorCash: number, facts: CashFactRow[]) {
   const problems: string[] = [];
 
   for (const fact of facts) {
+    if (fact.kind === 'account_event' && fact.subtype === 'split') continue;
+    if (fact.timing_status === 'ambiguous') {
+      problems.push(`${fact.fact_key} 与对账发生在同一财务日，但缺少足够时间精度，无法判断是否已包含在 Broker Cash 对账中。`);
+      continue;
+    }
     if (fact.kind === 'account_event') {
-      if (fact.subtype === 'split') continue;
       if (fact.subtype === 'other') {
         problems.push(`${fact.fact_key} 是未分类账户事件，无法确定是否影响 Broker Cash。`);
         continue;
@@ -237,6 +263,19 @@ export function projectRepoAssets(events: RepoEventRow[]) {
     open_repo_count: [...open.values()].reduce((sum, queue) => sum + queue.length, 0),
     problems,
   };
+}
+
+function shanghaiCutoff(snapshotAt: string) {
+  const timestamp = new Date(snapshotAt).getTime();
+  if (!Number.isFinite(timestamp)) return null;
+  const localIso = new Date(timestamp + SHANGHAI_OFFSET_MS).toISOString();
+  return { date: localIso.slice(0, 10), minute: localIso.slice(11, 16) };
+}
+
+function normalizeMinute(value: string | null) {
+  if (!value) return null;
+  const match = value.trim().match(/^([01]\d|2[0-3]):([0-5]\d)(?::[0-5]\d(?:\.\d{1,3})?)?$/);
+  return match ? `${match[1]}:${match[2]}` : null;
 }
 
 function normalizeMoney(value: number) {
