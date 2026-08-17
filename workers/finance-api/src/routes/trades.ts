@@ -39,6 +39,9 @@ interface TradeRow {
   updated_at: string | null;
   updated_by: string | null;
   deleted_at: string | null;
+  instrument_type?: string | null;
+  security_attribute?: string | null;
+  attribute_source?: string | null;
   memo_id?: number | null;
   memo_reason?: string | null;
   memo_reason_source?: string | null;
@@ -100,8 +103,19 @@ async function listTrades(request: Request, env: FinanceEnv): Promise<Response> 
   if (!Number.isInteger(limit) || limit < 1 || limit > 50) return apiError(400, 'invalid_limit', 'limit must be between 1 and 50');
   const start = optionalDate(url.searchParams.get('start')); const end = optionalDate(url.searchParams.get('end'));
   const ticker = (url.searchParams.get('ticker') ?? '').trim().toUpperCase(); const direction = url.searchParams.get('direction') ?? '';
-  if (start === undefined || end === undefined || (start && end && start > end) || (ticker && !/^[A-Z0-9.-]{2,24}$/.test(ticker)) || (direction && !['buy', 'sell'].includes(direction))) return apiError(400, 'invalid_filter', 'Trade filters are invalid');
-  const filter = { start: start ?? null, end: end ?? null, ticker: ticker || null, direction: direction || null };
+  const positionCategory = optionalFilter(url.searchParams.get('position_category'), 64);
+  const securityAttribute = optionalFilter(url.searchParams.get('security_attribute'), 100);
+  if (start === undefined || end === undefined || positionCategory === undefined || securityAttribute === undefined
+    || (start && end && start > end) || (ticker && !/^[A-Z0-9.-]{2,24}$/.test(ticker))
+    || (direction && !['buy', 'sell'].includes(direction))) return apiError(400, 'invalid_filter', 'Trade filters are invalid');
+  const filter = {
+    start: start ?? null,
+    end: end ?? null,
+    ticker: ticker || null,
+    direction: direction || null,
+    position_category: positionCategory,
+    security_attribute: securityAttribute,
+  };
   const cursor = decodeCursor(url.searchParams.get('cursor'), filter);
   if (cursor instanceof Response) return cursor;
   const clauses = ['t.deleted_at IS NULL']; const values: unknown[] = [];
@@ -109,15 +123,26 @@ async function listTrades(request: Request, env: FinanceEnv): Promise<Response> 
   if (filter.end) { clauses.push('t.trade_date <= ?'); values.push(filter.end); }
   if (filter.ticker) { clauses.push('t.ticker = ?'); values.push(filter.ticker); }
   if (filter.direction) { clauses.push('t.direction = ?'); values.push(filter.direction); }
+  if (filter.position_category) { clauses.push('t.position_category = ?'); values.push(filter.position_category); }
+  if (filter.security_attribute) { clauses.push('s.security_attribute = ?'); values.push(filter.security_attribute); }
   if (cursor) { clauses.push('(t.trade_date < ? OR (t.trade_date = ? AND t.id < ?))'); values.push(cursor.sort, cursor.sort, cursor.id); }
-  const rows = await env.DB.prepare(`SELECT t.*, m.id AS memo_id, m.reason AS memo_reason, m.reason_source AS memo_reason_source
-    FROM trades t LEFT JOIN finance_memos m ON m.trade_id = t.id AND m.deleted_at IS NULL
+  const rows = await env.DB.prepare(`SELECT t.*,
+      s.instrument_type, s.security_attribute, s.attribute_source,
+      m.id AS memo_id, m.reason AS memo_reason, m.reason_source AS memo_reason_source
+    FROM trades t
+    LEFT JOIN finance_securities s ON s.ticker = t.ticker
+    LEFT JOIN finance_memos m ON m.trade_id = t.id AND m.deleted_at IS NULL
     WHERE ${clauses.join(' AND ')} ORDER BY t.trade_date DESC, t.id DESC LIMIT ?`).bind(...values, limit + 1).all<TradeRow>();
   const items = rows.results.slice(0, limit); const last = items.at(-1);
   return json({ trades: items, items, nextCursor: rows.results.length > limit && last ? encodeCursor({ sort: last.trade_date, id: last.id, filter }) : null });
 }
 
 function optionalDate(value: string | null): string | null | undefined { return value === null || value === '' ? null : validDate(value) ? value : undefined; }
+function optionalFilter(value: string | null, maximum: number): string | null | undefined {
+  if (value === null || value.trim() === '') return null;
+  const result = value.trim();
+  return result.length <= maximum ? result : undefined;
+}
 function encodeCursor(value: { sort: string; id: number; filter: unknown }): string { return btoa(JSON.stringify(value)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, ''); }
 function decodeCursor(value: string | null, filter: unknown): { sort: string; id: number } | null | Response {
   if (!value) return null;
