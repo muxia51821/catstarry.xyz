@@ -91,6 +91,53 @@
   font-size: 11px;
 }
 
+/* Review is an intentional workspace: Memo is primary, confirmation is supporting governance. */
+.dashboard-grid > [data-pane="review"][aria-labelledby="memo-title"] {
+  grid-column: 1 / -1;
+  order: 100;
+  border-color: color-mix(in srgb, var(--tab-review) 28%, var(--line));
+}
+
+.dashboard-grid > [data-pane="review"][aria-labelledby="review-title"] { order: 110; }
+.dashboard-grid > [data-pane="review"][aria-labelledby="risk-signals-title"] { order: 111; }
+.dashboard-grid > [data-pane="review"][aria-labelledby="confirm-title"] { order: 120; }
+.dashboard-grid > [data-pane="review"].rules-disclosure { order: 121; }
+
+/* Planning uses explicit rows instead of depending on incidental DOM packing. */
+.dashboard-grid > [data-pane="planning"][aria-labelledby="monthly-title"] {
+  grid-column: span 2;
+  order: 200;
+}
+
+.dashboard-grid > [data-pane="planning"][aria-labelledby="plan-title"] {
+  grid-column: span 1;
+  order: 201;
+}
+
+.dashboard-grid > [data-pane="planning"][aria-labelledby="cash-flows-title"],
+.dashboard-grid > [data-pane="planning"][aria-labelledby="account-events-title"],
+.dashboard-grid > [data-pane="planning"][aria-labelledby="asset-snapshots-title"] {
+  grid-column: 1 / -1;
+}
+
+.dashboard-grid > [data-pane="planning"][aria-labelledby="cash-flows-title"] { order: 210; }
+.dashboard-grid > [data-pane="planning"][aria-labelledby="account-events-title"] { order: 211; }
+.dashboard-grid > [data-pane="planning"][aria-labelledby="asset-snapshots-title"] { order: 212; }
+
+.portfolio-reconciliation-field small,
+.portfolio-workspace-note {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+@media (max-width: 900px) {
+  .dashboard-grid > [data-pane="planning"],
+  .dashboard-grid > [data-pane="review"] {
+    grid-column: 1 / -1 !important;
+  }
+}
+
 @media (max-width: 680px) {
   .portfolio-account-breakdown {
     grid-template-columns: 1fr;
