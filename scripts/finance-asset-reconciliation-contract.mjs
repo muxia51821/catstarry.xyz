@@ -64,19 +64,21 @@ const migrationFiles = (await readdir(migrationDirectory)).filter((name) => name
   const database = new DatabaseSync(':memory:');
   for (const file of migrationFiles) database.exec(await readFile(path.join(migrationDirectory, file), 'utf8'));
   const env = { DB: new SqliteD1(database), FINANCE_AUTH_KV: new SessionKv() };
-  const request = new Request('https://finance.test/api/assets/snapshots', {
+  const payload = {
+    snapshot_at: '2026-07-29T15:01',
+    source: 'broker-reconciliation',
+    holdings_value: 100000,
+    cash_value: 10000,
+    other_assets_value: 36000,
+    is_complete: true,
+  };
+  const makePost = (body = payload) => new Request('https://finance.test/api/assets/snapshots', {
     method: 'POST',
     headers: { Cookie: `token=${SESSION_TOKEN}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      snapshot_at: '2026-07-29T15:01',
-      source: 'broker-reconciliation',
-      holdings_value: 100000,
-      cash_value: 10000,
-      other_assets_value: 36000,
-      is_complete: true,
-    }),
+    body: JSON.stringify(body),
   });
-  const response = await handleAssetReconciliations(request, env);
+
+  const response = await handleAssetReconciliations(makePost(), env);
   assert.equal(response.status, 201);
   const created = await response.json();
   assert.equal(created.total_value, 146000);
@@ -90,27 +92,43 @@ const migrationFiles = (await readdir(migrationDirectory)).filter((name) => name
     cash_value: 10000, other_assets_value: 36000, total_value: 146000, source: 'broker-reconciliation',
   });
 
+  const duplicate = await handleAssetReconciliations(makePost(), env);
+  assert.equal(duplicate.status, 409, 'same canonical observation time/source must be a user-visible conflict instead of a Worker 500');
+  assert.match(await duplicate.text(), /duplicate_asset_reconciliation/);
+  assert.equal(database.prepare('SELECT COUNT(*) AS count FROM finance_asset_snapshots').get().count, 1);
+
+  // Mixed legacy +08:00 and canonical UTC timestamps must sort by the actual instant, not lexical text.
+  database.prepare(`INSERT INTO finance_asset_snapshots (
+    snapshot_at, snapshot_date, holdings_value, cash_value, other_assets_value, total_value,
+    source, is_complete, incomplete_reason, created_at, created_by
+  ) VALUES (?, '2026-08-16', 100, 20, 0, 120, ?, 1, NULL, ?, 'contract')`).run(
+    '2026-08-16T10:29:00+08:00', 'legacy-offset', '2026-08-16T10:30:00+08:00',
+  );
+  database.prepare(`INSERT INTO finance_asset_snapshots (
+    snapshot_at, snapshot_date, holdings_value, cash_value, other_assets_value, total_value,
+    source, is_complete, incomplete_reason, created_at, created_by
+  ) VALUES (?, '2026-08-16', 101, 20, 0, 121, ?, 1, NULL, ?, 'contract')`).run(
+    '2026-08-16T03:00:00.000Z', 'utc-newer', '2026-08-16T03:01:00.000Z',
+  );
+
   const getResponse = await handleAssetReconciliations(new Request('https://finance.test/api/assets/snapshots', { headers: { Cookie: `token=${SESSION_TOKEN}` } }), env);
   assert.equal(getResponse.status, 200);
   const listed = await getResponse.json();
-  assert.equal(listed.snapshots[0].other_assets_value, 36000);
+  assert.equal(listed.snapshots[0].source, 'utc-newer', '11:00 Shanghai UTC row is later than the legacy 10:29 +08:00 row');
+  assert.equal(listed.snapshots[1].source, 'legacy-offset');
   assert.deepEqual(listed.reconciliations, listed.snapshots);
 
-  const incomplete = await handleAssetReconciliations(new Request('https://finance.test/api/assets/snapshots', {
-    method: 'POST',
-    headers: { Cookie: `token=${SESSION_TOKEN}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ snapshot_at: '2026-07-30T10:00', source: 'manual', holdings_value: 1, cash_value: 1, other_assets_value: 0, is_complete: false }),
+  const incomplete = await handleAssetReconciliations(makePost({
+    snapshot_at: '2026-07-30T10:00', source: 'manual', holdings_value: 1, cash_value: 1, other_assets_value: 0, is_complete: false,
   }), env);
   assert.equal(incomplete.status, 400, 'incomplete reconciliation requires an explicit gap reason');
 
-  const invalidDate = await handleAssetReconciliations(new Request('https://finance.test/api/assets/snapshots', {
-    method: 'POST',
-    headers: { Cookie: `token=${SESSION_TOKEN}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ snapshot_at: '2026-02-30T10:00', source: 'manual', holdings_value: 1, cash_value: 1, is_complete: true }),
+  const invalidDate = await handleAssetReconciliations(makePost({
+    snapshot_at: '2026-02-30T10:00', source: 'manual', holdings_value: 1, cash_value: 1, is_complete: true,
   }), env);
   assert.equal(invalidDate.status, 400, 'invalid local calendar dates must not be normalized into a different business day');
 
   database.close();
 }
 
-console.log('Finance asset reconciliation other-assets and timezone contract passed.');
+console.log('Finance asset reconciliation other-assets, timezone, ordering and duplicate contract passed.');
