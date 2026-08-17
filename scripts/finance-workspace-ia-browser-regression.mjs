@@ -125,3 +125,5 @@ try {
   await browser?.close();
   await new Promise((resolve) => server.close(resolve));
 }
+
+await import('./finance-wide-layout-browser-regression.mjs');
