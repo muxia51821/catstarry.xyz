@@ -5,6 +5,8 @@ import { DatabaseSync } from 'node:sqlite';
 
 import { handleTrades } from '../workers/finance-api/src/routes/trades.ts';
 
+const SESSION_TOKEN = '11111111-1111-4111-8111-111111111111';
+
 class SqliteD1Statement {
   constructor(database, sql, values = []) { this.database = database; this.sql = sql; this.values = values; }
   bind(...values) { return new SqliteD1Statement(this.database, this.sql, values); }
@@ -30,7 +32,7 @@ class SqliteD1 {
 }
 class SessionKv {
   async get(key, type) {
-    if (key !== 'session:classification-contract') return null;
+    if (key !== `session:${SESSION_TOKEN}`) return null;
     const session = { username: 'muxia', role: 'admin', expires_at: '2099-01-01T00:00:00.000Z' };
     return type === 'json' ? session : JSON.stringify(session);
   }
@@ -56,7 +58,7 @@ INSERT INTO trades (trade_date,ticker,ticker_name,direction,quantity,price,posit
 
 const env = { DB: new SqliteD1(database), FINANCE_AUTH_KV: new SessionKv() };
 function request(query) {
-  return new Request(`https://finance.test/api/trades?${query}`, { headers: { Cookie: 'token=classification-contract' } });
+  return new Request(`https://finance.test/api/trades?${query}`, { headers: { Cookie: `token=${SESSION_TOKEN}` } });
 }
 
 const filteredResponse = await handleTrades(request(`limit=50&position_category=${encodeURIComponent('主动操作仓（A股）')}&security_attribute=${encodeURIComponent('消费电子')}`), env);
