@@ -7,7 +7,7 @@ import { apiError } from './lib/http';
 import { handleFinanceAuth, type FinanceEnv } from './routes/auth';
 import { handleDashboard } from './routes/dashboard';
 import { handleLegacyImportReviewWrite } from './routes/legacy-import-review';
-import { handleOperations } from './routes/operations';
+import { handleChangeLog } from './routes/operations';
 import { handleRecords } from './routes/records';
 import { handleStewardship } from './routes/stewardship';
 import { handleTrades } from './routes/trades';
@@ -34,7 +34,7 @@ export default {
     try {
       let response: Response;
       if (pathname.startsWith('/api/auth/')) response = await handleFinanceAuth(request, env, pathname);
-      else if (pathname === '/api/operations') response = await handleOperations(request, env);
+      else if (pathname === '/api/change-log') response = await handleChangeLog(request, env);
       else if (/^\/api\/import-review\/\d+$/.test(pathname) && request.method === 'PATCH') response = await handleLegacyImportReviewWrite(request, env, pathname);
       else if (pathname === '/api/trades' || /^\/api\/trades\/\d+$/.test(pathname)) response = await handleTrades(request, env);
       else if (pathname.startsWith('/api/monthly') || pathname === '/api/plan' || pathname.startsWith('/api/cash-flows') || pathname.startsWith('/api/account-events') || pathname.startsWith('/api/assets/')) {
@@ -48,22 +48,15 @@ export default {
       return withCors(response, request, cors);
     } catch (error) {
       logWorkerError('finance_request_failed', { pathname, method: request.method }, error);
-      return withCors(apiError(500, 'internal_error', 'The request could not be completed'), request, cors);
+      return withCors(apiError(500, 'internal_error', 'Finance request failed'), request, cors);
     }
   },
 
-  async scheduled(controller, env, ctx): Promise<void> {
-    if (!['*/15 * * * *', '30 7 * * 1-5'].includes(controller.cron)) return;
-    ctx.waitUntil(refreshMarketData(env).then((result) => {
-      const missing = result.missing;
-      if (missing && (missing.indexes.length > 0 || missing.holdings.length > 0)) {
-        logWorkerWarning('finance_market_refresh_partial', {
-          missing_indexes: missing.indexes,
-          missing_holdings: missing.holdings,
-        });
-      }
-    }).catch((error: unknown) => {
-      logWorkerError('finance_market_refresh_failed_last_valid_snapshot_retained', {}, error);
-    }));
+  async scheduled(_controller: ScheduledController, env: FinanceEnv): Promise<void> {
+    try {
+      await refreshMarketData(env);
+    } catch (error) {
+      logWorkerWarning('finance_scheduled_refresh_failed', {}, error);
+    }
   },
-} satisfies ExportedHandler<FinanceEnv>;
+};
