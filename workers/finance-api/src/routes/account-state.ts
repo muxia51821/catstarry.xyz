@@ -108,7 +108,7 @@ async function latestReconciliation(env: FinanceEnv) {
     FROM finance_asset_snapshots
     WHERE deleted_at IS NULL AND is_complete = 1
       AND lower(COALESCE(source, '')) NOT IN (${SYNTHETIC_RECONCILIATION_SOURCES.map(() => '?').join(', ')})
-    ORDER BY snapshot_at DESC, id DESC LIMIT 1`)
+    ORDER BY snapshot_date DESC, julianday(snapshot_at) DESC, id DESC LIMIT 1`)
     .bind(...SYNTHETIC_RECONCILIATION_SOURCES).first<ReconciliationRow>();
 }
 
