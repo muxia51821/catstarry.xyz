@@ -186,9 +186,13 @@ async function createTrade(request: Request, env: FinanceEnv): Promise<Response>
   const input = normalizeTrade(raw);
   if (!input) return apiError(400, 'invalid_trade', 'Trade fields are invalid');
 
-  const current = await latestHolding(env, input.ticker);
-  if (current && input.trade_date < current.snapshot_date) {
-    return apiError(409, 'backdated_trade', 'Backdated trades must be imported through the reviewed migration workflow');
+  const [current, reconciliation] = await Promise.all([
+    latestHolding(env, input.ticker),
+    latestTradeReconciliation(env),
+  ]);
+  const afterReconciliation = tradeEditableAfterReconciliation({ id: 0, ...input }, reconciliation);
+  if ((current && input.trade_date < current.snapshot_date) || !afterReconciliation) {
+    return apiError(409, 'backdated_trade', 'Online trades must be later than the latest holding and reconciliation boundaries; reviewed backfills belong in the migration workflow');
   }
   if (input.direction === 'sell' && Number(current?.quantity ?? 0) < input.quantity) {
     return apiError(409, 'insufficient_holding', 'Sell quantity exceeds the current holding');
