@@ -1,6 +1,8 @@
 -- Forward-only read-history support for Finance mutations.
 -- Existing Memo / Monthly / Annual Review rows are deliberately not backfilled:
 -- versions that were never stored must not be reconstructed after the fact.
+-- Historical-import actors are also excluded from per-record Memo creation audit so
+-- a fresh database and an upgraded production database expose the same history model.
 
 CREATE TABLE IF NOT EXISTS finance_memo_audit (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -25,7 +27,7 @@ CREATE TABLE IF NOT EXISTS finance_monthly_record_audit (
 CREATE TABLE IF NOT EXISTS finance_review_audit (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   review_year INTEGER NOT NULL,
-  action TEXT NOT NULL CHECK (action IN ('created', 'updated')),
+  action TEXT NOT NULL CHECK (action IN ('created', 'updated', 'confirmed')),
   actor TEXT NOT NULL,
   occurred_at TEXT NOT NULL,
   before_json TEXT,
@@ -41,6 +43,7 @@ CREATE INDEX IF NOT EXISTS idx_finance_review_audit_time ON finance_review_audit
 
 CREATE TRIGGER IF NOT EXISTS trg_finance_memo_audit_created
 AFTER INSERT ON finance_memos
+WHEN NEW.created_by NOT LIKE 'historical-import:%'
 BEGIN
   INSERT INTO finance_memo_audit (memo_id, action, actor, occurred_at, after_json)
   VALUES (
@@ -57,6 +60,7 @@ END;
 CREATE TRIGGER IF NOT EXISTS trg_finance_memo_audit_updated
 AFTER UPDATE ON finance_memos
 WHEN OLD.deleted_at IS NULL AND NEW.deleted_at IS NULL
+  AND COALESCE(NEW.updated_by, NEW.created_by) NOT LIKE 'historical-import:%'
   AND (
     OLD.trade_id IS NOT NEW.trade_id OR OLD.memo_date IS NOT NEW.memo_date OR OLD.ticker IS NOT NEW.ticker
     OR OLD.position_category IS NOT NEW.position_category OR OLD.operation_type IS NOT NEW.operation_type
@@ -85,6 +89,7 @@ END;
 CREATE TRIGGER IF NOT EXISTS trg_finance_memo_audit_deleted
 AFTER UPDATE ON finance_memos
 WHEN OLD.deleted_at IS NULL AND NEW.deleted_at IS NOT NULL
+  AND COALESCE(NEW.deleted_by, NEW.updated_by, NEW.created_by) NOT LIKE 'historical-import:%'
 BEGIN
   INSERT INTO finance_memo_audit (memo_id, action, actor, occurred_at, before_json)
   VALUES (
@@ -158,16 +163,20 @@ BEGIN
   );
 END;
 
--- Annual reviews are derived by the Finance calculation engine. The existing
--- runtime did not persist the initiating username, so new calculation revisions
--- are explicitly attributed to the calculation system rather than inventing a user.
+-- Annual review calculations are derived data. The annual_reviews row does not
+-- persist who initiated a calculation, so calculation revisions remain attributed
+-- to the calculation engine. Confirmation actor is persisted on the row and is
+-- therefore captured exactly by the separate confirmation trigger below.
 CREATE TRIGGER IF NOT EXISTS trg_finance_review_audit_created
 AFTER INSERT ON annual_reviews
 BEGIN
   INSERT INTO finance_review_audit (review_year, action, actor, occurred_at, after_json)
   VALUES (
     NEW.year, 'created', 'system:annual-review', NEW.calculated_at,
-    json_object('year', NEW.year, 'calculation_json', NEW.calculation_json, 'summary', NEW.summary)
+    json_object(
+      'year', NEW.year, 'calculation_json', NEW.calculation_json, 'summary', NEW.summary,
+      'confirmed_by', NEW.confirmed_by, 'confirmed_at', NEW.confirmed_at
+    )
   );
 END;
 
@@ -180,7 +189,31 @@ BEGIN
   INSERT INTO finance_review_audit (review_year, action, actor, occurred_at, before_json, after_json)
   VALUES (
     NEW.year, 'updated', 'system:annual-review', NEW.calculated_at,
-    json_object('year', OLD.year, 'calculation_json', OLD.calculation_json, 'summary', OLD.summary),
-    json_object('year', NEW.year, 'calculation_json', NEW.calculation_json, 'summary', NEW.summary)
+    json_object(
+      'year', OLD.year, 'calculation_json', OLD.calculation_json, 'summary', OLD.summary,
+      'confirmed_by', OLD.confirmed_by, 'confirmed_at', OLD.confirmed_at
+    ),
+    json_object(
+      'year', NEW.year, 'calculation_json', NEW.calculation_json, 'summary', NEW.summary,
+      'confirmed_by', NEW.confirmed_by, 'confirmed_at', NEW.confirmed_at
+    )
+  );
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_finance_review_audit_confirmed
+AFTER UPDATE ON annual_reviews
+WHEN OLD.confirmed_at IS NULL AND NEW.confirmed_at IS NOT NULL AND NEW.confirmed_by IS NOT NULL
+BEGIN
+  INSERT INTO finance_review_audit (review_year, action, actor, occurred_at, before_json, after_json)
+  VALUES (
+    NEW.year, 'confirmed', NEW.confirmed_by, NEW.confirmed_at,
+    json_object(
+      'year', OLD.year, 'calculation_json', OLD.calculation_json, 'summary', OLD.summary,
+      'confirmed_by', OLD.confirmed_by, 'confirmed_at', OLD.confirmed_at
+    ),
+    json_object(
+      'year', NEW.year, 'calculation_json', NEW.calculation_json, 'summary', NEW.summary,
+      'confirmed_by', NEW.confirmed_by, 'confirmed_at', NEW.confirmed_at
+    )
   );
 END;

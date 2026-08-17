@@ -41,6 +41,12 @@ assert.equal(db.prepare('SELECT COUNT(*) AS count FROM finance_memo_audit').get(
 assert.equal(db.prepare('SELECT COUNT(*) AS count FROM finance_monthly_record_audit').get().count, 0, 'existing monthly versions must not be fabricated');
 assert.equal(db.prepare('SELECT COUNT(*) AS count FROM finance_review_audit').get().count, 0, 'existing annual review versions must not be fabricated');
 
+// Fresh databases apply migrations before replaying the accepted historical import.
+// Those imported Memos must not appear as user-created operations when production upgrades do not have them either.
+db.prepare(`INSERT INTO finance_memos (memo_date, reason, created_at, created_by) VALUES (?, ?, ?, ?)`)
+  .run('2026-06-01', 'accepted historical memo', '2026-08-16T00:00:00.000Z', 'historical-import:fixture');
+assert.equal(db.prepare('SELECT COUNT(*) AS count FROM finance_memo_audit').get().count, 0, 'historical-import memo creation must remain represented by the batch operation only');
+
 db.prepare(`INSERT INTO finance_memos (memo_date, reason, created_at, created_by) VALUES (?, ?, ?, ?)`)
   .run('2026-08-17', 'new memo', '2026-08-17T01:00:00.000Z', 'muxia');
 const memoId = Number(db.prepare('SELECT max(id) AS id FROM finance_memos').get().id);
@@ -65,16 +71,22 @@ assert.deepEqual(plainRows(db.prepare('SELECT action, actor FROM finance_monthly
 
 db.prepare(`INSERT INTO annual_reviews (year, calculation_json, summary, calculated_at) VALUES (?, ?, ?, ?)`)
   .run(2026, '{"v":1}', 'first', '2026-12-31T01:00:00.000Z');
-db.prepare('UPDATE annual_reviews SET calculation_json = ?, summary = ?, calculated_at = ? WHERE year = ?')
-  .run('{"v":2}', 'second', '2026-12-31T02:00:00.000Z', 2026);
 db.prepare('UPDATE annual_reviews SET confirmed_by = ?, confirmed_at = ? WHERE year = ?')
-  .run('cati', '2026-12-31T03:00:00.000Z', 2026);
+  .run('cati', '2026-12-31T02:00:00.000Z', 2026);
+db.prepare('UPDATE annual_reviews SET calculation_json = ?, summary = ?, calculated_at = ?, confirmed_by = NULL, confirmed_at = NULL WHERE year = ?')
+  .run('{"v":2}', 'second', '2026-12-31T03:00:00.000Z', 2026);
 assert.deepEqual(plainRows(db.prepare('SELECT action, actor FROM finance_review_audit WHERE review_year = 2026 ORDER BY id').all()), [
-  { action: 'created', actor: 'system:annual-review' }, { action: 'updated', actor: 'system:annual-review' },
-], 'confirmation-only updates must not create a fake calculation revision');
+  { action: 'created', actor: 'system:annual-review' },
+  { action: 'confirmed', actor: 'cati' },
+  { action: 'updated', actor: 'system:annual-review' },
+]);
+const reviewRevision = db.prepare(`SELECT before_json, after_json FROM finance_review_audit
+  WHERE review_year = 2026 AND action = 'updated'`).get();
+assert.equal(JSON.parse(reviewRevision.before_json).confirmed_by, 'cati');
+assert.equal(JSON.parse(reviewRevision.after_json).confirmed_by, null, 'recalculation must preserve evidence that the previous confirmation was cleared');
 
 db.exec(migration);
-assert.equal(db.prepare("SELECT COUNT(*) AS count FROM sqlite_master WHERE type = 'trigger' AND name LIKE 'trg_finance_%_audit_%'").get().count >= 8, true);
+assert.equal(db.prepare("SELECT COUNT(*) AS count FROM sqlite_master WHERE type = 'trigger' AND name LIKE 'trg_finance_%_audit_%'").get().count >= 9, true);
 db.close();
 
 console.log('Finance operation history migration contract passed.');

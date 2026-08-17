@@ -9,9 +9,9 @@
   const entityLabels = {
     trade: '交易', cash_flow: '现金流', account_event: '账户事件', investment_plan: '投资计划', investment_rule: '投资规则',
     memo: '投资备忘录', monthly_record: '月度记录', annual_review: '年度复盘', workbook_review: '导入异常', rebalance: '再平衡',
-    review_confirmation: '年度复盘确认', monthly_confirmation: '月度查阅确认', circuit: '重大异议', circuit_resolution: '熔断恢复',
-    asset_reconciliation: '资产对账', historical_import: '历史数据迁移',
+    monthly_confirmation: '月度查阅确认', circuit: '熔断事件', circuit_resolution: '熔断恢复确认', asset_reconciliation: '资产对账', historical_import: '历史数据迁移',
   };
+  const rawFetch = window.fetch.bind(window);
 
   const historyPanel = node('section', { className: 'panel panel--span-3 operation-history-panel', 'data-pane': 'records', hidden: '' });
   const historyHeader = node('header', { className: 'panel-header' },
@@ -19,7 +19,7 @@
     node('span', { className: 'data-state', 'data-operation-state': '', textContent: '等待读取' }),
   );
   historyPanel.setAttribute('aria-labelledby', 'operation-history-title');
-  const historyCopy = node('p', { className: 'panel-copy', textContent: '记录谁在什么时候新增、修改、删除、确认或对账。交易日期等业务日期与实际修改时间分开显示；登录和 session 不属于这里。' });
+  const historyCopy = node('p', { className: 'panel-copy', textContent: '记录谁在什么时候新增、修改、删除、确认或对账。金融业务日期与实际修改时间分开显示；时间统一按北京时间（Asia/Shanghai），登录和 session 不属于这里。' });
   const filters = node('form', { className: 'record-filters operation-filters', 'data-operation-filters': '' },
     selectLabel('对象', 'entity_type', [['', '全部'], ...Object.entries(entityLabels).map(([value, label]) => [value, label])]),
     selectLabel('动作', 'action', [['', '全部'], ...Object.entries(actionLabels).map(([value, label]) => [value, label])]),
@@ -43,7 +43,7 @@
       node('div', {}, node('p', { className: 'eyebrow', textContent: 'IMPORT REVIEW' }), node('h2', { id: 'canonical-import-review-title', textContent: '导入异常审阅' })),
       node('span', { className: 'data-state', 'data-canonical-review-state': '', textContent: '等待读取' }),
     ),
-    node('p', { className: 'panel-copy', textContent: '这里只使用带 before / after 审计的 Workbook Review。旧的无审计 Import Review 保留后台兼容，但不再从产品界面写入。' }),
+    node('p', { className: 'panel-copy', textContent: '这里只使用带 before / after 审计的 Workbook Review。旧 Import Review 保留为兼容读取面；新产品界面不再从旧写入口结案。' }),
   );
   const reviewList = node('div', { className: 'import-review-list', 'data-canonical-review-list': '' });
   const reviewEmpty = node('p', { className: 'empty-state', 'data-canonical-review-empty': '', textContent: '没有待处理的导入异常。' });
@@ -52,7 +52,7 @@
   grid.insertBefore(reviewPanel, oldImportPanel ?? null);
 
   let items = [];
-  let nextOffset = null;
+  let nextCursor = null;
   let loading = false;
   let canReview = null;
   let refreshTimer = null;
@@ -62,32 +62,35 @@
     const active = recordsActive();
     historyPanel.hidden = !active;
     reviewPanel.hidden = !(active && canReview === true);
-    if (active) scheduleRefresh();
+    if (active && !app.hidden) scheduleRefresh();
   }
 
   async function loadOperations({ append = false } = {}) {
-    if (loading || app.hidden) return;
+    if (loading || app.hidden || !recordsActive()) return;
     loading = true;
     historyError.hidden = true;
-    document.querySelector('[data-operation-state]').textContent = '正在读取';
+    historyPanel.querySelector('[data-operation-state]').textContent = '正在读取';
     try {
       const params = new URLSearchParams(new FormData(filters));
       for (const [key, value] of [...params.entries()]) if (!String(value).trim()) params.delete(key);
       params.set('limit', '50');
-      if (append && nextOffset !== null) params.set('offset', String(nextOffset));
+      if (append && nextCursor) params.set('cursor', nextCursor);
       const response = await rawFetch(`${apiBase}/api/operations?${params}`, { credentials: 'include' });
       if (!response.ok) throw new Error(await responseMessage(response, '变更记录暂时无法读取'));
       const body = await response.json();
       items = append ? [...items, ...(body.items ?? [])] : body.items ?? [];
-      nextOffset = body.nextOffset ?? null;
+      nextCursor = body.nextCursor ?? null;
       renderOperations();
       coverage.textContent = body.coverage?.note ?? '';
-      document.querySelector('[data-operation-state]').textContent = `${items.length} 条记录`;
+      historyPanel.querySelector('[data-operation-state]').textContent = `${items.length} 条记录`;
+      document.documentElement.classList.add('operation-history-ready');
     } catch (error) {
       historyError.textContent = error instanceof Error ? error.message : '变更记录暂时无法读取';
       historyError.hidden = false;
-      document.querySelector('[data-operation-state]').textContent = '读取失败';
-    } finally { loading = false; }
+      historyPanel.querySelector('[data-operation-state]').textContent = '读取失败';
+    } finally {
+      loading = false;
+    }
   }
 
   function renderOperations() {
@@ -108,30 +111,40 @@
           )),
         );
         body.append(changeList);
-      } else body.append(node('p', { className: 'operation-no-diff', textContent: '这是一条新增、确认、删除或对账事件，没有需要展开的字段差异。' }));
+      } else {
+        body.append(node('p', { className: 'operation-no-diff', textContent: '这是一条新增、确认、删除或对账事件，没有需要展开的字段差异。' }));
+      }
       details.append(summary, body);
       return details;
     }));
     historyEmpty.hidden = items.length > 0;
-    more.hidden = nextOffset === null;
+    more.hidden = !nextCursor;
   }
 
   async function loadWorkbookReview() {
-    if (app.hidden || canReview === false) return;
-    const state = document.querySelector('[data-canonical-review-state]');
-    state.textContent = '正在读取'; reviewError.hidden = true;
+    if (app.hidden || !recordsActive() || canReview === false) return;
+    const state = reviewPanel.querySelector('[data-canonical-review-state]');
+    state.textContent = '正在读取';
+    reviewError.hidden = true;
     try {
       const response = await rawFetch(`${apiBase}/api/workbook-review?status=pending`, { credentials: 'include' });
-      if (response.status === 403) { canReview = false; reviewPanel.hidden = true; return; }
+      if (response.status === 403) {
+        canReview = false;
+        reviewPanel.hidden = true;
+        document.documentElement.classList.add('operation-workbook-review-ready');
+        return;
+      }
       if (!response.ok) throw new Error(await responseMessage(response, '导入异常暂时无法读取'));
       const body = await response.json();
       canReview = true;
       renderWorkbookReview(body.review ?? []);
       reviewPanel.hidden = !recordsActive();
       state.textContent = `${body.review?.length ?? 0} 条待处理`;
+      document.documentElement.classList.add('operation-workbook-review-ready');
     } catch (error) {
       reviewError.textContent = error instanceof Error ? error.message : '导入异常暂时无法读取';
-      reviewError.hidden = false; state.textContent = '读取失败';
+      reviewError.hidden = false;
+      state.textContent = '读取失败';
     }
   }
 
@@ -161,35 +174,33 @@
       if (!response.ok) throw new Error(await responseMessage(response, '结案失败'));
       await Promise.all([loadWorkbookReview(), loadOperations()]);
     } catch (error) {
-      reviewError.textContent = error instanceof Error ? error.message : '结案失败'; reviewError.hidden = false;
-    } finally { button.disabled = false; }
+      reviewError.textContent = error instanceof Error ? error.message : '结案失败';
+      reviewError.hidden = false;
+    } finally {
+      button.disabled = false;
+    }
   }
 
   function scheduleRefresh() {
+    if (app.hidden || !recordsActive()) return;
     clearTimeout(refreshTimer);
-    refreshTimer = setTimeout(() => { loadOperations(); loadWorkbookReview(); }, 80);
+    refreshTimer = setTimeout(() => {
+      loadOperations();
+      loadWorkbookReview();
+    }, 80);
   }
 
-  filters.addEventListener('submit', (event) => { event.preventDefault(); nextOffset = null; loadOperations(); });
-  filters.addEventListener('reset', () => setTimeout(() => { nextOffset = null; loadOperations(); }));
+  filters.addEventListener('submit', (event) => { event.preventDefault(); nextCursor = null; loadOperations(); });
+  filters.addEventListener('reset', () => setTimeout(() => { nextCursor = null; loadOperations(); }));
   more.addEventListener('click', () => loadOperations({ append: true }));
   for (const tab of document.querySelectorAll('[data-tab]')) tab.addEventListener('click', () => setTimeout(syncVisibility));
-
-  const rawFetch = window.fetch.bind(window);
-  window.fetch = async (...args) => {
-    const response = await rawFetch(...args);
-    const method = String(args[1]?.method ?? 'GET').toUpperCase();
-    const target = typeof args[0] === 'string' ? args[0] : args[0]?.url ?? '';
-    if (response.ok && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)
-      && !String(target).includes('/api/operations') && !String(target).includes('/api/auth/')) scheduleRefresh();
-    return response;
-  };
+  document.querySelector('[data-refresh]')?.addEventListener('click', () => setTimeout(scheduleRefresh));
 
   const observer = new MutationObserver(() => {
-    if (!app.hidden) { syncVisibility(); loadOperations(); loadWorkbookReview(); }
+    if (!app.hidden) syncVisibility();
   });
   observer.observe(app, { attributes: true, attributeFilter: ['hidden'] });
-  if (!app.hidden) { syncVisibility(); loadOperations(); loadWorkbookReview(); }
+  if (!app.hidden) syncVisibility();
 
   function node(tag, attrs = {}, ...children) {
     const element = document.createElement(tag);
@@ -204,7 +215,19 @@
   }
   function inputLabel(label, name, type, attrs = {}) { return node('label', { textContent: label }, node('input', { name, type, ...attrs })); }
   function selectLabel(label, name, options) { return node('label', { textContent: label }, node('select', { name }, ...options.map(([value, text]) => node('option', { value, textContent: text })))); }
-  function formatTime(value) { const date = new Date(value); return Number.isNaN(date.getTime()) ? String(value ?? '—') : new Intl.DateTimeFormat('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(date); }
-  function formatValue(value) { if (value === null || value === undefined || value === '') return '—'; if (typeof value === 'object') return '已更新'; const text = String(value); return text.length > 90 ? `${text.slice(0, 87)}…` : text; }
-  async function responseMessage(response, fallback) { try { return (await response.json())?.message ?? fallback; } catch { return fallback; } }
+  function formatTime(value) {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? String(value ?? '—') : new Intl.DateTimeFormat('zh-CN', {
+      timeZone: 'Asia/Shanghai', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false,
+    }).format(date);
+  }
+  function formatValue(value) {
+    if (value === null || value === undefined || value === '') return '—';
+    if (typeof value === 'object') return '已更新';
+    const text = String(value);
+    return text.length > 90 ? `${text.slice(0, 87)}…` : text;
+  }
+  async function responseMessage(response, fallback) {
+    try { return (await response.json())?.message ?? fallback; } catch { return fallback; }
+  }
 })();

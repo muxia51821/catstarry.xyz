@@ -1,5 +1,5 @@
-[data-access-panel],
-[data-import-review-panel] {
+.operation-history-ready [data-access-panel],
+.operation-workbook-review-ready [data-import-review-panel] {
   display: none !important;
 }
 
