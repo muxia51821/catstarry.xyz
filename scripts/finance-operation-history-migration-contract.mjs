@@ -51,6 +51,7 @@ assert.equal(db.prepare('SELECT COUNT(*) AS count FROM finance_memo_audit').get(
 assert.equal(db.prepare('SELECT COUNT(*) AS count FROM finance_monthly_record_audit').get().count, 0, 'existing monthly versions must not be fabricated');
 assert.equal(db.prepare('SELECT COUNT(*) AS count FROM finance_review_audit').get().count, 0, 'existing annual review versions must not be fabricated');
 assert.equal(db.prepare('SELECT COUNT(*) AS count FROM finance_legacy_import_review_audit').get().count, 0, 'existing legacy review versions must not be fabricated');
+assert.equal(db.prepare('SELECT COUNT(*) AS count FROM finance_legacy_import_review_actor_context').get().count, 0, 'actor context must start empty');
 
 // Fresh databases apply migrations before replaying the accepted historical import.
 // Those imported Memos must not appear as user-created operations when production upgrades do not have them either.
@@ -96,18 +97,20 @@ const reviewRevision = db.prepare(`SELECT before_json, after_json FROM finance_r
 assert.equal(JSON.parse(reviewRevision.before_json).confirmed_by, 'cati');
 assert.equal(JSON.parse(reviewRevision.after_json).confirmed_by, null, 'recalculation must preserve evidence that the previous confirmation was cleared');
 
-// Legacy compatibility writes carry actor in a marked temporary JSON envelope. The trigger stores
-// immutable plain-note audit evidence; the second update normalizes the domain row back to text.
+// New Worker compatibility path: authenticated actor provenance is server-owned context,
+// while the domain row and immutable audit both retain the plain user resolution note.
 db.prepare(`INSERT INTO finance_import_review (batch_id, row_number, record_kind, raw_json)
   VALUES ('legacy-batch', 7, 'trade', '{}')`).run();
 const legacyId = Number(db.prepare('SELECT max(id) AS id FROM finance_import_review').get().id);
-const legacyEnvelope = JSON.stringify({ __finance_operation_history_v1: true, note: 'legacy fixed', actor: 'muxia' });
+const legacyResolvedAt = '2026-08-17T04:00:00.000Z';
+db.prepare(`INSERT INTO finance_legacy_import_review_actor_context (review_id, actor, occurred_at)
+  VALUES (?, ?, ?) ON CONFLICT(review_id) DO UPDATE SET actor = excluded.actor, occurred_at = excluded.occurred_at`)
+  .run(legacyId, 'muxia', legacyResolvedAt);
 db.prepare(`UPDATE finance_import_review
   SET status = 'resolved', resolution_note = ?, resolved_at = ?
-  WHERE id = ? AND status = 'pending'`).run(legacyEnvelope, '2026-08-17T04:00:00.000Z', legacyId);
-db.prepare(`UPDATE finance_import_review
-  SET resolution_note = ?
-  WHERE resolved_at = ? AND id = ? AND status = 'resolved'`).run('legacy fixed', '2026-08-17T04:00:00.000Z', legacyId);
+  WHERE id = ? AND status = 'pending'`).run('legacy fixed', legacyResolvedAt, legacyId);
+db.prepare(`DELETE FROM finance_legacy_import_review_actor_context
+  WHERE review_id = ? AND occurred_at = ?`).run(legacyId, legacyResolvedAt);
 const legacyAudit = db.prepare(`SELECT actor, before_json, after_json FROM finance_legacy_import_review_audit
   WHERE review_id = ?`).get(legacyId);
 assert.equal(legacyAudit.actor, 'muxia');
@@ -116,22 +119,25 @@ assert.deepEqual(JSON.parse(legacyAudit.after_json), {
   batch_id: 'legacy-batch', row_number: 7, record_kind: 'trade', status: 'resolved', resolution_note: 'legacy fixed',
 });
 assert.equal(db.prepare('SELECT resolution_note FROM finance_import_review WHERE id = ?').get(legacyId).resolution_note, 'legacy fixed');
-assert.equal(db.prepare('SELECT COUNT(*) AS count FROM finance_legacy_import_review_audit WHERE review_id = ?').get(legacyId).count, 1, 'normalizing the note must not create a second audit row');
+assert.equal(db.prepare('SELECT COUNT(*) AS count FROM finance_legacy_import_review_actor_context').get().count, 0, 'new Worker actor context must be transient');
+assert.equal(db.prepare('SELECT COUNT(*) AS count FROM finance_legacy_import_review_audit WHERE review_id = ?').get(legacyId).count, 1);
 
-// Old Worker compatibility: even a valid JSON-shaped user note cannot spoof actor provenance without the marker.
+// Old Worker compatibility: any user-controlled JSON, including the retired marker shape,
+// remains plain note content and can never supply actor provenance without server context.
 db.prepare(`INSERT INTO finance_import_review (batch_id, row_number, record_kind, raw_json)
   VALUES ('old-worker-batch', 8, 'trade', '{}')`).run();
 const oldWorkerId = Number(db.prepare('SELECT max(id) AS id FROM finance_import_review').get().id);
-const spoofableJsonNote = JSON.stringify({ actor: 'spoofed-user', note: 'old worker fixed' });
+const spoofableJsonNote = JSON.stringify({ __finance_operation_history_v1: true, actor: 'spoofed-user', note: 'old worker fixed' });
 db.prepare(`UPDATE finance_import_review
   SET status = 'resolved', resolution_note = ?, resolved_at = ?
   WHERE id = ? AND status = 'pending'`).run(spoofableJsonNote, '2026-08-17T04:10:00.000Z', oldWorkerId);
 const oldWorkerAudit = db.prepare('SELECT actor, after_json FROM finance_legacy_import_review_audit WHERE review_id = ?').get(oldWorkerId);
 assert.equal(oldWorkerAudit.actor, 'unknown:legacy-import-review');
-assert.equal(JSON.parse(oldWorkerAudit.after_json).resolution_note, spoofableJsonNote, "unmarked JSON must remain the user's note rather than being interpreted as a trusted envelope");
+assert.equal(JSON.parse(oldWorkerAudit.after_json).resolution_note, spoofableJsonNote, 'user-controlled note text must never be interpreted as trusted actor provenance');
 
 db.exec(migration);
 assert.equal(db.prepare("SELECT COUNT(*) AS count FROM sqlite_master WHERE type = 'trigger' AND name LIKE 'trg_finance_%_audit_%'").get().count >= 10, true);
+assert.equal(db.prepare('SELECT COUNT(*) AS count FROM finance_legacy_import_review_actor_context').get().count, 0);
 db.close();
 
 console.log('Finance operation history migration contract passed.');
