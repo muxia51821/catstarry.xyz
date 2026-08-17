@@ -231,10 +231,11 @@ BEGIN
 END;
 
 -- Legacy Import Review remains a compatibility surface. New Worker versions place
--- {note, actor} in resolution_note for the first UPDATE inside one D1 batch; this
--- trigger extracts the actor and the human note into immutable audit evidence.
--- An old Worker writing plain text after this migration still creates an audit row,
--- but the actor is explicitly unknown rather than silently missing.
+-- a marked {note, actor} envelope in resolution_note for the first UPDATE inside one
+-- D1 batch. The marker prevents an old Worker user's ordinary JSON note from being
+-- mistaken for trusted actor provenance. The second UPDATE normalizes the domain row
+-- back to plain text. Old Workers still create an audit row with an explicitly unknown
+-- actor instead of silently losing the operation.
 CREATE TRIGGER IF NOT EXISTS trg_finance_legacy_import_review_audit_resolved
 AFTER UPDATE ON finance_import_review
 WHEN OLD.status = 'pending' AND NEW.status = 'resolved' AND NEW.resolved_at IS NOT NULL
@@ -244,8 +245,13 @@ BEGIN
     NEW.id,
     'resolved',
     CASE
-      WHEN json_valid(NEW.resolution_note) AND json_type(NEW.resolution_note, '$.actor') = 'text'
-        THEN json_extract(NEW.resolution_note, '$.actor')
+      WHEN json_valid(NEW.resolution_note) THEN
+        CASE
+          WHEN json_extract(NEW.resolution_note, '$.__finance_operation_history_v1') = 1
+            AND json_type(NEW.resolution_note, '$.actor') = 'text'
+            THEN json_extract(NEW.resolution_note, '$.actor')
+          ELSE 'unknown:legacy-import-review'
+        END
       ELSE 'unknown:legacy-import-review'
     END,
     NEW.resolved_at,
@@ -257,8 +263,13 @@ BEGIN
       'batch_id', NEW.batch_id, 'row_number', NEW.row_number, 'record_kind', NEW.record_kind,
       'status', NEW.status,
       'resolution_note', CASE
-        WHEN json_valid(NEW.resolution_note) AND json_type(NEW.resolution_note, '$.note') = 'text'
-          THEN json_extract(NEW.resolution_note, '$.note')
+        WHEN json_valid(NEW.resolution_note) THEN
+          CASE
+            WHEN json_extract(NEW.resolution_note, '$.__finance_operation_history_v1') = 1
+              AND json_type(NEW.resolution_note, '$.note') = 'text'
+              THEN json_extract(NEW.resolution_note, '$.note')
+            ELSE NEW.resolution_note
+          END
         ELSE NEW.resolution_note
       END
     )

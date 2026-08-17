@@ -96,12 +96,12 @@ const reviewRevision = db.prepare(`SELECT before_json, after_json FROM finance_r
 assert.equal(JSON.parse(reviewRevision.before_json).confirmed_by, 'cati');
 assert.equal(JSON.parse(reviewRevision.after_json).confirmed_by, null, 'recalculation must preserve evidence that the previous confirmation was cleared');
 
-// Legacy compatibility writes carry actor in a temporary JSON envelope. The trigger stores
+// Legacy compatibility writes carry actor in a marked temporary JSON envelope. The trigger stores
 // immutable plain-note audit evidence; the second update normalizes the domain row back to text.
 db.prepare(`INSERT INTO finance_import_review (batch_id, row_number, record_kind, raw_json)
   VALUES ('legacy-batch', 7, 'trade', '{}')`).run();
 const legacyId = Number(db.prepare('SELECT max(id) AS id FROM finance_import_review').get().id);
-const legacyEnvelope = JSON.stringify({ note: 'legacy fixed', actor: 'muxia' });
+const legacyEnvelope = JSON.stringify({ __finance_operation_history_v1: true, note: 'legacy fixed', actor: 'muxia' });
 db.prepare(`UPDATE finance_import_review
   SET status = 'resolved', resolution_note = ?, resolved_at = ?
   WHERE id = ? AND status = 'pending'`).run(legacyEnvelope, '2026-08-17T04:00:00.000Z', legacyId);
@@ -118,15 +118,17 @@ assert.deepEqual(JSON.parse(legacyAudit.after_json), {
 assert.equal(db.prepare('SELECT resolution_note FROM finance_import_review WHERE id = ?').get(legacyId).resolution_note, 'legacy fixed');
 assert.equal(db.prepare('SELECT COUNT(*) AS count FROM finance_legacy_import_review_audit WHERE review_id = ?').get(legacyId).count, 1, 'normalizing the note must not create a second audit row');
 
-// Old Worker compatibility: a plain-text legacy resolution after migration is still audited,
-// but its unavailable actor is labelled explicitly rather than guessed.
+// Old Worker compatibility: even a valid JSON-shaped user note cannot spoof actor provenance without the marker.
 db.prepare(`INSERT INTO finance_import_review (batch_id, row_number, record_kind, raw_json)
   VALUES ('old-worker-batch', 8, 'trade', '{}')`).run();
 const oldWorkerId = Number(db.prepare('SELECT max(id) AS id FROM finance_import_review').get().id);
+const spoofableJsonNote = JSON.stringify({ actor: 'spoofed-user', note: 'old worker fixed' });
 db.prepare(`UPDATE finance_import_review
   SET status = 'resolved', resolution_note = ?, resolved_at = ?
-  WHERE id = ? AND status = 'pending'`).run('old worker fixed', '2026-08-17T04:10:00.000Z', oldWorkerId);
-assert.equal(db.prepare('SELECT actor FROM finance_legacy_import_review_audit WHERE review_id = ?').get(oldWorkerId).actor, 'unknown:legacy-import-review');
+  WHERE id = ? AND status = 'pending'`).run(spoofableJsonNote, '2026-08-17T04:10:00.000Z', oldWorkerId);
+const oldWorkerAudit = db.prepare('SELECT actor, after_json FROM finance_legacy_import_review_audit WHERE review_id = ?').get(oldWorkerId);
+assert.equal(oldWorkerAudit.actor, 'unknown:legacy-import-review');
+assert.equal(JSON.parse(oldWorkerAudit.after_json).resolution_note, spoofableJsonNote, 'unmarked JSON must remain the user's note rather than being interpreted as a trusted envelope');
 
 db.exec(migration);
 assert.equal(db.prepare("SELECT COUNT(*) AS count FROM sqlite_master WHERE type = 'trigger' AND name LIKE 'trg_finance_%_audit_%'").get().count >= 10, true);

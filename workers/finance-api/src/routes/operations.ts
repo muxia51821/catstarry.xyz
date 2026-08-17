@@ -28,7 +28,7 @@ export interface OperationCursorPosition {
 interface OperationCursorPayload extends OperationCursorPosition {
   filter: OperationFilterSignature;
 }
-interface OperationRow {
+export interface OperationRow {
   operation_key: string;
   occurred_at: string;
   actor: string;
@@ -173,11 +173,10 @@ function baseSources(): string[] {
       a.before_json, a.after_json, 'audit'
       FROM finance_memo_audit a LEFT JOIN finance_memos m ON m.id = a.memo_id`,
     `SELECT 'monthly:' || a.id, a.occurred_at, a.actor, a.action, 'monthly_record', CAST(a.monthly_record_id AS TEXT),
-      COALESCE(json_extract(a.after_json, '$.year_month'), json_extract(a.before_json, '$.year_month'), r.year_month) || '-01',
-      a.before_json, a.after_json, 'audit'
-      FROM finance_monthly_record_audit a LEFT JOIN monthly_records r ON r.id = a.monthly_record_id`,
+      NULL, a.before_json, a.after_json, 'audit'
+      FROM finance_monthly_record_audit a`,
     `SELECT 'annual-review:' || a.id, a.occurred_at, a.actor, a.action, 'annual_review', CAST(a.review_year AS TEXT),
-      CAST(a.review_year AS TEXT) || '-12-31', a.before_json, a.after_json, 'audit'
+      NULL, a.before_json, a.after_json, 'audit'
       FROM finance_review_audit a`,
     `SELECT 'rebalance-created:' || r.id, r.created_at, r.created_by, 'created', 'rebalance', CAST(r.id AS TEXT),
       r.executed_on, NULL, json_object('year', r.year, 'executed_on', r.executed_on, 'adjustments', r.adjustments, 'reason', r.reason), 'domain'
@@ -186,7 +185,7 @@ function baseSources(): string[] {
       r.executed_on, NULL, json_object('year', r.year, 'executed_on', r.executed_on), 'domain'
       FROM finance_rebalance_records r WHERE r.confirmed_at IS NOT NULL AND r.confirmed_by IS NOT NULL`,
     `SELECT 'monthly-confirmed:' || mc.period || ':' || mc.username, mc.confirmed_at, mc.username, 'confirmed',
-      'monthly_confirmation', mc.period || ':' || mc.username, mc.period || '-01', NULL,
+      'monthly_confirmation', mc.period || ':' || mc.username, NULL, NULL,
       json_object('period', mc.period, 'username', mc.username), 'domain'
       FROM monthly_confirmations mc`,
     `SELECT 'circuit:' || c.id, c.triggered_at,
@@ -304,7 +303,7 @@ function workbookReviewSources(): string[] {
   ];
 }
 
-function humanizeOperation(row: OperationRow) {
+export function humanizeOperation(row: OperationRow) {
   const before = parseJson(row.before_json);
   const after = parseJson(row.after_json);
   const data = after ?? before ?? {};
@@ -318,6 +317,8 @@ function humanizeOperation(row: OperationRow) {
     entity_type: row.entity_type,
     entity_id: row.entity_id,
     business_date: row.business_date,
+    before,
+    after,
     audit_strength: row.audit_strength,
     title: `${ACTION_LABEL[row.action] ?? row.action}${ENTITY_LABEL[row.entity_type] ?? row.entity_type}${subject ? ` · ${subject}` : ''}`,
     summary: row.audit_strength === 'provenance'
@@ -334,6 +335,9 @@ const ENTITY_LABEL: Record<string, string> = {
   trade: '交易', cash_flow: '现金流', account_event: '账户事件', investment_plan: '投资计划', investment_rule: '投资规则',
   memo: '投资备忘录', monthly_record: '月度记录', annual_review: '年度复盘', workbook_review: '导入异常', rebalance: '再平衡',
   monthly_confirmation: '月度查阅', circuit: '熔断事件', circuit_resolution: '熔断恢复确认', asset_reconciliation: '资产', historical_import: '历史数据迁移',
+};
+const RULE_LABEL: Record<string, string> = {
+  risk: '风险阈值', temperature: '市场温度规则', contributions: '投入规则',
 };
 const FIELD_LABEL: Record<string, string> = {
   trade_date: '交易日期', trade_time: '交易时间', ticker: '代码', ticker_name: '标的', direction: '方向',
@@ -370,22 +374,36 @@ function changedFields(entityType: string, before: JsonObject | null, after: Jso
   return fields.filter((field) => !same(before[field], after[field])).map((field) => ({
     field,
     label: FIELD_LABEL[field] ?? field,
-    before: before[field] ?? null,
-    after: after[field] ?? null,
+    before: displayChangeValue(field, before[field], 'before'),
+    after: displayChangeValue(field, after[field], 'after'),
   }));
+}
+
+function displayChangeValue(field: string, value: unknown, side: 'before' | 'after') {
+  if (field === 'calculation_json' && value !== null && value !== undefined) return side === 'before' ? '旧计算结果' : '新计算结果';
+  return value ?? null;
 }
 
 function subjectFor(entityType: string, data: JsonObject, fallback: string) {
   if (entityType === 'trade' || entityType === 'memo' || entityType === 'account_event') return String(data.ticker_name ?? data.ticker ?? fallback);
   if (entityType === 'monthly_record' || entityType === 'monthly_confirmation') return String(data.year_month ?? data.period ?? fallback);
   if (entityType === 'annual_review' || entityType === 'rebalance') return String(data.year ?? fallback);
-  if (entityType === 'investment_rule') return fallback;
+  if (entityType === 'investment_rule') return RULE_LABEL[fallback] ?? fallback;
   if (entityType === 'historical_import') return String(data.source_name ?? fallback);
   if (entityType === 'circuit') return String(data.level ?? '');
   return '';
 }
 
 function summaryFor(entityType: string, action: string, data: JsonObject, changes: ReturnType<typeof changedFields>) {
+  if (entityType === 'annual_review' && action === 'updated') {
+    const parts = [];
+    if (changes.some((change) => change.field === 'calculation_json')) parts.push('计算结果已重新计算');
+    const visible = changes.filter((change) => change.field !== 'calculation_json').slice(0, 2)
+      .map((change) => `${change.label} ${shortValue(change.before)} → ${shortValue(change.after)}`);
+    parts.push(...visible);
+    if (changes.filter((change) => change.field !== 'calculation_json').length > 2) parts.push('另有其他字段变化');
+    return parts.join('；') || '年度复盘已重算';
+  }
   if (action === 'updated' && changes.length) {
     const visible = changes.slice(0, 2).map((change) => `${change.label} ${shortValue(change.before)} → ${shortValue(change.after)}`);
     return visible.join('；') + (changes.length > 2 ? `；另有 ${changes.length - 2} 项变化` : '');

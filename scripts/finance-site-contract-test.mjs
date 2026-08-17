@@ -108,12 +108,16 @@ assert.match(worker, /\/api\\\/import-review\\\/\\d\+\$\/\.test\(pathname\) && r
 assert.match(legacyReviewRoute, /requireFinanceRole\(request, env, \['admin'\]\)/);
 assert.match(legacyReviewRoute, /env\.DB\.batch\(/);
 assert.match(legacyReviewRoute, /auditEnvelope/);
+assert.match(legacyReviewRoute, /__finance_operation_history_v1/);
 assert.match(legacyReviewRoute, /WHERE resolved_at = \? AND id = \? AND status = 'resolved'/);
 
 assert.match(operationsRoute, /business_date/);
 assert.match(operationsRoute, /occurred_at/);
 assert.match(operationsRoute, /operation_key/);
 assert.match(operationsRoute, /audit_strength/);
+assert.match(operationsRoute, /before,/);
+assert.match(operationsRoute, /after,/);
+assert.match(operationsRoute, /export function humanizeOperation/);
 assert.match(operationsRoute, /nextCursor/);
 assert.match(operationsRoute, /Asia\/Shanghai/);
 assert.match(operationsRoute, /TextEncoder/);
@@ -134,6 +138,8 @@ assert.match(operationsRoute, /FROM circuit_breaker_log c/);
 assert.doesNotMatch(operationsRoute, /\bOFFSET\b/i);
 assert.doesNotMatch(operationsRoute, /finance_access_log/);
 assert.doesNotMatch(operationsRoute, /annual_reviews ar WHERE ar\.confirmed_at/, 'annual review confirmation history must come from append-only audit, not current row state');
+assert.doesNotMatch(operationsRoute, /\|\| '-01'/, 'reporting periods must not be converted into fabricated business dates');
+assert.doesNotMatch(operationsRoute, /CAST\(a\.review_year AS TEXT\) \|\| '-12-31'/, 'annual review year must not be converted into a fabricated business date');
 
 assert.match(operationMigration, /CREATE TABLE IF NOT EXISTS finance_memo_audit/);
 assert.match(operationMigration, /CREATE TABLE IF NOT EXISTS finance_monthly_record_audit/);
@@ -145,6 +151,7 @@ assert.match(operationMigration, /trg_finance_monthly_record_audit_updated/);
 assert.match(operationMigration, /trg_finance_review_audit_confirmed/);
 assert.match(operationMigration, /trg_finance_legacy_import_review_audit_resolved/);
 assert.match(operationMigration, /unknown:legacy-import-review/);
+assert.match(operationMigration, /__finance_operation_history_v1/);
 assert.match(operationMigration, /json_extract\(NEW\.resolution_note, '\$\.actor'\)/);
 assert.match(operationMigration, /action IN \('created', 'updated', 'confirmed'\)/);
 assert.match(operationMigration, /NEW\.created_by NOT LIKE 'historical-import:%'/);

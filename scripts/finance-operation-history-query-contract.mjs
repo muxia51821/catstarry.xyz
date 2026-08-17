@@ -7,6 +7,7 @@ import {
   buildOperationsQuery,
   decodeOperationCursor,
   encodeOperationCursor,
+  humanizeOperation,
 } from '../workers/finance-api/src/routes/operations.ts';
 
 const db = new DatabaseSync(':memory:');
@@ -31,6 +32,10 @@ assert.doesNotMatch(firstPage.built.query, /\bOFFSET\b/i, 'Operation History mus
 assert.equal(firstPage.rows.length, 2, 'query asks for limit + 1 so the route can decide whether a cursor exists');
 assert.equal(firstPage.rows[0].operation_key, 'trade:1', 'same-timestamp operations need a deterministic global secondary key');
 assert.equal(firstPage.rows[0].audit_strength, 'audit');
+const humanizedFirst = humanizeOperation(firstPage.rows[0]);
+assert.equal(humanizedFirst.before, null, 'API must expose the parsed before snapshot explicitly');
+assert.deepEqual(humanizedFirst.after, { trade_date: '2026-08-17', ticker: '510300', direction: 'buy', quantity: 100, price: 4 }, 'API must expose the parsed after snapshot explicitly');
+assert.equal(humanizedFirst.audit_strength, 'audit');
 const position = { occurred_at: firstPage.rows[0].occurred_at, operation_key: firstPage.rows[0].operation_key };
 const secondPage = rows({ cursor: position, limit: 1 });
 assert.equal(secondPage.rows[0].operation_key, 'cash-flow:1', 'cursor page must continue after the exact global operation key without duplicates');
@@ -79,6 +84,18 @@ const annual = rows({ filter: { ...emptyFilter, entity_type: 'annual_review' } }
 assert.deepEqual(annual.map((row) => row.action), ['updated', 'confirmed', 'created']);
 assert.equal(annual.find((row) => row.action === 'confirmed')?.actor, 'cati');
 assert.ok(annual.every((row) => row.audit_strength === 'audit'));
+assert.ok(annual.every((row) => row.business_date === null), 'a calendar year is a reporting period, not a fabricated business date');
+
+// Monthly periods likewise stay in their domain payload instead of being converted into fake first-of-month business dates.
+db.prepare(`INSERT INTO monthly_records (year_month, summary, created_at, created_by)
+  VALUES ('2026-08', 'monthly fixture', '2026-08-31T08:00:00.000Z', 'muxia')`).run();
+const monthly = rows({ filter: { ...emptyFilter, entity_type: 'monthly_record' } }).rows;
+assert.equal(monthly[0].business_date, null);
+assert.equal(JSON.parse(monthly[0].after_json).year_month, '2026-08');
+db.prepare(`INSERT INTO monthly_confirmations (period, username, confirmed_at)
+  VALUES ('2026-08', 'cati', '2026-09-01T01:00:00.000Z')`).run();
+const monthlyConfirmations = rows({ filter: { ...emptyFilter, entity_type: 'monthly_confirmation' } }).rows;
+assert.equal(monthlyConfirmations[0].business_date, null);
 
 // Old non-atomic audited paths get an honest row-provenance fallback only when the corresponding audit is missing.
 db.prepare(`INSERT INTO trades (id, trade_date, trade_time, ticker, ticker_name, direction, quantity, price, fee, net_cash_amount, position_category, reason, needs_review, created_at, created_by)

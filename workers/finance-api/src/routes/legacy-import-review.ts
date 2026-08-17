@@ -21,7 +21,7 @@ export async function handleLegacyImportReviewWrite(
   }
 
   const resolvedAt = new Date().toISOString();
-  const auditEnvelope = JSON.stringify({ note: resolutionNote, actor: session.username });
+  const auditEnvelope = JSON.stringify({ __finance_operation_history_v1: true, note: resolutionNote, actor: session.username });
   const results = await env.DB.batch([
     env.DB.prepare(`UPDATE finance_import_review
       SET status = 'resolved', resolution_note = ?, resolved_at = ?
