@@ -4,6 +4,7 @@ import {
   withCors,
 } from '../../../shared/cors';
 import { apiError } from './lib/http';
+import { handleAccountState } from './routes/account-state';
 import { handleActivity } from './routes/activity';
 import { handleFinanceAuth, type FinanceEnv } from './routes/auth';
 import { handleDashboard } from './routes/dashboard';
@@ -35,6 +36,7 @@ export default {
     try {
       let response: Response;
       if (pathname.startsWith('/api/auth/')) response = await handleFinanceAuth(request, env, pathname);
+      else if (pathname === '/api/account-state') response = await handleAccountState(request, env);
       else if (pathname === '/api/activity') response = await handleActivity(request, env);
       else if (pathname === '/api/change-log') response = await handleChangeLog(request, env);
       else if (/^\/api\/import-review\/\d+$/.test(pathname) && request.method === 'PATCH') response = await handleLegacyImportReviewWrite(request, env, pathname);
