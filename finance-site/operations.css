@@ -2,9 +2,66 @@
   display: none !important;
 }
 
+.activity-panel,
 .operation-history-panel,
 .operation-review-panel {
   grid-column: 1 / -1;
+}
+
+.activity-filters {
+  margin-top: 18px;
+}
+
+.activity-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.activity-row {
+  display: grid;
+  grid-template-columns: minmax(116px, .75fr) minmax(0, 3fr) minmax(96px, .7fr);
+  gap: 18px;
+  align-items: center;
+  padding: 15px 17px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
+}
+
+.activity-when,
+.activity-main {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.activity-when strong,
+.activity-when span,
+.activity-kind {
+  font-size: .82rem;
+}
+
+.activity-when span,
+.activity-kind,
+.activity-main small {
+  color: var(--muted);
+}
+
+.activity-main strong,
+.activity-main small {
+  overflow-wrap: anywhere;
+}
+
+.activity-main small {
+  font-size: .86rem;
+}
+
+.activity-kind {
+  justify-self: end;
+  padding: 5px 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
 }
 
 .operation-panel-summary {
@@ -158,17 +215,19 @@
 }
 
 @media (max-width: 680px) {
-  .operation-panel-summary {
-    align-items: flex-start;
-  }
-
+  .activity-row,
   .operation-row > summary {
     grid-template-columns: 1fr;
     gap: 6px;
   }
 
+  .activity-kind,
   .operation-actor {
     justify-self: start;
+  }
+
+  .operation-panel-summary {
+    align-items: flex-start;
   }
 
   .operation-changes > div,
