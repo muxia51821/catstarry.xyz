@@ -128,3 +128,4 @@ function seedPrice(database, ticker, date, close) {
 }
 
 console.log('Finance facts-to-derived-valuation rebuild contract passed.');
+await import('./finance-asset-reconciliation-contract.mjs');
