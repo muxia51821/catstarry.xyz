@@ -60,7 +60,7 @@ export async function handleAssetValuationRebuild(request: Request, env: Finance
   if (!endDate || endDate < startDate) return apiError(400, 'invalid_end_date', 'end_date must be on or after start_date');
   if (endDate > reconciliation.snapshot_date) return apiError(409, 'beyond_reconciliation', 'Historical valuation cannot extend beyond the reconciliation anchor');
 
-  const result = await rebuildAssetValuations(env, { startDate, endDate, reconciliation, actor: session.username });
+  const result = await rebuildAssetValuations(env, { startDate, endDate, reconciliation, actor: session.username ?? undefined });
   if (result instanceof Response) return result;
   return json(result, 201);
 }
