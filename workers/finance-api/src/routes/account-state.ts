@@ -36,7 +36,6 @@ type CurrentHoldingRow = {
   ticker: string;
   quantity: number;
   price: number | null;
-  fetched_at: string | null;
 };
 
 const SYNTHETIC_RECONCILIATION_SOURCES = ['auto_close', 'historical_backfill', 'history_import'];
@@ -53,22 +52,27 @@ export async function handleAccountState(request: Request, env: FinanceEnv): Pro
 export async function readAccountState(env: FinanceEnv) {
   const reconciliation = await latestReconciliation(env);
   const holdings = await currentHoldings(env);
-  const repoEvents = await allRepoEvents(env);
-  const repoState = projectRepoAssets(repoEvents);
+  const repoState = projectRepoAssets(await allRepoEvents(env));
 
   if (!reconciliation) {
     return {
       reconciliation: null,
       holdings,
-      cash: { value: null, status: 'unreconciled', projected_delta: null, replayed_facts: 0, problems: ['尚无完整的人工或券商现金余额对账。'] },
+      cash: {
+        value: null,
+        known_value: null,
+        status: 'unreconciled',
+        projected_delta: null,
+        replayed_facts: 0,
+        problems: ['尚无完整的人工或券商现金余额对账。'],
+      },
       other_assets: repoState,
       total_assets: null,
       total_status: 'incomplete',
     };
   }
 
-  const facts = await cashFactsAfter(env, reconciliation.snapshot_date);
-  const cash = projectCash(reconciliation.cash_value, facts);
+  const cash = projectCash(reconciliation.cash_value, await cashFactsAfter(env, reconciliation.snapshot_date));
   const totalAssets = holdings.complete && cash.status !== 'incomplete' && repoState.status !== 'incomplete'
     ? Number(holdings.market_value) + Number(cash.value) + Number(repoState.value)
     : null;
@@ -88,7 +92,7 @@ export async function readAccountState(env: FinanceEnv) {
     cash,
     other_assets: repoState,
     total_assets: totalAssets,
-    total_status: totalAssets === null ? 'incomplete' : holdings.stale_count > 0 ? 'stale_market' : cash.status,
+    total_status: totalAssets === null ? 'incomplete' : cash.status,
   };
 }
 
@@ -107,26 +111,23 @@ async function currentHoldings(env: FinanceEnv) {
       FROM holdings_snapshots GROUP BY ticker
     )
     SELECT h.ticker, h.quantity,
-      (SELECT price FROM market_data m WHERE m.ticker = h.ticker ORDER BY fetched_at DESC, id DESC LIMIT 1) AS price,
-      (SELECT fetched_at FROM market_data m WHERE m.ticker = h.ticker ORDER BY fetched_at DESC, id DESC LIMIT 1) AS fetched_at
+      (SELECT price FROM market_data m WHERE m.ticker = h.ticker ORDER BY fetched_at DESC, id DESC LIMIT 1) AS price
     FROM holdings_snapshots h
     JOIN latest l ON l.ticker = h.ticker AND l.marker = h.snapshot_date || ':' || printf('%020d', h.id)
     WHERE h.quantity > 0 ORDER BY h.ticker`).all<CurrentHoldingRow>();
+
   const normalized = rows.results.map((row) => ({
     ...row,
     quantity: Number(row.quantity),
     price: row.price === null ? null : Number(row.price),
   }));
   const missing = normalized.filter((row) => row.price === null).map((row) => row.ticker);
-  const stale = normalized.filter((row) => row.fetched_at && Date.now() - Date.parse(row.fetched_at) > 30 * 60 * 1_000).map((row) => row.ticker);
   const priced = normalized.reduce((sum, row) => sum + (row.price === null ? 0 : row.quantity * row.price), 0);
   return {
     market_value: missing.length ? null : priced,
     priced_market_value: priced,
     complete: missing.length === 0,
     missing_tickers: missing,
-    stale_count: stale.length,
-    stale_tickers: stale,
   };
 }
 
@@ -235,4 +236,6 @@ export function projectRepoAssets(events: RepoEventRow[]) {
   };
 }
 
-function normalizeMoney(value: number) { return Math.round((value + Number.EPSILON) * 100) / 100; }
+function normalizeMoney(value: number) {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
+}
