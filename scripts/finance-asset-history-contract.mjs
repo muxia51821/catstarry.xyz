@@ -72,4 +72,5 @@ db.close();
 console.log('Finance single-authority historical price and valuation cache contract passed.');
 await import('./finance-raw-price-import-contract.mjs');
 await import('./finance-security-reference-contract.mjs');
+await import('./finance-market-authority-contract.mjs');
 await import('./finance-portfolio-wiring-contract.mjs');
