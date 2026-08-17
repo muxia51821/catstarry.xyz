@@ -15,6 +15,11 @@ const server = createServer(async (request, response) => {
     response.end(JSON.stringify({ slugs: ['before-thoughts-flow-away', 'from-zero', 'start-writing'] }));
     return;
   }
+  if (url.pathname === '/api/learn/publications') {
+    response.setHeader('content-type', 'application/json; charset=utf-8');
+    response.end(JSON.stringify({ entries: [] }));
+    return;
+  }
   response.statusCode = 404;
   response.end();
 });
