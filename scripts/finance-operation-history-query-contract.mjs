@@ -17,10 +17,7 @@ for (const file of (await readdir('workers/finance-api/migrations')).filter((nam
 const emptyFilter = { entity_type: null, action: null, actor: null, from: null, to: null };
 function rows({ includeWorkbookReview = false, filter = emptyFilter, cursor = null, limit = 50 } = {}) {
   const built = buildOperationsQuery({ includeWorkbookReview, filter, cursor, limit });
-  return {
-    built,
-    rows: db.prepare(built.query).all(...built.values).map((row) => ({ ...row })),
-  };
+  return { built, rows: db.prepare(built.query).all(...built.values).map((row) => ({ ...row })) };
 }
 
 const sameTime = '2026-08-17T01:00:00.000Z';
@@ -33,12 +30,16 @@ const firstPage = rows({ limit: 1 });
 assert.doesNotMatch(firstPage.built.query, /\bOFFSET\b/i, 'Operation History must use keyset cursor pagination, not offset pagination');
 assert.equal(firstPage.rows.length, 2, 'query asks for limit + 1 so the route can decide whether a cursor exists');
 assert.equal(firstPage.rows[0].operation_key, 'trade:1', 'same-timestamp operations need a deterministic global secondary key');
+assert.equal(firstPage.rows[0].audit_strength, 'audit');
 const position = { occurred_at: firstPage.rows[0].occurred_at, operation_key: firstPage.rows[0].operation_key };
 const secondPage = rows({ cursor: position, limit: 1 });
 assert.equal(secondPage.rows[0].operation_key, 'cash-flow:1', 'cursor page must continue after the exact global operation key without duplicates');
 
 const encoded = encodeOperationCursor({ ...position, filter: emptyFilter });
 assert.deepEqual(decodeOperationCursor(encoded, emptyFilter), position);
+const unicodeFilter = { ...emptyFilter, actor: '用户甲' };
+const unicodeCursor = encodeOperationCursor({ ...position, filter: unicodeFilter });
+assert.deepEqual(decodeOperationCursor(unicodeCursor, unicodeFilter), position, 'cursor codec must remain UTF-8 safe even if an actor filter is non-ASCII');
 assert.throws(() => decodeOperationCursor(encoded, { ...emptyFilter, actor: 'cati' }), /invalid cursor/, 'cursor must be bound to its filters');
 assert.throws(() => decodeOperationCursor('x'.repeat(2_049), emptyFilter), /invalid cursor/, 'oversized cursors must be rejected');
 
@@ -60,7 +61,7 @@ db.prepare(`INSERT INTO circuit_breaker_log (level, reason, triggered_at) VALUES
   ('yellow', '{"metrics":{"loss":0.2},"action":"pause_active_additions"}', '2026-08-17T03:00:00.000Z'),
   ('black', '{"objection_by":"cati","reason":"pause now"}', '2026-08-17T03:01:00.000Z')`).run();
 const circuits = rows({ filter: { ...emptyFilter, entity_type: 'circuit' } }).rows;
-assert.deepEqual(circuits.map((row) => row.actor), ['cati', 'system:risk-engine']);
+assert.deepEqual(circuits.map((row) => [row.actor, row.audit_strength]), [['cati', 'domain'], ['system:risk-engine', 'domain']]);
 
 // Annual confirmation must remain append-only history even after a later recalculation clears current confirmation state.
 db.prepare(`INSERT INTO annual_reviews (year, calculation_json, summary, calculated_at)
@@ -70,12 +71,34 @@ db.prepare(`UPDATE annual_reviews SET calculation_json = '{"v":2}', summary = 's
 const annual = rows({ filter: { ...emptyFilter, entity_type: 'annual_review' } }).rows;
 assert.deepEqual(annual.map((row) => row.action), ['updated', 'confirmed', 'created']);
 assert.equal(annual.find((row) => row.action === 'confirmed')?.actor, 'cati');
+assert.ok(annual.every((row) => row.audit_strength === 'audit'));
 
-// Canonical Workbook Review operations are admin-only at the query-source boundary.
+// Old non-atomic audited paths get an honest row-provenance fallback only when the corresponding audit is missing.
+db.prepare(`INSERT INTO trades (trade_date, trade_time, ticker, ticker_name, direction, quantity, price, fee, net_cash_amount, position_category, reason, needs_review, created_at, created_by)
+  VALUES ('2026-08-17', '10:30', 'ROWFALLBACK', 'Fallback Trade', 'buy', 1, 10, 0, -10, '其他', NULL, 0, '2026-08-17T05:00:00.000Z', 'muxia')`).run();
+const fallbackTradeId = Number(db.prepare("SELECT id FROM trades WHERE ticker = 'ROWFALLBACK'").get().id);
+let tradeFallback = rows({ filter: { ...emptyFilter, entity_type: 'trade', actor: 'muxia' } }).rows.find((row) => row.operation_key === `trade-provenance-created:${fallbackTradeId}`);
+assert.equal(tradeFallback?.audit_strength, 'provenance');
+db.prepare(`INSERT INTO finance_trade_audit (trade_id, action, actor, occurred_at, after_json)
+  VALUES (?, 'created', 'muxia', '2026-08-17T05:00:00.000Z', '{"trade_date":"2026-08-17","ticker":"ROWFALLBACK"}')`).run(fallbackTradeId);
+tradeFallback = rows({ filter: { ...emptyFilter, entity_type: 'trade', actor: 'muxia' } }).rows.find((row) => row.operation_key === `trade-provenance-created:${fallbackTradeId}`);
+assert.equal(tradeFallback, undefined, 'row provenance must disappear when the actual audit evidence exists');
+
+// Accepted historical and old legacy-import rows must not be manufactured into user operation history.
+db.prepare(`INSERT INTO trades (trade_date, ticker, direction, quantity, price, position_category, created_at, created_by)
+  VALUES ('2026-06-01', 'LEGACYROW', 'buy', 1, 1, '其他', '2026-06-01T00:00:00.000Z', 'legacy-import')`).run();
+const legacyTradeId = Number(db.prepare("SELECT id FROM trades WHERE ticker = 'LEGACYROW'").get().id);
+assert.ok(!rows({ filter: { ...emptyFilter, entity_type: 'trade' } }).rows.some((row) => row.operation_key === `trade-provenance-created:${legacyTradeId}`));
+
+// Canonical and legacy Import Review audits are both admin-only at the query-source boundary.
 db.prepare(`INSERT INTO finance_workbook_review_audit (review_id, action, actor, occurred_at, before_json, after_json)
-  VALUES (1, 'resolved', 'muxia', '2026-08-17T04:00:00.000Z', '{"status":"pending"}', '{"status":"resolved","resolution_note":"fixed"}')`).run();
+  VALUES (1, 'resolved', 'muxia', '2026-08-17T06:00:00.000Z', '{"status":"pending"}', '{"status":"resolved","resolution_note":"fixed"}')`).run();
+db.prepare(`INSERT INTO finance_legacy_import_review_audit (review_id, action, actor, occurred_at, before_json, after_json)
+  VALUES (2, 'resolved', 'muxia', '2026-08-17T06:01:00.000Z', '{"status":"pending"}', '{"status":"resolved","resolution_note":"legacy fixed"}')`).run();
 assert.ok(!rows({ includeWorkbookReview: false }).rows.some((row) => row.entity_type === 'workbook_review'));
-assert.ok(rows({ includeWorkbookReview: true }).rows.some((row) => row.entity_type === 'workbook_review'));
+const adminReviewRows = rows({ includeWorkbookReview: true }).rows.filter((row) => row.entity_type === 'workbook_review');
+assert.equal(adminReviewRows.length, 2);
+assert.ok(adminReviewRows.every((row) => row.audit_strength === 'audit'));
 
 db.close();
 console.log('Finance Operation History query and cursor contract passed.');

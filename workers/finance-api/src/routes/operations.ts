@@ -13,6 +13,7 @@ const SHANGHAI_OFFSET_MS = 8 * 60 * 60 * 1_000;
 const MAX_CURSOR_LENGTH = 2_048;
 
 type JsonObject = Record<string, unknown>;
+type AuditStrength = 'audit' | 'domain' | 'provenance';
 export interface OperationFilterSignature {
   entity_type: string | null;
   action: string | null;
@@ -37,6 +38,7 @@ interface OperationRow {
   business_date: string | null;
   before_json: string | null;
   after_json: string | null;
+  audit_strength: AuditStrength;
 }
 
 export async function handleOperations(request: Request, env: FinanceEnv): Promise<Response> {
@@ -74,12 +76,8 @@ export async function handleOperations(request: Request, env: FinanceEnv): Promi
     }
   }
 
-  const built = buildOperationsQuery({
-    includeWorkbookReview: session.role === 'admin',
-    filter,
-    cursor,
-    limit,
-  });
+  const includeAdminReview = session.role === 'admin';
+  const built = buildOperationsQuery({ includeWorkbookReview: includeAdminReview, filter, cursor, limit });
   const rows = await env.DB.prepare(built.query).bind(...built.values).all<OperationRow>();
   const page = rows.results.slice(0, limit);
   const last = page.at(-1);
@@ -89,10 +87,10 @@ export async function handleOperations(request: Request, env: FinanceEnv): Promi
       ? encodeOperationCursor({ occurred_at: last.occurred_at, operation_key: last.operation_key, filter })
       : null,
     coverage: {
-      note: 'Investment Memo、月度记录与年度复盘的完整版本历史从 Operation History 审计迁移后开始；迁移前从未保存的旧版本不会反推或伪造。旧版 Import Review 写入口不属于这条产品时间线。',
+      note: 'Investment Memo、月度记录与年度复盘的完整版本历史从 Operation History 审计迁移后开始；迁移前从未保存的旧版本不会反推或伪造。Trade、现金流、账户事件若发现旧写路径缺少对应 audit，只展示行级 provenance，不虚构 before / after。',
       timezone: 'Asia/Shanghai',
       security_access_log_included: false,
-      legacy_import_review_included: false,
+      legacy_import_review_included: includeAdminReview,
     },
   });
 }
@@ -104,20 +102,14 @@ export function buildOperationsQuery(input: {
   limit: number;
 }) {
   const sources = baseSources();
-  if (input.includeWorkbookReview) sources.push(workbookReviewSource());
+  if (input.includeWorkbookReview) sources.push(...workbookReviewSources());
   const clauses = ['1 = 1'];
   const values: unknown[] = [];
   if (input.filter.entity_type) { clauses.push('entity_type = ?'); values.push(input.filter.entity_type); }
   if (input.filter.action) { clauses.push('action = ?'); values.push(input.filter.action); }
   if (input.filter.actor) { clauses.push('actor = ?'); values.push(input.filter.actor); }
-  if (input.filter.from) {
-    clauses.push('occurred_at >= ?');
-    values.push(shanghaiBoundary(input.filter.from));
-  }
-  if (input.filter.to) {
-    clauses.push('occurred_at < ?');
-    values.push(shanghaiBoundary(input.filter.to, 1));
-  }
+  if (input.filter.from) { clauses.push('occurred_at >= ?'); values.push(shanghaiBoundary(input.filter.from)); }
+  if (input.filter.to) { clauses.push('occurred_at < ?'); values.push(shanghaiBoundary(input.filter.to, 1)); }
   if (input.cursor) {
     clauses.push('(occurred_at < ? OR (occurred_at = ? AND operation_key < ?))');
     values.push(input.cursor.occurred_at, input.cursor.occurred_at, input.cursor.operation_key);
@@ -132,13 +124,18 @@ export function buildOperationsQuery(input: {
 }
 
 export function encodeOperationCursor(value: OperationCursorPayload): string {
-  return btoa(JSON.stringify(value)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+  const bytes = new TextEncoder().encode(JSON.stringify(value));
+  let binary = '';
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
 }
 
 export function decodeOperationCursor(value: string, filter: OperationFilterSignature): OperationCursorPosition {
   if (!value || value.length > MAX_CURSOR_LENGTH) throw new Error('invalid cursor');
   const source = value.replace(/-/g, '+').replace(/_/g, '/');
-  const parsed = JSON.parse(atob(source + '='.repeat((4 - source.length % 4) % 4))) as Partial<OperationCursorPayload>;
+  const binary = atob(source + '='.repeat((4 - source.length % 4) % 4));
+  const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+  const parsed = JSON.parse(new TextDecoder().decode(bytes)) as Partial<OperationCursorPayload>;
   if (typeof parsed.occurred_at !== 'string' || !Number.isFinite(Date.parse(parsed.occurred_at))
     || typeof parsed.operation_key !== 'string' || parsed.operation_key.length < 1 || parsed.operation_key.length > 256
     || JSON.stringify(parsed.filter) !== JSON.stringify(filter)) throw new Error('invalid cursor');
@@ -150,45 +147,47 @@ function baseSources(): string[] {
     `SELECT 'trade:' || a.id AS operation_key, a.occurred_at AS occurred_at, a.actor AS actor,
       a.action AS action, 'trade' AS entity_type, CAST(a.trade_id AS TEXT) AS entity_id,
       COALESCE(json_extract(a.after_json, '$.trade_date'), json_extract(a.before_json, '$.trade_date'), t.trade_date) AS business_date,
-      a.before_json AS before_json, a.after_json AS after_json
+      a.before_json AS before_json, a.after_json AS after_json, 'audit' AS audit_strength
       FROM finance_trade_audit a LEFT JOIN trades t ON t.id = a.trade_id`,
+    ...tradeProvenanceSources(),
     `SELECT 'cash-flow:' || a.id, a.occurred_at, a.actor, a.action, 'cash_flow', CAST(a.cash_flow_id AS TEXT),
       COALESCE(json_extract(a.after_json, '$.occurred_on'), json_extract(a.before_json, '$.occurred_on'), f.occurred_on),
-      a.before_json, a.after_json
+      a.before_json, a.after_json, 'audit'
       FROM finance_cash_flow_audit a LEFT JOIN finance_cash_flows f ON f.id = a.cash_flow_id`,
+    ...cashFlowProvenanceSources(),
     `SELECT 'account-event:' || a.id, a.occurred_at, a.actor, a.action, 'account_event', CAST(a.account_event_id AS TEXT),
       COALESCE(json_extract(a.after_json, '$.event_date'), json_extract(a.before_json, '$.event_date'), e.event_date),
-      a.before_json, a.after_json
+      a.before_json, a.after_json, 'audit'
       FROM finance_account_event_audit a LEFT JOIN finance_account_events e ON e.id = a.account_event_id`,
+    ...accountEventProvenanceSources(),
     `SELECT 'plan:' || a.id, a.occurred_at, a.actor,
       CASE WHEN a.before_json IS NULL THEN 'created' ELSE 'updated' END,
-      'investment_plan', '1', NULL, a.before_json, a.after_json
+      'investment_plan', '1', NULL, a.before_json, a.after_json, 'audit'
       FROM finance_plan_audit a`,
     `SELECT 'rule:' || a.id, a.occurred_at, a.actor,
       CASE WHEN a.before_json IS NULL THEN 'created' ELSE 'updated' END,
-      'investment_rule', a.rule_key, NULL, a.before_json, a.after_json
+      'investment_rule', a.rule_key, NULL, a.before_json, a.after_json, 'audit'
       FROM finance_rule_audit a`,
     `SELECT 'memo:' || a.id, a.occurred_at, a.actor, a.action, 'memo', CAST(a.memo_id AS TEXT),
       COALESCE(json_extract(a.after_json, '$.memo_date'), json_extract(a.before_json, '$.memo_date'), m.memo_date),
-      a.before_json, a.after_json
+      a.before_json, a.after_json, 'audit'
       FROM finance_memo_audit a LEFT JOIN finance_memos m ON m.id = a.memo_id`,
     `SELECT 'monthly:' || a.id, a.occurred_at, a.actor, a.action, 'monthly_record', CAST(a.monthly_record_id AS TEXT),
       COALESCE(json_extract(a.after_json, '$.year_month'), json_extract(a.before_json, '$.year_month'), r.year_month) || '-01',
-      a.before_json, a.after_json
+      a.before_json, a.after_json, 'audit'
       FROM finance_monthly_record_audit a LEFT JOIN monthly_records r ON r.id = a.monthly_record_id`,
     `SELECT 'annual-review:' || a.id, a.occurred_at, a.actor, a.action, 'annual_review', CAST(a.review_year AS TEXT),
-      CAST(a.review_year AS TEXT) || '-12-31', a.before_json, a.after_json
+      CAST(a.review_year AS TEXT) || '-12-31', a.before_json, a.after_json, 'audit'
       FROM finance_review_audit a`,
     `SELECT 'rebalance-created:' || r.id, r.created_at, r.created_by, 'created', 'rebalance', CAST(r.id AS TEXT),
-      r.executed_on, NULL,
-      json_object('year', r.year, 'executed_on', r.executed_on, 'adjustments', r.adjustments, 'reason', r.reason)
+      r.executed_on, NULL, json_object('year', r.year, 'executed_on', r.executed_on, 'adjustments', r.adjustments, 'reason', r.reason), 'domain'
       FROM finance_rebalance_records r`,
     `SELECT 'rebalance-confirmed:' || r.id, r.confirmed_at, r.confirmed_by, 'confirmed', 'rebalance', CAST(r.id AS TEXT),
-      r.executed_on, NULL, json_object('year', r.year, 'executed_on', r.executed_on)
+      r.executed_on, NULL, json_object('year', r.year, 'executed_on', r.executed_on), 'domain'
       FROM finance_rebalance_records r WHERE r.confirmed_at IS NOT NULL AND r.confirmed_by IS NOT NULL`,
     `SELECT 'monthly-confirmed:' || mc.period || ':' || mc.username, mc.confirmed_at, mc.username, 'confirmed',
       'monthly_confirmation', mc.period || ':' || mc.username, mc.period || '-01', NULL,
-      json_object('period', mc.period, 'username', mc.username)
+      json_object('period', mc.period, 'username', mc.username), 'domain'
       FROM monthly_confirmations mc`,
     `SELECT 'circuit:' || c.id, c.triggered_at,
       COALESCE(
@@ -200,15 +199,15 @@ function baseSources(): string[] {
       CASE WHEN json_valid(c.reason)
         THEN json_object('level', c.level, 'detail', json(c.reason))
         ELSE json_object('level', c.level, 'detail', c.reason)
-      END
+      END, 'domain'
       FROM circuit_breaker_log c`,
     `SELECT 'circuit-resolution:' || c.rowid, c.confirmed_at, c.username, 'confirmed', 'circuit_resolution', CAST(c.circuit_id AS TEXT),
-      substr(c.confirmed_at, 1, 10), NULL, json_object('role', c.role, 'note', c.note)
+      substr(c.confirmed_at, 1, 10), NULL, json_object('role', c.role, 'note', c.note), 'domain'
       FROM finance_circuit_resolution_confirmations c`,
     `SELECT 'asset-reconciliation:' || s.id, s.created_at, s.created_by, 'reconciled', 'asset_reconciliation', CAST(s.id AS TEXT),
       s.snapshot_date, NULL,
       json_object('snapshot_at', s.snapshot_at, 'snapshot_date', s.snapshot_date, 'holdings_value', s.holdings_value,
-        'cash_value', s.cash_value, 'total_value', s.total_value, 'source', s.source, 'is_complete', s.is_complete)
+        'cash_value', s.cash_value, 'total_value', s.total_value, 'source', s.source, 'is_complete', s.is_complete), 'domain'
       FROM finance_asset_snapshots s
       WHERE s.deleted_at IS NULL
         AND s.created_by NOT LIKE 'historical-import:%'
@@ -216,14 +215,90 @@ function baseSources(): string[] {
     `SELECT 'historical-import:' || i.rowid, i.created_at, 'system:historical-import', 'created', 'historical_import', i.batch_id,
       NULL, NULL,
       json_object('batch_id', i.batch_id, 'source_name', i.source_name, 'source_rows', i.source_rows,
-        'imported_rows', i.imported_rows, 'review_rows', i.review_rows)
+        'imported_rows', i.imported_rows, 'review_rows', i.review_rows), 'domain'
       FROM finance_workbook_imports i`,
   ];
 }
 
-function workbookReviewSource(): string {
-  return `SELECT 'workbook-review:' || a.id, a.occurred_at, a.actor, a.action, 'workbook_review', CAST(a.review_id AS TEXT),
-    substr(a.occurred_at, 1, 10), a.before_json, a.after_json FROM finance_workbook_review_audit a`;
+function tradeProvenanceSources(): string[] {
+  const payload = `json_object('trade_date', t.trade_date, 'ticker', t.ticker, 'ticker_name', t.ticker_name,
+    'direction', t.direction, 'quantity', t.quantity, 'price', t.price, 'fee', t.fee,
+    'net_cash_amount', t.net_cash_amount, 'position_category', t.position_category, 'provenance_fallback', 1)`;
+  return [
+    `SELECT 'trade-provenance-created:' || t.id, t.created_at, t.created_by, 'created', 'trade', CAST(t.id AS TEXT),
+      t.trade_date, NULL, ${payload}, 'provenance'
+      FROM trades t
+      WHERE t.created_at IS NOT NULL AND t.created_by IS NOT NULL
+        AND t.created_by <> 'legacy-import' AND t.created_by NOT LIKE 'historical-import:%'
+        AND NOT EXISTS (SELECT 1 FROM finance_trade_audit a WHERE a.trade_id = t.id AND a.action = 'created')`,
+    `SELECT 'trade-provenance-updated:' || t.id, t.updated_at, t.updated_by, 'updated', 'trade', CAST(t.id AS TEXT),
+      t.trade_date, NULL, ${payload}, 'provenance'
+      FROM trades t
+      WHERE t.updated_at IS NOT NULL AND t.updated_by IS NOT NULL
+        AND NOT EXISTS (SELECT 1 FROM finance_trade_audit a WHERE a.trade_id = t.id AND a.action = 'updated' AND a.occurred_at = t.updated_at)`,
+    `SELECT 'trade-provenance-deleted:' || t.id, t.deleted_at, t.deleted_by, 'deleted', 'trade', CAST(t.id AS TEXT),
+      t.trade_date, ${payload}, NULL, 'provenance'
+      FROM trades t
+      WHERE t.deleted_at IS NOT NULL AND t.deleted_by IS NOT NULL
+        AND NOT EXISTS (SELECT 1 FROM finance_trade_audit a WHERE a.trade_id = t.id AND a.action = 'deleted' AND a.occurred_at = t.deleted_at)`,
+  ];
+}
+
+function cashFlowProvenanceSources(): string[] {
+  const payload = `json_object('occurred_on', f.occurred_on, 'contributor', f.contributor, 'flow_type', f.flow_type,
+    'confirmed_amount', f.confirmed_amount, 'manager_share_offset', f.manager_share_offset,
+    'net_amount', f.net_amount, 'note', f.note, 'provenance_fallback', 1)`;
+  return [
+    `SELECT 'cash-flow-provenance-created:' || f.id, f.created_at, f.created_by, 'created', 'cash_flow', CAST(f.id AS TEXT),
+      f.occurred_on, NULL, ${payload}, 'provenance'
+      FROM finance_cash_flows f
+      WHERE f.created_at IS NOT NULL AND f.created_by IS NOT NULL AND f.created_by NOT LIKE 'historical-import:%'
+        AND NOT EXISTS (SELECT 1 FROM finance_cash_flow_audit a WHERE a.cash_flow_id = f.id AND a.action = 'created')`,
+    `SELECT 'cash-flow-provenance-updated:' || f.id, f.updated_at, f.updated_by, 'updated', 'cash_flow', CAST(f.id AS TEXT),
+      f.occurred_on, NULL, ${payload}, 'provenance'
+      FROM finance_cash_flows f
+      WHERE f.updated_at IS NOT NULL AND f.updated_by IS NOT NULL
+        AND NOT EXISTS (SELECT 1 FROM finance_cash_flow_audit a WHERE a.cash_flow_id = f.id AND a.action = 'updated' AND a.occurred_at = f.updated_at)`,
+    `SELECT 'cash-flow-provenance-deleted:' || f.id, f.deleted_at, f.deleted_by, 'deleted', 'cash_flow', CAST(f.id AS TEXT),
+      f.occurred_on, ${payload}, NULL, 'provenance'
+      FROM finance_cash_flows f
+      WHERE f.deleted_at IS NOT NULL AND f.deleted_by IS NOT NULL
+        AND NOT EXISTS (SELECT 1 FROM finance_cash_flow_audit a WHERE a.cash_flow_id = f.id AND a.action = 'deleted' AND a.occurred_at = f.deleted_at)`,
+  ];
+}
+
+function accountEventProvenanceSources(): string[] {
+  const payload = `json_object('event_date', e.event_date, 'event_time', e.event_time, 'event_type', e.event_type,
+    'ticker', e.ticker, 'ticker_name', e.ticker_name, 'quantity', e.quantity, 'reference_value', e.reference_value,
+    'amount', e.amount, 'position_category', e.position_category, 'note', e.note, 'provenance_fallback', 1)`;
+  return [
+    `SELECT 'account-event-provenance-created:' || e.id, e.created_at, e.created_by, 'created', 'account_event', CAST(e.id AS TEXT),
+      e.event_date, NULL, ${payload}, 'provenance'
+      FROM finance_account_events e
+      WHERE e.created_at IS NOT NULL AND e.created_by IS NOT NULL AND e.created_by NOT LIKE 'historical-import:%'
+        AND NOT EXISTS (SELECT 1 FROM finance_account_event_audit a WHERE a.account_event_id = e.id AND a.action = 'created')`,
+    `SELECT 'account-event-provenance-updated:' || e.id, e.updated_at, e.updated_by, 'updated', 'account_event', CAST(e.id AS TEXT),
+      e.event_date, NULL, ${payload}, 'provenance'
+      FROM finance_account_events e
+      WHERE e.updated_at IS NOT NULL AND e.updated_by IS NOT NULL
+        AND NOT EXISTS (SELECT 1 FROM finance_account_event_audit a WHERE a.account_event_id = e.id AND a.action = 'updated' AND a.occurred_at = e.updated_at)`,
+    `SELECT 'account-event-provenance-deleted:' || e.id, e.deleted_at, e.deleted_by, 'deleted', 'account_event', CAST(e.id AS TEXT),
+      e.event_date, ${payload}, NULL, 'provenance'
+      FROM finance_account_events e
+      WHERE e.deleted_at IS NOT NULL AND e.deleted_by IS NOT NULL
+        AND NOT EXISTS (SELECT 1 FROM finance_account_event_audit a WHERE a.account_event_id = e.id AND a.action = 'deleted' AND a.occurred_at = e.deleted_at)`,
+  ];
+}
+
+function workbookReviewSources(): string[] {
+  return [
+    `SELECT 'workbook-review:' || a.id, a.occurred_at, a.actor, a.action, 'workbook_review', CAST(a.review_id AS TEXT),
+      substr(a.occurred_at, 1, 10), a.before_json, a.after_json, 'audit'
+      FROM finance_workbook_review_audit a`,
+    `SELECT 'legacy-import-review:' || a.id, a.occurred_at, a.actor, a.action, 'workbook_review', 'legacy:' || CAST(a.review_id AS TEXT),
+      substr(a.occurred_at, 1, 10), a.before_json, a.after_json, 'audit'
+      FROM finance_legacy_import_review_audit a`,
+  ];
 }
 
 function humanizeOperation(row: OperationRow) {
@@ -240,8 +315,11 @@ function humanizeOperation(row: OperationRow) {
     entity_type: row.entity_type,
     entity_id: row.entity_id,
     business_date: row.business_date,
+    audit_strength: row.audit_strength,
     title: `${ACTION_LABEL[row.action] ?? row.action}${ENTITY_LABEL[row.entity_type] ?? row.entity_type}${subject ? ` · ${subject}` : ''}`,
-    summary: summaryFor(row.entity_type, row.action, data, changes),
+    summary: row.audit_strength === 'provenance'
+      ? `${summaryFor(row.entity_type, row.action, data, changes)} · 行级 provenance；旧版本字段差异不可还原`
+      : summaryFor(row.entity_type, row.action, data, changes),
     changes,
   };
 }
@@ -250,10 +328,9 @@ const ACTION_LABEL: Record<string, string> = {
   created: '新增', updated: '修改', deleted: '删除', confirmed: '确认', resolved: '解决', reconciled: '对账',
 };
 const ENTITY_LABEL: Record<string, string> = {
-  trade: '交易', cash_flow: '现金流', account_event: '账户事件', investment_plan: '投资计划',
-  investment_rule: '投资规则', memo: '投资备忘录', monthly_record: '月度记录', annual_review: '年度复盘',
-  workbook_review: '导入异常', rebalance: '再平衡', monthly_confirmation: '月度查阅',
-  circuit: '熔断事件', circuit_resolution: '熔断恢复确认', asset_reconciliation: '资产', historical_import: '历史数据迁移',
+  trade: '交易', cash_flow: '现金流', account_event: '账户事件', investment_plan: '投资计划', investment_rule: '投资规则',
+  memo: '投资备忘录', monthly_record: '月度记录', annual_review: '年度复盘', workbook_review: '导入异常', rebalance: '再平衡',
+  monthly_confirmation: '月度查阅', circuit: '熔断事件', circuit_resolution: '熔断恢复确认', asset_reconciliation: '资产', historical_import: '历史数据迁移',
 };
 const FIELD_LABEL: Record<string, string> = {
   trade_date: '交易日期', trade_time: '交易时间', ticker: '代码', ticker_name: '标的', direction: '方向',

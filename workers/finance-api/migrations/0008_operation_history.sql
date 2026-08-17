@@ -34,12 +34,24 @@ CREATE TABLE IF NOT EXISTS finance_review_audit (
   after_json TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS finance_legacy_import_review_audit (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  review_id INTEGER NOT NULL,
+  action TEXT NOT NULL CHECK (action = 'resolved'),
+  actor TEXT NOT NULL,
+  occurred_at TEXT NOT NULL,
+  before_json TEXT NOT NULL,
+  after_json TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_finance_memo_audit_memo ON finance_memo_audit (memo_id, id DESC);
 CREATE INDEX IF NOT EXISTS idx_finance_memo_audit_time ON finance_memo_audit (occurred_at DESC, id DESC);
 CREATE INDEX IF NOT EXISTS idx_finance_monthly_record_audit_record ON finance_monthly_record_audit (monthly_record_id, id DESC);
 CREATE INDEX IF NOT EXISTS idx_finance_monthly_record_audit_time ON finance_monthly_record_audit (occurred_at DESC, id DESC);
 CREATE INDEX IF NOT EXISTS idx_finance_review_audit_year ON finance_review_audit (review_year, id DESC);
 CREATE INDEX IF NOT EXISTS idx_finance_review_audit_time ON finance_review_audit (occurred_at DESC, id DESC);
+CREATE INDEX IF NOT EXISTS idx_finance_legacy_import_review_audit_review ON finance_legacy_import_review_audit (review_id, id DESC);
+CREATE INDEX IF NOT EXISTS idx_finance_legacy_import_review_audit_time ON finance_legacy_import_review_audit (occurred_at DESC, id DESC);
 
 CREATE TRIGGER IF NOT EXISTS trg_finance_memo_audit_created
 AFTER INSERT ON finance_memos

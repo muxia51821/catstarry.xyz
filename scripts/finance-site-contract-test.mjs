@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-const [html, css, script, headers, worker, operationsUi, operationsCss, operationsRoute, operationMigration] = await Promise.all([
+const [html, css, script, headers, worker, operationsUi, operationsCss, operationsRoute, legacyReviewRoute, operationMigration] = await Promise.all([
   readFile('finance-site/index.html', 'utf8'),
   readFile('finance-site/styles.css', 'utf8'),
   readFile('finance-site/app.js', 'utf8'),
@@ -10,6 +10,7 @@ const [html, css, script, headers, worker, operationsUi, operationsCss, operatio
   readFile('finance-site/operations-ui.js', 'utf8'),
   readFile('finance-site/operations.css', 'utf8'),
   readFile('workers/finance-api/src/routes/operations.ts', 'utf8'),
+  readFile('workers/finance-api/src/routes/legacy-import-review.ts', 'utf8'),
   readFile('workers/finance-api/migrations/0008_operation_history.sql', 'utf8'),
 ]);
 
@@ -93,30 +94,46 @@ assert.match(operationsUi, /Asia\/Shanghai/);
 assert.match(operationsUi, /operation-history-ready/);
 assert.match(operationsUi, /operation-workbook-review-ready/);
 assert.doesNotMatch(operationsUi, /window\.fetch\s*=/, 'Operation History must not monkey-patch global fetch');
-assert.doesNotMatch(operationsUi, /\boffset\b/, 'Operation History UI must use cursor pagination');
+assert.doesNotMatch(operationsUi, /\boffset\b/i, 'Operation History UI must use cursor pagination');
 assert.match(operationsCss, /\.operation-history-ready \[data-access-panel\]/);
 assert.match(operationsCss, /\.operation-workbook-review-ready \[data-import-review-panel\]/);
 assert.doesNotMatch(operationsCss, /^\[data-access-panel\][\s,]/m, 'legacy access fallback must not be hidden before successful takeover');
+
 assert.match(worker, /handleOperations/);
 assert.match(worker, /pathname === '\/api\/operations'/);
+assert.match(worker, /handleLegacyImportReviewWrite/);
+assert.match(worker, /\/api\\\/import-review\\\/\\d\+\$\/\.test\(pathname\) && request\.method === 'PATCH'/);
+assert.match(legacyReviewRoute, /requireFinanceRole\(request, env, \['admin'\]\)/);
+assert.match(legacyReviewRoute, /env\.DB\.batch\(/);
+assert.match(legacyReviewRoute, /finance_legacy_import_review_audit/);
+assert.match(legacyReviewRoute, /before_json, after_json/);
+
 assert.match(operationsRoute, /business_date/);
 assert.match(operationsRoute, /occurred_at/);
 assert.match(operationsRoute, /operation_key/);
+assert.match(operationsRoute, /audit_strength/);
 assert.match(operationsRoute, /nextCursor/);
 assert.match(operationsRoute, /Asia\/Shanghai/);
+assert.match(operationsRoute, /TextEncoder/);
 assert.match(operationsRoute, /buildOperationsQuery/);
 assert.match(operationsRoute, /finance_trade_audit/);
 assert.match(operationsRoute, /finance_memo_audit/);
 assert.match(operationsRoute, /finance_monthly_record_audit/);
 assert.match(operationsRoute, /finance_review_audit/);
 assert.match(operationsRoute, /finance_workbook_review_audit/);
+assert.match(operationsRoute, /finance_legacy_import_review_audit/);
+assert.match(operationsRoute, /trade-provenance-created/);
+assert.match(operationsRoute, /cash-flow-provenance-created/);
+assert.match(operationsRoute, /account-event-provenance-created/);
 assert.match(operationsRoute, /FROM circuit_breaker_log c/);
-assert.doesNotMatch(operationsRoute, /\bOFFSETW/i);
+assert.doesNotMatch(operationsRoute, /\bOFFSET\b/i);
 assert.doesNotMatch(operationsRoute, /finance_access_log/);
 assert.doesNotMatch(operationsRoute, /annual_reviews ar WHERE ar\.confirmed_at/, 'annual review confirmation history must come from append-only audit, not current row state');
+
 assert.match(operationMigration, /CREATE TABLE IF NOT EXISTS finance_memo_audit/);
 assert.match(operationMigration, /CREATE TABLE IF NOT EXISTS finance_monthly_record_audit/);
 assert.match(operationMigration, /CREATE TABLE IF NOT EXISTS finance_review_audit/);
+assert.match(operationMigration, /CREATE TABLE IF NOT EXISTS finance_legacy_import_review_audit/);
 assert.match(operationMigration, /Existing Memo \/ Monthly \/ Annual Review rows are deliberately not backfilled/);
 assert.match(operationMigration, /trg_finance_memo_audit_updated/);
 assert.match(operationMigration, /trg_finance_monthly_record_audit_updated/);
