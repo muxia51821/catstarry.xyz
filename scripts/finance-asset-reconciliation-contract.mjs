@@ -81,9 +81,14 @@ const migrationFiles = (await readdir(migrationDirectory)).filter((name) => name
   const created = await response.json();
   assert.equal(created.total_value, 146000);
   assert.equal(created.reconciliation.other_assets_value, 36000);
+  assert.equal(created.reconciliation.snapshot_at, '2026-07-29T07:01:00.000Z', 'datetime-local is interpreted in Asia/Shanghai and persisted as UTC');
+  assert.equal(created.reconciliation.snapshot_date, '2026-07-29', 'business date remains the Shanghai calendar date');
 
-  const stored = { ...database.prepare(`SELECT holdings_value, cash_value, other_assets_value, total_value, source FROM finance_asset_snapshots`).get() };
-  assert.deepEqual(stored, { holdings_value: 100000, cash_value: 10000, other_assets_value: 36000, total_value: 146000, source: 'broker-reconciliation' });
+  const stored = { ...database.prepare(`SELECT snapshot_at, snapshot_date, holdings_value, cash_value, other_assets_value, total_value, source FROM finance_asset_snapshots`).get() };
+  assert.deepEqual(stored, {
+    snapshot_at: '2026-07-29T07:01:00.000Z', snapshot_date: '2026-07-29', holdings_value: 100000,
+    cash_value: 10000, other_assets_value: 36000, total_value: 146000, source: 'broker-reconciliation',
+  });
 
   const getResponse = await handleAssetReconciliations(new Request('https://finance.test/api/assets/snapshots', { headers: { Cookie: `token=${SESSION_TOKEN}` } }), env);
   assert.equal(getResponse.status, 200);
@@ -98,7 +103,14 @@ const migrationFiles = (await readdir(migrationDirectory)).filter((name) => name
   }), env);
   assert.equal(incomplete.status, 400, 'incomplete reconciliation requires an explicit gap reason');
 
+  const invalidDate = await handleAssetReconciliations(new Request('https://finance.test/api/assets/snapshots', {
+    method: 'POST',
+    headers: { Cookie: `token=${SESSION_TOKEN}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ snapshot_at: '2026-02-30T10:00', source: 'manual', holdings_value: 1, cash_value: 1, is_complete: true }),
+  }), env);
+  assert.equal(invalidDate.status, 400, 'invalid local calendar dates must not be normalized into a different business day');
+
   database.close();
 }
 
-console.log('Finance asset reconciliation other-assets contract passed.');
+console.log('Finance asset reconciliation other-assets and timezone contract passed.');
