@@ -1,6 +1,15 @@
 const portfolioApiBase = document.querySelector('meta[name="finance-api-base"]')?.content.replace(/\/$/, '') ?? '';
 const portfolioMoney = new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY', maximumFractionDigits: 2 });
 const portfolioNumber = new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 2 });
+const PORTFOLIO_ROLES = [
+  ['主动操作仓（A股）', '主动操作仓', '#6685ff'],
+  ['A股宽基指数底仓', 'A股宽基指数', '#d4c94e'],
+  ['美股ETF（A股跨境ETF）', '美股 ETF', '#b782f2'],
+  ['黄金ETF', '黄金 ETF', '#d9a441'],
+  ['机动仓（货币ETF）', '机动仓', '#5eaf9e'],
+  ['其他', '其他', '#848e9c'],
+];
+const PORTFOLIO_ROLE_MAP = new Map(PORTFOLIO_ROLES.map(([key, label, color]) => [key, { label, color }]));
 
 const portfolioApp = document.querySelector('[data-app]');
 const portfolioDashboard = document.querySelector('[data-dashboard]');
@@ -10,9 +19,14 @@ const portfolioRecent = document.querySelector('[data-overview-trades]');
 const portfolioRecentEmpty = document.querySelector('[data-overview-trades-empty]');
 const portfolioHistoryState = document.querySelector('[data-net-worth-state]');
 const portfolioHistoryEmpty = document.querySelector('[data-net-worth-empty]');
+const portfolioHoldingsBody = document.querySelector('[data-holdings-body]');
+const portfolioTradesBody = document.querySelector('[data-trades-body]');
 
 let portfolioEpoch = 0;
 let portfolioScheduled = false;
+let portfolioHoldings = [];
+let portfolioSecurities = new Map();
+let portfolioTradeCatalog = [];
 
 function portfolioElement(tag, className, text) {
   const node = document.createElement(tag);
@@ -28,6 +42,18 @@ async function portfolioRequest(path) {
   return body;
 }
 
+async function loadPortfolioTradeCatalog() {
+  const rows = [];
+  let cursor = null;
+  for (let page = 0; page < 20; page += 1) {
+    const result = await portfolioRequest(`/api/trades?limit=50${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`);
+    rows.push(...(result?.trades ?? []));
+    cursor = result?.nextCursor ?? null;
+    if (!cursor) return rows;
+  }
+  throw new Error('交易记录分页超过 Portfolio UI 的安全上限');
+}
+
 function portfolioCanRender() {
   return Boolean(portfolioApp && !portfolioApp.hidden && portfolioDashboard?.getAttribute('aria-busy') !== 'true');
 }
@@ -40,13 +66,21 @@ function schedulePortfolioRefresh() {
     if (!portfolioCanRender()) return;
     const epoch = ++portfolioEpoch;
     try {
-      const [accountState, tradePage] = await Promise.all([
+      const [accountState, holdingsPage, securitiesPage, tradeCatalog] = await Promise.all([
         portfolioRequest('/api/account-state'),
-        portfolioRequest('/api/trades?limit=5'),
+        portfolioRequest('/api/holdings'),
+        portfolioRequest('/api/securities'),
+        loadPortfolioTradeCatalog(),
       ]);
       if (epoch !== portfolioEpoch || !portfolioCanRender()) return;
+      portfolioHoldings = holdingsPage?.holdings ?? [];
+      portfolioSecurities = new Map((securitiesPage?.securities ?? []).map((row) => [row.ticker, row]));
+      portfolioTradeCatalog = tradeCatalog;
       renderPortfolioAccountState(accountState);
-      renderPortfolioRecentTrades(tradePage?.trades ?? []);
+      renderPortfolioRecentTrades(tradeCatalog);
+      installPortfolioClassificationFilters();
+      renderPortfolioHoldings();
+      decoratePortfolioTradeTable();
       normalizePortfolioHistoryCopy();
     } catch (error) {
       if (epoch !== portfolioEpoch || !portfolioCanRender()) return;
@@ -117,6 +151,173 @@ function renderPortfolioRecentTrades(rows) {
   portfolioRecentEmpty.hidden = rows.length > 0;
 }
 
+function installPortfolioClassificationFilters() {
+  installHoldingsFilters();
+  installTradeFilters();
+}
+
+function installHoldingsFilters() {
+  if (!portfolioHoldingsBody || document.querySelector('[data-holdings-classification-filters]')) return;
+  const panel = portfolioHoldingsBody.closest('.panel');
+  const tableScroll = portfolioHoldingsBody.closest('.table-scroll');
+  if (!panel || !tableScroll) return;
+  const form = portfolioElement('form', 'portfolio-classification-filters');
+  form.dataset.holdingsClassificationFilters = '';
+  form.append(classificationSelect('组合角色', 'portfolio_holding_role', PORTFOLIO_ROLES.map(([value, label]) => [value, label])));
+  form.append(classificationSelect('证券属性', 'portfolio_holding_attribute', securityAttributeOptions()));
+  form.addEventListener('change', renderPortfolioHoldings);
+  tableScroll.before(form);
+}
+
+function installTradeFilters() {
+  const form = document.querySelector('[data-trade-filters]');
+  if (!form || form.querySelector('[data-portfolio-trade-role-filter]')) return;
+  const role = classificationSelect('组合角色', 'position_category', PORTFOLIO_ROLES.map(([value, label]) => [value, label]));
+  role.dataset.portfolioTradeRoleFilter = '';
+  const attribute = classificationSelect('证券属性', 'security_attribute', securityAttributeOptions());
+  attribute.dataset.portfolioTradeAttributeFilter = '';
+  const submit = form.querySelector('button[type="submit"]');
+  form.insertBefore(role, submit);
+  form.insertBefore(attribute, submit);
+}
+
+function classificationSelect(label, name, options) {
+  const wrapper = portfolioElement('label', 'portfolio-classification-filter');
+  wrapper.append(document.createTextNode(label));
+  const select = document.createElement('select');
+  select.name = name;
+  select.append(portfolioOption('', '全部'));
+  for (const [value, text] of options) select.append(portfolioOption(value, text));
+  wrapper.append(select);
+  return wrapper;
+}
+
+function portfolioOption(value, text) {
+  const option = document.createElement('option');
+  option.value = value;
+  option.textContent = text;
+  return option;
+}
+
+function securityAttributeOptions() {
+  return [...new Set([...portfolioSecurities.values()].map((row) => row.security_attribute).filter(Boolean))]
+    .sort((left, right) => left.localeCompare(right, 'zh-CN')).map((value) => [value, value]);
+}
+
+function renderPortfolioHoldings() {
+  if (!portfolioHoldingsBody) return;
+  const role = document.querySelector('[name="portfolio_holding_role"]')?.value ?? '';
+  const attribute = document.querySelector('[name="portfolio_holding_attribute"]')?.value ?? '';
+  const rows = portfolioHoldings.filter((row) => {
+    const security = portfolioSecurities.get(row.ticker);
+    return (!role || row.position_category === role) && (!attribute || security?.security_attribute === attribute);
+  });
+
+  const table = portfolioHoldingsBody.closest('table');
+  const header = table?.querySelector('thead tr');
+  if (header && !header.dataset.portfolioClassificationReady) {
+    header.replaceChildren(...['标的', '组合角色', '证券属性', '数量', '成本', '现价', '市值', '盈亏'].map((label) => portfolioElement('th', '', label)));
+    header.dataset.portfolioClassificationReady = 'true';
+  }
+
+  portfolioHoldingsBody.replaceChildren(...rows.map((row) => {
+    const security = portfolioSecurities.get(row.ticker);
+    const title = portfolioElement('td', 'table-text');
+    title.append(portfolioElement('strong', '', row.ticker_name || row.ticker));
+    if (row.ticker_name) title.append(portfolioElement('small', 'portfolio-ticker-code', row.ticker));
+    if (row.stale) title.append(portfolioElement('small', 'stale-flag', '行情过期'));
+    const pnl = finiteNumber(row.pnl);
+    return portfolioElement('tr', '', undefined).appendChild ? holdingRow([
+      title,
+      roleCell(row.position_category),
+      securityAttributeCell(security?.security_attribute),
+      dataCell(portfolioNumber.format(Number(row.quantity))),
+      dataCell(maybeMoney(row.avg_cost)),
+      dataCell(maybeMoney(row.price)),
+      dataCell(maybeMoney(row.market_value)),
+      dataCell(maybeMoney(row.pnl), pnl === null ? '' : pnl >= 0 ? 'value-up' : 'value-down'),
+    ]) : null;
+  }).filter(Boolean));
+
+  const empty = document.querySelector('[data-holdings-empty]');
+  if (empty) {
+    empty.hidden = rows.length > 0;
+    if (!rows.length && portfolioHoldings.length) empty.textContent = '没有符合当前分类筛选的持仓。';
+  }
+}
+
+function holdingRow(cells) {
+  const row = document.createElement('tr');
+  row.append(...cells);
+  return row;
+}
+
+function roleCell(role) {
+  const cell = portfolioElement('td', 'portfolio-role-cell');
+  const presentation = PORTFOLIO_ROLE_MAP.get(role) ?? { label: role || '其他', color: '#848e9c' };
+  const badge = portfolioElement('span', 'portfolio-role-badge', presentation.label);
+  badge.style.setProperty('--portfolio-role-color', presentation.color);
+  cell.append(badge);
+  return cell;
+}
+
+function securityAttributeCell(attribute) {
+  const cell = portfolioElement('td', 'portfolio-security-cell');
+  cell.append(portfolioElement('span', 'portfolio-security-attribute', attribute || '—'));
+  return cell;
+}
+
+function dataCell(text, extraClass = '') {
+  return portfolioElement('td', `table-data${extraClass ? ` ${extraClass}` : ''}`, text);
+}
+
+function maybeMoney(value) {
+  const number = finiteNumber(value);
+  return number === null ? '—' : portfolioMoney.format(number);
+}
+
+function decoratePortfolioTradeTable() {
+  if (!portfolioTradesBody) return;
+  const table = portfolioTradesBody.closest('table');
+  const header = table?.querySelector('thead tr');
+  if (header) {
+    const headers = [...header.children];
+    if (headers[5]) headers[5].textContent = '组合角色';
+    if (!header.querySelector('[data-security-attribute-column]')) {
+      const cell = portfolioElement('th', '', '证券属性');
+      cell.dataset.securityAttributeColumn = '';
+      headers[5]?.after(cell);
+    }
+  }
+  const attributeByLabel = tradeAttributeByLabel();
+  for (const row of portfolioTradesBody.querySelectorAll('tr')) {
+    const cells = [...row.children];
+    const roleCellNode = cells[5];
+    if (!roleCellNode) continue;
+    let attributeCell = row.querySelector('[data-security-attribute-cell]');
+    if (!attributeCell) {
+      attributeCell = securityAttributeCell('—');
+      attributeCell.dataset.securityAttributeCell = '';
+      roleCellNode.after(attributeCell);
+    }
+    const label = cells[1]?.textContent?.trim() ?? '';
+    attributeCell.replaceChildren(portfolioElement('span', 'portfolio-security-attribute', attributeByLabel.get(label) ?? '—'));
+  }
+}
+
+function tradeAttributeByLabel() {
+  const result = new Map();
+  const conflicts = new Set();
+  for (const row of portfolioTradeCatalog) {
+    const label = row.ticker_name || row.ticker;
+    const attribute = row.security_attribute || portfolioSecurities.get(row.ticker)?.security_attribute || '—';
+    if (result.has(label) && result.get(label) !== attribute) conflicts.add(label);
+    else result.set(label, attribute);
+  }
+  for (const label of conflicts) result.set(label, '—');
+  return result;
+}
+
 function renderPortfolioUnavailable(error) {
   if (!portfolioTotal || !portfolioStatus) return;
   portfolioTotal.textContent = '待核验';
@@ -138,7 +339,13 @@ function normalizePortfolioHistoryCopy() {
 
 function resetPortfolioUi() {
   portfolioEpoch += 1;
+  portfolioHoldings = [];
+  portfolioSecurities = new Map();
+  portfolioTradeCatalog = [];
   portfolioTotal?.closest('.metric')?.querySelector('[data-account-breakdown]')?.remove();
+  if (portfolioTotal) portfolioTotal.textContent = '—';
+  if (portfolioStatus) portfolioStatus.textContent = '等待账户状态';
+  portfolioRecent?.replaceChildren();
 }
 
 function finiteNumber(value) {
@@ -154,6 +361,8 @@ if (portfolioApp && portfolioDashboard) {
   });
   observer.observe(portfolioApp, { attributes: true, attributeFilter: ['hidden'] });
   observer.observe(portfolioDashboard, { attributes: true, attributeFilter: ['aria-busy'] });
+  const tradeObserver = new MutationObserver(() => decoratePortfolioTradeTable());
+  if (portfolioTradesBody) tradeObserver.observe(portfolioTradesBody, { childList: true });
   document.querySelector('[data-refresh]')?.addEventListener('click', () => setTimeout(schedulePortfolioRefresh, 0));
   for (const button of document.querySelectorAll('[data-asset-view]')) {
     button.addEventListener('click', () => setTimeout(normalizePortfolioHistoryCopy, 0));
