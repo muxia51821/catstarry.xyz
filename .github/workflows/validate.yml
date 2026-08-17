@@ -29,6 +29,7 @@ jobs:
       - run: npm run site:typecheck
       - run: npm run build
       - run: npm run test:site-output
+      - run: node scripts/learn-production-transition-contract-test.mjs
       - run: npm run test:learn:preview
       - run: npm run test:blog:preview
       - run: npm run test:preview:lifecycle

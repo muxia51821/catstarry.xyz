@@ -1,6 +1,6 @@
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { extractLearnWikilinkSlugs } from '../../shared/learn-relations.ts';
+import { assertValidLearnPublicRelations, extractLearnWikilinkSlugs } from '../../shared/learn-relations.ts';
 
 export async function readLearnPublicationEntries(root = 'src/data/learn') {
   const entries = [];
@@ -30,6 +30,18 @@ export async function readLearnPublicationEntries(root = 'src/data/learn') {
     throw new Error('Published Learn slugs must be unique');
   }
   return entries;
+}
+
+export function assertLearnProductionTransition(publicSlugs, candidateEntries) {
+  const candidatesBySlug = new Map(candidateEntries.map((entry) => [entry.slug, entry]));
+  const publicEntries = [...new Set(publicSlugs)].sort().map((slug) => {
+    const candidate = candidatesBySlug.get(slug);
+    if (!candidate) {
+      throw new Error(`Production Learn public note would disappear from candidate deployment: ${slug}`);
+    }
+    return { slug: candidate.slug, links: candidate.links };
+  });
+  assertValidLearnPublicRelations(publicEntries);
 }
 
 function scalar(frontmatter, key) {
