@@ -89,6 +89,10 @@ if (-not (Test-Path -LiteralPath $workerConfig -PathType Leaf)) {
 }
 Assert-SiteWorkerConfig -Path $workerConfig
 
+if ($env:LEARN_PRODUCTION_PUBLICATIONS_URL) {
+  Invoke-RequiredCommand node 'scripts/learn-production-transition-check.mjs'
+}
+
 Invoke-RequiredCommand npx wrangler deploy --dry-run --config $workerConfig --name catstarry-site-production --keep-vars
 Invoke-RequiredCommand npx wrangler deploy --config $workerConfig --name catstarry-site-production --keep-vars
 
