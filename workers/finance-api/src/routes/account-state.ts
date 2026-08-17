@@ -23,7 +23,7 @@ type CashFactRow = {
   repo_key: string | null;
 };
 
-type RepoEventRow = {
+export type RepoEventRow = {
   id: number;
   event_date: string;
   event_time: string | null;
@@ -38,7 +38,7 @@ type CurrentHoldingRow = {
   price: number | null;
 };
 
-const SYNTHETIC_RECONCILIATION_SOURCES = ['auto_close', 'historical_backfill', 'history_import'];
+export const SYNTHETIC_RECONCILIATION_SOURCES = ['auto_close', 'historical_backfill', 'history_import'];
 const CASH_ACCOUNT_EVENT_TYPES = new Set(['dividend', 'dividend_tax', 'repo_start', 'repo_maturity', 'refund']);
 const CASH_TOLERANCE = 0.000001;
 
