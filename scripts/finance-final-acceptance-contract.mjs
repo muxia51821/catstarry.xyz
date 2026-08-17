@@ -5,7 +5,7 @@ import { DatabaseSync } from 'node:sqlite';
 
 import { projectRepoAssets } from '../workers/finance-api/src/routes/account-state.ts';
 import { normalizeAccountEvent } from '../workers/finance-api/src/routes/records.ts';
-import { replayTradeDay } from '../workers/finance-api/src/routes/trades.ts';
+import { replayTradeDay, tradeEditableAfterReconciliation } from '../workers/finance-api/src/routes/trades.ts';
 
 // Product invariant: a Trade owns at most one active Investment Memo. Historical
 // deleted memos remain auditable and do not block a later replacement memo.
@@ -58,6 +58,21 @@ import { replayTradeDay } from '../workers/finance-api/src/routes/trades.ts';
   ]);
   assert.ok(missingTimeFallsBackToRecordedOrder, 'a missing trade time must not invent a chronological order that creates a negative holding');
   assert.deepEqual({ quantity: missingTimeFallsBackToRecordedOrder.quantity, avg_cost: missingTimeFallsBackToRecordedOrder.avg_cost }, { quantity: 50, avg_cost: 10 });
+}
+
+// Reconciliation is the seal boundary for normal online corrections. Facts before
+// the anchor, same-day facts without enough time precision, and the same minute are
+// reviewed history; only facts known to be after the anchor stay mutable.
+{
+  const anchor = { snapshot_at: '2026-08-17T02:29:00.000Z', snapshot_date: '2026-08-17' }; // 10:29 Shanghai
+  const trade = (id, trade_date, trade_time) => ({ id, trade_date, trade_time, direction: 'buy', net_cash_amount: -100 });
+  assert.equal(tradeEditableAfterReconciliation(trade(1, '2026-08-16', '14:00'), anchor), false);
+  assert.equal(tradeEditableAfterReconciliation(trade(2, '2026-08-17', '10:20'), anchor), false);
+  assert.equal(tradeEditableAfterReconciliation(trade(3, '2026-08-17', '10:29'), anchor), false, 'same-minute facts stay ambiguous and locked');
+  assert.equal(tradeEditableAfterReconciliation(trade(4, '2026-08-17', null), anchor), false, 'date-only same-day facts stay ambiguous and locked');
+  assert.equal(tradeEditableAfterReconciliation(trade(5, '2026-08-17', '10:30'), anchor), true);
+  assert.equal(tradeEditableAfterReconciliation(trade(6, '2026-08-18', null), anchor), true);
+  assert.equal(tradeEditableAfterReconciliation(trade(7, '2026-08-01', null), null), true, 'without a reconciliation the latest online trade day remains correctable');
 }
 
 // Reverse repo has two independent facts: amount is Broker Cash movement;

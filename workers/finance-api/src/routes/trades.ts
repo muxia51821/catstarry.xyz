@@ -1,5 +1,6 @@
 import { apiError, json, readJson } from '../lib/http';
 import { requireFinanceRole, type FinanceEnv } from './auth';
+import { selectCashFactsAfterReconciliation, SYNTHETIC_RECONCILIATION_SOURCES } from './account-state';
 
 interface TradeInput {
   trade_date?: unknown;
@@ -43,6 +44,8 @@ interface TradeRow {
   memo_reason?: string | null;
   memo_reason_source?: string | null;
 }
+
+type TradeReconciliation = { snapshot_at: string; snapshot_date: string };
 
 const MAX_CURSOR_LENGTH = 2_048;
 
@@ -280,11 +283,44 @@ async function deleteTrade(request: Request, env: FinanceEnv, id: number): Promi
 async function editableTrade(env: FinanceEnv, id: number): Promise<TradeRow | Response> {
   const trade = await env.DB.prepare('SELECT * FROM trades WHERE id = ? AND deleted_at IS NULL').bind(id).first<TradeRow>();
   if (!trade) return apiError(404, 'not_found', 'Trade not found');
-  const holding = await latestHolding(env, trade.ticker);
-  if (trade.created_by?.startsWith('historical-import:') || holding?.snapshot_date !== trade.trade_date) {
-    return apiError(409, 'trade_locked_by_history', 'Only the latest online trade day can be changed without rewriting reviewed history');
+  if (trade.created_by?.startsWith('historical-import:')) {
+    return apiError(409, 'trade_locked_by_history', 'Reviewed historical imports are immutable in the normal trade editor');
+  }
+  const [holding, reconciliation] = await Promise.all([
+    latestHolding(env, trade.ticker),
+    latestTradeReconciliation(env),
+  ]);
+  if (holding?.snapshot_date !== trade.trade_date || !tradeEditableAfterReconciliation(trade, reconciliation)) {
+    return apiError(409, 'trade_locked_by_history', 'Only the latest online trade day after the reconciliation anchor can be changed without rewriting reviewed history');
   }
   return trade;
+}
+
+async function latestTradeReconciliation(env: FinanceEnv): Promise<TradeReconciliation | null> {
+  const rows = await env.DB.prepare(`SELECT snapshot_at, snapshot_date, holdings_value, source
+    FROM finance_asset_snapshots
+    WHERE deleted_at IS NULL AND is_complete = 1
+      AND lower(COALESCE(source, '')) NOT IN (${SYNTHETIC_RECONCILIATION_SOURCES.map(() => '?').join(', ')})
+    ORDER BY snapshot_date DESC, julianday(snapshot_at) DESC, id DESC LIMIT 1`)
+    .bind(...SYNTHETIC_RECONCILIATION_SOURCES).all<TradeReconciliation & { holdings_value: number; source: string }>();
+  return rows.results[0] ?? null;
+}
+
+export function tradeEditableAfterReconciliation(
+  trade: Pick<TradeRow, 'id' | 'trade_date' | 'trade_time' | 'direction' | 'net_cash_amount'>,
+  reconciliation: TradeReconciliation | null,
+) {
+  if (!reconciliation) return true;
+  const [fact] = selectCashFactsAfterReconciliation(reconciliation, [{
+    fact_key: `trade:${trade.id}`,
+    business_date: trade.trade_date,
+    business_time: trade.trade_time,
+    kind: 'trade',
+    subtype: trade.direction,
+    amount: trade.net_cash_amount,
+    repo_key: null,
+  }]);
+  return fact?.timing_status === 'after';
 }
 
 async function activeTradesOnDate(env: FinanceEnv, ticker: string, tradeDate: string): Promise<TradeRow[]> {
