@@ -36,9 +36,6 @@ export async function handleRecords(request: Request, env: FinanceEnv, pathname:
   if (pathname === '/api/account-events' && request.method === 'POST') return saveAccountEvent(request, env);
   if (/^\/api\/account-events\/\d+$/.test(pathname) && request.method === 'PATCH') return updateAccountEvent(request, env, Number(pathname.split('/')[3]));
   if (/^\/api\/account-events\/\d+$/.test(pathname) && request.method === 'DELETE') return deleteAccountEvent(request, env, Number(pathname.split('/')[3]));
-  if (pathname === '/api/assets/snapshots' && request.method === 'GET') return listAssetSnapshots(request, env);
-  if (pathname === '/api/assets/snapshots' && request.method === 'POST') return saveAssetSnapshot(request, env);
-  if (pathname === '/api/assets/series' && request.method === 'GET') return assetSeries(request, env);
   return apiError(404, 'not_found', 'Finance records route not found');
 }
 
@@ -114,7 +111,6 @@ async function savePlan(request: Request, env: FinanceEnv): Promise<Response> {
   ]);
   return json({ plan: { ...(await env.DB.prepare('SELECT * FROM plan_params WHERE id = 1').first<Record<string, unknown>>()), ...contributions } });
 }
-
 
 function normalizeMonthly(value: MonthlyRecordInput) {
   const year_month = string(value.year_month, 7);
@@ -313,21 +309,3 @@ async function deleteAccountEvent(request: Request, env: FinanceEnv, id: number)
   if ((results[0]?.meta.changes ?? 0) === 0) return apiError(409, 'stale_account_event', 'Account event changed before this delete could be committed; reload and retry');
   return json({ deleted: true });
 }
-
-async function listAssetSnapshots(request: Request, env: FinanceEnv) { const session = await requireFinanceRole(request, env); if (session instanceof Response) return session; const result = await env.DB.prepare('SELECT * FROM finance_asset_snapshots WHERE deleted_at IS NULL ORDER BY snapshot_at DESC, id DESC LIMIT 300').all(); return json({ snapshots: result.results }); }
-async function saveAssetSnapshot(request: Request, env: FinanceEnv) {
-  const session = await requireFinanceRole(request, env, ['admin']); if (session instanceof Response) return session;
-  const body = await readJson<Record<string, unknown>>(request); if (body instanceof Response) return body;
-  const snapshot_at = typeof body.snapshot_at === 'string' ? body.snapshot_at.trim() : ''; const source = string(body.source, 64); const holdings_value = Number(body.holdings_value); const cash_value = Number(body.cash_value); const is_complete = body.is_complete === true || body.is_complete === 1 ? 1 : 0; const incomplete_reason = nullableString(body.incomplete_reason, 500);
-  if (!snapshot_at || !source || !Number.isFinite(holdings_value) || holdings_value < 0 || !Number.isFinite(cash_value) || cash_value < 0 || incomplete_reason === undefined || (!is_complete && !incomplete_reason)) return apiError(400, 'invalid_asset_snapshot', 'Asset snapshot fields are invalid');
-  const now = new Date().toISOString(); const total = holdings_value + cash_value;
-  await env.DB.prepare(`INSERT INTO finance_asset_snapshots (snapshot_at, snapshot_date, holdings_value, cash_value, total_value, source, is_complete, incomplete_reason, created_at, created_by) VALUES (?, substr(?,1,10), ?, ?, ?, ?, ?, ?, ?, ?)`)
-    .bind(snapshot_at, snapshot_at, holdings_value, cash_value, total, source, is_complete, incomplete_reason, now, session.username).run(); return json({ created: true, total_value: total }, 201);
-}
-async function assetSeries(request: Request, env: FinanceEnv) {
-  const session = await requireFinanceRole(request, env); if (session instanceof Response) return session; const view = new URL(request.url).searchParams.get('view') ?? 'month'; if (!['week', 'month'].includes(view)) return apiError(400, 'invalid_view', 'view must be week or month');
-  const rows = await env.DB.prepare(`SELECT * FROM finance_asset_snapshots WHERE deleted_at IS NULL AND is_complete = 1 ORDER BY snapshot_at ASC, id ASC LIMIT 600`).all<Record<string, unknown>>();
-  const selected = new Map<string, Record<string, unknown>>(); for (const row of rows.results) { const date = String(row.snapshot_date); const key = view === 'week' ? `${date.slice(0, 4)}-W${isoWeek(date)}` : date.slice(0, 7); selected.set(key, row); }
-  return json({ view, records: [...selected.values()], legacy_monthly_records: view === 'month' ? (await env.DB.prepare('SELECT year_month, end_total FROM monthly_records WHERE deleted_at IS NULL AND end_total IS NOT NULL ORDER BY year_month').all()).results : [] });
-}
-function isoWeek(value: string) { const date = new Date(`${value}T00:00:00Z`); const day = date.getUTCDay() || 7; date.setUTCDate(date.getUTCDate() + 4 - day); const start = new Date(Date.UTC(date.getUTCFullYear(), 0, 1)); return String(Math.ceil((((date.getTime() - start.getTime()) / 86_400_000) + 1) / 7)).padStart(2, '0'); }
