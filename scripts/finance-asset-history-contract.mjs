@@ -63,3 +63,4 @@ db.close();
 console.log('Finance derived historical price and valuation cache contract passed.');
 await import('./finance-raw-price-import-contract.mjs');
 await import('./finance-security-reference-contract.mjs');
+await import('./finance-portfolio-wiring-contract.mjs');
