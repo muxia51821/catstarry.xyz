@@ -3,6 +3,8 @@
 The collector is intentionally outside Finance. This operator tool accepts the final
 canonical CSV, validates one raw close per security/day, and emits deterministic SQL
 plus a reconciliation report. It never connects to Cloudflare or another database.
+A validated suspension/no-trade day may explicitly use price_status=carried_forward;
+missing price_status means an observed raw close.
 """
 from __future__ import annotations
 
@@ -18,6 +20,7 @@ DAY = re.compile(r'^\d{4}-\d{2}-\d{2}$')
 TICKER = re.compile(r'^[A-Z0-9._-]{1,24}$')
 START_DATE = '2026-06-03'
 REQUIRED_COLUMNS = {'ticker', 'price_date', 'close', 'source', 'adjustment'}
+PRICE_STATUSES = {'observed', 'carried_forward'}
 
 
 def sql(value):
@@ -76,6 +79,9 @@ def main():
                 adjustment = (raw.get('adjustment') or '').strip().lower()
                 if adjustment != 'raw':
                     raise ValueError('adjustment must be raw')
+                price_status = (raw.get('price_status') or 'observed').strip().lower()
+                if price_status not in PRICE_STATUSES:
+                    raise ValueError('price_status must be observed or carried_forward')
                 observed_at = (raw.get('observed_at') or '').strip() or None
                 key = (ticker, price_date)
                 if key in seen:
@@ -87,6 +93,7 @@ def main():
                     'close': close,
                     'source': source,
                     'adjustment': 'raw',
+                    'price_status': price_status,
                     'observed_at': observed_at,
                 })
             except (TypeError, ValueError) as error:
@@ -103,11 +110,11 @@ def main():
     for row in rows:
         statements.append(
             'INSERT INTO finance_security_prices '
-            '(ticker, price_date, close, source, adjustment, observed_at, created_at, created_by) VALUES '
-            f"({sql(row['ticker'])}, {sql(row['price_date'])}, {sql(row['close'])}, {sql(row['source'])}, 'raw', {sql(row['observed_at'])}, "
+            '(ticker, price_date, close, source, adjustment, price_status, observed_at, created_at, created_by) VALUES '
+            f"({sql(row['ticker'])}, {sql(row['price_date'])}, {sql(row['close'])}, {sql(row['source'])}, 'raw', {sql(row['price_status'])}, {sql(row['observed_at'])}, "
             "strftime('%Y-%m-%dT%H:%M:%fZ','now'), " + sql(actor) + ') '
             'ON CONFLICT(ticker, price_date) DO UPDATE SET '
-            'close=excluded.close, source=excluded.source, adjustment=excluded.adjustment, '
+            'close=excluded.close, source=excluded.source, adjustment=excluded.adjustment, price_status=excluded.price_status, '
             'observed_at=excluded.observed_at, created_at=excluded.created_at, created_by=excluded.created_by;'
         )
     statements.append('COMMIT;')
@@ -117,6 +124,7 @@ def main():
     tickers = sorted({row['ticker'] for row in rows})
     dates = [row['price_date'] for row in rows]
     counts = {ticker: sum(1 for row in rows if row['ticker'] == ticker) for ticker in tickers}
+    status_counts = {status: sum(1 for row in rows if row['price_status'] == status) for status in sorted(PRICE_STATUSES)}
     report = {
         'input_sha256': digest,
         'rows': len(rows),
@@ -126,6 +134,7 @@ def main():
         'end_date': max(dates),
         'sources': sources,
         'adjustment': 'raw',
+        'price_status_counts': status_counts,
         'canonical_key': ['ticker', 'price_date'],
         'reconstruction_boundary': START_DATE,
     }
