@@ -32,6 +32,65 @@
   white-space: nowrap;
 }
 
+.portfolio-classification-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 14px 0;
+}
+
+.portfolio-classification-filter {
+  display: grid;
+  gap: 6px;
+  min-width: 150px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.portfolio-classification-filter select {
+  min-height: 40px;
+}
+
+.portfolio-role-badge,
+.portfolio-security-attribute {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 28px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.portfolio-role-badge {
+  border: 1px solid color-mix(in srgb, var(--portfolio-role-color) 34%, var(--line));
+  background: color-mix(in srgb, var(--portfolio-role-color) 10%, transparent);
+}
+
+.portfolio-role-badge::before {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--portfolio-role-color);
+  content: "";
+  flex: 0 0 auto;
+}
+
+.portfolio-security-attribute {
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface-strong) 70%, transparent);
+  color: var(--muted);
+}
+
+.portfolio-ticker-code {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 11px;
+}
+
 @media (max-width: 680px) {
   .portfolio-account-breakdown {
     grid-template-columns: 1fr;
@@ -43,5 +102,10 @@
 
   .portfolio-overview-trade strong {
     white-space: normal;
+  }
+
+  .portfolio-classification-filter {
+    min-width: min(100%, 180px);
+    flex: 1 1 140px;
   }
 }
