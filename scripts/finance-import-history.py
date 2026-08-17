@@ -119,7 +119,10 @@ def main():
         if not event_type: continue
         if event_type not in event_types: raise SystemExit(f'Unsupported account event type: {event_type}')
         date = date_value(value(row, headers, 'date')); event_ticker = ticker(value(row, headers, 'canonical_ticker')) or ticker(value(row, headers, 'security_label_resolved'))
-        amount = finite(value(row, headers, 'net_cash_amount')); reference = finite(value(row, headers, 'source_amount')); quantity = finite(value(row, headers, 'quantity'))
+        amount = finite(value(row, headers, 'net_cash_amount'))
+        source_reference = finite(value(row, headers, 'source_amount'))
+        reference = None if event_type in ('repo_start', 'repo_maturity') else source_reference
+        quantity = finite(value(row, headers, 'quantity'))
         if not date: raise SystemExit(f'Unmappable account event row: {row}')
         event_rows.append({'date': date, 'time': clock(value(row, headers, 'trade_time')), 'type': 'split' if event_type == 'corporate_action_split' else event_type, 'ticker': event_ticker or None, 'name': text(value(row, headers, 'canonical_name')) or None, 'quantity': quantity, 'reference': reference, 'amount': amount, 'category': text(value(row, headers, 'position_category')) or None, 'note': text(value(row, headers, 'source_note')) or None})
 

@@ -221,9 +221,15 @@ async function updateTrade(request: Request, env: FinanceEnv, id: number): Promi
   if (input.ticker !== existing.ticker || input.trade_date !== existing.trade_date) {
     return apiError(409, 'immutable_trade_identity', 'Ticker and date stay fixed when editing an audited trade');
   }
-  const previous = await previousHolding(env, existing.ticker, existing.trade_date);
-  const next = calculateHolding(previous, input);
-  if (!next) return apiError(409, 'insufficient_holding', 'The edited sell quantity exceeds the holding before this trade');
+
+  const [previous, sameDay] = await Promise.all([
+    previousHolding(env, existing.ticker, existing.trade_date),
+    activeTradesOnDate(env, existing.ticker, existing.trade_date),
+  ]);
+  if (!sameDay.some((trade) => trade.id === id)) return apiError(409, 'stale_trade', 'Trade changed before this edit could be committed; reload and retry');
+  const replayed = replayTradeDay(previous, sameDay.map((trade) => trade.id === id ? { ...trade, ...input } : trade), existing.position_category);
+  if (!replayed) return apiError(409, 'insufficient_holding', 'The edited trade would make the same-day holding negative');
+
   const now = new Date().toISOString();
   const results = await env.DB.batch([
     env.DB.prepare(`UPDATE trades SET ticker_name = ?, direction = ?, quantity = ?, price = ?, trade_time = ?, fee = ?, net_cash_amount = ?, position_category = ?, reason = ?,
@@ -235,7 +241,7 @@ async function updateTrade(request: Request, env: FinanceEnv, id: number): Promi
     env.DB.prepare(`UPDATE holdings_snapshots SET quantity = ?, avg_cost = ?, position_category = ?
       WHERE ticker = ? AND snapshot_date = ?
         AND EXISTS (SELECT 1 FROM trades WHERE id = ? AND updated_at = ? AND updated_by = ? AND deleted_at IS NULL)`)
-      .bind(next.quantity, next.avg_cost, input.position_category, existing.ticker, existing.trade_date, id, now, session.username),
+      .bind(replayed.quantity, replayed.avg_cost, replayed.position_category, existing.ticker, existing.trade_date, id, now, session.username),
   ]);
   if ((results[0]?.meta.changes ?? 0) === 0) return apiError(409, 'stale_trade', 'Trade changed before this edit could be committed; reload and retry');
   return json({ trade: { id, ...input, updated_at: now, updated_by: session.username }, holding: await latestHolding(env, existing.ticker) });
@@ -247,7 +253,15 @@ async function deleteTrade(request: Request, env: FinanceEnv, id: number): Promi
   if (await hasActiveBlackCircuit(env)) return apiError(409, 'black_circuit_active', 'All trades remain paused until both roles confirm recovery');
   const existing = await editableTrade(env, id);
   if (existing instanceof Response) return existing;
-  const previous = await previousHolding(env, existing.ticker, existing.trade_date);
+
+  const [previous, sameDay] = await Promise.all([
+    previousHolding(env, existing.ticker, existing.trade_date),
+    activeTradesOnDate(env, existing.ticker, existing.trade_date),
+  ]);
+  if (!sameDay.some((trade) => trade.id === id)) return apiError(409, 'stale_trade', 'Trade changed before this delete could be committed; reload and retry');
+  const replayed = replayTradeDay(previous, sameDay.filter((trade) => trade.id !== id), existing.position_category);
+  if (!replayed) return apiError(409, 'insufficient_holding', 'Deleting this trade would make the same-day holding negative');
+
   const now = new Date().toISOString();
   const results = await env.DB.batch([
     env.DB.prepare('UPDATE trades SET deleted_at = ?, deleted_by = ? WHERE id = ? AND deleted_at IS NULL AND updated_at IS ?').bind(now, session.username, id, existing.updated_at ?? null),
@@ -257,7 +271,7 @@ async function deleteTrade(request: Request, env: FinanceEnv, id: number): Promi
     env.DB.prepare(`UPDATE holdings_snapshots SET quantity = ?, avg_cost = ?, position_category = ?
       WHERE ticker = ? AND snapshot_date = ?
         AND EXISTS (SELECT 1 FROM trades WHERE id = ? AND deleted_at = ? AND deleted_by = ?)`)
-      .bind(Number(previous?.quantity ?? 0), Number(previous?.avg_cost ?? 0), previous?.position_category ?? existing.position_category, existing.ticker, existing.trade_date, id, now, session.username),
+      .bind(replayed.quantity, replayed.avg_cost, replayed.position_category, existing.ticker, existing.trade_date, id, now, session.username),
   ]);
   if ((results[0]?.meta.changes ?? 0) === 0) return apiError(409, 'stale_trade', 'Trade changed before this delete could be committed; reload and retry');
   return json({ deleted: true, holding: await latestHolding(env, existing.ticker) });
@@ -266,15 +280,21 @@ async function deleteTrade(request: Request, env: FinanceEnv, id: number): Promi
 async function editableTrade(env: FinanceEnv, id: number): Promise<TradeRow | Response> {
   const trade = await env.DB.prepare('SELECT * FROM trades WHERE id = ? AND deleted_at IS NULL').bind(id).first<TradeRow>();
   if (!trade) return apiError(404, 'not_found', 'Trade not found');
-  const latest = await env.DB.prepare(`SELECT id FROM trades WHERE ticker = ? AND deleted_at IS NULL
-    ORDER BY trade_date DESC, id DESC LIMIT 1`).bind(trade.ticker).first<{ id: number }>();
-  const sameDay = await env.DB.prepare(`SELECT COUNT(*) AS count FROM trades
-    WHERE ticker = ? AND trade_date = ? AND deleted_at IS NULL`).bind(trade.ticker, trade.trade_date).first<{ count: number }>();
   const holding = await latestHolding(env, trade.ticker);
-  if (latest?.id !== id || Number(sameDay?.count ?? 0) !== 1 || holding?.snapshot_date !== trade.trade_date) {
-    return apiError(409, 'trade_locked_by_history', 'Only the latest standalone online trade can be changed without rewriting reviewed history');
+  if (trade.created_by?.startsWith('historical-import:') || holding?.snapshot_date !== trade.trade_date) {
+    return apiError(409, 'trade_locked_by_history', 'Only the latest online trade day can be changed without rewriting reviewed history');
   }
   return trade;
+}
+
+async function activeTradesOnDate(env: FinanceEnv, ticker: string, tradeDate: string): Promise<TradeRow[]> {
+  const rows = await env.DB.prepare(`SELECT trade_date, trade_time, ticker, ticker_name, direction, quantity, price, fee, net_cash_amount,
+      position_category, reason, id, created_by, updated_at, updated_by, deleted_at
+    FROM trades WHERE ticker = ? AND trade_date = ? AND deleted_at IS NULL ORDER BY id ASC`)
+    .bind(ticker, tradeDate).all<TradeRow>();
+  return rows.results
+    .filter((trade) => trade.ticker === ticker && trade.trade_date === tradeDate && !trade.deleted_at)
+    .map((trade) => ({ ...trade, quantity: Number(trade.quantity), price: Number(trade.price) }));
 }
 
 async function latestHolding(env: FinanceEnv, ticker: string): Promise<HoldingSnapshot | null> {
@@ -287,16 +307,33 @@ async function previousHolding(env: FinanceEnv, ticker: string, beforeDate: stri
     WHERE ticker = ? AND snapshot_date < ? ORDER BY snapshot_date DESC, id DESC LIMIT 1`).bind(ticker, beforeDate).first<HoldingSnapshot>();
 }
 
-function calculateHolding(previous: HoldingSnapshot | null, input: ReturnType<typeof normalizeTrade>) {
-  if (!input) return null;
+export function replayTradeDay(previous: HoldingSnapshot | null, trades: Array<Pick<TradeRow, 'id' | 'trade_date' | 'trade_time' | 'direction' | 'quantity' | 'price' | 'position_category'>>, fallbackCategory = '其他') {
+  const allTimed = trades.every((trade) => Boolean(trade.trade_time));
+  const ordered = [...trades].sort((left, right) => allTimed
+    ? String(left.trade_time).localeCompare(String(right.trade_time)) || left.id - right.id
+    : left.id - right.id);
+  let holding = {
+    quantity: Number(previous?.quantity ?? 0),
+    avg_cost: Number(previous?.avg_cost ?? 0),
+    position_category: previous?.position_category ?? fallbackCategory,
+  };
+  for (const trade of ordered) {
+    const next = calculateHolding(holding, trade);
+    if (!next) return null;
+    holding = { ...next, position_category: trade.position_category };
+  }
+  return holding;
+}
+
+function calculateHolding(previous: Pick<HoldingSnapshot, 'quantity' | 'avg_cost'> | null, input: { direction: 'buy' | 'sell'; quantity: number; price: number }) {
   const previousQuantity = Number(previous?.quantity ?? 0);
   const previousCost = Number(previous?.avg_cost ?? 0);
-  const quantity = input.direction === 'buy' ? previousQuantity + input.quantity : previousQuantity - input.quantity;
-  if (quantity < 0) return null;
+  const quantity = input.direction === 'buy' ? previousQuantity + Number(input.quantity) : previousQuantity - Number(input.quantity);
+  if (!Number.isFinite(quantity) || quantity < 0) return null;
   const avg_cost = input.direction === 'buy'
-    ? ((previousQuantity * previousCost) + (input.quantity * input.price)) / quantity
+    ? ((previousQuantity * previousCost) + (Number(input.quantity) * Number(input.price))) / quantity
     : quantity === 0 ? 0 : previousCost;
-  return { quantity, avg_cost };
+  return Number.isFinite(avg_cost) ? { quantity, avg_cost } : null;
 }
 
 function normalizeTrade(value: TradeInput) {

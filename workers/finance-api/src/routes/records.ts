@@ -246,7 +246,7 @@ type AccountEventInput = {
   quantity?: unknown; reference_value?: unknown; amount?: unknown; position_category?: unknown; note?: unknown;
 };
 
-function normalizeAccountEvent(value: AccountEventInput) {
+export function normalizeAccountEvent(value: AccountEventInput) {
   const event_date = string(value.event_date, 10);
   const event_time = value.event_time === undefined || value.event_time === null || value.event_time === '' ? null : string(value.event_time, 5);
   const event_type = string(value.event_type, 32);
@@ -255,6 +255,11 @@ function normalizeAccountEvent(value: AccountEventInput) {
   const position_category = nullableString(value.position_category, 64); const note = nullableString(value.note, 2_000);
   if (!isoDay.test(event_date) || (event_time !== null && !/^([01]\d|2[0-3]):[0-5]\d$/.test(event_time)) || !['dividend', 'dividend_tax', 'split', 'repo_start', 'repo_maturity', 'refund', 'other'].includes(event_type)
     || ticker === undefined || ticker_name === undefined || quantity === undefined || reference_value === undefined || amount === undefined || position_category === undefined || note === undefined) return null;
+  if (event_type === 'repo_start' || event_type === 'repo_maturity') {
+    if (reference_value === null || reference_value <= 0 || amount === null) return null;
+    if (event_type === 'repo_start' && amount >= 0) return null;
+    if (event_type === 'repo_maturity' && amount <= 0) return null;
+  }
   return { event_date, event_time, event_type, ticker, ticker_name, quantity, reference_value, amount, position_category, note };
 }
 

@@ -31,6 +31,7 @@ export type RepoEventRow = {
   event_time: string | null;
   event_type: 'repo_start' | 'repo_maturity';
   repo_key: string;
+  reference_value: number | null;
   amount: number | null;
 };
 
@@ -175,11 +176,15 @@ export function selectCashFactsAfterReconciliation(
 
 async function allRepoEvents(env: FinanceEnv) {
   const rows = await env.DB.prepare(`SELECT id, event_date, event_time, event_type,
-      COALESCE(NULLIF(ticker, ''), NULLIF(ticker_name, ''), 'repo') AS repo_key, amount
+      COALESCE(NULLIF(ticker, ''), NULLIF(ticker_name, ''), 'repo') AS repo_key, reference_value, amount
     FROM finance_account_events
     WHERE deleted_at IS NULL AND event_type IN ('repo_start', 'repo_maturity')
     ORDER BY event_date ASC, COALESCE(event_time, '00:00') ASC, id ASC`).all<RepoEventRow>();
-  return rows.results.map((row) => ({ ...row, amount: row.amount === null ? null : Number(row.amount) }));
+  return rows.results.map((row) => ({
+    ...row,
+    reference_value: row.reference_value === null ? null : Number(row.reference_value),
+    amount: row.amount === null ? null : Number(row.amount),
+  }));
 }
 
 export function projectCash(anchorCash: number, facts: CashFactRow[]) {
@@ -221,7 +226,7 @@ export function projectCash(anchorCash: number, facts: CashFactRow[]) {
 }
 
 export function projectRepoAssets(events: RepoEventRow[]) {
-  const open = new Map<string, number[]>();
+  const open = new Map<string, Array<number | null>>();
   const problems: string[] = [];
   let value = 0;
 
@@ -231,29 +236,44 @@ export function projectRepoAssets(events: RepoEventRow[]) {
       continue;
     }
     const queue = open.get(event.repo_key) ?? [];
+    const explicitPrincipal = event.reference_value !== null
+      && Number.isFinite(event.reference_value)
+      && event.reference_value > 0
+      ? Number(event.reference_value)
+      : null;
+
     if (event.event_type === 'repo_start') {
       if (event.amount >= 0) {
         problems.push(`account-event:${event.id} 的逆回购发生金额应为负数。`);
         continue;
       }
-      const carryingValue = Math.abs(event.amount);
-      queue.push(carryingValue);
+      queue.push(explicitPrincipal);
       open.set(event.repo_key, queue);
-      value += carryingValue;
+      if (explicitPrincipal !== null) value += explicitPrincipal;
       continue;
     }
+
     if (event.amount <= 0) {
       problems.push(`account-event:${event.id} 的逆回购回款金额应为正数。`);
       continue;
     }
-    const carryingValue = queue.shift();
-    if (carryingValue === undefined) {
+    const carryingPrincipal = queue.shift();
+    if (carryingPrincipal === undefined) {
       problems.push(`account-event:${event.id} 找不到对应的未到期逆回购。`);
       continue;
     }
-    value -= carryingValue;
+    if (carryingPrincipal !== null) {
+      if (explicitPrincipal !== null && Math.abs(explicitPrincipal - carryingPrincipal) > CASH_TOLERANCE) {
+        problems.push(`account-event:${event.id} 的逆回购本金与发生记录不一致。`);
+      }
+      value -= carryingPrincipal;
+    }
     if (queue.length) open.set(event.repo_key, queue); else open.delete(event.repo_key);
   }
+
+  const missingOpenPrincipal = [...open.entries()]
+    .flatMap(([key, queue]) => queue.filter((principal) => principal === null).map(() => key));
+  for (const key of missingOpenPrincipal) problems.push(`未到期逆回购 ${key} 缺少明确本金，不能计入其他账户资产。`);
 
   if (Math.abs(value) < CASH_TOLERANCE) value = 0;
   return {

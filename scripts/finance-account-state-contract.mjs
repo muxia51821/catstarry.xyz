@@ -61,24 +61,24 @@ assert.equal(boundedCash.problems.length, 2);
 assert.ok(boundedCash.problems.every((problem) => /同一财务日/.test(problem)));
 
 const closedRepo = projectRepoAssets([
-  { id: 1, event_date: '2026-06-01', event_time: '14:32', event_type: 'repo_start', repo_key: 'R-001', amount: -8_000.01 },
-  { id: 2, event_date: '2026-06-02', event_time: null, event_type: 'repo_maturity', repo_key: 'R-001', amount: 8_000.30 },
+  { id: 1, event_date: '2026-06-01', event_time: '14:32', event_type: 'repo_start', repo_key: 'R-001', reference_value: 8_000, amount: -8_000.01 },
+  { id: 2, event_date: '2026-06-02', event_time: null, event_type: 'repo_maturity', repo_key: 'R-001', reference_value: 8_000, amount: 8_000.30 },
 ]);
 assert.deepEqual(closedRepo, { value: 0, known_value: 0, status: 'clear', open_repo_count: 0, problems: [] });
 
 const openRepo = projectRepoAssets([
-  { id: 3, event_date: '2026-07-29', event_time: '14:37', event_type: 'repo_start', repo_key: 'R-001', amount: -36_000.04 },
+  { id: 3, event_date: '2026-07-29', event_time: '14:37', event_type: 'repo_start', repo_key: 'R-001', reference_value: 36_000, amount: -36_000.04 },
 ]);
-assert.deepEqual(openRepo, { value: 36_000.04, known_value: 36_000.04, status: 'open_repo', open_repo_count: 1, problems: [] });
+assert.deepEqual(openRepo, { value: 36_000, known_value: 36_000, status: 'open_repo', open_repo_count: 1, problems: [] });
 
 const maturedRepo = projectRepoAssets([
-  { id: 3, event_date: '2026-07-29', event_time: '14:37', event_type: 'repo_start', repo_key: 'R-001', amount: -36_000.04 },
-  { id: 4, event_date: '2026-07-30', event_time: null, event_type: 'repo_maturity', repo_key: 'R-001', amount: 36_001.39 },
+  { id: 3, event_date: '2026-07-29', event_time: '14:37', event_type: 'repo_start', repo_key: 'R-001', reference_value: 36_000, amount: -36_000.04 },
+  { id: 4, event_date: '2026-07-30', event_time: null, event_type: 'repo_maturity', repo_key: 'R-001', reference_value: 36_000, amount: 36_001.39 },
 ]);
 assert.deepEqual(maturedRepo, { value: 0, known_value: 0, status: 'clear', open_repo_count: 0, problems: [] });
 
 const brokenRepo = projectRepoAssets([
-  { id: 5, event_date: '2026-07-30', event_time: null, event_type: 'repo_maturity', repo_key: 'R-001', amount: 36_001.39 },
+  { id: 5, event_date: '2026-07-30', event_time: null, event_type: 'repo_maturity', repo_key: 'R-001', reference_value: 36_000, amount: 36_001.39 },
 ]);
 assert.equal(brokenRepo.value, null);
 assert.equal(brokenRepo.status, 'incomplete');
@@ -127,8 +127,8 @@ database.prepare(`INSERT INTO finance_account_events (
   event_date, event_time, event_type, ticker, ticker_name, amount, note, created_at, created_by
 ) VALUES ('2026-08-17', '11:00', 'dividend', '300750', '宁德时代', 20, 'fixture', '2026-08-17T03:30:00.000Z', 'muxia')`).run();
 database.prepare(`INSERT INTO finance_account_events (
-  event_date, event_time, event_type, ticker_name, amount, note, created_at, created_by
-) VALUES ('2026-08-17', '14:00', 'repo_start', 'R-001', -200.01, 'fixture', '2026-08-17T06:00:00.000Z', 'muxia')`).run();
+  event_date, event_time, event_type, ticker_name, reference_value, amount, note, created_at, created_by
+) VALUES ('2026-08-17', '14:00', 'repo_start', 'R-001', 200, -200.01, 'fixture', '2026-08-17T06:00:00.000Z', 'muxia')`).run();
 
 const state = await readAccountState({ DB: new SqliteD1(database) });
 assert.equal(state.reconciliation.through_date, '2026-08-16', 'synthetic backfill must not supersede the broker reconciliation anchor');
@@ -137,8 +137,8 @@ assert.equal(state.cash.status, 'projected');
 assert.equal(state.cash.value, 1_219.49);
 assert.equal(state.cash.projected_delta, 219.49);
 assert.equal(state.other_assets.status, 'open_repo');
-assert.equal(state.other_assets.value, 200.01);
-assert.equal(state.total_assets, 40_812.5);
+assert.equal(state.other_assets.value, 200);
+assert.equal(state.total_assets, 40_812.49);
 
 // An intraday reconciliation is a timestamp boundary, not a whole-day watermark.
 database.prepare(`INSERT INTO finance_asset_snapshots (

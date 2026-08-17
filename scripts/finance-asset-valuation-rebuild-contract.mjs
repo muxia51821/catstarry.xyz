@@ -66,8 +66,8 @@ function seedPrice(database, ticker, date, close) {
     VALUES ('2026-07-10','10:00','515880','通信ETF','buy',4,10,0,-40,'其他',NULL,0,'2026-07-10T02:00:00.000Z','contract')`).run();
   database.prepare(`INSERT INTO finance_account_events (event_date,event_time,event_type,ticker,ticker_name,quantity,reference_value,amount,position_category,note,created_at,created_by) VALUES
     ('2026-07-05',NULL,'split','515880','通信ETF',5,0,NULL,'其他','quantity is pre-event holding boundary','2026-07-05T00:00:00.000Z','contract'),
-    ('2026-07-20','14:30','repo_start','R-001','R-001',NULL,NULL,-30,'机动仓（货币ETF）',NULL,'2026-07-20T06:30:00.000Z','contract'),
-    ('2026-07-21',NULL,'repo_maturity','R-001','R-001',NULL,NULL,31,'机动仓（货币ETF）',NULL,'2026-07-21T00:00:00.000Z','contract')`).run();
+    ('2026-07-20','14:30','repo_start','R-001','R-001',NULL,30,-30,'机动仓（货币ETF）',NULL,'2026-07-20T06:30:00.000Z','contract'),
+    ('2026-07-21',NULL,'repo_maturity','R-001','R-001',NULL,30,31,'机动仓（货币ETF）',NULL,'2026-07-21T00:00:00.000Z','contract')`).run();
   seedPrice(database, '515880', '2026-07-04', 20); seedPrice(database, '000001', '2026-07-04', 50);
   seedPrice(database, '515880', '2026-07-20', 10); // Deliberately omit 000001 on this day.
   seedPrice(database, '515880', '2026-07-21', 10); seedPrice(database, '000001', '2026-07-21', 50);

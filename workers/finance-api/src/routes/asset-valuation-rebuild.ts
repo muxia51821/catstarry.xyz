@@ -17,7 +17,7 @@ type ReconciliationRow = { id: number; snapshot_date: string; snapshot_at: strin
 type HoldingRow = { ticker: string; quantity: number };
 type TradeRow = { id: number; trade_date: string; trade_time: string | null; ticker: string; direction: 'buy' | 'sell'; quantity: number; net_cash_amount: number | null };
 type CashFlowRow = { id: number; occurred_on: string; net_amount: number };
-type AccountEventRow = { id: number; event_date: string; event_time: string | null; event_type: string; ticker: string | null; ticker_name: string | null; quantity: number | null; amount: number | null };
+type AccountEventRow = { id: number; event_date: string; event_time: string | null; event_type: string; ticker: string | null; ticker_name: string | null; quantity: number | null; reference_value: number | null; amount: number | null };
 type PriceRow = { ticker: string; price_date: string; close: number; source: string };
 type ValuationRow = {
   valuation_date: string;
@@ -143,6 +143,7 @@ export async function rebuildAssetValuations(
       event_time: event.event_time,
       event_type: event.event_type as 'repo_start' | 'repo_maturity',
       repo_key: event.ticker || event.ticker_name || 'repo',
+      reference_value: event.reference_value,
       amount: event.amount,
     }));
 
@@ -343,12 +344,13 @@ async function activeCashFlowsThrough(env: FinanceEnv, throughDate: string) {
 }
 
 async function activeAccountEventsThrough(env: FinanceEnv, throughDate: string) {
-  const rows = await env.DB.prepare(`SELECT id, event_date, event_time, event_type, ticker, ticker_name, quantity, amount
+  const rows = await env.DB.prepare(`SELECT id, event_date, event_time, event_type, ticker, ticker_name, quantity, reference_value, amount
     FROM finance_account_events WHERE deleted_at IS NULL AND event_date <= ?
     ORDER BY event_date ASC, COALESCE(event_time, '00:00') ASC, id ASC`).bind(throughDate).all<AccountEventRow>();
   return rows.results.map((row) => ({
     ...row,
     quantity: row.quantity === null ? null : Number(row.quantity),
+    reference_value: row.reference_value === null ? null : Number(row.reference_value),
     amount: row.amount === null ? null : Number(row.amount),
   }));
 }
