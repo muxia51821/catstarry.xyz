@@ -26,7 +26,8 @@ async function listReconciliations(request: Request, env: FinanceEnv) {
   const session = await requireFinanceRole(request, env);
   if (session instanceof Response) return session;
   const rows = await env.DB.prepare(`SELECT * FROM finance_asset_snapshots
-    WHERE deleted_at IS NULL ORDER BY snapshot_at DESC, id DESC LIMIT 300`).all();
+    WHERE deleted_at IS NULL
+    ORDER BY snapshot_date DESC, julianday(snapshot_at) DESC, id DESC LIMIT 300`).all();
   return json({ snapshots: rows.results, reconciliations: rows.results });
 }
 
@@ -43,7 +44,8 @@ async function saveReconciliation(request: Request, env: FinanceEnv) {
   const result = await env.DB.prepare(`INSERT INTO finance_asset_snapshots (
       snapshot_at, snapshot_date, holdings_value, cash_value, other_assets_value,
       total_value, source, is_complete, incomplete_reason, created_at, created_by
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(snapshot_at, source) DO NOTHING`)
     .bind(
       input.snapshot_at,
       input.snapshot_date,
@@ -57,6 +59,10 @@ async function saveReconciliation(request: Request, env: FinanceEnv) {
       now,
       session.username,
     ).run();
+
+  if ((result.meta.changes ?? 0) === 0) {
+    return apiError(409, 'duplicate_asset_reconciliation', 'An asset reconciliation with the same observation time and source already exists');
+  }
 
   return json({
     created: true,
