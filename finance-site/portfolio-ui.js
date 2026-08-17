@@ -66,11 +66,12 @@ function schedulePortfolioRefresh() {
     if (!portfolioCanRender()) return;
     const epoch = ++portfolioEpoch;
     try {
-      const [accountState, holdingsPage, securitiesPage, tradeCatalog] = await Promise.all([
+      const [accountState, holdingsPage, securitiesPage, tradeCatalog, reconciliationPage] = await Promise.all([
         portfolioRequest('/api/account-state'),
         portfolioRequest('/api/holdings'),
         portfolioRequest('/api/securities'),
         loadPortfolioTradeCatalog(),
+        portfolioRequest('/api/assets/snapshots').catch(() => null),
       ]);
       if (epoch !== portfolioEpoch || !portfolioCanRender()) return;
       portfolioHoldings = holdingsPage?.holdings ?? [];
@@ -81,6 +82,7 @@ function schedulePortfolioRefresh() {
       installPortfolioClassificationFilters();
       renderPortfolioHoldings();
       decoratePortfolioTradeTable();
+      if (reconciliationPage) renderPortfolioReconciliations(reconciliationPage.snapshots ?? reconciliationPage.reconciliations ?? []);
       normalizePortfolioHistoryCopy();
     } catch (error) {
       if (epoch !== portfolioEpoch || !portfolioCanRender()) return;
@@ -227,7 +229,7 @@ function renderPortfolioHoldings() {
     if (row.ticker_name) title.append(portfolioElement('small', 'portfolio-ticker-code', row.ticker));
     if (row.stale) title.append(portfolioElement('small', 'stale-flag', '行情过期'));
     const pnl = finiteNumber(row.pnl);
-    return portfolioElement('tr', '', undefined).appendChild ? holdingRow([
+    return holdingRow([
       title,
       roleCell(row.position_category),
       securityAttributeCell(security?.security_attribute),
@@ -236,8 +238,8 @@ function renderPortfolioHoldings() {
       dataCell(maybeMoney(row.price)),
       dataCell(maybeMoney(row.market_value)),
       dataCell(maybeMoney(row.pnl), pnl === null ? '' : pnl >= 0 ? 'value-up' : 'value-down'),
-    ]) : null;
-  }).filter(Boolean));
+    ]);
+  }));
 
   const empty = document.querySelector('[data-holdings-empty]');
   if (empty) {
@@ -318,6 +320,117 @@ function tradeAttributeByLabel() {
   return result;
 }
 
+function renderPortfolioReconciliations(rows) {
+  const body = document.querySelector('[data-asset-snapshots-body]');
+  if (!body) return;
+  const table = body.closest('table');
+  const header = table?.querySelector('thead tr');
+  if (header) {
+    header.replaceChildren(...['对账时间', '证券市值', 'Broker Cash', '其他账户资产', '观测总资产', '状态与来源'].map((label) => portfolioElement('th', '', label)));
+  }
+  body.replaceChildren(...rows.slice(0, 12).map((row) => {
+    const state = Number(row.is_complete) === 1 ? '完整' : `不完整${row.incomplete_reason ? ` · ${row.incomplete_reason}` : ''}`;
+    return holdingRow([
+      dataCell(row.snapshot_at || row.snapshot_date || '—'),
+      dataCell(maybeMoney(row.holdings_value)),
+      dataCell(maybeMoney(row.cash_value)),
+      dataCell(maybeMoney(row.other_assets_value ?? 0)),
+      dataCell(maybeMoney(row.total_value)),
+      portfolioElement('td', 'table-text', `${state} · ${row.source || '—'}`),
+    ]);
+  }));
+  const empty = document.querySelector('[data-asset-snapshots-empty]');
+  if (empty) empty.hidden = rows.length > 0;
+}
+
+function normalizeWorkspaceIa() {
+  const memoPanel = document.querySelector('[data-pane="review"][aria-labelledby="memo-title"]');
+  if (memoPanel && !memoPanel.querySelector('[data-memo-workspace-note]')) {
+    const note = portfolioElement('p', 'portfolio-workspace-note', '投资备忘录是独立的判断记录；共同确认与熔断属于治理动作，不是备忘录的上级流程。');
+    note.dataset.memoWorkspaceNote = '';
+    memoPanel.querySelector('.panel-header')?.after(note);
+  }
+
+  const monthlyPanel = document.querySelector('[data-pane="planning"][aria-labelledby="monthly-title"] .panel-copy');
+  if (monthlyPanel) monthlyPanel.textContent = '月度总结保留叙事与复盘；真实现金流、账户对账与历史估值分别由各自的事实记录提供。';
+
+  const accountPanel = document.querySelector('[data-pane="planning"][aria-labelledby="account-events-title"]');
+  const accountHeader = accountPanel?.querySelector('thead th:first-child');
+  if (accountHeader) accountHeader.textContent = '财务生效日';
+
+  const reconciliationPanel = document.querySelector('[data-pane="planning"][aria-labelledby="asset-snapshots-title"]');
+  if (reconciliationPanel) {
+    const eyebrow = reconciliationPanel.querySelector('.eyebrow');
+    const title = reconciliationPanel.querySelector('#asset-snapshots-title');
+    const button = reconciliationPanel.querySelector('[data-open-asset-snapshot]');
+    const empty = reconciliationPanel.querySelector('[data-asset-snapshots-empty]');
+    const error = reconciliationPanel.querySelector('[data-asset-snapshots-error]');
+    if (eyebrow) eyebrow.textContent = 'ASSET RECONCILIATION';
+    if (title) title.textContent = '资产对账';
+    if (button) button.textContent = '记录资产对账';
+    if (empty) empty.textContent = '还没有人工或券商账户对账。';
+    if (error) error.textContent = '资产对账暂时无法读取';
+  }
+
+  const monthlyDialog = document.querySelector('[data-monthly-dialog]');
+  const monthlyIntro = monthlyDialog?.querySelector('.dialog-intro');
+  if (monthlyIntro) monthlyIntro.textContent = 'PE 与温度由行情接入写入；月度记录只保存总结与历史兼容字段。总资产曲线由事实记录与 canonical raw close 派生，不由月度表或人工对账直接生成。';
+
+  const accountDialog = document.querySelector('[data-account-event-dialog]');
+  const accountForm = accountDialog?.querySelector('[data-account-event-form]');
+  if (accountForm) {
+    replaceDirectLabelText(accountForm.elements.event_date?.closest('label'), '财务生效日');
+    replaceDirectLabelText(accountForm.elements.quantity?.closest('label'), '数量（分拆时＝拆分前持仓）');
+    const intro = accountDialog.querySelector('.dialog-intro');
+    if (intro) intro.textContent = '账户内部事件不会写入外部现金流。红利按实际到账日生效；ETF 分拆的数量填写拆分前持仓数量。';
+  }
+
+  const reconciliationDialog = document.querySelector('[data-asset-snapshot-dialog]');
+  const reconciliationForm = reconciliationDialog?.querySelector('[data-asset-snapshot-form]');
+  if (reconciliationForm) {
+    const eyebrow = reconciliationDialog.querySelector('.eyebrow');
+    const title = reconciliationDialog.querySelector('h2');
+    const intro = reconciliationDialog.querySelector('.dialog-intro');
+    const submit = reconciliationForm.querySelector('button[type="submit"]');
+    if (eyebrow) eyebrow.textContent = 'ASSET RECONCILIATION';
+    if (title) title.textContent = '记录资产对账';
+    if (intro) intro.textContent = '对账是券商或人工观测证据，不是历史曲线数据源。观测总资产 = 证券市值 + Broker Cash + 其他账户资产。';
+    if (submit) submit.textContent = '保存资产对账';
+    replaceDirectLabelText(reconciliationForm.elements.snapshot_at?.closest('label'), '对账时间');
+    replaceDirectLabelText(reconciliationForm.elements.holdings_value?.closest('label'), '已核验证券市值');
+    replaceDirectLabelText(reconciliationForm.elements.cash_value?.closest('label'), 'Broker Cash');
+    replaceDirectLabelText(reconciliationForm.elements.incomplete_reason?.closest('label'), '对账缺口说明（不完整时必填）');
+    const source = reconciliationForm.elements.source;
+    if (source) source.placeholder = '例如：券商账户截图';
+    const completeness = reconciliationForm.elements.is_complete?.closest('label');
+    const completenessText = completeness?.querySelector('span');
+    if (completenessText) completenessText.textContent = '本次账户观测完整，可作为 reconciliation anchor';
+    installOtherAssetsField(reconciliationForm);
+  }
+}
+
+function installOtherAssetsField(form) {
+  if (form.elements.other_assets_value) return;
+  const field = portfolioElement('label', 'portfolio-reconciliation-field');
+  field.append(document.createTextNode('其他账户资产（逆回购等）'));
+  const input = document.createElement('input');
+  input.name = 'other_assets_value';
+  input.type = 'number';
+  input.min = '0';
+  input.step = 'any';
+  input.value = '0';
+  const note = portfolioElement('small', '', '没有未到期逆回购等账户内其他资产时保持 0。');
+  field.append(input, note);
+  form.elements.is_complete?.closest('label')?.before(field);
+}
+
+function replaceDirectLabelText(label, text) {
+  if (!label) return;
+  const node = [...label.childNodes].find((child) => child.nodeType === Node.TEXT_NODE);
+  if (node) node.textContent = text;
+  else label.prepend(document.createTextNode(text));
+}
+
 function renderPortfolioUnavailable(error) {
   if (!portfolioTotal || !portfolioStatus) return;
   portfolioTotal.textContent = '待核验';
@@ -353,6 +466,8 @@ function finiteNumber(value) {
   const number = Number(value);
   return Number.isFinite(number) ? number : null;
 }
+
+normalizeWorkspaceIa();
 
 if (portfolioApp && portfolioDashboard) {
   const observer = new MutationObserver(() => {
