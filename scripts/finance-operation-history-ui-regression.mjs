@@ -26,7 +26,7 @@ const html = `<!doctype html><html><head>
   <nav><button data-tab="overview" class="is-active">总览</button><button data-tab="records">管理记录</button><button data-refresh>刷新</button></nav>
   <div class="dashboard-grid">
     <section class="panel" data-pane="overview">overview</section>
-    <details class="panel" data-access-panel data-pane="records" hidden open><summary>旧安全访问记录</summary><div data-access-list><p>legacy access fallback</p></div></details>
+    <details class="panel" data-access-panel data-pane="records" hidden><summary>安全访问记录</summary><div data-access-list><p>legacy access fallback</p></div></details>
     <section class="panel" data-import-review-panel data-pane="records" hidden><h2>旧 Import Review</h2><div data-import-review-list><p>legacy review fallback</p></div></section>
   </div>
 </div>
@@ -117,14 +117,16 @@ try {
   const admin = await evaluate(`({
     fetchPreserved: window.fetch === window.__fetchBeforeOperations,
     time: document.querySelector('.operation-time')?.textContent,
-    legacyAccessHidden: getComputedStyle(document.querySelector('[data-access-panel]')).display === 'none',
+    securityAccessVisible: getComputedStyle(document.querySelector('[data-access-panel]')).display !== 'none',
+    securityAccessCollapsed: document.querySelector('[data-access-panel]')?.open === false,
     legacyReviewHidden: getComputedStyle(document.querySelector('[data-import-review-panel]')).display === 'none',
     historyTitle: document.querySelector('#operation-history-title')?.textContent,
     reviewTitle: document.querySelector('#canonical-import-review-title')?.textContent,
   })`);
   assert.equal(admin.fetchPreserved, true, 'Operation History must not replace global window.fetch');
   assert.match(admin.time ?? '', /09:00/, 'operation timestamp must render in Asia/Shanghai');
-  assert.equal(admin.legacyAccessHidden, true);
+  assert.equal(admin.securityAccessVisible, true, 'security access log remains an auxiliary admin disclosure after Operation History takeover');
+  assert.equal(admin.securityAccessCollapsed, true, 'security access log remains collapsed by default');
   assert.equal(admin.legacyReviewHidden, true);
   assert.equal(admin.historyTitle, '变更记录');
   assert.equal(admin.reviewTitle, '导入异常审阅');
