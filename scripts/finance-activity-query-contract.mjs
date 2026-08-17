@@ -37,8 +37,8 @@ db.prepare(`INSERT INTO finance_account_events (
   id, event_date, event_time, event_type, ticker, ticker_name, quantity, note, created_at, created_by
 ) VALUES (105, '2026-07-03', '09:00', 'split', '515880', '通信ETF', 6400, '1:2 份额分拆', '2026-08-16T00:00:00.000Z', 'historical-import:fixture')`).run();
 db.prepare(`INSERT INTO finance_asset_snapshots (
-  id, snapshot_at, snapshot_date, holdings_value, cash_value, total_value, source, is_complete, created_at, created_by
-) VALUES (103, '2026-08-16T02:29:00.000Z', '2026-08-16', 109698.70, 20725.50, 130424.20, 'broker_reconciliation', 1, '2026-08-16T02:29:00.000Z', 'muxia')`).run();
+  id, snapshot_at, snapshot_date, holdings_value, cash_value, other_assets_value, total_value, source, is_complete, created_at, created_by
+) VALUES (103, '2026-08-16T02:29:00.000Z', '2026-08-16', 109698.70, 20725.50, 36000, 166424.20, 'broker_reconciliation', 1, '2026-08-16T02:29:00.000Z', 'muxia')`).run();
 db.prepare(`INSERT INTO finance_asset_snapshots (
   id, snapshot_at, snapshot_date, holdings_value, cash_value, total_value, source, is_complete, created_at, created_by
 ) VALUES (104, '2026-08-15T07:00:00.000Z', '2026-08-15', 100000, 20000, 120000, 'historical_backfill', 1, '2026-08-15T07:00:00.000Z', 'system')`).run();
@@ -52,6 +52,11 @@ assert.equal(all.rows[0].event_key, 'reconciliation:103', 'latest complete real 
 assert.ok(all.rows.some((row) => row.event_key === 'trade:100'), 'accepted historical trades remain real business activity');
 assert.ok(!all.rows.some((row) => row.event_key === 'reconciliation:104'), 'synthetic historical-backfill snapshots must not appear as user activity');
 assert.ok(!all.rows.some((row) => row.event_key === 'reconciliation:106'), 'incomplete observations must not be presented as completed reconciliations');
+
+const reconciliation = humanizeActivity(all.rows.find((row) => row.event_key === 'reconciliation:103'));
+assert.equal(reconciliation.title, '资产对账');
+assert.match(reconciliation.summary, /总资产 ¥166,424\.2.*Broker Cash ¥20,725\.5.*其他账户资产 ¥36,000/);
+assert.equal(reconciliation.details.other_assets_value, 36000, 'Activity must preserve the observed other-assets component of reconciliation evidence');
 
 const trade = all.rows.find((row) => row.event_key === 'trade:100');
 assert.deepEqual(humanizeActivity(trade), {
