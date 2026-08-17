@@ -10,6 +10,12 @@ type SecurityRow = {
   updated_by: string;
 };
 
+type SecurityFilter = {
+  ticker: string | null;
+  security_attribute: string | null;
+  instrument_type: string | null;
+};
+
 export async function handleSecurities(request: Request, env: FinanceEnv): Promise<Response> {
   if (request.method !== 'GET') return apiError(405, 'method_not_allowed', 'Method is not allowed');
   const session = await requireFinanceRole(request, env);
@@ -23,15 +29,23 @@ export async function handleSecurities(request: Request, env: FinanceEnv): Promi
   const instrument = normalizeInstrument(url.searchParams.get('instrument_type'));
   if (instrument === undefined) return apiError(400, 'invalid_instrument_type', 'instrument_type is invalid');
 
+  const built = buildSecurityQuery({ ticker, security_attribute: attribute, instrument_type: instrument });
+  const rows = await env.DB.prepare(built.query).bind(...built.values).all<SecurityRow>();
+  return json({ securities: rows.results, count: rows.results.length });
+}
+
+export function buildSecurityQuery(filter: SecurityFilter) {
   const clauses: string[] = [];
   const values: unknown[] = [];
-  if (ticker) { clauses.push('ticker = ?'); values.push(ticker); }
-  if (attribute) { clauses.push('security_attribute = ?'); values.push(attribute); }
-  if (instrument) { clauses.push('instrument_type = ?'); values.push(instrument); }
+  if (filter.ticker) { clauses.push('ticker = ?'); values.push(filter.ticker); }
+  if (filter.security_attribute) { clauses.push('security_attribute = ?'); values.push(filter.security_attribute); }
+  if (filter.instrument_type) { clauses.push('instrument_type = ?'); values.push(filter.instrument_type); }
   const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
-  const rows = await env.DB.prepare(`SELECT ticker, instrument_type, security_attribute, attribute_source, updated_at, updated_by
-    FROM finance_securities ${where} ORDER BY ticker`).bind(...values).all<SecurityRow>();
-  return json({ securities: rows.results, count: rows.results.length });
+  return {
+    query: `SELECT ticker, instrument_type, security_attribute, attribute_source, updated_at, updated_by
+      FROM finance_securities ${where} ORDER BY ticker`,
+    values,
+  };
 }
 
 function normalizeTicker(value: string | null) {
