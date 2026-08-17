@@ -47,6 +47,8 @@ interface TradeRow {
   memo_reason_source?: string | null;
 }
 
+const MAX_CURSOR_LENGTH = 2_048;
+
 export const HOLDING_UPSERT_SQL = `WITH input (
     trade_date, ticker, direction, quantity, price, position_category
   ) AS (VALUES (?, ?, ?, ?, ?, ?)),
@@ -143,11 +145,25 @@ function optionalFilter(value: string | null, maximum: number): string | null | 
   const result = value.trim();
   return result.length <= maximum ? result : undefined;
 }
-function encodeCursor(value: { sort: string; id: number; filter: unknown }): string { return btoa(JSON.stringify(value)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, ''); }
+function encodeCursor(value: { sort: string; id: number; filter: unknown }): string {
+  const bytes = new TextEncoder().encode(JSON.stringify(value));
+  let binary = '';
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
 function decodeCursor(value: string | null, filter: unknown): { sort: string; id: number } | null | Response {
   if (!value) return null;
-  try { const source = value.replace(/-/g, '+').replace(/_/g, '/'); const parsed = JSON.parse(atob(source + '='.repeat((4 - source.length % 4) % 4))); if (!validDate(parsed.sort) || !Number.isSafeInteger(parsed.id) || parsed.id < 1 || JSON.stringify(parsed.filter) !== JSON.stringify(filter)) throw new Error(); return { sort: parsed.sort, id: parsed.id }; }
-  catch { return apiError(400, 'invalid_cursor', 'Trade cursor is invalid'); }
+  if (value.length > MAX_CURSOR_LENGTH) return apiError(400, 'invalid_cursor', 'Trade cursor is invalid');
+  try {
+    const source = value.replace(/-/g, '+').replace(/_/g, '/');
+    const binary = atob(source + '='.repeat((4 - source.length % 4) % 4));
+    const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+    const parsed = JSON.parse(new TextDecoder().decode(bytes));
+    if (!validDate(parsed.sort) || !Number.isSafeInteger(parsed.id) || parsed.id < 1 || JSON.stringify(parsed.filter) !== JSON.stringify(filter)) throw new Error();
+    return { sort: parsed.sort, id: parsed.id };
+  } catch {
+    return apiError(400, 'invalid_cursor', 'Trade cursor is invalid');
+  }
 }
 
 async function createTrade(request: Request, env: FinanceEnv): Promise<Response> {
