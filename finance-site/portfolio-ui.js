@@ -418,6 +418,7 @@ function installOtherAssetsField(form) {
   input.type = 'number';
   input.min = '0';
   input.step = 'any';
+  input.defaultValue = '0';
   input.value = '0';
   const note = portfolioElement('small', '', '没有未到期逆回购等账户内其他资产时保持 0。');
   field.append(input, note);
