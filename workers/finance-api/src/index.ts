@@ -20,6 +20,8 @@ import { handleTrades } from './routes/trades';
 import { refreshMarketData } from './tasks/refresh-market-data';
 import { logWorkerError, logWorkerWarning } from '../../../shared/worker-log';
 
+const MARKET_REFRESH_CRONS = new Set(['*/15 * * * *', '30 7 * * 1-5']);
+
 function corsFor(env: FinanceEnv) {
   const configured = env.FINANCE_SITE_ORIGIN?.replace(/\/$/, '');
   return {
@@ -64,11 +66,12 @@ export default {
     }
   },
 
-  async scheduled(_controller: ScheduledController, env: FinanceEnv): Promise<void> {
+  async scheduled(controller: ScheduledController, env: FinanceEnv): Promise<void> {
+    if (!MARKET_REFRESH_CRONS.has(controller.cron)) return;
     try {
       await refreshMarketData(env);
     } catch (error) {
-      logWorkerWarning('finance_scheduled_refresh_failed', {}, error);
+      logWorkerWarning('finance_scheduled_refresh_failed', { cron: controller.cron }, error);
     }
   },
 };
