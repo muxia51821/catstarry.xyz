@@ -21,16 +21,18 @@ export async function handleLegacyImportReviewWrite(
   }
 
   const resolvedAt = new Date().toISOString();
-  const auditEnvelope = JSON.stringify({ __finance_operation_history_v1: true, note: resolutionNote, actor: session.username });
   const results = await env.DB.batch([
+    env.DB.prepare(`INSERT INTO finance_legacy_import_review_actor_context (review_id, actor, occurred_at)
+      VALUES (?, ?, ?)
+      ON CONFLICT(review_id) DO UPDATE SET actor = excluded.actor, occurred_at = excluded.occurred_at`)
+      .bind(id, session.username, resolvedAt),
     env.DB.prepare(`UPDATE finance_import_review
       SET status = 'resolved', resolution_note = ?, resolved_at = ?
-      WHERE id = ? AND status = 'pending'`).bind(auditEnvelope, resolvedAt, id),
-    env.DB.prepare(`UPDATE finance_import_review
-      SET resolution_note = ?
-      WHERE resolved_at = ? AND id = ? AND status = 'resolved'`).bind(resolutionNote, resolvedAt, id),
+      WHERE id = ? AND status = 'pending'`).bind(resolutionNote, resolvedAt, id),
+    env.DB.prepare(`DELETE FROM finance_legacy_import_review_actor_context
+      WHERE review_id = ? AND occurred_at = ?`).bind(id, resolvedAt),
   ]);
-  if ((results[0]?.meta.changes ?? 0) === 0) {
+  if ((results[1]?.meta.changes ?? 0) === 0) {
     return apiError(409, 'not_resolvable', 'Review item does not exist or was already resolved');
   }
   return json({ id, status: 'resolved', resolution_note: resolutionNote, resolved_at: resolvedAt });
