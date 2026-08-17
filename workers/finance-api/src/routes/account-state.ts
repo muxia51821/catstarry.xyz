@@ -47,21 +47,24 @@ export async function handleAccountState(request: Request, env: FinanceEnv): Pro
   if (request.method !== 'GET') return apiError(405, 'method_not_allowed', 'Method is not allowed');
   const session = await requireFinanceRole(request, env);
   if (session instanceof Response) return session;
+  return json(await readAccountState(env));
+}
 
+export async function readAccountState(env: FinanceEnv) {
   const reconciliation = await latestReconciliation(env);
   const holdings = await currentHoldings(env);
   const repoEvents = await allRepoEvents(env);
   const repoState = projectRepoAssets(repoEvents);
 
   if (!reconciliation) {
-    return json({
+    return {
       reconciliation: null,
       holdings,
       cash: { value: null, status: 'unreconciled', projected_delta: null, replayed_facts: 0, problems: ['尚无完整的人工或券商现金余额对账。'] },
       other_assets: repoState,
       total_assets: null,
       total_status: 'incomplete',
-    });
+    };
   }
 
   const facts = await cashFactsAfter(env, reconciliation.snapshot_date);
@@ -70,7 +73,7 @@ export async function handleAccountState(request: Request, env: FinanceEnv): Pro
     ? Number(holdings.market_value) + Number(cash.value) + Number(repoState.value)
     : null;
 
-  return json({
+  return {
     reconciliation: {
       id: reconciliation.id,
       observed_at: reconciliation.snapshot_at,
@@ -86,7 +89,7 @@ export async function handleAccountState(request: Request, env: FinanceEnv): Pro
     other_assets: repoState,
     total_assets: totalAssets,
     total_status: totalAssets === null ? 'incomplete' : holdings.stale_count > 0 ? 'stale_market' : cash.status,
-  });
+  };
 }
 
 async function latestReconciliation(env: FinanceEnv) {
