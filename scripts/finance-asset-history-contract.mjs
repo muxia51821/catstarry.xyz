@@ -11,13 +11,19 @@ for (const file of (await readdir('workers/finance-api/migrations')).filter((nam
 // Historical prices are one canonical raw/unadjusted close per security/day.
 db.prepare(`INSERT INTO finance_security_prices (ticker, price_date, close, source, adjustment, created_at, created_by)
   VALUES ('515880', '2026-06-30', 1.7948, 'mootdx', 'raw', '2026-08-17T00:00:00.000Z', 'contract')`).run();
-assert.deepEqual({ ...db.prepare(`SELECT ticker, price_date, close, source, adjustment FROM finance_security_prices`).get() }, {
-  ticker: '515880', price_date: '2026-06-30', close: 1.7948, source: 'mootdx', adjustment: 'raw',
+assert.deepEqual({ ...db.prepare(`SELECT ticker, price_date, close, source, adjustment, price_status FROM finance_security_prices`).get() }, {
+  ticker: '515880', price_date: '2026-06-30', close: 1.7948, source: 'mootdx', adjustment: 'raw', price_status: 'observed',
 });
 assert.throws(() => db.prepare(`INSERT INTO finance_security_prices (ticker, price_date, close, source, adjustment, created_at, created_by)
   VALUES ('515880', '2026-06-30', 0.8974, 'web-crosscheck', 'raw', '2026-08-17T00:00:00.000Z', 'contract')`).run(), /UNIQUE constraint failed/, 'cross-check sources must not create competing canonical closes for the same security/day');
 assert.throws(() => db.prepare(`INSERT INTO finance_security_prices (ticker, price_date, close, source, adjustment, created_at, created_by)
   VALUES ('515880', '2026-06-29', 0.8974, 'bad-adjusted-source', 'split_adjusted', '2026-08-17T00:00:00.000Z', 'contract')`).run(), /CHECK constraint failed/);
+assert.throws(() => db.prepare(`INSERT INTO finance_security_prices (ticker, price_date, close, source, adjustment, price_status, created_at, created_by)
+  VALUES ('515880', '2026-07-01', 1.7948, 'guessed', 'raw', 'guessed', '2026-08-17T00:00:00.000Z', 'contract')`).run(), /CHECK constraint failed/, 'carried values require the explicit carried_forward evidence status');
+
+db.prepare(`INSERT INTO finance_security_prices (ticker, price_date, close, source, adjustment, price_status, created_at, created_by)
+  VALUES ('000021', '2026-07-01', 64.27, 'validated-suspension', 'raw', 'carried_forward', '2026-08-17T00:00:00.000Z', 'contract')`).run();
+assert.equal(db.prepare(`SELECT price_status FROM finance_security_prices WHERE ticker='000021' AND price_date='2026-07-01'`).get().price_status, 'carried_forward');
 
 function valuation(date, securities, cash, other = 0, complete = 1, reason = null) {
   db.prepare(`INSERT INTO finance_asset_valuations (
@@ -59,8 +65,11 @@ db.prepare(`INSERT INTO finance_asset_snapshots (
 ) VALUES ('2026-08-16T02:29:00.000Z', '2026-08-16', 109698.70, 20725.50, 0, 130424.20, 'broker_reconciliation', 1, '2026-08-16T02:29:00.000Z', 'muxia')`).run();
 assert.equal(db.prepare(`SELECT COUNT(*) AS count FROM finance_asset_valuations WHERE valuation_date = '2026-08-16'`).get().count, 0);
 
+const recordsRoute = await readFile('workers/finance-api/src/routes/records.ts', 'utf8');
+assert.doesNotMatch(recordsRoute, /\/api\/assets\/snapshots|\/api\/assets\/series|finance_asset_snapshots|assetSeries|saveAssetSnapshot|listAssetSnapshots/, 'generic records routing must not retain a second asset-history or reconciliation implementation');
+
 db.close();
-console.log('Finance derived historical price and valuation cache contract passed.');
+console.log('Finance single-authority historical price and valuation cache contract passed.');
 await import('./finance-raw-price-import-contract.mjs');
 await import('./finance-security-reference-contract.mjs');
 await import('./finance-portfolio-wiring-contract.mjs');
