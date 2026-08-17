@@ -74,21 +74,28 @@ assert.equal(annual.find((row) => row.action === 'confirmed')?.actor, 'cati');
 assert.ok(annual.every((row) => row.audit_strength === 'audit'));
 
 // Old non-atomic audited paths get an honest row-provenance fallback only when the corresponding audit is missing.
-db.prepare(`INSERT INTO trades (trade_date, trade_time, ticker, ticker_name, direction, quantity, price, fee, net_cash_amount, position_category, reason, needs_review, created_at, created_by)
-  VALUES ('2026-08-17', '10:30', 'ROWFALLBACK', 'Fallback Trade', 'buy', 1, 10, 0, -10, '其他', NULL, 0, '2026-08-17T05:00:00.000Z', 'muxia')`).run();
-const fallbackTradeId = Number(db.prepare("SELECT id FROM trades WHERE ticker = 'ROWFALLBACK'").get().id);
-let tradeFallback = rows({ filter: { ...emptyFilter, entity_type: 'trade', actor: 'muxia' } }).rows.find((row) => row.operation_key === `trade-provenance-created:${fallbackTradeId}`);
+db.prepare(`INSERT INTO trades (id, trade_date, trade_time, ticker, ticker_name, direction, quantity, price, fee, net_cash_amount, position_category, reason, needs_review, created_at, created_by)
+  VALUES (1001, '2026-08-17', '10:30', 'ROWFALLBACK', 'Fallback Trade', 'buy', 1, 10, 0, -10, '其他', NULL, 0, '2026-08-17T05:00:00.000Z', 'muxia')`).run();
+let tradeFallback = rows({ filter: { ...emptyFilter, entity_type: 'trade', actor: 'muxia' } }).rows.find((row) => row.operation_key === 'trade-provenance-created:1001');
 assert.equal(tradeFallback?.audit_strength, 'provenance');
 db.prepare(`INSERT INTO finance_trade_audit (trade_id, action, actor, occurred_at, after_json)
-  VALUES (?, 'created', 'muxia', '2026-08-17T05:00:00.000Z', '{"trade_date":"2026-08-17","ticker":"ROWFALLBACK"}')`).run(fallbackTradeId);
-tradeFallback = rows({ filter: { ...emptyFilter, entity_type: 'trade', actor: 'muxia' } }).rows.find((row) => row.operation_key === `trade-provenance-created:${fallbackTradeId}`);
-assert.equal(tradeFallback, undefined, 'row provenance must disappear when the actual audit evidence exists');
+  VALUES (1001, 'created', 'muxia', '2026-08-17T05:00:00.000Z', '{"trade_date":"2026-08-17","ticker":"ROWFALLBACK"}')`).run();
+tradeFallback = rows({ filter: { ...emptyFilter, entity_type: 'trade', actor: 'muxia' } }).rows.find((row) => row.operation_key === 'trade-provenance-created:1001');
+assert.equal(tradeFallback, undefined, 'trade provenance must disappear when the actual audit evidence exists');
+
+// Cash Flow and Account Event use the same evidence rule, so each gets an executable fixture too.
+db.prepare(`INSERT INTO finance_cash_flows (id, occurred_on, contributor, flow_type, baseline_amount, confirmed_amount, manager_share_offset, net_amount, note, created_at, created_by)
+  VALUES (2001, '2026-08-17', 'muxia', 'monthly_investment', 5000, 5000, 0, 5000, 'fallback flow', '2026-08-17T05:10:00.000Z', 'muxia')`).run();
+assert.equal(rows({ filter: { ...emptyFilter, entity_type: 'cash_flow', actor: 'muxia' } }).rows.find((row) => row.operation_key === 'cash-flow-provenance-created:2001')?.audit_strength, 'provenance');
+
+db.prepare(`INSERT INTO finance_account_events (id, event_date, event_time, event_type, ticker, ticker_name, quantity, reference_value, amount, position_category, note, created_at, created_by)
+  VALUES (3001, '2026-08-17', '11:00', 'dividend', '000001', 'Fallback Event', NULL, NULL, 10, '其他', 'fallback event', '2026-08-17T05:20:00.000Z', 'muxia')`).run();
+assert.equal(rows({ filter: { ...emptyFilter, entity_type: 'account_event', actor: 'muxia' } }).rows.find((row) => row.operation_key === 'account-event-provenance-created:3001')?.audit_strength, 'provenance');
 
 // Accepted historical and old legacy-import rows must not be manufactured into user operation history.
-db.prepare(`INSERT INTO trades (trade_date, ticker, direction, quantity, price, position_category, created_at, created_by)
-  VALUES ('2026-06-01', 'LEGACYROW', 'buy', 1, 1, '其他', '2026-06-01T00:00:00.000Z', 'legacy-import')`).run();
-const legacyTradeId = Number(db.prepare("SELECT id FROM trades WHERE ticker = 'LEGACYROW'").get().id);
-assert.ok(!rows({ filter: { ...emptyFilter, entity_type: 'trade' } }).rows.some((row) => row.operation_key === `trade-provenance-created:${legacyTradeId}`));
+db.prepare(`INSERT INTO trades (id, trade_date, ticker, direction, quantity, price, position_category, created_at, created_by)
+  VALUES (1002, '2026-06-01', 'LEGACYROW', 'buy', 1, 1, '其他', '2026-06-01T00:00:00.000Z', 'legacy-import')`).run();
+assert.ok(!rows({ filter: { ...emptyFilter, entity_type: 'trade' } }).rows.some((row) => row.operation_key === 'trade-provenance-created:1002'));
 
 // Canonical and legacy Import Review audits are both admin-only at the query-source boundary.
 db.prepare(`INSERT INTO finance_workbook_review_audit (review_id, action, actor, occurred_at, before_json, after_json)
