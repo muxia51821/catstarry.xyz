@@ -199,7 +199,7 @@ try {
   const changeCursorRequest = requests.find((item) => item.pathname === '/api/change-log' && item.search.includes('cursor='));
   assert.ok(changeCursorRequest?.search.includes('cursor=change-cursor-1'));
 
-  // Same-document logout/session reset purges account/admin history surfaces and account state.
+  // Same-document logout/session reset purges all surfaces. Reopening the current Records tab reloads Records only; Overview stays lazy until selected again.
   await evaluate(`document.querySelector('[data-app]').hidden = true`);
   await waitFor(`document.querySelectorAll('[data-activity-list] .activity-row').length === 0 && document.querySelectorAll('[data-operation-list] .operation-row').length === 0 && document.querySelectorAll('[data-canonical-review-list] .import-review-row').length === 0`, 'records session reset');
   const reset = await evaluate(`({
@@ -213,7 +213,10 @@ try {
   })`);
   assert.deepEqual(reset, { total: '—', cash: '—', activityRows: 0, changeRows: 0, reviewRows: 0, legacyAccessRows: 0, legacyReviewRows: 0 });
   await evaluate(`document.querySelector('[data-app]').hidden = false`);
-  await waitFor(`document.querySelector('[data-account-total]')?.textContent === '¥130,424.20'`, 'account state same-session reload');
+  await waitFor(`document.querySelectorAll('[data-activity-list] .activity-row').length === 1 && document.querySelectorAll('[data-canonical-review-list] .import-review-row').length === 1`, 'records same-session reload');
+  assert.equal(await evaluate(`document.querySelector('[data-account-total]')?.textContent`), '—', 'hidden Overview must remain lazy while Records is active');
+  await evaluate(`document.querySelector('[data-tab="overview"]').click()`);
+  await waitFor(`document.querySelector('[data-account-total]')?.textContent === '¥130,424.20'`, 'account state reload after Overview is selected');
 
   // Incomplete cash evidence must never manufacture a total asset value.
   await send('Page.navigate', { url: `${baseUrl}/?mode=incomplete` });
