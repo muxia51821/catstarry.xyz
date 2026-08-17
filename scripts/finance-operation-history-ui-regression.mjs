@@ -7,14 +7,22 @@ import { launchIsolatedBrowser } from './lib/isolated-browser.mjs';
 const requests = [];
 let mode = 'admin';
 let pendingReview = [{ id: 7, batch_id: 'fixture-batch', sheet_name: '操作记录', row_number: 12, record_kind: 'trade', reason: 'fixture review', raw: { ticker: 'BAD' } }];
-const firstItem = {
+const firstChange = {
   key: 'trade:2', occurred_at: '2026-08-17T01:00:00.000Z', actor: 'muxia', action: 'updated', entity_type: 'trade', entity_id: '9',
   business_date: '2026-08-16', title: '修改交易 · 深科技', summary: '价格 37.37 → 37.27',
   changes: [{ field: 'price', label: '价格', before: 37.37, after: 37.27 }],
 };
-const secondItem = {
+const secondChange = {
   key: 'memo:1', occurred_at: '2026-08-17T00:30:00.000Z', actor: 'muxia', action: 'updated', entity_type: 'memo', entity_id: '1',
   business_date: '2026-08-16', title: '修改投资备忘录 · 深科技', summary: '理由 已更新', changes: [],
+};
+const firstActivity = {
+  key: 'reconciliation:1', business_date: '2026-08-16', business_time: '10:29:00', kind: 'reconciliation', ticker: null, ticker_name: null,
+  title: '资产对账', summary: '总资产 ¥130,424.2 · 现金 ¥20,725.5', details: {},
+};
+const secondActivity = {
+  key: 'trade:9', business_date: '2026-08-14', business_time: '14:55', kind: 'trade', ticker: '300750', ticker_name: '宁德时代',
+  title: '买入 · 宁德时代', summary: '100 股 × ¥393.93', details: {},
 };
 
 const html = `<!doctype html><html><head>
@@ -51,13 +59,22 @@ const server = createServer(async (request, response) => {
   }
   if (url.pathname === '/operations.css') return file(response, 'finance-site/operations.css', 'text/css; charset=utf-8');
   if (url.pathname === '/operations-ui.js') return file(response, 'finance-site/operations-ui.js', 'text/javascript; charset=utf-8');
+  if (url.pathname === '/api/activity') {
+    if (mode === 'fail') return json(response, 503, { message: 'activity unavailable' });
+    const cursor = url.searchParams.get('cursor');
+    return json(response, 200, {
+      items: cursor ? [secondActivity] : [firstActivity],
+      nextCursor: cursor ? null : 'activity-cursor-1',
+      coverage: { note: 'fixture business activity', timezone: 'Asia/Shanghai' },
+    });
+  }
   if (url.pathname === '/api/change-log') {
     if (mode === 'fail') return json(response, 503, { message: 'change log unavailable' });
     if (mode === 'viewer') return json(response, 403, { message: 'forbidden' });
     const cursor = url.searchParams.get('cursor');
     return json(response, 200, {
-      items: cursor ? [secondItem] : [firstItem],
-      nextCursor: cursor ? null : 'cursor-1',
+      items: cursor ? [secondChange] : [firstChange],
+      nextCursor: cursor ? null : 'change-cursor-1',
       coverage: { note: 'fixture audit coverage', timezone: 'Asia/Shanghai' },
     });
   }
@@ -107,50 +124,59 @@ try {
   await send('Page.enable');
   await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
 
-  // Admin: Records loads canonical review, but the audit log is secondary and must remain collapsed/lazy.
+  // Admin: Activity is primary; data-change audit stays lazy/collapsed; access log remains separate.
   await send('Page.navigate', { url: `${baseUrl}/?mode=admin` });
   await waitFor(`document.readyState === 'complete' && Boolean(document.querySelector('[data-tab="records"]'))`, 'records admin fixture');
   await delay(200);
+  assert.equal(requests.filter((item) => item.mode === 'admin' && item.pathname === '/api/activity').length, 0);
   assert.equal(requests.filter((item) => item.mode === 'admin' && item.pathname === '/api/change-log').length, 0);
   await evaluate(`document.querySelector('[data-tab="records"]').click()`);
+  await waitFor(`document.querySelectorAll('[data-activity-list] .activity-row').length === 1`, 'account activity first page');
   await waitFor(`document.querySelectorAll('[data-canonical-review-list] .import-review-row').length === 1 && document.documentElement.classList.contains('operation-workbook-review-ready')`, 'canonical Workbook Review');
   const adminBeforeOpen = await evaluate(`({
     fetchPreserved: window.fetch === window.__fetchBeforeOperations,
+    activityTitle: document.querySelector('#account-activity-title')?.textContent,
+    activityFirst: document.querySelector('[data-activity-list] .activity-main strong')?.textContent,
     changeLogVisible: getComputedStyle(document.querySelector('.operation-history-panel')).display !== 'none',
     changeLogCollapsed: document.querySelector('.operation-history-panel')?.open === false,
     securityAccessVisible: getComputedStyle(document.querySelector('[data-access-panel]')).display !== 'none',
     securityAccessCollapsed: document.querySelector('[data-access-panel]')?.open === false,
     legacyReviewHidden: getComputedStyle(document.querySelector('[data-import-review-panel]')).display === 'none',
-    changeLogTitle: document.querySelector('#operation-history-title')?.textContent,
   })`);
   assert.deepEqual(adminBeforeOpen, {
-    fetchPreserved: true, changeLogVisible: true, changeLogCollapsed: true,
-    securityAccessVisible: true, securityAccessCollapsed: true, legacyReviewHidden: true, changeLogTitle: '数据变更记录',
+    fetchPreserved: true, activityTitle: '账户动态', activityFirst: '资产对账',
+    changeLogVisible: true, changeLogCollapsed: true,
+    securityAccessVisible: true, securityAccessCollapsed: true, legacyReviewHidden: true,
   });
-  assert.equal(requests.filter((item) => item.pathname === '/api/change-log').length, 0, 'collapsed change log must not perform an eager audit query');
+  assert.equal(requests.filter((item) => item.pathname === '/api/change-log').length, 0, 'collapsed change log must not query audit data');
+
+  await evaluate(`document.querySelector('[data-activity-more]').click()`);
+  await waitFor(`document.querySelectorAll('[data-activity-list] .activity-row').length === 2`, 'activity cursor page');
+  const activityCursorRequest = requests.find((item) => item.pathname === '/api/activity' && item.search.includes('cursor='));
+  assert.ok(activityCursorRequest?.search.includes('cursor=activity-cursor-1'));
+  assert.ok(!activityCursorRequest?.search.includes('offset='));
 
   await evaluate(`document.querySelector('.operation-history-panel').open = true`);
   await waitFor(`document.querySelectorAll('[data-operation-list] .operation-row').length === 1 && document.documentElement.classList.contains('operation-history-ready')`, 'change log first page');
-  assert.match(await evaluate(`document.querySelector('.operation-time')?.textContent ?? ''`), /09:00/, 'change timestamp must render in Asia/Shanghai');
+  assert.match(await evaluate(`document.querySelector('.operation-time')?.textContent ?? ''`), /09:00/);
   await evaluate(`document.querySelector('[data-operation-more]').click()`);
   await waitFor(`document.querySelectorAll('[data-operation-list] .operation-row').length === 2`, 'change log cursor page');
-  const cursorRequest = requests.find((item) => item.pathname === '/api/change-log' && item.search.includes('cursor='));
-  assert.ok(cursorRequest?.search.includes('cursor=cursor-1'));
-  assert.ok(!cursorRequest?.search.includes('offset='));
+  const changeCursorRequest = requests.find((item) => item.pathname === '/api/change-log' && item.search.includes('cursor='));
+  assert.ok(changeCursorRequest?.search.includes('cursor=change-cursor-1'));
 
-  // Same-document logout/session reset purges admin-only data.
+  // Same-document logout/session reset purges all account/admin history surfaces.
   await evaluate(`document.querySelector('[data-app]').hidden = true`);
-  await waitFor(`document.querySelectorAll('[data-operation-list] .operation-row').length === 0 && document.querySelectorAll('[data-canonical-review-list] .import-review-row').length === 0`, 'records session reset');
-  await delay(100);
+  await waitFor(`document.querySelectorAll('[data-activity-list] .activity-row').length === 0 && document.querySelectorAll('[data-operation-list] .operation-row').length === 0 && document.querySelectorAll('[data-canonical-review-list] .import-review-row').length === 0`, 'records session reset');
   const reset = await evaluate(`({
+    activityRows: document.querySelectorAll('[data-activity-list] .activity-row').length,
     changeRows: document.querySelectorAll('[data-operation-list] .operation-row').length,
     reviewRows: document.querySelectorAll('[data-canonical-review-list] .import-review-row').length,
     legacyAccessRows: document.querySelector('[data-access-list]')?.children.length ?? 0,
     legacyReviewRows: document.querySelector('[data-import-review-list]')?.children.length ?? 0,
   })`);
-  assert.deepEqual(reset, { changeRows: 0, reviewRows: 0, legacyAccessRows: 0, legacyReviewRows: 0 });
+  assert.deepEqual(reset, { activityRows: 0, changeRows: 0, reviewRows: 0, legacyAccessRows: 0, legacyReviewRows: 0 });
   await evaluate(`document.querySelector('[data-app]').hidden = false`);
-  await waitFor(`document.querySelectorAll('[data-canonical-review-list] .import-review-row').length === 1`, 'records same-session reload');
+  await waitFor(`document.querySelectorAll('[data-activity-list] .activity-row').length === 1 && document.querySelectorAll('[data-canonical-review-list] .import-review-row').length === 1`, 'records same-session reload');
 
   await evaluate(`(() => {
     const input = document.querySelector('[data-canonical-resolution-note="7"]');
@@ -160,11 +186,11 @@ try {
   await waitFor(`document.querySelector('[data-canonical-review-empty]')?.hidden === false`, 'canonical Workbook Review resolution');
   assert.equal(requests.filter((item) => item.pathname === '/api/workbook-review/7' && item.method === 'PATCH').length, 1);
 
-  // Backend failure keeps the legacy review/access surfaces usable; takeover is success-gated.
+  // Backend failure: Activity reports its own error; legacy admin fallbacks remain available.
   await send('Page.navigate', { url: `${baseUrl}/?mode=fail` });
   await waitFor(`document.readyState === 'complete' && Boolean(document.querySelector('[data-tab="records"]'))`, 'records fallback fixture');
   await evaluate(`document.querySelector('[data-tab="records"]').click()`);
-  await waitFor(`document.querySelector('[data-canonical-review-error]')?.hidden === false`, 'Workbook Review failure state');
+  await waitFor(`document.querySelector('[data-activity-error]')?.hidden === false && document.querySelector('[data-canonical-review-error]')?.hidden === false`, 'records failure state');
   const fallback = await evaluate(`({
     workbookReady: document.documentElement.classList.contains('operation-workbook-review-ready'),
     legacyAccessVisible: getComputedStyle(document.querySelector('[data-access-panel]')).display !== 'none',
@@ -172,23 +198,24 @@ try {
   })`);
   assert.deepEqual(fallback, { workbookReady: false, legacyAccessVisible: true, legacyReviewVisible: true });
 
-  // Viewer: admin-only Workbook Review and data-change audit stay hidden.
+  // Viewer: Activity remains available; admin review/change log stay hidden.
   await send('Page.navigate', { url: `${baseUrl}/?mode=viewer` });
   await waitFor(`document.readyState === 'complete' && Boolean(document.querySelector('[data-tab="records"]'))`, 'records viewer fixture');
   await evaluate(`document.querySelector('[data-tab="records"]').click()`);
-  await waitFor(`document.documentElement.classList.contains('operation-workbook-review-ready')`, 'records viewer permissions');
+  await waitFor(`document.querySelectorAll('[data-activity-list] .activity-row').length === 1 && document.documentElement.classList.contains('operation-workbook-review-ready')`, 'records viewer permissions');
   const viewer = await evaluate(`({
+    activityVisible: document.querySelector('[data-activity-list] .activity-row') !== null,
     canonicalReviewHidden: document.querySelector('.operation-review-panel').hidden,
     changeLogHidden: document.querySelector('.operation-history-panel').hidden,
     legacyReviewHidden: getComputedStyle(document.querySelector('[data-import-review-panel]')).display === 'none',
     fetchPreserved: window.fetch === window.__fetchBeforeOperations,
   })`);
-  assert.deepEqual(viewer, { canonicalReviewHidden: true, changeLogHidden: true, legacyReviewHidden: true, fetchPreserved: true });
-  assert.equal(requests.filter((item) => item.mode === 'viewer' && item.pathname === '/api/change-log').length, 0, 'viewer must never request the admin audit log');
+  assert.deepEqual(viewer, { activityVisible: true, canonicalReviewHidden: true, changeLogHidden: true, legacyReviewHidden: true, fetchPreserved: true });
+  assert.equal(requests.filter((item) => item.mode === 'viewer' && item.pathname === '/api/change-log').length, 0);
 
   assert.deepEqual(diagnostics.consoleProblems, []);
   assert.deepEqual(diagnostics.exceptions, []);
-  console.log('Finance records change-log browser regression passed.');
+  console.log('Finance account activity + data change-log browser regression passed.');
 } finally {
   cdp?.close();
   await browser?.close();
