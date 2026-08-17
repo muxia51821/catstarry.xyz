@@ -128,7 +128,7 @@ db.prepare(`UPDATE finance_import_review
   WHERE id = ? AND status = 'pending'`).run(spoofableJsonNote, '2026-08-17T04:10:00.000Z', oldWorkerId);
 const oldWorkerAudit = db.prepare('SELECT actor, after_json FROM finance_legacy_import_review_audit WHERE review_id = ?').get(oldWorkerId);
 assert.equal(oldWorkerAudit.actor, 'unknown:legacy-import-review');
-assert.equal(JSON.parse(oldWorkerAudit.after_json).resolution_note, spoofableJsonNote, 'unmarked JSON must remain the user's note rather than being interpreted as a trusted envelope');
+assert.equal(JSON.parse(oldWorkerAudit.after_json).resolution_note, spoofableJsonNote, "unmarked JSON must remain the user's note rather than being interpreted as a trusted envelope");
 
 db.exec(migration);
 assert.equal(db.prepare("SELECT COUNT(*) AS count FROM sqlite_master WHERE type = 'trigger' AND name LIKE 'trg_finance_%_audit_%'").get().count >= 10, true);
