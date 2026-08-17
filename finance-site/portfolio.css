@@ -1,0 +1,47 @@
+.portfolio-account-breakdown {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 18px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.portfolio-account-breakdown__row {
+  display: grid;
+  gap: 3px;
+}
+
+.portfolio-account-breakdown__row i {
+  color: var(--muted);
+  font-size: 11px;
+  font-style: normal;
+}
+
+.portfolio-account-breakdown__row b {
+  color: var(--text);
+  font: 500 13px "JetBrains Mono", ui-monospace, monospace;
+}
+
+.portfolio-overview-trade {
+  align-items: center;
+}
+
+.portfolio-overview-trade strong {
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+@media (max-width: 680px) {
+  .portfolio-account-breakdown {
+    grid-template-columns: 1fr;
+  }
+
+  .portfolio-overview-trade {
+    align-items: flex-start;
+  }
+
+  .portfolio-overview-trade strong {
+    white-space: normal;
+  }
+}
