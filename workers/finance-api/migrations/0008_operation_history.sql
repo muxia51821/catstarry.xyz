@@ -44,6 +44,15 @@ CREATE TABLE IF NOT EXISTS finance_legacy_import_review_audit (
   after_json TEXT NOT NULL
 );
 
+-- Transient server-authenticated provenance for the legacy compatibility write.
+-- Product data never reads this table; the Worker inserts and clears it inside the
+-- same D1 batch as the legacy review mutation. Old Workers do not populate it.
+CREATE TABLE IF NOT EXISTS finance_legacy_import_review_actor_context (
+  review_id INTEGER PRIMARY KEY,
+  actor TEXT NOT NULL,
+  occurred_at TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_finance_memo_audit_memo ON finance_memo_audit (memo_id, id DESC);
 CREATE INDEX IF NOT EXISTS idx_finance_memo_audit_time ON finance_memo_audit (occurred_at DESC, id DESC);
 CREATE INDEX IF NOT EXISTS idx_finance_monthly_record_audit_record ON finance_monthly_record_audit (monthly_record_id, id DESC);
@@ -230,12 +239,11 @@ BEGIN
   );
 END;
 
--- Legacy Import Review remains a compatibility surface. New Worker versions place
--- a marked {note, actor} envelope in resolution_note for the first UPDATE inside one
--- D1 batch. The marker prevents an old Worker user's ordinary JSON note from being
--- mistaken for trusted actor provenance. The second UPDATE normalizes the domain row
--- back to plain text. Old Workers still create an audit row with an explicitly unknown
--- actor instead of silently losing the operation.
+-- Legacy Import Review remains a compatibility surface. New Workers insert the
+-- authenticated actor into the internal context table inside the same D1 batch as
+-- the plain-text domain update; this trigger reads actor provenance only from that
+-- server-owned context. Old Workers have no context row, so their writes remain
+-- auditable with an explicitly unknown actor instead of trusting user-controlled text.
 CREATE TRIGGER IF NOT EXISTS trg_finance_legacy_import_review_audit_resolved
 AFTER UPDATE ON finance_import_review
 WHEN OLD.status = 'pending' AND NEW.status = 'resolved' AND NEW.resolved_at IS NOT NULL
@@ -244,16 +252,11 @@ BEGIN
   VALUES (
     NEW.id,
     'resolved',
-    CASE
-      WHEN json_valid(NEW.resolution_note) THEN
-        CASE
-          WHEN json_extract(NEW.resolution_note, '$.__finance_operation_history_v1') = 1
-            AND json_type(NEW.resolution_note, '$.actor') = 'text'
-            THEN json_extract(NEW.resolution_note, '$.actor')
-          ELSE 'unknown:legacy-import-review'
-        END
-      ELSE 'unknown:legacy-import-review'
-    END,
+    COALESCE(
+      (SELECT actor FROM finance_legacy_import_review_actor_context
+        WHERE review_id = NEW.id AND occurred_at = NEW.resolved_at),
+      'unknown:legacy-import-review'
+    ),
     NEW.resolved_at,
     json_object(
       'batch_id', OLD.batch_id, 'row_number', OLD.row_number, 'record_kind', OLD.record_kind,
@@ -261,17 +264,7 @@ BEGIN
     ),
     json_object(
       'batch_id', NEW.batch_id, 'row_number', NEW.row_number, 'record_kind', NEW.record_kind,
-      'status', NEW.status,
-      'resolution_note', CASE
-        WHEN json_valid(NEW.resolution_note) THEN
-          CASE
-            WHEN json_extract(NEW.resolution_note, '$.__finance_operation_history_v1') = 1
-              AND json_type(NEW.resolution_note, '$.note') = 'text'
-              THEN json_extract(NEW.resolution_note, '$.note')
-            ELSE NEW.resolution_note
-          END
-        ELSE NEW.resolution_note
-      END
+      'status', NEW.status, 'resolution_note', NEW.resolution_note
     )
   );
 END;
