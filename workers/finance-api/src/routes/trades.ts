@@ -39,9 +39,6 @@ interface TradeRow {
   updated_at: string | null;
   updated_by: string | null;
   deleted_at: string | null;
-  instrument_type?: string | null;
-  security_attribute?: string | null;
-  attribute_source?: string | null;
   memo_id?: number | null;
   memo_reason?: string | null;
   memo_reason_source?: string | null;
@@ -120,23 +117,34 @@ async function listTrades(request: Request, env: FinanceEnv): Promise<Response> 
   };
   const cursor = decodeCursor(url.searchParams.get('cursor'), filter);
   if (cursor instanceof Response) return cursor;
+
+  const attributeTickers = filter.security_attribute ? await tickersForSecurityAttribute(env, filter.security_attribute) : null;
+  if (attributeTickers && attributeTickers.length === 0) return json({ trades: [], items: [], nextCursor: null });
+
   const clauses = ['t.deleted_at IS NULL']; const values: unknown[] = [];
   if (filter.start) { clauses.push('t.trade_date >= ?'); values.push(filter.start); }
   if (filter.end) { clauses.push('t.trade_date <= ?'); values.push(filter.end); }
   if (filter.ticker) { clauses.push('t.ticker = ?'); values.push(filter.ticker); }
   if (filter.direction) { clauses.push('t.direction = ?'); values.push(filter.direction); }
   if (filter.position_category) { clauses.push('t.position_category = ?'); values.push(filter.position_category); }
-  if (filter.security_attribute) { clauses.push('s.security_attribute = ?'); values.push(filter.security_attribute); }
+  if (attributeTickers) {
+    clauses.push(`t.ticker IN (${attributeTickers.map(() => '?').join(', ')})`);
+    values.push(...attributeTickers);
+  }
   if (cursor) { clauses.push('(t.trade_date < ? OR (t.trade_date = ? AND t.id < ?))'); values.push(cursor.sort, cursor.sort, cursor.id); }
   const rows = await env.DB.prepare(`SELECT t.*,
-      s.instrument_type, s.security_attribute, s.attribute_source,
       m.id AS memo_id, m.reason AS memo_reason, m.reason_source AS memo_reason_source
     FROM trades t
-    LEFT JOIN finance_securities s ON s.ticker = t.ticker
     LEFT JOIN finance_memos m ON m.trade_id = t.id AND m.deleted_at IS NULL
     WHERE ${clauses.join(' AND ')} ORDER BY t.trade_date DESC, t.id DESC LIMIT ?`).bind(...values, limit + 1).all<TradeRow>();
   const items = rows.results.slice(0, limit); const last = items.at(-1);
   return json({ trades: items, items, nextCursor: rows.results.length > limit && last ? encodeCursor({ sort: last.trade_date, id: last.id, filter }) : null });
+}
+
+async function tickersForSecurityAttribute(env: FinanceEnv, securityAttribute: string) {
+  const rows = await env.DB.prepare('SELECT ticker FROM finance_securities WHERE security_attribute = ? ORDER BY ticker')
+    .bind(securityAttribute).all<{ ticker: string }>();
+  return rows.results.map((row) => row.ticker);
 }
 
 function optionalDate(value: string | null): string | null | undefined { return value === null || value === '' ? null : validDate(value) ? value : undefined; }
