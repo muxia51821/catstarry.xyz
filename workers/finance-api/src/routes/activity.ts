@@ -165,7 +165,8 @@ function activitySources(): string[] {
       'reconciliation', NULL, NULL,
       json_object(
         'snapshot_at', s.snapshot_at, 'holdings_value', s.holdings_value, 'cash_value', s.cash_value,
-        'total_value', s.total_value, 'source', s.source, 'is_complete', s.is_complete, 'incomplete_reason', s.incomplete_reason
+        'other_assets_value', s.other_assets_value, 'total_value', s.total_value,
+        'source', s.source, 'is_complete', s.is_complete, 'incomplete_reason', s.incomplete_reason
       )
       FROM finance_asset_snapshots s
       WHERE s.deleted_at IS NULL
@@ -196,7 +197,9 @@ export function humanizeActivity(row: ActivityRow) {
     if (data.amount !== null && data.amount !== undefined) summary += `${summary ? ' · ' : ''}${signedMoney(data.amount)}`;
     return activityItem(row, `${label}${subject ? ` · ${subject}` : ''}`, summary || '已记录', data);
   }
-  return activityItem(row, '资产对账', `总资产 ${moneyValue(data.total_value)} · 现金 ${moneyValue(data.cash_value)}`, data);
+  const otherAssets = Number(data.other_assets_value);
+  const otherCopy = Number.isFinite(otherAssets) && otherAssets > 0 ? ` · 其他账户资产 ${moneyValue(otherAssets)}` : '';
+  return activityItem(row, '资产对账', `总资产 ${moneyValue(data.total_value)} · Broker Cash ${moneyValue(data.cash_value)}${otherCopy}`, data);
 }
 
 function activityItem(row: ActivityRow, title: string, summary: string, details: JsonObject) {
