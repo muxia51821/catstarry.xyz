@@ -10,10 +10,16 @@ const [tradesSource, recordsSource, operationMigration] = await Promise.all([
 
 const count = (source, pattern) => source.match(pattern)?.length ?? 0;
 
-// Route contract: all core mutation audit writes participate in the same D1 batch as the domain mutation.
-assert.equal(count(tradesSource, /last_insert_rowid\(\)/g), 1, 'Trade create must bind its audit to the row inserted earlier in the same batch');
+// Route contract: every core mutation audit participates in the same D1 batch as
+// the domain mutation. Trade has two legitimate create execution paths: ordinary
+// chronological append and explicit earlier-time same-day replay. Both must bind
+// their audit to the Trade inserted immediately before them.
+assert.equal(count(tradesSource, /INSERT INTO finance_trade_audit/g), 4, 'Trade must have two create audits plus one update and one delete audit path');
+assert.equal(count(tradesSource, /last_insert_rowid\(\)/g), 2, 'Both Trade create paths must bind audit to the Trade inserted earlier in the same batch');
+assert.equal(count(tradesSource, /SELECT \?, 'updated', \?, \?, \?, \? WHERE changes\(\) = 1/g), 1, 'Trade update audit must depend on the immediately preceding update');
+assert.equal(count(tradesSource, /SELECT \?, 'deleted', \?, \?, \? WHERE changes\(\) = 1/g), 1, 'Trade delete audit must depend on the immediately preceding delete');
+assert.match(tradesSource, /stale_trade_day/, 'same-day replay creation must fail closed when its pre-read cohort becomes stale');
 assert.equal(count(recordsSource, /last_insert_rowid\(\)/g), 2, 'Cash Flow and Account Event create must bind audits to their inserted rows');
-assert.equal(count(tradesSource, /WHERE changes\(\) = 1/g), 3, 'Trade create/update/delete audit statements must depend on the immediately preceding mutation');
 assert.equal(count(recordsSource, /WHERE changes\(\) = 1/g), 6, 'Cash Flow and Account Event create/update/delete audits must depend on the immediately preceding mutation');
 assert.equal(count(tradesSource, /updated_at IS \?/g), 2, 'Trade update/delete must reject a stale pre-read');
 assert.equal(count(recordsSource, /updated_at IS \?/g), 4, 'Cash Flow and Account Event update/delete must reject stale pre-reads');
