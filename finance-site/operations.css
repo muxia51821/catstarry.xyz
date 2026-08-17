@@ -1,4 +1,3 @@
-.operation-history-ready [data-access-panel],
 .operation-workbook-review-ready [data-import-review-panel] {
   display: none !important;
 }
