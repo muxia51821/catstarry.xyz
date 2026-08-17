@@ -7,6 +7,7 @@ type ReconciliationRow = {
   snapshot_date: string;
   holdings_value: number;
   cash_value: number;
+  other_assets_value: number;
   total_value: number;
   source: string;
   created_at: string;
@@ -82,7 +83,9 @@ export async function readAccountState(env: FinanceEnv) {
       id: reconciliation.id,
       observed_at: reconciliation.snapshot_at,
       through_date: reconciliation.snapshot_date,
+      holdings_value: Number(reconciliation.holdings_value),
       cash_value: Number(reconciliation.cash_value),
+      other_assets_value: Number(reconciliation.other_assets_value ?? 0),
       observed_total_value: Number(reconciliation.total_value),
       source: reconciliation.source,
       created_at: reconciliation.created_at,
@@ -97,7 +100,7 @@ export async function readAccountState(env: FinanceEnv) {
 }
 
 async function latestReconciliation(env: FinanceEnv) {
-  return env.DB.prepare(`SELECT id, snapshot_at, snapshot_date, holdings_value, cash_value, total_value, source, created_at, created_by
+  return env.DB.prepare(`SELECT id, snapshot_at, snapshot_date, holdings_value, cash_value, other_assets_value, total_value, source, created_at, created_by
     FROM finance_asset_snapshots
     WHERE deleted_at IS NULL AND is_complete = 1
       AND lower(COALESCE(source, '')) NOT IN (${SYNTHETIC_RECONCILIATION_SOURCES.map(() => '?').join(', ')})
