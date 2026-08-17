@@ -7,6 +7,7 @@ const [migration, operationsUi] = await Promise.all([
   readFile('finance-site/operations-ui.js', 'utf8'),
 ]);
 assert.doesNotThrow(() => new Function(operationsUi), 'Operation History browser module must parse as plain JavaScript');
+const plainRows = (rows) => rows.map((row) => ({ ...row }));
 
 const db = new DatabaseSync(':memory:');
 db.exec(`
@@ -47,7 +48,7 @@ db.prepare('UPDATE finance_memos SET reason = ?, updated_at = ?, updated_by = ? 
   .run('revised memo', '2026-08-17T01:10:00.000Z', 'muxia', memoId);
 db.prepare('UPDATE finance_memos SET deleted_at = ?, deleted_by = ? WHERE id = ?')
   .run('2026-08-17T01:20:00.000Z', 'muxia', memoId);
-assert.deepEqual(db.prepare('SELECT action, actor FROM finance_memo_audit WHERE memo_id = ? ORDER BY id').all(memoId), [
+assert.deepEqual(plainRows(db.prepare('SELECT action, actor FROM finance_memo_audit WHERE memo_id = ? ORDER BY id').all(memoId)), [
   { action: 'created', actor: 'muxia' }, { action: 'updated', actor: 'muxia' }, { action: 'deleted', actor: 'muxia' },
 ]);
 
@@ -58,7 +59,7 @@ db.prepare('UPDATE monthly_records SET summary = ?, updated_at = ?, updated_by =
   .run('revised monthly', '2026-08-31T01:00:00.000Z', 'muxia', monthlyId);
 db.prepare('UPDATE monthly_records SET deleted_at = ?, deleted_by = ? WHERE id = ?')
   .run('2026-08-31T02:00:00.000Z', 'muxia', monthlyId);
-assert.deepEqual(db.prepare('SELECT action, actor FROM finance_monthly_record_audit WHERE monthly_record_id = ? ORDER BY id').all(monthlyId), [
+assert.deepEqual(plainRows(db.prepare('SELECT action, actor FROM finance_monthly_record_audit WHERE monthly_record_id = ? ORDER BY id').all(monthlyId)), [
   { action: 'created', actor: 'muxia' }, { action: 'updated', actor: 'muxia' }, { action: 'deleted', actor: 'muxia' },
 ]);
 
@@ -68,7 +69,7 @@ db.prepare('UPDATE annual_reviews SET calculation_json = ?, summary = ?, calcula
   .run('{"v":2}', 'second', '2026-12-31T02:00:00.000Z', 2026);
 db.prepare('UPDATE annual_reviews SET confirmed_by = ?, confirmed_at = ? WHERE year = ?')
   .run('cati', '2026-12-31T03:00:00.000Z', 2026);
-assert.deepEqual(db.prepare('SELECT action, actor FROM finance_review_audit WHERE review_year = 2026 ORDER BY id').all(), [
+assert.deepEqual(plainRows(db.prepare('SELECT action, actor FROM finance_review_audit WHERE review_year = 2026 ORDER BY id').all()), [
   { action: 'created', actor: 'system:annual-review' }, { action: 'updated', actor: 'system:annual-review' },
 ], 'confirmation-only updates must not create a fake calculation revision');
 
