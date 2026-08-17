@@ -7,6 +7,32 @@
   grid-column: 1 / -1;
 }
 
+.operation-panel-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.operation-panel-summary::-webkit-details-marker {
+  display: none;
+}
+
+.operation-panel-summary > span:first-child {
+  display: grid;
+  gap: 3px;
+}
+
+.operation-panel-summary strong {
+  font-size: 1.02rem;
+}
+
+.operation-history-panel[open] > .operation-panel-summary {
+  margin-bottom: 14px;
+}
+
 .operation-filters {
   margin-top: 18px;
 }
@@ -132,6 +158,10 @@
 }
 
 @media (max-width: 680px) {
+  .operation-panel-summary {
+    align-items: flex-start;
+  }
+
   .operation-row > summary {
     grid-template-columns: 1fr;
     gap: 6px;
