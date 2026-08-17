@@ -1,6 +1,11 @@
 import { apiError, json, readJson } from '../lib/http';
 import { requireFinanceRole, type FinanceEnv } from './auth';
-import { projectRepoAssets, SYNTHETIC_RECONCILIATION_SOURCES, type RepoEventRow } from './account-state';
+import {
+  projectRepoAssets,
+  selectCashFactsAfterReconciliation,
+  SYNTHETIC_RECONCILIATION_SOURCES,
+  type RepoEventRow,
+} from './account-state';
 
 export const HISTORICAL_RECONSTRUCTION_START = '2026-06-03';
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
@@ -81,6 +86,43 @@ export async function rebuildAssetValuations(
     activeAccountEventsThrough(env, reconciliation.snapshot_date),
     rawPrices(env, options.startDate, options.endDate),
   ]);
+
+  const unsafeAnchorFacts = selectCashFactsAfterReconciliation(reconciliation, [
+    ...trades.filter((trade) => trade.trade_date === reconciliation.snapshot_date).map((trade) => ({
+      fact_key: `trade:${trade.id}`,
+      business_date: trade.trade_date,
+      business_time: trade.trade_time,
+      kind: 'trade' as const,
+      subtype: trade.direction,
+      amount: trade.net_cash_amount,
+      repo_key: null,
+    })),
+    ...cashFlows.filter((flow) => flow.occurred_on === reconciliation.snapshot_date).map((flow) => ({
+      fact_key: `cash-flow:${flow.id}`,
+      business_date: flow.occurred_on,
+      business_time: null,
+      kind: 'cash_flow' as const,
+      subtype: 'cash_flow',
+      amount: flow.net_amount,
+      repo_key: null,
+    })),
+    ...accountEvents.filter((event) => event.event_date === reconciliation.snapshot_date).map((event) => ({
+      fact_key: `account-event:${event.id}`,
+      business_date: event.event_date,
+      business_time: event.event_time,
+      kind: 'account_event' as const,
+      subtype: event.event_type,
+      amount: event.amount,
+      repo_key: event.ticker || event.ticker_name || 'repo',
+    })),
+  ]);
+  if (unsafeAnchorFacts.length) {
+    return apiError(
+      409,
+      'unsafe_intraday_reconciliation',
+      'Historical reconstruction requires a reconciliation with no later or time-ambiguous same-day financial facts; record a new reconciliation after those facts settle',
+    );
+  }
 
   const priceDates = [...new Set(prices.map((row) => row.price_date))].sort();
   if (!priceDates.length) return apiError(409, 'missing_raw_prices', 'No canonical raw historical prices exist in the requested range');
@@ -272,7 +314,7 @@ async function latestReconciliation(env: FinanceEnv) {
     FROM finance_asset_snapshots
     WHERE deleted_at IS NULL AND is_complete = 1
       AND lower(COALESCE(source, '')) NOT IN (${SYNTHETIC_RECONCILIATION_SOURCES.map(() => '?').join(', ')})
-    ORDER BY snapshot_at DESC, id DESC LIMIT 1`)
+    ORDER BY snapshot_date DESC, julianday(snapshot_at) DESC, id DESC LIMIT 1`)
     .bind(...SYNTHETIC_RECONCILIATION_SOURCES).first<ReconciliationRow>();
 }
 
