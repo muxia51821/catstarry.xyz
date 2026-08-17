@@ -9,12 +9,12 @@ let mode = 'admin';
 let pendingReview = [{ id: 7, batch_id: 'fixture-batch', sheet_name: '操作记录', row_number: 12, record_kind: 'trade', reason: 'fixture review', raw: { ticker: 'BAD' } }];
 const firstItem = {
   key: 'trade:2', occurred_at: '2026-08-17T01:00:00.000Z', actor: 'muxia', action: 'updated', entity_type: 'trade', entity_id: '9',
-  business_date: '2026-08-16', title: '修改交易 · 深科技', summary: '价格 37.37 → 37.27',
+  business_date: '2026-08-16', audit_strength: 'audit', title: '修改交易 · 深科技', summary: '价格 37.37 → 37.27',
   changes: [{ field: 'price', label: '价格', before: 37.37, after: 37.27 }],
 };
 const secondItem = {
   key: 'cash-flow:1', occurred_at: '2026-08-17T00:30:00.000Z', actor: 'muxia', action: 'created', entity_type: 'cash_flow', entity_id: '1',
-  business_date: '2026-08-16', title: '新增现金流', summary: 'muxia · +¥5,000', changes: [],
+  business_date: '2026-08-16', audit_strength: 'provenance', title: '新增现金流', summary: 'muxia · +¥5,000 · 行级 provenance；旧版本字段差异不可还原', changes: [],
 };
 
 const html = `<!doctype html><html><head>
@@ -26,8 +26,8 @@ const html = `<!doctype html><html><head>
   <nav><button data-tab="overview" class="is-active">总览</button><button data-tab="records">管理记录</button><button data-refresh>刷新</button></nav>
   <div class="dashboard-grid">
     <section class="panel" data-pane="overview">overview</section>
-    <details class="panel" data-access-panel data-pane="records" hidden open><summary>旧安全访问记录</summary><p>legacy access fallback</p></details>
-    <section class="panel" data-import-review-panel data-pane="records" hidden><h2>旧 Import Review</h2><p>legacy review fallback</p></section>
+    <details class="panel" data-access-panel data-pane="records" hidden open><summary>旧安全访问记录</summary><div data-access-list><p>legacy access fallback</p></div></details>
+    <section class="panel" data-import-review-panel data-pane="records" hidden><h2>旧 Import Review</h2><div data-import-review-list><p>legacy review fallback</p></div></section>
   </div>
 </div>
 <script>
@@ -134,6 +134,22 @@ try {
   const cursorRequest = requests.find((item) => item.pathname === '/api/operations' && item.search.includes('cursor='));
   assert.ok(cursorRequest?.search.includes('cursor=cursor-1'));
   assert.ok(!cursorRequest?.search.includes('offset='), 'browser integration must use cursor instead of offset');
+  await evaluate(`document.querySelectorAll('[data-operation-list] .operation-row')[1].open = true`);
+  assert.match(await evaluate(`document.querySelectorAll('.operation-no-diff')[0]?.textContent ?? ''`), /provenance/, 'provenance-only evidence must be visibly distinguished from full audit history');
+
+  // Same-document logout/session reset must purge admin-only review data and prevent stale async results from repopulating it.
+  await evaluate(`document.querySelector('[data-app]').hidden = true`);
+  await waitFor(`document.querySelectorAll('[data-canonical-review-list] .import-review-row').length === 0 && !document.documentElement.classList.contains('operation-history-ready') && !document.documentElement.classList.contains('operation-workbook-review-ready')`, 'Operation History session reset');
+  await delay(150);
+  const reset = await evaluate(`({
+    operationRows: document.querySelectorAll('[data-operation-list] .operation-row').length,
+    reviewRows: document.querySelectorAll('[data-canonical-review-list] .import-review-row').length,
+    legacyAccessRows: document.querySelector('[data-access-list]')?.children.length ?? 0,
+    legacyReviewRows: document.querySelector('[data-import-review-list]')?.children.length ?? 0,
+  })`);
+  assert.deepEqual(reset, { operationRows: 0, reviewRows: 0, legacyAccessRows: 0, legacyReviewRows: 0 });
+  await evaluate(`document.querySelector('[data-app]').hidden = false`);
+  await waitFor(`document.querySelectorAll('[data-canonical-review-list] .import-review-row').length === 1 && document.documentElement.classList.contains('operation-history-ready')`, 'Operation History same-session reload');
 
   await evaluate(`(() => {
     const input = document.querySelector('[data-canonical-resolution-note="7"]');

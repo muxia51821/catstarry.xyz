@@ -195,14 +195,17 @@ function baseSources(): string[] {
         CASE WHEN json_valid(c.reason) THEN json_extract(c.reason, '$.triggered_by') END,
         'system:risk-engine'
       ),
-      'created', 'circuit', CAST(c.id AS TEXT), substr(c.triggered_at, 1, 10), NULL,
+      'created', 'circuit', CAST(c.id AS TEXT), NULL, NULL,
       CASE WHEN json_valid(c.reason)
         THEN json_object('level', c.level, 'detail', json(c.reason))
         ELSE json_object('level', c.level, 'detail', c.reason)
       END, 'domain'
       FROM circuit_breaker_log c`,
+    `SELECT 'circuit-resolved:' || c.id, c.resolved_at, 'system:circuit-state', 'resolved', 'circuit', CAST(c.id AS TEXT),
+      NULL, NULL, json_object('level', c.level, 'resolved_at', c.resolved_at), 'domain'
+      FROM circuit_breaker_log c WHERE c.resolved_at IS NOT NULL`,
     `SELECT 'circuit-resolution:' || c.rowid, c.confirmed_at, c.username, 'confirmed', 'circuit_resolution', CAST(c.circuit_id AS TEXT),
-      substr(c.confirmed_at, 1, 10), NULL, json_object('role', c.role, 'note', c.note), 'domain'
+      NULL, NULL, json_object('role', c.role, 'note', c.note), 'domain'
       FROM finance_circuit_resolution_confirmations c`,
     `SELECT 'asset-reconciliation:' || s.id, s.created_at, s.created_by, 'reconciled', 'asset_reconciliation', CAST(s.id AS TEXT),
       s.snapshot_date, NULL,
@@ -293,10 +296,10 @@ function accountEventProvenanceSources(): string[] {
 function workbookReviewSources(): string[] {
   return [
     `SELECT 'workbook-review:' || a.id, a.occurred_at, a.actor, a.action, 'workbook_review', CAST(a.review_id AS TEXT),
-      substr(a.occurred_at, 1, 10), a.before_json, a.after_json, 'audit'
+      NULL, a.before_json, a.after_json, 'audit'
       FROM finance_workbook_review_audit a`,
     `SELECT 'legacy-import-review:' || a.id, a.occurred_at, a.actor, a.action, 'workbook_review', 'legacy:' || CAST(a.review_id AS TEXT),
-      substr(a.occurred_at, 1, 10), a.before_json, a.after_json, 'audit'
+      NULL, a.before_json, a.after_json, 'audit'
       FROM finance_legacy_import_review_audit a`,
   ];
 }
@@ -325,7 +328,7 @@ function humanizeOperation(row: OperationRow) {
 }
 
 const ACTION_LABEL: Record<string, string> = {
-  created: '新增', updated: '修改', deleted: '删除', confirmed: '确认', resolved: '解决', reconciled: '对账',
+  created: '新增', updated: '修改', deleted: '删除', confirmed: '确认', resolved: '解除', reconciled: '对账',
 };
 const ENTITY_LABEL: Record<string, string> = {
   trade: '交易', cash_flow: '现金流', account_event: '账户事件', investment_plan: '投资计划', investment_rule: '投资规则',
@@ -345,6 +348,10 @@ const FIELD_LABEL: Record<string, string> = {
   initial_capital: '初始资金', monthly_invest: '共同月度投入', months_year1: '首年投入月数', months_year2plus: '后续投入月数',
   rate_low: '低情景年化', rate_base: '基准年化', rate_high: '高情景年化', bonus1: '首年奖金投入', bonus2to4: '后续奖金投入',
   start_year: '起始年份', end_year: '结束年份', level: '熔断级别',
+  single_position_active_cap: '主动仓单标的上限', loss_pause_ratio: '亏损暂停加仓阈值', stop_loss_ratio: '止损阈值',
+  take_profit_ratio: '止盈阈值', rebalance_deviation: '再平衡偏离阈值', freeze: '冻结温度线', low: '低温线', normal: '正常温度线', high: '高温线',
+  muxia_monthly_invest: '木下月度投入', cati_monthly_invest: 'CATI月度投入', muxia_bonus_year1: '木下首年奖金投入',
+  muxia_bonus_later: '木下后续奖金投入', cati_bonus_year1: 'CATI首年奖金投入', cati_bonus_later: 'CATI后续奖金投入',
 };
 const BUSINESS_FIELDS: Record<string, string[]> = {
   trade: ['ticker_name', 'direction', 'quantity', 'price', 'trade_time', 'fee', 'net_cash_amount', 'position_category', 'reason'],
@@ -397,6 +404,7 @@ function summaryFor(entityType: string, action: string, data: JsonObject, change
   if (entityType === 'asset_reconciliation') return `总资产 ${moneyValue(data.total_value)}`;
   if (entityType === 'historical_import') return `${shortValue(data.imported_rows)} 条记录 · ${shortValue(data.review_rows)} 条待审阅`;
   if (entityType === 'circuit') {
+    if (action === 'resolved') return `${String(data.level ?? '熔断')} · 熔断状态已解除`;
     const detail = data.detail;
     const reason = detail && typeof detail === 'object' && !Array.isArray(detail)
       ? (detail as JsonObject).reason ?? (detail as JsonObject).action

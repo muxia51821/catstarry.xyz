@@ -56,12 +56,19 @@ assert.ok(!shanghaiDay.some((row) => row.operation_key === 'trade:2'), 'date fil
 db.prepare(`INSERT INTO finance_access_log (username, action, occurred_at) VALUES ('muxia', 'session', '2026-08-17T02:00:00.000Z')`).run();
 assert.doesNotMatch(rows().built.query, /finance_access_log/, 'security access logs must stay out of Operation History');
 
-// All circuit creations are visible; human objections preserve their actor and old engine rows are labelled system-side.
+// All circuit creations are visible and state resolution is a separate domain event.
 db.prepare(`INSERT INTO circuit_breaker_log (level, reason, triggered_at) VALUES
   ('yellow', '{"metrics":{"loss":0.2},"action":"pause_active_additions"}', '2026-08-17T03:00:00.000Z'),
   ('black', '{"objection_by":"cati","reason":"pause now"}', '2026-08-17T03:01:00.000Z')`).run();
+const blackCircuitId = Number(db.prepare("SELECT id FROM circuit_breaker_log WHERE level = 'black'").get().id);
+db.prepare('UPDATE circuit_breaker_log SET resolved_at = ? WHERE id = ?').run('2026-08-17T03:05:00.000Z', blackCircuitId);
 const circuits = rows({ filter: { ...emptyFilter, entity_type: 'circuit' } }).rows;
-assert.deepEqual(circuits.map((row) => [row.actor, row.audit_strength]), [['cati', 'domain'], ['system:risk-engine', 'domain']]);
+assert.deepEqual(circuits.map((row) => [row.action, row.actor, row.audit_strength]), [
+  ['resolved', 'system:circuit-state', 'domain'],
+  ['created', 'cati', 'domain'],
+  ['created', 'system:risk-engine', 'domain'],
+]);
+assert.ok(circuits.every((row) => row.business_date === null), 'operational circuit timestamps must not be mislabeled as a financial business date');
 
 // Annual confirmation must remain append-only history even after a later recalculation clears current confirmation state.
 db.prepare(`INSERT INTO annual_reviews (year, calculation_json, summary, calculated_at)
@@ -97,7 +104,7 @@ db.prepare(`INSERT INTO trades (id, trade_date, ticker, direction, quantity, pri
   VALUES (1002, '2026-06-01', 'LEGACYROW', 'buy', 1, 1, '其他', '2026-06-01T00:00:00.000Z', 'legacy-import')`).run();
 assert.ok(!rows({ filter: { ...emptyFilter, entity_type: 'trade' } }).rows.some((row) => row.operation_key === 'trade-provenance-created:1002'));
 
-// Canonical and legacy Import Review audits are both admin-only at the query-source boundary.
+// Canonical and legacy Import Review audits are both admin-only and carry no invented business date.
 db.prepare(`INSERT INTO finance_workbook_review_audit (review_id, action, actor, occurred_at, before_json, after_json)
   VALUES (1, 'resolved', 'muxia', '2026-08-17T06:00:00.000Z', '{"status":"pending"}', '{"status":"resolved","resolution_note":"fixed"}')`).run();
 db.prepare(`INSERT INTO finance_legacy_import_review_audit (review_id, action, actor, occurred_at, before_json, after_json)
@@ -106,6 +113,7 @@ assert.ok(!rows({ includeWorkbookReview: false }).rows.some((row) => row.entity_
 const adminReviewRows = rows({ includeWorkbookReview: true }).rows.filter((row) => row.entity_type === 'workbook_review');
 assert.equal(adminReviewRows.length, 2);
 assert.ok(adminReviewRows.every((row) => row.audit_strength === 'audit'));
+assert.ok(adminReviewRows.every((row) => row.business_date === null));
 
 db.close();
 console.log('Finance Operation History query and cursor contract passed.');

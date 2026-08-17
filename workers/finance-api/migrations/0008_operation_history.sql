@@ -229,3 +229,38 @@ BEGIN
     )
   );
 END;
+
+-- Legacy Import Review remains a compatibility surface. New Worker versions place
+-- {note, actor} in resolution_note for the first UPDATE inside one D1 batch; this
+-- trigger extracts the actor and the human note into immutable audit evidence.
+-- An old Worker writing plain text after this migration still creates an audit row,
+-- but the actor is explicitly unknown rather than silently missing.
+CREATE TRIGGER IF NOT EXISTS trg_finance_legacy_import_review_audit_resolved
+AFTER UPDATE ON finance_import_review
+WHEN OLD.status = 'pending' AND NEW.status = 'resolved' AND NEW.resolved_at IS NOT NULL
+BEGIN
+  INSERT INTO finance_legacy_import_review_audit (review_id, action, actor, occurred_at, before_json, after_json)
+  VALUES (
+    NEW.id,
+    'resolved',
+    CASE
+      WHEN json_valid(NEW.resolution_note) AND json_type(NEW.resolution_note, '$.actor') = 'text'
+        THEN json_extract(NEW.resolution_note, '$.actor')
+      ELSE 'unknown:legacy-import-review'
+    END,
+    NEW.resolved_at,
+    json_object(
+      'batch_id', OLD.batch_id, 'row_number', OLD.row_number, 'record_kind', OLD.record_kind,
+      'status', OLD.status, 'resolution_note', OLD.resolution_note
+    ),
+    json_object(
+      'batch_id', NEW.batch_id, 'row_number', NEW.row_number, 'record_kind', NEW.record_kind,
+      'status', NEW.status,
+      'resolution_note', CASE
+        WHEN json_valid(NEW.resolution_note) AND json_type(NEW.resolution_note, '$.note') = 'text'
+          THEN json_extract(NEW.resolution_note, '$.note')
+        ELSE NEW.resolution_note
+      END
+    )
+  );
+END;

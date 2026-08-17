@@ -3,9 +3,10 @@
   const app = document.querySelector('[data-app]');
   const grid = document.querySelector('.dashboard-grid');
   const oldImportPanel = document.querySelector('[data-import-review-panel]');
+  const oldAccessPanel = document.querySelector('[data-access-panel]');
   if (!app || !grid) return;
 
-  const actionLabels = { created: '新增', updated: '修改', deleted: '删除', confirmed: '确认', resolved: '解决', reconciled: '对账' };
+  const actionLabels = { created: '新增', updated: '修改', deleted: '删除', confirmed: '确认', resolved: '解除', reconciled: '对账' };
   const entityLabels = {
     trade: '交易', cash_flow: '现金流', account_event: '账户事件', investment_plan: '投资计划', investment_rule: '投资规则',
     memo: '投资备忘录', monthly_record: '月度记录', annual_review: '年度复盘', workbook_review: '导入异常', rebalance: '再平衡',
@@ -43,7 +44,7 @@
       node('div', {}, node('p', { className: 'eyebrow', textContent: 'IMPORT REVIEW' }), node('h2', { id: 'canonical-import-review-title', textContent: '导入异常审阅' })),
       node('span', { className: 'data-state', 'data-canonical-review-state': '', textContent: '等待读取' }),
     ),
-    node('p', { className: 'panel-copy', textContent: '这里只使用带 before / after 审计的 Workbook Review。旧 Import Review 保留为兼容读取面；新产品界面不再从旧写入口结案。' }),
+    node('p', { className: 'panel-copy', textContent: '这里只使用带 before / after 审计的 Workbook Review。旧 Import Review 保留为兼容读取面；旧写入口也会审计，但新产品界面不再从旧入口结案。' }),
   );
   const reviewList = node('div', { className: 'import-review-list', 'data-canonical-review-list': '' });
   const reviewEmpty = node('p', { className: 'empty-state', 'data-canonical-review-empty': '', textContent: '没有待处理的导入异常。' });
@@ -56,6 +57,7 @@
   let loading = false;
   let canReview = null;
   let refreshTimer = null;
+  let sessionEpoch = 0;
 
   function recordsActive() { return document.querySelector('[data-tab="records"]')?.classList.contains('is-active') ?? false; }
   function syncVisibility() {
@@ -67,6 +69,7 @@
 
   async function loadOperations({ append = false } = {}) {
     if (loading || app.hidden || !recordsActive()) return;
+    const epoch = sessionEpoch;
     loading = true;
     historyError.hidden = true;
     historyPanel.querySelector('[data-operation-state]').textContent = '正在读取';
@@ -78,6 +81,7 @@
       const response = await rawFetch(`${apiBase}/api/operations?${params}`, { credentials: 'include' });
       if (!response.ok) throw new Error(await responseMessage(response, '变更记录暂时无法读取'));
       const body = await response.json();
+      if (epoch !== sessionEpoch || app.hidden) return;
       items = append ? [...items, ...(body.items ?? [])] : body.items ?? [];
       nextCursor = body.nextCursor ?? null;
       renderOperations();
@@ -85,11 +89,12 @@
       historyPanel.querySelector('[data-operation-state]').textContent = `${items.length} 条记录`;
       document.documentElement.classList.add('operation-history-ready');
     } catch (error) {
+      if (epoch !== sessionEpoch || app.hidden) return;
       historyError.textContent = error instanceof Error ? error.message : '变更记录暂时无法读取';
       historyError.hidden = false;
       historyPanel.querySelector('[data-operation-state]').textContent = '读取失败';
     } finally {
-      loading = false;
+      if (epoch === sessionEpoch) loading = false;
     }
   }
 
@@ -112,7 +117,9 @@
         );
         body.append(changeList);
       } else {
-        body.append(node('p', { className: 'operation-no-diff', textContent: '这是一条新增、确认、删除或对账事件，没有需要展开的字段差异。' }));
+        body.append(node('p', { className: 'operation-no-diff', textContent: item.audit_strength === 'provenance'
+          ? '只有行级 provenance 可以证明这次操作发生过；旧版本字段差异没有被保存，因此不会反推。'
+          : '这是一条新增、确认、删除或对账事件，没有需要展开的字段差异。' }));
       }
       details.append(summary, body);
       return details;
@@ -123,25 +130,30 @@
 
   async function loadWorkbookReview() {
     if (app.hidden || !recordsActive() || canReview === false) return;
+    const epoch = sessionEpoch;
     const state = reviewPanel.querySelector('[data-canonical-review-state]');
     state.textContent = '正在读取';
     reviewError.hidden = true;
     try {
       const response = await rawFetch(`${apiBase}/api/workbook-review?status=pending`, { credentials: 'include' });
       if (response.status === 403) {
+        if (epoch !== sessionEpoch || app.hidden) return;
         canReview = false;
+        reviewList.replaceChildren();
         reviewPanel.hidden = true;
         document.documentElement.classList.add('operation-workbook-review-ready');
         return;
       }
       if (!response.ok) throw new Error(await responseMessage(response, '导入异常暂时无法读取'));
       const body = await response.json();
+      if (epoch !== sessionEpoch || app.hidden) return;
       canReview = true;
       renderWorkbookReview(body.review ?? []);
       reviewPanel.hidden = !recordsActive();
       state.textContent = `${body.review?.length ?? 0} 条待处理`;
       document.documentElement.classList.add('operation-workbook-review-ready');
     } catch (error) {
+      if (epoch !== sessionEpoch || app.hidden) return;
       reviewError.textContent = error instanceof Error ? error.message : '导入异常暂时无法读取';
       reviewError.hidden = false;
       state.textContent = '读取失败';
@@ -166,18 +178,21 @@
   async function resolveWorkbookReview(id, input, button) {
     const note = input.value.trim();
     if (!note) { input.focus(); return; }
+    const epoch = sessionEpoch;
     button.disabled = true;
     try {
       const response = await rawFetch(`${apiBase}/api/workbook-review/${id}`, {
         method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ resolution_note: note }),
       });
       if (!response.ok) throw new Error(await responseMessage(response, '结案失败'));
+      if (epoch !== sessionEpoch || app.hidden) return;
       await Promise.all([loadWorkbookReview(), loadOperations()]);
     } catch (error) {
+      if (epoch !== sessionEpoch || app.hidden) return;
       reviewError.textContent = error instanceof Error ? error.message : '结案失败';
       reviewError.hidden = false;
     } finally {
-      button.disabled = false;
+      if (epoch === sessionEpoch) button.disabled = false;
     }
   }
 
@@ -190,6 +205,30 @@
     }, 80);
   }
 
+  function resetSessionSurfaces() {
+    sessionEpoch += 1;
+    clearTimeout(refreshTimer);
+    refreshTimer = null;
+    loading = false;
+    canReview = null;
+    items = [];
+    nextCursor = null;
+    historyList.replaceChildren();
+    reviewList.replaceChildren();
+    oldAccessPanel?.querySelector('[data-access-list]')?.replaceChildren();
+    oldImportPanel?.querySelector('[data-import-review-list]')?.replaceChildren();
+    historyEmpty.hidden = false;
+    reviewEmpty.hidden = false;
+    historyError.hidden = true;
+    reviewError.hidden = true;
+    coverage.textContent = '';
+    historyPanel.querySelector('[data-operation-state]').textContent = '等待读取';
+    reviewPanel.querySelector('[data-canonical-review-state]').textContent = '等待读取';
+    historyPanel.hidden = true;
+    reviewPanel.hidden = true;
+    document.documentElement.classList.remove('operation-history-ready', 'operation-workbook-review-ready');
+  }
+
   filters.addEventListener('submit', (event) => { event.preventDefault(); nextCursor = null; loadOperations(); });
   filters.addEventListener('reset', () => setTimeout(() => { nextCursor = null; loadOperations(); }));
   more.addEventListener('click', () => loadOperations({ append: true }));
@@ -197,10 +236,11 @@
   document.querySelector('[data-refresh]')?.addEventListener('click', () => setTimeout(scheduleRefresh));
 
   const observer = new MutationObserver(() => {
-    if (!app.hidden) syncVisibility();
+    if (app.hidden) resetSessionSurfaces();
+    else syncVisibility();
   });
   observer.observe(app, { attributes: true, attributeFilter: ['hidden'] });
-  if (!app.hidden) syncVisibility();
+  if (app.hidden) resetSessionSurfaces(); else syncVisibility();
 
   function node(tag, attrs = {}, ...children) {
     const element = document.createElement(tag);

@@ -27,6 +27,16 @@ db.exec(`
     year INTEGER PRIMARY KEY, calculation_json TEXT NOT NULL, summary TEXT, calculated_at TEXT NOT NULL,
     confirmed_by TEXT, confirmed_at TEXT
   );
+  CREATE TABLE finance_import_review (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    batch_id TEXT NOT NULL,
+    row_number INTEGER NOT NULL,
+    record_kind TEXT NOT NULL,
+    raw_json TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    resolution_note TEXT,
+    resolved_at TEXT
+  );
 `);
 
 db.prepare(`INSERT INTO finance_memos (memo_date, reason, created_at, created_by) VALUES (?, ?, ?, ?)`)
@@ -40,6 +50,7 @@ db.exec(migration);
 assert.equal(db.prepare('SELECT COUNT(*) AS count FROM finance_memo_audit').get().count, 0, 'existing memo versions must not be fabricated');
 assert.equal(db.prepare('SELECT COUNT(*) AS count FROM finance_monthly_record_audit').get().count, 0, 'existing monthly versions must not be fabricated');
 assert.equal(db.prepare('SELECT COUNT(*) AS count FROM finance_review_audit').get().count, 0, 'existing annual review versions must not be fabricated');
+assert.equal(db.prepare('SELECT COUNT(*) AS count FROM finance_legacy_import_review_audit').get().count, 0, 'existing legacy review versions must not be fabricated');
 
 // Fresh databases apply migrations before replaying the accepted historical import.
 // Those imported Memos must not appear as user-created operations when production upgrades do not have them either.
@@ -85,8 +96,40 @@ const reviewRevision = db.prepare(`SELECT before_json, after_json FROM finance_r
 assert.equal(JSON.parse(reviewRevision.before_json).confirmed_by, 'cati');
 assert.equal(JSON.parse(reviewRevision.after_json).confirmed_by, null, 'recalculation must preserve evidence that the previous confirmation was cleared');
 
+// Legacy compatibility writes carry actor in a temporary JSON envelope. The trigger stores
+// immutable plain-note audit evidence; the second update normalizes the domain row back to text.
+db.prepare(`INSERT INTO finance_import_review (batch_id, row_number, record_kind, raw_json)
+  VALUES ('legacy-batch', 7, 'trade', '{}')`).run();
+const legacyId = Number(db.prepare('SELECT max(id) AS id FROM finance_import_review').get().id);
+const legacyEnvelope = JSON.stringify({ note: 'legacy fixed', actor: 'muxia' });
+db.prepare(`UPDATE finance_import_review
+  SET status = 'resolved', resolution_note = ?, resolved_at = ?
+  WHERE id = ? AND status = 'pending'`).run(legacyEnvelope, '2026-08-17T04:00:00.000Z', legacyId);
+db.prepare(`UPDATE finance_import_review
+  SET resolution_note = ?
+  WHERE resolved_at = ? AND id = ? AND status = 'resolved'`).run('legacy fixed', '2026-08-17T04:00:00.000Z', legacyId);
+const legacyAudit = db.prepare(`SELECT actor, before_json, after_json FROM finance_legacy_import_review_audit
+  WHERE review_id = ?`).get(legacyId);
+assert.equal(legacyAudit.actor, 'muxia');
+assert.equal(JSON.parse(legacyAudit.before_json).status, 'pending');
+assert.deepEqual(JSON.parse(legacyAudit.after_json), {
+  batch_id: 'legacy-batch', row_number: 7, record_kind: 'trade', status: 'resolved', resolution_note: 'legacy fixed',
+});
+assert.equal(db.prepare('SELECT resolution_note FROM finance_import_review WHERE id = ?').get(legacyId).resolution_note, 'legacy fixed');
+assert.equal(db.prepare('SELECT COUNT(*) AS count FROM finance_legacy_import_review_audit WHERE review_id = ?').get(legacyId).count, 1, 'normalizing the note must not create a second audit row');
+
+// Old Worker compatibility: a plain-text legacy resolution after migration is still audited,
+// but its unavailable actor is labelled explicitly rather than guessed.
+db.prepare(`INSERT INTO finance_import_review (batch_id, row_number, record_kind, raw_json)
+  VALUES ('old-worker-batch', 8, 'trade', '{}')`).run();
+const oldWorkerId = Number(db.prepare('SELECT max(id) AS id FROM finance_import_review').get().id);
+db.prepare(`UPDATE finance_import_review
+  SET status = 'resolved', resolution_note = ?, resolved_at = ?
+  WHERE id = ? AND status = 'pending'`).run('old worker fixed', '2026-08-17T04:10:00.000Z', oldWorkerId);
+assert.equal(db.prepare('SELECT actor FROM finance_legacy_import_review_audit WHERE review_id = ?').get(oldWorkerId).actor, 'unknown:legacy-import-review');
+
 db.exec(migration);
-assert.equal(db.prepare("SELECT COUNT(*) AS count FROM sqlite_master WHERE type = 'trigger' AND name LIKE 'trg_finance_%_audit_%'").get().count >= 9, true);
+assert.equal(db.prepare("SELECT COUNT(*) AS count FROM sqlite_master WHERE type = 'trigger' AND name LIKE 'trg_finance_%_audit_%'").get().count >= 10, true);
 db.close();
 
 console.log('Finance operation history migration contract passed.');
