@@ -68,9 +68,8 @@ assert.equal(filtered.trades.length, 1);
 assert.deepEqual({
   ticker: filtered.trades[0].ticker,
   role: filtered.trades[0].position_category,
-  attribute: filtered.trades[0].security_attribute,
-  instrument: filtered.trades[0].instrument_type,
-}, { ticker: '000021', role: '主动操作仓（A股）', attribute: '消费电子', instrument: 'stock' });
+}, { ticker: '000021', role: '主动操作仓（A股）' });
+assert.ok(!('security_attribute' in filtered.trades[0]), 'Trade facts stay independent of the security-reference projection');
 
 const firstPageResponse = await handleTrades(request(`limit=1&position_category=${encodeURIComponent('主动操作仓（A股）')}`), env);
 assert.equal(firstPageResponse.status, 200);
