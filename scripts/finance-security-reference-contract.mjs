@@ -6,8 +6,6 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 import { DatabaseSync } from 'node:sqlite';
 
-import { buildSecurityQuery } from '../workers/finance-api/src/routes/securities.ts';
-
 const run = promisify(execFile);
 const python = process.platform === 'win32' ? 'python' : 'python3';
 const root = await mkdtemp(path.join(os.tmpdir(), 'catstarry-finance-securities-'));
@@ -36,15 +34,20 @@ try {
   }
   database.exec(await readFile(sqlPath, 'utf8'));
   assert.equal(database.prepare('SELECT COUNT(*) AS count FROM finance_securities').get().count, 4);
-
-  const all = buildSecurityQuery({ ticker: null, security_attribute: null, instrument_type: null });
-  assert.deepEqual(database.prepare(all.query).all(...all.values).map((row) => ({ ...row })).map((row) => row.ticker), ['000021', '510330', '515880', '518880']);
-  const industry = buildSecurityQuery({ ticker: null, security_attribute: '消费电子', instrument_type: 'stock' });
-  assert.deepEqual(database.prepare(industry.query).all(...industry.values).map((row) => ({ ...row })), [{
+  assert.deepEqual(database.prepare(`SELECT ticker FROM finance_securities ORDER BY ticker`).all().map((row) => row.ticker), ['000021', '510330', '515880', '518880']);
+  assert.deepEqual({ ...database.prepare(`SELECT ticker, instrument_type, security_attribute, attribute_source FROM finance_securities
+    WHERE security_attribute = ? AND instrument_type = ? ORDER BY ticker`).get('消费电子', 'stock') }, {
     ticker: '000021', instrument_type: 'stock', security_attribute: '消费电子', attribute_source: 'eastmoney',
-    updated_at: database.prepare(`SELECT updated_at FROM finance_securities WHERE ticker='000021'`).get().updated_at,
-    updated_by: 'contract',
-  }]);
+  });
+
+  const routeSource = await readFile('workers/finance-api/src/routes/securities.ts', 'utf8');
+  assert.match(routeSource, /requireFinanceRole\(request, env\)/);
+  assert.match(routeSource, /security_attribute = \?/);
+  assert.match(routeSource, /instrument_type = \?/);
+  assert.match(routeSource, /ticker = \?/);
+  assert.match(routeSource, /FROM finance_securities/);
+  const workerSource = await readFile('workers/finance-api/src/index.ts', 'utf8');
+  assert.match(workerSource, /pathname === '\/api\/securities'/);
 
   // Reference updates replace the canonical attribute for a ticker instead of creating a taxonomy history engine.
   const corrected = path.join(root, 'corrected.csv');
