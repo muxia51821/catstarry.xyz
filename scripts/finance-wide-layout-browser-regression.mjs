@@ -96,8 +96,8 @@ try {
   const mobile = await measure(390);
   assert.ok(mobile.shell.width >= 389, 'mobile shell should continue to use the viewport');
   assert.equal(mobile.tabs.overflowX, 'auto');
-  assert.ok(mobile.tabs.scrollWidth > mobile.tabs.clientWidth + 20, 'mobile tabs should preserve readable natural widths and horizontal scrolling');
-  assert.ok(Math.max(...mobile.tabWidths) > Math.min(...mobile.tabWidths) + 4, 'mobile tabs should not be forced into equal narrow cells');
+  assert.ok(mobile.tabs.scrollWidth > mobile.tabs.clientWidth + 20, 'mobile tabs should preserve readable widths and horizontal scrolling');
+  assert.ok(Math.min(...mobile.tabWidths) >= 83.5, `mobile tabs must keep a readable minimum width: ${Math.min(...mobile.tabWidths)}`);
   assert.ok(mobile.titleSize <= 40, 'mobile title should keep the existing compact scale');
 
   console.log('Finance 1440/1920/2560/mobile wide-layout browser regression passed.');
