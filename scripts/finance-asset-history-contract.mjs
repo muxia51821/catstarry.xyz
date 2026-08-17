@@ -53,14 +53,15 @@ assert.ok(weekRows.includes('2026-06-26'));
 assert.ok(weekRows.includes('2026-08-14'));
 assert.ok(!weekRows.includes('2026-08-15'), 'incomplete valuations must never become chart points');
 
-// Snapshot observations are deliberately not copied into the derived valuation cache.
+// Reconciliation observations are evidence; they are not copied into the derived valuation cache.
 db.prepare(`INSERT INTO finance_asset_snapshots (
-  snapshot_at, snapshot_date, holdings_value, cash_value, total_value, source, is_complete, created_at, created_by
-) VALUES ('2026-08-16T02:29:00.000Z', '2026-08-16', 109698.70, 20725.50, 130424.20, 'broker_reconciliation', 1, '2026-08-16T02:29:00.000Z', 'muxia')`).run();
+  snapshot_at, snapshot_date, holdings_value, cash_value, other_assets_value, total_value, source, is_complete, created_at, created_by
+) VALUES ('2026-08-16T02:29:00.000Z', '2026-08-16', 109698.70, 20725.50, 0, 130424.20, 'broker_reconciliation', 1, '2026-08-16T02:29:00.000Z', 'muxia')`).run();
 assert.equal(db.prepare(`SELECT COUNT(*) AS count FROM finance_asset_valuations WHERE valuation_date = '2026-08-16'`).get().count, 0);
 
 db.close();
 console.log('Finance derived historical price and valuation cache contract passed.');
 await import('./finance-raw-price-import-contract.mjs');
 await import('./finance-security-reference-contract.mjs');
+await import('./finance-asset-reconciliation-contract.mjs');
 await import('./finance-portfolio-wiring-contract.mjs');
