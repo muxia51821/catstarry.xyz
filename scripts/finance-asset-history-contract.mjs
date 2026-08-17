@@ -8,12 +8,14 @@ for (const file of (await readdir('workers/finance-api/migrations')).filter((nam
   db.exec(await readFile(path.join('workers/finance-api/migrations', file), 'utf8'));
 }
 
-// Historical prices are an explicit security time series and must remain raw/unadjusted.
+// Historical prices are one canonical raw/unadjusted close per security/day.
 db.prepare(`INSERT INTO finance_security_prices (ticker, price_date, close, source, adjustment, created_at, created_by)
-  VALUES ('515880', '2026-06-30', 1.7948, 'web-crosscheck', 'raw', '2026-08-17T00:00:00.000Z', 'contract')`).run();
-assert.deepEqual({ ...db.prepare(`SELECT ticker, price_date, close, adjustment FROM finance_security_prices`).get() }, {
-  ticker: '515880', price_date: '2026-06-30', close: 1.7948, adjustment: 'raw',
+  VALUES ('515880', '2026-06-30', 1.7948, 'mootdx', 'raw', '2026-08-17T00:00:00.000Z', 'contract')`).run();
+assert.deepEqual({ ...db.prepare(`SELECT ticker, price_date, close, source, adjustment FROM finance_security_prices`).get() }, {
+  ticker: '515880', price_date: '2026-06-30', close: 1.7948, source: 'mootdx', adjustment: 'raw',
 });
+assert.throws(() => db.prepare(`INSERT INTO finance_security_prices (ticker, price_date, close, source, adjustment, created_at, created_by)
+  VALUES ('515880', '2026-06-30', 0.8974, 'web-crosscheck', 'raw', '2026-08-17T00:00:00.000Z', 'contract')`).run(), /UNIQUE constraint failed/, 'cross-check sources must not create competing canonical closes for the same security/day');
 assert.throws(() => db.prepare(`INSERT INTO finance_security_prices (ticker, price_date, close, source, adjustment, created_at, created_by)
   VALUES ('515880', '2026-06-29', 0.8974, 'bad-adjusted-source', 'split_adjusted', '2026-08-17T00:00:00.000Z', 'contract')`).run(), /CHECK constraint failed/);
 
@@ -21,7 +23,7 @@ function valuation(date, securities, cash, other = 0, complete = 1, reason = nul
   db.prepare(`INSERT INTO finance_asset_valuations (
     valuation_date, securities_value, cash_value, other_assets_value, total_value,
     held_position_count, priced_position_count, is_complete, incomplete_reason, price_source, source, calculated_at
-  ) VALUES (?, ?, ?, ?, ?, 10, ?, ?, ?, 'raw-close-contract', 'historical_reconstruction', ?)`)
+  ) VALUES (?, ?, ?, ?, ?, 10, ?, ?, ?, 'mootdx', 'derived', ?)`)
     .run(date, securities, cash, other, securities + cash + other, complete ? 10 : 9, complete, reason, `${date}T08:00:00.000Z`);
 }
 
