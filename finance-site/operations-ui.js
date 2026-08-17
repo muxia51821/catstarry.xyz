@@ -2,16 +2,12 @@
   const apiBase = document.querySelector('meta[name="finance-api-base"]')?.content.replace(/\/$/, '') ?? '';
   const app = document.querySelector('[data-app]');
   const grid = document.querySelector('.dashboard-grid');
-  const overviewGrid = document.querySelector('.overview-grid');
   const oldImportPanel = document.querySelector('[data-import-review-panel]');
   const oldAccessPanel = document.querySelector('[data-access-panel]');
-  if (!app || !grid || !overviewGrid) return;
+  if (!app || !grid) return;
 
   const recordsTab = document.querySelector('[data-tab="records"]');
   if (recordsTab) recordsTab.textContent = '账户动态';
-  const marketValue = document.querySelector('[data-total-value]');
-  const marketMetricLabel = marketValue?.closest('.metric')?.querySelector('span');
-  if (marketMetricLabel) marketMetricLabel.textContent = '证券市值';
 
   const actionLabels = { created: '新增', updated: '修改', deleted: '删除', confirmed: '确认', resolved: '结案' };
   const entityLabels = {
@@ -20,34 +16,6 @@
   };
   const activityLabels = { trade: '交易', cash_flow: '现金流', account_event: '账户事件', reconciliation: '资产对账' };
   const rawFetch = window.fetch.bind(window);
-
-  const accountPanel = node('section', { className: 'panel panel--span-2 account-state-panel', 'data-pane': 'overview' });
-  accountPanel.setAttribute('aria-labelledby', 'account-state-title');
-  const accountState = node('span', { className: 'data-state', 'data-account-state': '', textContent: '等待读取' });
-  const totalAssets = node('strong', { className: 'account-state-total', 'data-account-total': '', textContent: '—' });
-  const holdingsValue = node('strong', { 'data-account-holdings': '', textContent: '—' });
-  const cashValue = node('strong', { 'data-account-cash': '', textContent: '—' });
-  const otherRow = node('div', { className: 'account-state-component', 'data-account-other-row': '', hidden: '' },
-    node('span', { textContent: '逆回购资产' }), node('strong', { 'data-account-other': '', textContent: '—' }));
-  const accountNote = node('p', { className: 'account-state-note', 'data-account-note': '', textContent: '等待现金余额对账。' });
-  const accountProblems = node('ul', { className: 'account-state-problems', 'data-account-problems': '', hidden: '' });
-  accountPanel.append(
-    node('header', { className: 'panel-header' },
-      node('div', {}, node('p', { className: 'eyebrow', textContent: 'ACCOUNT STATE' }), node('h2', { id: 'account-state-title', textContent: '资产概览' })),
-      accountState,
-    ),
-    node('div', { className: 'account-state-body' },
-      node('div', { className: 'account-state-primary' }, node('span', { textContent: '总资产' }), totalAssets),
-      node('div', { className: 'account-state-components' },
-        node('div', { className: 'account-state-component' }, node('span', { textContent: '证券市值' }), holdingsValue),
-        node('div', { className: 'account-state-component' }, node('span', { textContent: 'Broker Cash' }), cashValue),
-        otherRow,
-      ),
-    ),
-    accountNote,
-    accountProblems,
-  );
-  overviewGrid.insertBefore(accountPanel, overviewGrid.firstChild);
 
   const activityPanel = node('section', { className: 'panel panel--span-3 activity-panel', 'data-pane': 'records', hidden: '' });
   activityPanel.setAttribute('aria-labelledby', 'account-activity-title');
@@ -111,7 +79,6 @@
   changeLogPanel.append(changeLogSummary, changeLogCopy, filters, changeLogList, changeLogEmpty, changeLogError, coverage, more);
   grid.insertBefore(changeLogPanel, oldImportPanel ?? null);
 
-  let accountLoading = false;
   let activities = [];
   let activityCursor = null;
   let loadingActivity = false;
@@ -122,81 +89,15 @@
   let refreshTimer = null;
   let sessionEpoch = 0;
 
-  function overviewActive() { return document.querySelector('[data-tab="overview"]')?.classList.contains('is-active') ?? false; }
   function recordsActive() { return document.querySelector('[data-tab="records"]')?.classList.contains('is-active') ?? false; }
 
   function syncVisibility() {
-    const overview = overviewActive();
     const records = recordsActive();
-    accountPanel.hidden = !overview;
     activityPanel.hidden = !records;
     reviewPanel.hidden = !(records && canAdmin === true);
     changeLogPanel.hidden = !(records && canAdmin === true);
     if (app.hidden) return;
-    if (overview) loadAccountState();
     if (records) scheduleRecordsRefresh();
-  }
-
-  async function loadAccountState() {
-    if (accountLoading || app.hidden || !overviewActive()) return;
-    const epoch = sessionEpoch;
-    accountLoading = true;
-    accountState.textContent = '正在读取';
-    accountProblems.hidden = true;
-    try {
-      const response = await rawFetch(`${apiBase}/api/account-state`, { credentials: 'include' });
-      if (!response.ok) throw new Error(await responseMessage(response, '资产状态暂时无法读取'));
-      const body = await response.json();
-      if (epoch !== sessionEpoch || app.hidden) return;
-      renderAccountState(body);
-    } catch (error) {
-      if (epoch !== sessionEpoch || app.hidden) return;
-      totalAssets.textContent = '—';
-      holdingsValue.textContent = '—';
-      cashValue.textContent = '—';
-      otherRow.hidden = true;
-      accountState.textContent = '读取失败';
-      accountNote.textContent = error instanceof Error ? error.message : '资产状态暂时无法读取';
-      accountProblems.hidden = true;
-    } finally {
-      if (epoch === sessionEpoch) accountLoading = false;
-    }
-  }
-
-  function renderAccountState(body) {
-    totalAssets.textContent = money(body.total_assets);
-    holdingsValue.textContent = money(body.holdings?.market_value);
-    cashValue.textContent = money(body.cash?.value);
-    const other = Number(body.other_assets?.value ?? 0);
-    otherRow.hidden = !Number.isFinite(other) || other === 0;
-    otherRow.querySelector('[data-account-other]').textContent = money(body.other_assets?.value);
-
-    const problems = [
-      ...(body.cash?.problems ?? []),
-      ...(body.other_assets?.problems ?? []),
-      ...((body.holdings?.missing_tickers ?? []).length ? [`行情缺失：${body.holdings.missing_tickers.join('、')}`] : []),
-    ];
-    accountProblems.replaceChildren(...problems.map((problem) => node('li', { textContent: problem })));
-    accountProblems.hidden = problems.length === 0;
-
-    if (!body.reconciliation) {
-      accountState.textContent = '未对账';
-      accountNote.textContent = '尚无完整的人工或券商 Broker Cash 对账；不会从历史交易凭空推断当前现金。';
-      return;
-    }
-    const through = body.reconciliation.through_date;
-    if (body.cash?.status === 'incomplete' || body.total_status === 'incomplete') {
-      accountState.textContent = '数据不完整';
-      accountNote.textContent = `最近现金对账：${through}。后续事实存在缺口，因此暂不声明当前总资产。`;
-      return;
-    }
-    if (body.cash?.status === 'projected') {
-      accountState.textContent = body.total_status === 'stale_market' ? '现金已投影 · 行情可能陈旧' : '现金已投影';
-      accountNote.textContent = `Broker Cash 已对账至 ${through}，随后重放 ${body.cash.replayed_facts ?? 0} 笔明确现金事实，净变化 ${signedMoney(body.cash.projected_delta)}。`;
-      return;
-    }
-    accountState.textContent = body.total_status === 'stale_market' ? '已对账 · 行情可能陈旧' : '已对账';
-    accountNote.textContent = `Broker Cash 已对账至 ${through}；此后没有需要重放的现金事实。`;
   }
 
   async function loadActivity({ append = false } = {}) {
@@ -387,7 +288,6 @@
     sessionEpoch += 1;
     clearTimeout(refreshTimer);
     refreshTimer = null;
-    accountLoading = false;
     loadingActivity = false;
     loadingChanges = false;
     canAdmin = null;
@@ -408,19 +308,10 @@
     reviewError.hidden = true;
     activityCoverage.textContent = '';
     coverage.textContent = '';
-    totalAssets.textContent = '—';
-    holdingsValue.textContent = '—';
-    cashValue.textContent = '—';
-    otherRow.hidden = true;
-    accountProblems.replaceChildren();
-    accountProblems.hidden = true;
-    accountNote.textContent = '等待现金余额对账。';
-    accountState.textContent = '等待读取';
     activityPanel.querySelector('[data-activity-state]').textContent = '等待读取';
     changeLogPanel.querySelector('[data-operation-state]').textContent = '管理员审计';
     reviewPanel.querySelector('[data-canonical-review-state]').textContent = '等待读取';
     changeLogPanel.open = false;
-    accountPanel.hidden = true;
     activityPanel.hidden = true;
     changeLogPanel.hidden = true;
     reviewPanel.hidden = true;
@@ -435,7 +326,7 @@
   more.addEventListener('click', () => loadChangeLog({ append: true }));
   changeLogPanel.addEventListener('toggle', () => { if (changeLogPanel.open) loadChangeLog(); });
   for (const tab of document.querySelectorAll('[data-tab]')) tab.addEventListener('click', () => setTimeout(syncVisibility));
-  document.querySelector('[data-refresh]')?.addEventListener('click', () => setTimeout(() => { loadAccountState(); scheduleRecordsRefresh(); }));
+  document.querySelector('[data-refresh]')?.addEventListener('click', () => setTimeout(scheduleRecordsRefresh));
 
   const observer = new MutationObserver(() => {
     if (app.hidden) resetSessionSurfaces();
@@ -462,17 +353,6 @@
     return Number.isNaN(date.getTime()) ? String(value ?? '—') : new Intl.DateTimeFormat('zh-CN', {
       timeZone: 'Asia/Shanghai', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false,
     }).format(date);
-  }
-  function money(value) {
-    const number = Number(value);
-    return value === null || value === undefined || !Number.isFinite(number)
-      ? '—'
-      : `¥${number.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  }
-  function signedMoney(value) {
-    const number = Number(value);
-    if (value === null || value === undefined || !Number.isFinite(number)) return '—';
-    return `${number >= 0 ? '+' : '-'}¥${Math.abs(number).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   }
   function formatValue(value) {
     if (value === null || value === undefined || value === '') return '—';

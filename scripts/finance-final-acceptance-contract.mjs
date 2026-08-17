@@ -5,15 +5,72 @@ import { DatabaseSync } from 'node:sqlite';
 
 import { projectRepoAssets } from '../workers/finance-api/src/routes/account-state.ts';
 import { normalizeAccountEvent } from '../workers/finance-api/src/routes/records.ts';
-import { replayTradeDay, tradeEditableAfterReconciliation } from '../workers/finance-api/src/routes/trades.ts';
+import { handleTrades, replayTradeDay, tradeDayFingerprint, tradeEditableAfterReconciliation } from '../workers/finance-api/src/routes/trades.ts';
+
+const SESSION_TOKEN = '33333333-3333-4333-8333-333333333333';
+
+class SqliteD1Statement {
+  constructor(database, sql, values = []) { this.database = database; this.sql = sql; this.values = values; }
+  bind(...values) { return new SqliteD1Statement(this.database, this.sql, values); }
+  async first() { const row = this.database.prepare(this.sql).get(...this.values); return row ? { ...row } : null; }
+  async all() { return { results: this.database.prepare(this.sql).all(...this.values).map((row) => ({ ...row })) }; }
+  async run() {
+    const result = this.database.prepare(this.sql).run(...this.values);
+    return { success: true, meta: { changes: Number(result.changes), last_row_id: Number(result.lastInsertRowid ?? 0) } };
+  }
+}
+class SqliteD1 {
+  constructor(database) { this.database = database; }
+  prepare(sql) { return new SqliteD1Statement(this.database, sql); }
+  async batch(statements) {
+    this.database.exec('BEGIN');
+    try {
+      const rows = [];
+      for (const statement of statements) rows.push(await statement.run());
+      this.database.exec('COMMIT');
+      return rows;
+    } catch (error) {
+      this.database.exec('ROLLBACK');
+      throw error;
+    }
+  }
+}
+class SessionKv {
+  async get(key, type) {
+    if (key !== `session:${SESSION_TOKEN}`) return null;
+    const session = { username: 'muxia', role: 'admin', expires_at: '2099-01-01T00:00:00.000Z' };
+    return type === 'json' ? session : JSON.stringify(session);
+  }
+  async put() {}
+  async delete() {}
+}
+
+async function applyMigrations(database) {
+  for (const file of (await readdir('workers/finance-api/migrations')).filter((name) => name.endsWith('.sql')).sort()) {
+    database.exec(await readFile(path.join('workers/finance-api/migrations', file), 'utf8'));
+  }
+}
+
+function tradeRequest(body) {
+  return new Request('https://finance.test/api/trades', {
+    method: 'POST',
+    headers: { Cookie: `token=${SESSION_TOKEN}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+function tradeMutationRequest(id, method, body) {
+  return new Request(`https://finance.test/api/trades/${id}`, {
+    method,
+    headers: { Cookie: `token=${SESSION_TOKEN}`, ...(body ? { 'Content-Type': 'application/json' } : {}) },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+}
 
 // Product invariant: a Trade owns at most one active Investment Memo. Historical
 // deleted memos remain auditable and do not block a later replacement memo.
 {
   const database = new DatabaseSync(':memory:');
-  for (const file of (await readdir('workers/finance-api/migrations')).filter((name) => name.endsWith('.sql')).sort()) {
-    database.exec(await readFile(path.join('workers/finance-api/migrations', file), 'utf8'));
-  }
+  await applyMigrations(database);
   database.prepare(`INSERT INTO trades (
     trade_date, ticker, ticker_name, direction, quantity, price, position_category,
     needs_review, created_at, created_by
@@ -58,6 +115,63 @@ import { replayTradeDay, tradeEditableAfterReconciliation } from '../workers/fin
   ]);
   assert.ok(missingTimeFallsBackToRecordedOrder, 'a missing trade time must not invent a chronological order that creates a negative holding');
   assert.deepEqual({ quantity: missingTimeFallsBackToRecordedOrder.quantity, avg_cost: missingTimeFallsBackToRecordedOrder.avg_cost }, { quantity: 50, avg_cost: 10 });
+}
+
+// Create, edit and delete must share one same-day replay contract. A later-recorded
+// trade with an earlier explicit time is a same-day backfill, not a reason for
+// derived holdings to depend on insertion order. The same endpoint exercise also
+// executes the trade-day cohort CAS used by edit/delete replay writes.
+{
+  const database = new DatabaseSync(':memory:');
+  await applyMigrations(database);
+  database.prepare(`INSERT INTO holdings_snapshots (snapshot_date, ticker, quantity, avg_cost, position_category)
+    VALUES ('2026-08-16', '510300', 100, 10, '主动操作仓（A股）')`).run();
+  const env = { DB: new SqliteD1(database), FINANCE_AUTH_KV: new SessionKv() };
+  const laterInput = {
+    trade_date: '2026-08-17', trade_time: '10:30', ticker: '510300', ticker_name: '沪深300ETF',
+    direction: 'buy', quantity: 50, price: 20, net_cash_amount: -1000, position_category: '主动操作仓（A股）',
+  };
+  const earlierInput = {
+    trade_date: '2026-08-17', trade_time: '09:30', ticker: '510300', ticker_name: '沪深300ETF',
+    direction: 'sell', quantity: 50, price: 12, net_cash_amount: 600, position_category: '主动操作仓（A股）',
+  };
+
+  const later = await handleTrades(tradeRequest(laterInput), env);
+  assert.equal(later.status, 201);
+  const laterId = Number((await later.json()).trade.id);
+  const earlierBackfill = await handleTrades(tradeRequest(earlierInput), env);
+  assert.equal(earlierBackfill.status, 201);
+  const earlierId = Number((await earlierBackfill.json()).trade.id);
+
+  let holding = { ...database.prepare(`SELECT quantity, avg_cost FROM holdings_snapshots
+    WHERE ticker='510300' ORDER BY snapshot_date DESC, id DESC LIMIT 1`).get() };
+  assert.equal(holding.quantity, 100);
+  assert.equal(holding.avg_cost, 15, 'same facts must produce the chronological holding whether or not a later edit occurs');
+
+  const edit = await handleTrades(tradeMutationRequest(laterId, 'PATCH', { ...laterInput, quantity: 40, net_cash_amount: -800 }), env);
+  assert.equal(edit.status, 200);
+  holding = { ...database.prepare(`SELECT quantity, avg_cost FROM holdings_snapshots WHERE ticker='510300' ORDER BY snapshot_date DESC, id DESC LIMIT 1`).get() };
+  assert.equal(holding.quantity, 90);
+  assert.ok(Math.abs(holding.avg_cost - (1300 / 90)) < 1e-10);
+
+  const removeEarlier = await handleTrades(tradeMutationRequest(earlierId, 'DELETE'), env);
+  assert.equal(removeEarlier.status, 200);
+  holding = { ...database.prepare(`SELECT quantity, avg_cost FROM holdings_snapshots WHERE ticker='510300' ORDER BY snapshot_date DESC, id DESC LIMIT 1`).get() };
+  assert.equal(holding.quantity, 140);
+  assert.ok(Math.abs(holding.avg_cost - (1800 / 140)) < 1e-10);
+  assert.equal(database.prepare(`SELECT COUNT(*) AS count FROM trades WHERE ticker='510300' AND trade_date='2026-08-17' AND deleted_at IS NULL`).get().count, 1);
+  assert.equal(database.prepare(`SELECT COUNT(*) AS count FROM finance_trade_audit`).get().count, 4);
+
+  const before = tradeDayFingerprint([
+    { id: 1, created_at: '2026-08-17T01:00:00.000Z', updated_at: null },
+    { id: 2, created_at: '2026-08-17T02:00:00.000Z', updated_at: null },
+  ]);
+  const siblingEdited = tradeDayFingerprint([
+    { id: 1, created_at: '2026-08-17T01:00:00.000Z', updated_at: '2026-08-17T03:00:00.000Z' },
+    { id: 2, created_at: '2026-08-17T02:00:00.000Z', updated_at: null },
+  ]);
+  assert.notDeepEqual(siblingEdited, before, 'a sibling edit must invalidate the trade-day cohort fingerprint used by replay writes');
+  database.close();
 }
 
 // Reconciliation is the seal boundary for normal online corrections. Facts before

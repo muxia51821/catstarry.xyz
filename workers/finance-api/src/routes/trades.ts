@@ -36,6 +36,7 @@ interface TradeRow {
   trade_time: string | null;
   fee: number | null;
   net_cash_amount: number | null;
+  created_at: string;
   created_by: string | null;
   updated_at: string | null;
   updated_by: string | null;
@@ -46,8 +47,12 @@ interface TradeRow {
 }
 
 type TradeReconciliation = { snapshot_at: string; snapshot_date: string };
+export type TradeDayFingerprint = { count: number; max_id: number; max_revision: string };
 
 const MAX_CURSOR_LENGTH = 2_048;
+const TRADE_DAY_COHORT_PREDICATE = `(SELECT COUNT(*) FROM trades WHERE ticker = ? AND trade_date = ? AND deleted_at IS NULL) = ?
+  AND COALESCE((SELECT MAX(id) FROM trades WHERE ticker = ? AND trade_date = ? AND deleted_at IS NULL), 0) = ?
+  AND COALESCE((SELECT MAX(COALESCE(updated_at, created_at, '')) FROM trades WHERE ticker = ? AND trade_date = ? AND deleted_at IS NULL), '') = ?`;
 
 export const HOLDING_UPSERT_SQL = `WITH input (
     trade_date, ticker, direction, quantity, price, position_category
@@ -80,6 +85,17 @@ export const HOLDING_UPSERT_SQL = `WITH input (
     position_category
   FROM calculated
   WHERE TRUE
+  ON CONFLICT(snapshot_date, ticker) DO UPDATE SET
+    quantity = excluded.quantity,
+    avg_cost = excluded.avg_cost,
+    position_category = excluded.position_category`;
+
+const HOLDING_REPLAY_UPSERT_SQL = `INSERT INTO holdings_snapshots (
+    snapshot_date, ticker, quantity, avg_cost, position_category
+  )
+  SELECT ?, ?, ?, ?, ?
+  WHERE ${TRADE_DAY_COHORT_PREDICATE}
+    AND NOT EXISTS (SELECT 1 FROM holdings_snapshots WHERE ticker = ? AND snapshot_date > ?)
   ON CONFLICT(snapshot_date, ticker) DO UPDATE SET
     quantity = excluded.quantity,
     avg_cost = excluded.avg_cost,
@@ -186,33 +202,64 @@ async function createTrade(request: Request, env: FinanceEnv): Promise<Response>
   const input = normalizeTrade(raw);
   if (!input) return apiError(400, 'invalid_trade', 'Trade fields are invalid');
 
-  const [current, reconciliation] = await Promise.all([
+  const [current, reconciliation, sameDay] = await Promise.all([
     latestHolding(env, input.ticker),
     latestTradeReconciliation(env),
+    activeTradesOnDate(env, input.ticker, input.trade_date),
   ]);
   const afterReconciliation = tradeEditableAfterReconciliation({ id: 0, ...input }, reconciliation);
   if ((current && input.trade_date < current.snapshot_date) || !afterReconciliation) {
     return apiError(409, 'backdated_trade', 'Online trades must be later than the latest holding and reconciliation boundaries; reviewed backfills belong in the migration workflow');
   }
-  if (input.direction === 'sell' && Number(current?.quantity ?? 0) < input.quantity) {
-    return apiError(409, 'insufficient_holding', 'Sell quantity exceeds the current holding');
+
+  if (!tradeDayNeedsReplay(sameDay, input)) {
+    if (input.direction === 'sell' && Number(current?.quantity ?? 0) < input.quantity) {
+      return apiError(409, 'insufficient_holding', 'Sell quantity exceeds the current holding');
+    }
+    const now = new Date().toISOString();
+    const results = await env.DB.batch([
+      env.DB.prepare(HOLDING_UPSERT_SQL).bind(input.trade_date, input.ticker, input.direction, input.quantity, input.price, input.position_category),
+      env.DB.prepare(`INSERT INTO trades (
+        trade_date, trade_time, ticker, ticker_name, direction, quantity, price, fee, net_cash_amount, position_category, reason, needs_review, created_at, created_by
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`)
+        .bind(input.trade_date, input.trade_time, input.ticker, input.ticker_name, input.direction, input.quantity, input.price, input.fee, input.net_cash_amount, input.position_category, input.reason, now, session.username),
+      env.DB.prepare(`INSERT INTO finance_trade_audit (trade_id, action, actor, occurred_at, after_json)
+        SELECT last_insert_rowid(), 'created', ?, ?, ? WHERE changes() = 1`)
+        .bind(session.username, now, JSON.stringify(input)),
+    ]);
+    const id = Number(results[1]?.meta.last_row_id);
+    return json({
+      trade: { id, ...input, created_at: now, created_by: session.username },
+      holding: await latestHolding(env, input.ticker),
+    }, 201);
   }
+
+  const previous = await previousHolding(env, input.ticker, input.trade_date);
+  const fingerprint = tradeDayFingerprint(sameDay);
+  const replayed = replayTradeDay(previous, [
+    ...sameDay,
+    { id: fingerprint.max_id + 1, trade_date: input.trade_date, trade_time: input.trade_time, direction: input.direction, quantity: input.quantity, price: input.price, position_category: input.position_category },
+  ], input.position_category);
+  if (!replayed) return apiError(409, 'insufficient_holding', 'The trade would make the chronological same-day holding negative');
+
   const now = new Date().toISOString();
+  const cohort = tradeDayCohortValues(input.ticker, input.trade_date, fingerprint);
   const results = await env.DB.batch([
-    env.DB.prepare(HOLDING_UPSERT_SQL).bind(input.trade_date, input.ticker, input.direction, input.quantity, input.price, input.position_category),
+    env.DB.prepare(HOLDING_REPLAY_UPSERT_SQL).bind(
+      input.trade_date, input.ticker, replayed.quantity, replayed.avg_cost, replayed.position_category,
+      ...cohort, input.ticker, input.trade_date,
+    ),
     env.DB.prepare(`INSERT INTO trades (
       trade_date, trade_time, ticker, ticker_name, direction, quantity, price, fee, net_cash_amount, position_category, reason, needs_review, created_at, created_by
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`)
+    ) SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ? WHERE changes() = 1`)
       .bind(input.trade_date, input.trade_time, input.ticker, input.ticker_name, input.direction, input.quantity, input.price, input.fee, input.net_cash_amount, input.position_category, input.reason, now, session.username),
     env.DB.prepare(`INSERT INTO finance_trade_audit (trade_id, action, actor, occurred_at, after_json)
       SELECT last_insert_rowid(), 'created', ?, ?, ? WHERE changes() = 1`)
       .bind(session.username, now, JSON.stringify(input)),
   ]);
+  if ((results[1]?.meta.changes ?? 0) === 0) return apiError(409, 'stale_trade_day', 'Another trade changed this day before the backfill could be committed; reload and retry');
   const id = Number(results[1]?.meta.last_row_id);
-  return json({
-    trade: { id, ...input, created_at: now, created_by: session.username },
-    holding: await latestHolding(env, input.ticker),
-  }, 201);
+  return json({ trade: { id, ...input, created_at: now, created_by: session.username }, holding: await latestHolding(env, input.ticker) }, 201);
 }
 
 async function updateTrade(request: Request, env: FinanceEnv, id: number): Promise<Response> {
@@ -237,11 +284,16 @@ async function updateTrade(request: Request, env: FinanceEnv, id: number): Promi
   const replayed = replayTradeDay(previous, sameDay.map((trade) => trade.id === id ? { ...trade, ...input } : trade), existing.position_category);
   if (!replayed) return apiError(409, 'insufficient_holding', 'The edited trade would make the same-day holding negative');
 
+  const fingerprint = tradeDayFingerprint(sameDay);
+  const cohort = tradeDayCohortValues(existing.ticker, existing.trade_date, fingerprint);
   const now = new Date().toISOString();
   const results = await env.DB.batch([
     env.DB.prepare(`UPDATE trades SET ticker_name = ?, direction = ?, quantity = ?, price = ?, trade_time = ?, fee = ?, net_cash_amount = ?, position_category = ?, reason = ?,
-      updated_at = ?, updated_by = ? WHERE id = ? AND deleted_at IS NULL AND updated_at IS ?`)
-      .bind(input.ticker_name, input.direction, input.quantity, input.price, input.trade_time, input.fee, input.net_cash_amount, input.position_category, input.reason, now, session.username, id, existing.updated_at ?? null),
+      updated_at = ?, updated_by = ? WHERE id = ? AND deleted_at IS NULL AND updated_at IS ?
+        AND ${TRADE_DAY_COHORT_PREDICATE}
+        AND NOT EXISTS (SELECT 1 FROM holdings_snapshots WHERE ticker = ? AND snapshot_date > ?)`)
+      .bind(input.ticker_name, input.direction, input.quantity, input.price, input.trade_time, input.fee, input.net_cash_amount, input.position_category, input.reason, now, session.username, id, existing.updated_at ?? null,
+        ...cohort, existing.ticker, existing.trade_date),
     env.DB.prepare(`INSERT INTO finance_trade_audit (trade_id, action, actor, occurred_at, before_json, after_json)
       SELECT ?, 'updated', ?, ?, ?, ? WHERE changes() = 1`)
       .bind(id, session.username, now, JSON.stringify(existing), JSON.stringify(input)),
@@ -250,7 +302,7 @@ async function updateTrade(request: Request, env: FinanceEnv, id: number): Promi
         AND EXISTS (SELECT 1 FROM trades WHERE id = ? AND updated_at = ? AND updated_by = ? AND deleted_at IS NULL)`)
       .bind(replayed.quantity, replayed.avg_cost, replayed.position_category, existing.ticker, existing.trade_date, id, now, session.username),
   ]);
-  if ((results[0]?.meta.changes ?? 0) === 0) return apiError(409, 'stale_trade', 'Trade changed before this edit could be committed; reload and retry');
+  if ((results[0]?.meta.changes ?? 0) === 0) return apiError(409, 'stale_trade', 'Trade day changed before this edit could be committed; reload and retry');
   return json({ trade: { id, ...input, updated_at: now, updated_by: session.username }, holding: await latestHolding(env, existing.ticker) });
 }
 
@@ -269,9 +321,14 @@ async function deleteTrade(request: Request, env: FinanceEnv, id: number): Promi
   const replayed = replayTradeDay(previous, sameDay.filter((trade) => trade.id !== id), existing.position_category);
   if (!replayed) return apiError(409, 'insufficient_holding', 'Deleting this trade would make the same-day holding negative');
 
+  const fingerprint = tradeDayFingerprint(sameDay);
+  const cohort = tradeDayCohortValues(existing.ticker, existing.trade_date, fingerprint);
   const now = new Date().toISOString();
   const results = await env.DB.batch([
-    env.DB.prepare('UPDATE trades SET deleted_at = ?, deleted_by = ? WHERE id = ? AND deleted_at IS NULL AND updated_at IS ?').bind(now, session.username, id, existing.updated_at ?? null),
+    env.DB.prepare(`UPDATE trades SET deleted_at = ?, deleted_by = ? WHERE id = ? AND deleted_at IS NULL AND updated_at IS ?
+      AND ${TRADE_DAY_COHORT_PREDICATE}
+      AND NOT EXISTS (SELECT 1 FROM holdings_snapshots WHERE ticker = ? AND snapshot_date > ?)`)
+      .bind(now, session.username, id, existing.updated_at ?? null, ...cohort, existing.ticker, existing.trade_date),
     env.DB.prepare(`INSERT INTO finance_trade_audit (trade_id, action, actor, occurred_at, before_json)
       SELECT ?, 'deleted', ?, ?, ? WHERE changes() = 1`)
       .bind(id, session.username, now, JSON.stringify(existing)),
@@ -280,7 +337,7 @@ async function deleteTrade(request: Request, env: FinanceEnv, id: number): Promi
         AND EXISTS (SELECT 1 FROM trades WHERE id = ? AND deleted_at = ? AND deleted_by = ?)`)
       .bind(replayed.quantity, replayed.avg_cost, replayed.position_category, existing.ticker, existing.trade_date, id, now, session.username),
   ]);
-  if ((results[0]?.meta.changes ?? 0) === 0) return apiError(409, 'stale_trade', 'Trade changed before this delete could be committed; reload and retry');
+  if ((results[0]?.meta.changes ?? 0) === 0) return apiError(409, 'stale_trade', 'Trade day changed before this delete could be committed; reload and retry');
   return json({ deleted: true, holding: await latestHolding(env, existing.ticker) });
 }
 
@@ -329,7 +386,7 @@ export function tradeEditableAfterReconciliation(
 
 async function activeTradesOnDate(env: FinanceEnv, ticker: string, tradeDate: string): Promise<TradeRow[]> {
   const rows = await env.DB.prepare(`SELECT trade_date, trade_time, ticker, ticker_name, direction, quantity, price, fee, net_cash_amount,
-      position_category, reason, id, created_by, updated_at, updated_by, deleted_at
+      position_category, reason, id, created_at, created_by, updated_at, updated_by, deleted_at
     FROM trades WHERE ticker = ? AND trade_date = ? AND deleted_at IS NULL ORDER BY id ASC`)
     .bind(ticker, tradeDate).all<TradeRow>();
   return rows.results
@@ -345,6 +402,27 @@ async function latestHolding(env: FinanceEnv, ticker: string): Promise<HoldingSn
 async function previousHolding(env: FinanceEnv, ticker: string, beforeDate: string): Promise<HoldingSnapshot | null> {
   return env.DB.prepare(`SELECT quantity, avg_cost, snapshot_date, position_category FROM holdings_snapshots
     WHERE ticker = ? AND snapshot_date < ? ORDER BY snapshot_date DESC, id DESC LIMIT 1`).bind(ticker, beforeDate).first<HoldingSnapshot>();
+}
+
+export function tradeDayFingerprint(trades: Array<Pick<TradeRow, 'id' | 'created_at' | 'updated_at'>>): TradeDayFingerprint {
+  return trades.reduce<TradeDayFingerprint>((fingerprint, trade) => ({
+    count: fingerprint.count + 1,
+    max_id: Math.max(fingerprint.max_id, trade.id),
+    max_revision: [fingerprint.max_revision, trade.updated_at ?? trade.created_at ?? ''].sort().at(-1) ?? '',
+  }), { count: 0, max_id: 0, max_revision: '' });
+}
+
+function tradeDayCohortValues(ticker: string, tradeDate: string, fingerprint: TradeDayFingerprint) {
+  return [
+    ticker, tradeDate, fingerprint.count,
+    ticker, tradeDate, fingerprint.max_id,
+    ticker, tradeDate, fingerprint.max_revision,
+  ];
+}
+
+function tradeDayNeedsReplay(trades: Array<Pick<TradeRow, 'trade_time'>>, input: { trade_time: string | null }) {
+  if (!trades.length || !input.trade_time || trades.some((trade) => !trade.trade_time)) return false;
+  return trades.some((trade) => String(trade.trade_time) > input.trade_time!);
 }
 
 export function replayTradeDay(previous: HoldingSnapshot | null, trades: Array<Pick<TradeRow, 'id' | 'trade_date' | 'trade_time' | 'direction' | 'quantity' | 'price' | 'position_category'>>, fallbackCategory = '其他') {
