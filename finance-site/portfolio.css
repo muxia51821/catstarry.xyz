@@ -1,3 +1,7 @@
+.app-shell {
+  width: min(1920px, 100%);
+}
+
 .portfolio-account-breakdown {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -131,7 +135,53 @@
   line-height: 1.6;
 }
 
-@media (max-width: 900px) {
+@media (min-width: 900px) {
+  .finance-tabs {
+    overflow-x: visible;
+  }
+
+  .finance-tab {
+    flex: 1 1 0;
+    min-width: 0;
+    text-align: center;
+  }
+}
+
+@media (min-width: 1200px) {
+  .app-shell {
+    padding-inline: clamp(36px, 3vw, 48px);
+  }
+
+  .app-header h1 {
+    font-size: clamp(60px, 3.6vw, 72px);
+    line-height: 1.18;
+  }
+}
+
+@media (min-width: 1600px) {
+  .overview-grid {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+  }
+
+  .overview-grid .panel--span-2 {
+    grid-column: span 8;
+  }
+
+  .overview-grid .panel--span-3 {
+    grid-column: span 4;
+  }
+}
+
+@media (max-width: 899px) {
+  .finance-tabs {
+    overflow-x: auto;
+  }
+
+  .finance-tab {
+    flex: 0 0 auto;
+    min-width: max-content;
+  }
+
   .dashboard-grid > [data-pane="planning"],
   .dashboard-grid > [data-pane="review"] {
     grid-column: 1 / -1 !important;
