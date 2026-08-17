@@ -24,7 +24,7 @@ function corsFor(env: FinanceEnv) {
 }
 
 export default {
-  async fetch(request, env: FinanceEnv): Promise<Response> {
+  async fetch(request: Request, env: FinanceEnv): Promise<Response> {
     const cors = corsFor(env);
     const preflight = handleCorsPreflight(request, cors);
     if (preflight) return preflight;
