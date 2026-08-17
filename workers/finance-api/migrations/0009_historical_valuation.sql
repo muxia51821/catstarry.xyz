@@ -1,5 +1,6 @@
 -- Historical valuation follows a facts + quotes model.
--- finance_security_prices stores canonical raw/unadjusted closes.
+-- finance_security_prices stores one canonical raw/unadjusted close per security/day;
+-- source is provenance for that chosen close, not a competing quote namespace.
 -- finance_asset_valuations is a rebuildable cache; it is not accounting source-of-truth.
 -- finance_asset_snapshots remains legacy/reconciliation evidence and is not copied here.
 
@@ -12,7 +13,7 @@ CREATE TABLE IF NOT EXISTS finance_security_prices (
   observed_at TEXT,
   created_at TEXT NOT NULL,
   created_by TEXT NOT NULL,
-  PRIMARY KEY (ticker, price_date, source)
+  PRIMARY KEY (ticker, price_date)
 );
 
 CREATE INDEX IF NOT EXISTS idx_finance_security_prices_date
