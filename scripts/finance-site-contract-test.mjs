@@ -89,10 +89,6 @@ assert.match(script, /setStatus\(\$\('\[data-dashboard-status\]'\), ''\)/);
 
 assert.match(html, /<link rel="stylesheet" href="\/operations\.css">/);
 assert.match(html, /<script src="\/operations-ui\.js" defer><\/script>/);
-assert.match(operationsUi, /资产概览/);
-assert.match(operationsUi, /Broker Cash/);
-assert.match(operationsUi, /\/api\/account-state/);
-assert.match(operationsUi, /marketMetricLabel\.textContent = '证券市值'/);
 assert.match(operationsUi, /recordsTab\.textContent = '账户动态'/);
 assert.match(operationsUi, /账户动态/);
 assert.match(operationsUi, /\/api\/activity/);
@@ -106,13 +102,14 @@ assert.match(operationsUi, /operation-history-ready/);
 assert.match(operationsUi, /operation-workbook-review-ready/);
 assert.match(operationsUi, /resetSessionSurfaces/);
 assert.match(operationsUi, /sessionEpoch/);
+assert.doesNotMatch(operationsUi, /\/api\/account-state|data-account-total|account-state-panel|marketMetricLabel/, 'Operation History must not duplicate or relabel the Portfolio current-account owner');
 assert.doesNotMatch(operationsUi, /window\.fetch\s*=/, 'records extension must not monkey-patch global fetch');
 assert.doesNotMatch(operationsUi, /\boffset\b/i, 'Activity and change log must use cursor pagination');
 assert.doesNotMatch(operationsUi, /audit_strength|provenance/i, 'internal evidence taxonomy must not be exposed by the records UI');
+assert.doesNotMatch(operationsCss, /\.account-state-/, 'Operation History stylesheet must not retain a second account-state surface');
 assert.doesNotMatch(operationsCss, /\.operation-history-ready \[data-access-panel\]/, 'data change log must not hide the auxiliary security access log');
 assert.match(operationsCss, /\.operation-workbook-review-ready \[data-import-review-panel\]/);
 assert.doesNotMatch(operationsCss, /^\[data-access-panel\][\s,]/m, 'security access log must not be hidden by records extension CSS');
-assert.match(operationsCss, /\.account-state-body/);
 assert.match(operationsCss, /\.activity-row/);
 assert.match(operationsCss, /\.operation-panel-summary/);
 

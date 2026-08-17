@@ -2,68 +2,10 @@
   display: none !important;
 }
 
-.account-state-panel,
 .activity-panel,
 .operation-history-panel,
 .operation-review-panel {
   grid-column: 1 / -1;
-}
-
-.account-state-body {
-  display: grid;
-  grid-template-columns: minmax(220px, 1.2fr) minmax(0, 2fr);
-  gap: 18px;
-  align-items: stretch;
-}
-
-.account-state-primary,
-.account-state-component {
-  display: grid;
-  gap: 8px;
-  padding: 16px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--surface-elevated) 52%, transparent);
-}
-
-.account-state-primary span,
-.account-state-component span {
-  color: var(--muted);
-  font-size: .82rem;
-}
-
-.account-state-total {
-  font-family: "JetBrains Mono", ui-monospace, monospace;
-  font-size: clamp(30px, 4vw, 48px);
-  font-weight: 430;
-}
-
-.account-state-components {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.account-state-component strong {
-  font-family: "JetBrains Mono", ui-monospace, monospace;
-  font-size: 18px;
-  font-weight: 500;
-}
-
-.account-state-note {
-  margin: 14px 0 0;
-  color: var(--muted);
-  line-height: 1.65;
-}
-
-.account-state-problems {
-  display: grid;
-  gap: 6px;
-  margin: 12px 0 0;
-  padding-left: 20px;
-  color: var(--status-error);
-  font-size: .86rem;
-  line-height: 1.6;
 }
 
 .activity-filters {
@@ -272,18 +214,7 @@
   margin-top: 18px;
 }
 
-@media (max-width: 900px) {
-  .account-state-body {
-    grid-template-columns: 1fr;
-  }
-
-  .account-state-components {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
 @media (max-width: 680px) {
-  .account-state-components,
   .activity-row,
   .operation-row > summary {
     grid-template-columns: 1fr;
