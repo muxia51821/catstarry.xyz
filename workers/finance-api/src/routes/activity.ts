@@ -77,7 +77,7 @@ export async function handleActivity(request: Request, env: FinanceEnv): Promise
       ? encodeActivityCursor({ business_date: last.business_date, sort_time: last.sort_time, event_key: last.event_key, filter })
       : null,
     coverage: {
-      note: '账户动态直接来自当前有效的交易、外部现金流、账户事件和非合成资产对账记录；数据修改审计与登录记录不属于这里。',
+      note: '账户动态直接来自当前有效的交易、外部现金流、账户事件和完整的人工/券商对账记录；数据修改审计与登录记录不属于这里。',
       timezone: 'Asia/Shanghai',
     },
   });
@@ -169,6 +169,7 @@ function activitySources(): string[] {
       )
       FROM finance_asset_snapshots s
       WHERE s.deleted_at IS NULL
+        AND s.is_complete = 1
         AND lower(COALESCE(s.source, '')) NOT IN ('auto_close', 'historical_backfill', 'history_import')`,
   ];
 }
@@ -187,9 +188,12 @@ export function humanizeActivity(row: ActivityRow) {
   if (row.kind === 'account_event') {
     const eventType = String(data.event_type ?? 'other');
     const label = ACCOUNT_EVENT_LABEL[eventType] ?? '账户事件';
+    if (eventType === 'split') {
+      const explanation = typeof data.note === 'string' && data.note.trim() ? data.note.trim() : '份额数量已调整';
+      return activityItem(row, `${label}${subject ? ` · ${subject}` : ''}`, explanation, data);
+    }
     let summary = subject || '';
     if (data.amount !== null && data.amount !== undefined) summary += `${summary ? ' · ' : ''}${signedMoney(data.amount)}`;
-    if (eventType === 'split' && data.quantity !== null && data.quantity !== undefined) summary += `${summary ? ' · ' : ''}${numberValue(data.quantity)} 份`;
     return activityItem(row, `${label}${subject ? ` · ${subject}` : ''}`, summary || '已记录', data);
   }
   return activityItem(row, '资产对账', `总资产 ${moneyValue(data.total_value)} · 现金 ${moneyValue(data.cash_value)}`, data);
