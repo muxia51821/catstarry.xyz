@@ -13,6 +13,7 @@ import { handleDashboard } from './routes/dashboard';
 import { handleLegacyImportReviewWrite } from './routes/legacy-import-review';
 import { handleChangeLog } from './routes/operations';
 import { handleRecords } from './routes/records';
+import { handleSecurities } from './routes/securities';
 import { handleStewardship } from './routes/stewardship';
 import { handleTrades } from './routes/trades';
 import { refreshMarketData } from './tasks/refresh-market-data';
@@ -41,6 +42,7 @@ export default {
       else if (pathname === '/api/account-state') response = await handleAccountState(request, env);
       else if (pathname === '/api/activity') response = await handleActivity(request, env);
       else if (pathname === '/api/change-log') response = await handleChangeLog(request, env);
+      else if (pathname === '/api/securities') response = await handleSecurities(request, env);
       else if (pathname === '/api/assets/series') response = await handleAssetHistory(request, env);
       else if (pathname === '/api/assets/valuations/rebuild') response = await handleAssetValuationRebuild(request, env);
       else if (/^\/api\/import-review\/\d+$/.test(pathname) && request.method === 'PATCH') response = await handleLegacyImportReviewWrite(request, env, pathname);
