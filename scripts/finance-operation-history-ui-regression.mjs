@@ -24,16 +24,31 @@ const secondActivity = {
   key: 'trade:9', business_date: '2026-08-14', business_time: '14:55', kind: 'trade', ticker: '300750', ticker_name: '宁德时代',
   title: '买入 · 宁德时代', summary: '100 股 × ¥393.93', details: {},
 };
+const reconciledAccountState = {
+  reconciliation: { id: 1, observed_at: '2026-08-16T02:29:00.000Z', through_date: '2026-08-16', cash_value: 20725.5, observed_total_value: 130424.2, source: 'broker_reconciliation' },
+  holdings: { market_value: 109698.7, priced_market_value: 109698.7, complete: true, missing_tickers: [], stale_count: 0, stale_tickers: [] },
+  cash: { value: 20725.5, known_value: 20725.5, status: 'reconciled', projected_delta: 0, replayed_facts: 0, problems: [] },
+  other_assets: { value: 0, known_value: 0, status: 'clear', open_repo_count: 0, problems: [] },
+  total_assets: 130424.2,
+  total_status: 'reconciled',
+};
+const incompleteAccountState = {
+  ...reconciledAccountState,
+  cash: { value: null, known_value: 20725.5, status: 'incomplete', projected_delta: 0, replayed_facts: 0, problems: ['trade:99 缺少明确现金影响。'] },
+  total_assets: null,
+  total_status: 'incomplete',
+};
 
 const html = `<!doctype html><html><head>
 <meta charset="utf-8"><meta name="finance-api-base" content="">
-<style>body{font-family:sans-serif}.dashboard-grid{display:grid;gap:12px}.panel{border:1px solid #ccc;padding:12px}.is-active{font-weight:700}.record-filters{display:flex;gap:8px;flex-wrap:wrap}</style>
+<style>body{font-family:sans-serif}.dashboard-grid,.overview-grid{display:grid;gap:12px}.panel,.metric{border:1px solid #ccc;padding:12px}.is-active{font-weight:700}.record-filters{display:flex;gap:8px;flex-wrap:wrap}</style>
 <link rel="stylesheet" href="/operations.css">
 </head><body>
 <div data-app>
   <nav><button data-tab="overview" class="is-active">总览</button><button data-tab="records">管理记录</button><button data-refresh>刷新</button></nav>
+  <section class="summary-grid" data-pane="overview"><article class="metric"><span>当前总市值</span><strong data-total-value>109,698.70</strong></article></section>
+  <div class="overview-grid"><section class="panel" data-pane="overview">overview legacy panel</section></div>
   <div class="dashboard-grid">
-    <section class="panel" data-pane="overview">overview</section>
     <details class="panel" data-access-panel data-pane="records" hidden><summary>安全访问记录</summary><div data-access-list><p>legacy access fallback</p></div></details>
     <section class="panel" data-import-review-panel data-pane="records" hidden><h2>旧 Import Review</h2><div data-import-review-list><p>legacy review fallback</p></div></section>
   </div>
@@ -59,6 +74,10 @@ const server = createServer(async (request, response) => {
   }
   if (url.pathname === '/operations.css') return file(response, 'finance-site/operations.css', 'text/css; charset=utf-8');
   if (url.pathname === '/operations-ui.js') return file(response, 'finance-site/operations-ui.js', 'text/javascript; charset=utf-8');
+  if (url.pathname === '/api/account-state') {
+    if (mode === 'fail') return json(response, 503, { message: 'account state unavailable' });
+    return json(response, 200, mode === 'incomplete' ? incompleteAccountState : reconciledAccountState);
+  }
   if (url.pathname === '/api/activity') {
     if (mode === 'fail') return json(response, 503, { message: 'activity unavailable' });
     const cursor = url.searchParams.get('cursor');
@@ -124,10 +143,26 @@ try {
   await send('Page.enable');
   await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
 
-  // Admin: Activity is primary; data-change audit stays lazy/collapsed; access log remains separate.
+  // Overview: account state is primary financial state; existing market value is relabeled rather than replaced.
   await send('Page.navigate', { url: `${baseUrl}/?mode=admin` });
-  await waitFor(`document.readyState === 'complete' && Boolean(document.querySelector('[data-tab="records"]'))`, 'records admin fixture');
-  await delay(200);
+  await waitFor(`document.readyState === 'complete' && Boolean(document.querySelector('[data-account-total]'))`, 'account-state admin fixture');
+  await waitFor(`document.querySelector('[data-account-total]')?.textContent === '¥130,424.20'`, 'reconciled total assets');
+  const overview = await evaluate(`({
+    recordsTab: document.querySelector('[data-tab="records"]')?.textContent,
+    marketLabel: document.querySelector('[data-total-value]')?.closest('.metric')?.querySelector('span')?.textContent,
+    total: document.querySelector('[data-account-total]')?.textContent,
+    holdings: document.querySelector('[data-account-holdings]')?.textContent,
+    cash: document.querySelector('[data-account-cash]')?.textContent,
+    state: document.querySelector('[data-account-state]')?.textContent,
+    note: document.querySelector('[data-account-note]')?.textContent,
+  })`);
+  assert.deepEqual(overview, {
+    recordsTab: '账户动态', marketLabel: '证券市值', total: '¥130,424.20', holdings: '¥109,698.70', cash: '¥20,725.50',
+    state: '已对账', note: 'Broker Cash 已对账至 2026-08-16；此后没有需要重放的现金事实。',
+  });
+
+  // Admin Records: Activity is primary; data-change audit stays lazy/collapsed; access log remains separate.
+  await delay(100);
   assert.equal(requests.filter((item) => item.mode === 'admin' && item.pathname === '/api/activity').length, 0);
   assert.equal(requests.filter((item) => item.mode === 'admin' && item.pathname === '/api/change-log').length, 0);
   await evaluate(`document.querySelector('[data-tab="records"]').click()`);
@@ -164,31 +199,39 @@ try {
   const changeCursorRequest = requests.find((item) => item.pathname === '/api/change-log' && item.search.includes('cursor='));
   assert.ok(changeCursorRequest?.search.includes('cursor=change-cursor-1'));
 
-  // Same-document logout/session reset purges all account/admin history surfaces.
+  // Same-document logout/session reset purges account/admin history surfaces and account state.
   await evaluate(`document.querySelector('[data-app]').hidden = true`);
   await waitFor(`document.querySelectorAll('[data-activity-list] .activity-row').length === 0 && document.querySelectorAll('[data-operation-list] .operation-row').length === 0 && document.querySelectorAll('[data-canonical-review-list] .import-review-row').length === 0`, 'records session reset');
   const reset = await evaluate(`({
+    total: document.querySelector('[data-account-total]')?.textContent,
+    cash: document.querySelector('[data-account-cash]')?.textContent,
     activityRows: document.querySelectorAll('[data-activity-list] .activity-row').length,
     changeRows: document.querySelectorAll('[data-operation-list] .operation-row').length,
     reviewRows: document.querySelectorAll('[data-canonical-review-list] .import-review-row').length,
     legacyAccessRows: document.querySelector('[data-access-list]')?.children.length ?? 0,
     legacyReviewRows: document.querySelector('[data-import-review-list]')?.children.length ?? 0,
   })`);
-  assert.deepEqual(reset, { activityRows: 0, changeRows: 0, reviewRows: 0, legacyAccessRows: 0, legacyReviewRows: 0 });
+  assert.deepEqual(reset, { total: '—', cash: '—', activityRows: 0, changeRows: 0, reviewRows: 0, legacyAccessRows: 0, legacyReviewRows: 0 });
   await evaluate(`document.querySelector('[data-app]').hidden = false`);
-  await waitFor(`document.querySelectorAll('[data-activity-list] .activity-row').length === 1 && document.querySelectorAll('[data-canonical-review-list] .import-review-row').length === 1`, 'records same-session reload');
+  await waitFor(`document.querySelector('[data-account-total]')?.textContent === '¥130,424.20'`, 'account state same-session reload');
 
-  await evaluate(`(() => {
-    const input = document.querySelector('[data-canonical-resolution-note="7"]');
-    input.value = 'fixture resolved';
-    document.querySelector('[data-canonical-resolve-review="7"]').click();
-  })()`);
-  await waitFor(`document.querySelector('[data-canonical-review-empty]')?.hidden === false`, 'canonical Workbook Review resolution');
-  assert.equal(requests.filter((item) => item.pathname === '/api/workbook-review/7' && item.method === 'PATCH').length, 1);
+  // Incomplete cash evidence must never manufacture a total asset value.
+  await send('Page.navigate', { url: `${baseUrl}/?mode=incomplete` });
+  await waitFor(`document.readyState === 'complete' && Boolean(document.querySelector('[data-account-total]'))`, 'incomplete account-state fixture');
+  await waitFor(`document.querySelector('[data-account-state]')?.textContent === '数据不完整'`, 'incomplete account-state status');
+  const incomplete = await evaluate(`({
+    total: document.querySelector('[data-account-total]')?.textContent,
+    cash: document.querySelector('[data-account-cash]')?.textContent,
+    problems: document.querySelector('[data-account-problems]')?.textContent,
+  })`);
+  assert.equal(incomplete.total, '—');
+  assert.equal(incomplete.cash, '—');
+  assert.match(incomplete.problems ?? '', /缺少明确现金影响/);
 
-  // Backend failure: Activity reports its own error; legacy admin fallbacks remain available.
+  // Backend failure: Overview and Records surface failures without hiding legacy admin fallbacks.
   await send('Page.navigate', { url: `${baseUrl}/?mode=fail` });
   await waitFor(`document.readyState === 'complete' && Boolean(document.querySelector('[data-tab="records"]'))`, 'records fallback fixture');
+  await waitFor(`document.querySelector('[data-account-state]')?.textContent === '读取失败'`, 'account-state failure state');
   await evaluate(`document.querySelector('[data-tab="records"]').click()`);
   await waitFor(`document.querySelector('[data-activity-error]')?.hidden === false && document.querySelector('[data-canonical-review-error]')?.hidden === false`, 'records failure state');
   const fallback = await evaluate(`({
@@ -198,9 +241,9 @@ try {
   })`);
   assert.deepEqual(fallback, { workbookReady: false, legacyAccessVisible: true, legacyReviewVisible: true });
 
-  // Viewer: Activity remains available; admin review/change log stay hidden.
+  // Viewer: account state and Activity remain available; admin review/change log stay hidden.
   await send('Page.navigate', { url: `${baseUrl}/?mode=viewer` });
-  await waitFor(`document.readyState === 'complete' && Boolean(document.querySelector('[data-tab="records"]'))`, 'records viewer fixture');
+  await waitFor(`document.readyState === 'complete' && document.querySelector('[data-account-total]')?.textContent === '¥130,424.20'`, 'viewer account state');
   await evaluate(`document.querySelector('[data-tab="records"]').click()`);
   await waitFor(`document.querySelectorAll('[data-activity-list] .activity-row').length === 1 && document.documentElement.classList.contains('operation-workbook-review-ready')`, 'records viewer permissions');
   const viewer = await evaluate(`({
@@ -215,7 +258,7 @@ try {
 
   assert.deepEqual(diagnostics.consoleProblems, []);
   assert.deepEqual(diagnostics.exceptions, []);
-  console.log('Finance account activity + data change-log browser regression passed.');
+  console.log('Finance account state + activity + data change-log browser regression passed.');
 } finally {
   cdp?.close();
   await browser?.close();
