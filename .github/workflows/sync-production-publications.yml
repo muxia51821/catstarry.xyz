@@ -8,6 +8,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: production-publication-sync
+  cancel-in-progress: false
+
 jobs:
   sync:
     if: >-
