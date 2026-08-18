@@ -15,7 +15,7 @@ import { parseFootprintCandidate } from '../modules/footprints';
 import { claimBlogSyncRelease } from '../modules/publication-release-guards';
 import { requireMainSession } from './auth';
 
-type BlogEnv = Env & { FOOTPRINT_INGEST_TOKEN?: string };
+type BlogEnv = Env & { FOOTPRINT_INGEST_TOKEN?: string; LOCAL_PREVIEW_AUTH?: string };
 
 interface PublicationEntry {
   slug?: unknown;
@@ -23,6 +23,11 @@ interface PublicationEntry {
   summary?: unknown;
   state?: unknown;
 }
+
+const LOCAL_PREVIEW_RELEASE = {
+  sha: 'ffffffffffffffffffffffffffffffffffffffff',
+  generation: 1,
+} as const;
 
 export async function handleBlog(
   request: Request,
@@ -54,7 +59,8 @@ async function syncDeployManifest(request: Request, env: BlogEnv, ctx: Execution
   }
   const body = await readJson<{ release?: unknown; entries?: unknown; deployed_at?: unknown }>(request, 128 * 1_024);
   if (body instanceof Response) return body;
-  const release = normalizePublicationReleaseIdentity(body.release);
+  const release = normalizePublicationReleaseIdentity(body.release)
+    ?? (body.release === undefined && env.LOCAL_PREVIEW_AUTH === '1' ? LOCAL_PREVIEW_RELEASE : null);
   if (!release || !Array.isArray(body.entries) || body.entries.length > 500) {
     return apiError(400, 'invalid_manifest', 'Blog publication manifest is invalid');
   }
