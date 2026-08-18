@@ -1,4 +1,5 @@
 import { apiError, json } from '../lib/http';
+import { isPersistedMarketSnapshotUsable } from '../modules/market-authority';
 import { requireFinanceRole, type FinanceEnv } from './auth';
 
 type ReconciliationRow = {
@@ -39,6 +40,7 @@ type CurrentHoldingRow = {
   ticker: string;
   quantity: number;
   price: number | null;
+  fetched_at: string | null;
 };
 
 export const SYNTHETIC_RECONCILIATION_SOURCES = ['auto_close', 'historical_backfill', 'history_import'];
@@ -53,9 +55,9 @@ export async function handleAccountState(request: Request, env: FinanceEnv): Pro
   return json(await readAccountState(env));
 }
 
-export async function readAccountState(env: FinanceEnv) {
+export async function readAccountState(env: FinanceEnv, now: Date = new Date()) {
   const reconciliation = await latestReconciliation(env);
-  const holdings = await currentHoldings(env);
+  const holdings = await currentHoldings(env, now);
   const repoState = projectRepoAssets(await allRepoEvents(env));
 
   if (!reconciliation) {
@@ -113,29 +115,46 @@ async function latestReconciliation(env: FinanceEnv) {
     .bind(...SYNTHETIC_RECONCILIATION_SOURCES).first<ReconciliationRow>();
 }
 
-async function currentHoldings(env: FinanceEnv) {
+async function currentHoldings(env: FinanceEnv, now: Date) {
   const rows = await env.DB.prepare(`WITH latest AS (
       SELECT ticker, MAX(snapshot_date || ':' || printf('%020d', id)) AS marker
       FROM holdings_snapshots GROUP BY ticker
     )
     SELECT h.ticker, h.quantity,
-      (SELECT price FROM market_data m WHERE m.ticker = h.ticker ORDER BY fetched_at DESC, id DESC LIMIT 1) AS price
+      (SELECT price FROM market_data m WHERE m.ticker = h.ticker ORDER BY fetched_at DESC, id DESC LIMIT 1) AS price,
+      (SELECT fetched_at FROM market_data m WHERE m.ticker = h.ticker ORDER BY fetched_at DESC, id DESC LIMIT 1) AS fetched_at
     FROM holdings_snapshots h
     JOIN latest l ON l.ticker = h.ticker AND l.marker = h.snapshot_date || ':' || printf('%020d', h.id)
     WHERE h.quantity > 0 ORDER BY h.ticker`).all<CurrentHoldingRow>();
 
-  const normalized = rows.results.map((row) => ({
-    ...row,
-    quantity: Number(row.quantity),
-    price: row.price === null ? null : Number(row.price),
-  }));
-  const missing = normalized.filter((row) => row.price === null).map((row) => row.ticker);
+  const normalized = rows.results.map((row) => {
+    const numericPrice = row.price === null ? null : Number(row.price);
+    const hasPrice = numericPrice !== null && Number.isFinite(numericPrice);
+    const stale = hasPrice && !isPersistedMarketSnapshotUsable(row.fetched_at, now);
+    return {
+      ticker: row.ticker,
+      quantity: Number(row.quantity),
+      price: hasPrice && !stale ? numericPrice : null,
+      fetched_at: row.fetched_at,
+      stale,
+      missing_price: !hasPrice,
+    };
+  });
+  const unavailable = normalized.filter((row) => row.price === null).map((row) => row.ticker);
+  const stale = normalized.filter((row) => row.stale).map((row) => row.ticker);
+  const missingPrice = normalized.filter((row) => row.missing_price).map((row) => row.ticker);
   const priced = normalized.reduce((sum, row) => sum + (row.price === null ? 0 : row.quantity * row.price), 0);
+  const problems = [
+    ...(missingPrice.length ? [`持仓 ${missingPrice.join('、')} 缺少当前市场价格。`] : []),
+    ...(stale.length ? [`开市期间持仓 ${stale.join('、')} 的最后成功行情刷新已超过当前 market authority 的 freshness SLA。`] : []),
+  ];
   return {
-    market_value: missing.length ? null : priced,
+    market_value: unavailable.length ? null : priced,
     priced_market_value: priced,
-    complete: missing.length === 0,
-    missing_tickers: missing,
+    complete: unavailable.length === 0,
+    missing_tickers: unavailable,
+    stale_tickers: stale,
+    problems,
   };
 }
 
