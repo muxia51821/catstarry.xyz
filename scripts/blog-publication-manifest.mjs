@@ -1,4 +1,5 @@
 import { readBlogPublicationEntries } from './lib/blog-publications.mjs';
+import { deployedPublicationReleaseIdentity } from './lib/publication-release.mjs';
 
 if (process.env.DEPLOYMENT_ENVIRONMENT !== 'production' || process.env.DEPLOYMENT_STATUS !== 'success') {
   throw new Error('Blog publication manifest sync requires a successful production deployment');
@@ -9,6 +10,7 @@ if (apiBase.origin !== 'https://catstarry.xyz' || apiBase.pathname !== '/' || ap
 }
 if (!process.env.FOOTPRINT_INGEST_TOKEN) throw new Error('FOOTPRINT_INGEST_TOKEN is required');
 
+const release = deployedPublicationReleaseIdentity();
 const response = await fetch(`${apiBase.toString().replace(/\/$/, '')}/api/blog/internal/publications`, {
   method: 'POST',
   headers: {
@@ -16,6 +18,7 @@ const response = await fetch(`${apiBase.toString().replace(/\/$/, '')}/api/blog/
     'Content-Type': 'application/json',
   },
   body: JSON.stringify({
+    release,
     deployed_at: new Date().toISOString(),
     entries: await readBlogPublicationEntries(),
   }),
