@@ -39,6 +39,7 @@ assert.match(publication, /\[\[ "\$DEPLOYED_SHA" =~ \^\[0-9a-f\]\{40\}\$ \]\]/);
 assert.match(publication, /git merge-base --is-ancestor "\$DEPLOYED_SHA" origin\/main/);
 assert.match(publication, /npm ci --ignore-scripts/);
 assert.match(publication, /permissions:\s*\n\s+contents: read/);
+assert.match(publication, /concurrency:\s*\n\s+group:\s*production-publication-sync\s*\n\s+cancel-in-progress:\s*false/);
 assert.match(publication, /id:\s*blog-sync[\s\S]*?continue-on-error:\s*true[\s\S]*?npm run blog:sync-publications/);
 assert.match(publication, /id:\s*learn-sync[\s\S]*?continue-on-error:\s*true[\s\S]*?npm run learn:sync-publications/);
 assert.match(publication, /if:\s*always\(\)[\s\S]*?steps\.blog-sync\.outcome[\s\S]*?steps\.learn-sync\.outcome/);
