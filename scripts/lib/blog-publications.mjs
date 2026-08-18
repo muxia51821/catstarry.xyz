@@ -31,6 +31,15 @@ export async function readBlogPublicationEntries(root = 'src/data/blog') {
   return entries;
 }
 
+export function assertBlogProductionTransition(publicSlugs, candidateEntries) {
+  const candidateSlugs = new Set(candidateEntries.map((entry) => entry.slug));
+  for (const slug of [...new Set(publicSlugs)].sort()) {
+    if (!candidateSlugs.has(slug)) {
+      throw new Error(`Production Blog published source would disappear from candidate deployment: ${slug}`);
+    }
+  }
+}
+
 function parseFrontmatter(source, file) {
   const match = source.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
   if (!match) throw new Error(`Blog file has no frontmatter: ${file}`);
