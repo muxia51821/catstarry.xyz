@@ -8,6 +8,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: production-publication-sync
+  cancel-in-progress: false
+
 jobs:
   sync:
     if: >-
@@ -40,6 +44,17 @@ jobs:
           node-version-file: .node-version
           cache: npm
       - run: npm ci --ignore-scripts
-      - run: npm run test:blog:publications
-      - run: npm run blog:sync-publications
-      - run: npm run learn:sync-publications
+      - name: Sync Blog publications
+        id: blog-sync
+        continue-on-error: true
+        run: npm run blog:sync-publications
+      - name: Sync Learn publications
+        id: learn-sync
+        continue-on-error: true
+        run: npm run learn:sync-publications
+      - name: Require both publication syncs
+        if: always()
+        shell: bash
+        run: |
+          [[ "${{ steps.blog-sync.outcome }}" == "success" ]]
+          [[ "${{ steps.learn-sync.outcome }}" == "success" ]]

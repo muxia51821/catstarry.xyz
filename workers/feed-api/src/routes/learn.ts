@@ -3,6 +3,12 @@ import type {
   LearnPublicationVisibility,
   PublicFootprintCandidate,
 } from '../../../../shared/types';
+import type { PublicationReleaseIdentity } from '../../../../shared/publication-release';
+import {
+  comparePublicationRelease,
+  normalizePublicationReleaseIdentity,
+  samePublicationRelease,
+} from '../../../../shared/publication-release';
 import { timingSafeEqualText } from '../../../../shared/security';
 import {
   assertValidLearnPublicRelations,
@@ -12,6 +18,13 @@ import { logWorkerError } from '../../../../shared/worker-log';
 import { apiError, json, readJson } from '../lib/http';
 import { refreshActivitySignals } from '../modules/activity-signals';
 import { parseFootprintCandidate } from '../modules/footprints';
+import {
+  abortLearnRelease,
+  activateLearnRelease,
+  prepareLearnRelease,
+  readLearnActiveRelease,
+  readLearnPendingRelease,
+} from '../modules/publication-release-guards';
 import { requireMainSession } from './auth';
 
 type LearnEnv = Env & { FOOTPRINT_INGEST_TOKEN?: string; LOCAL_PREVIEW_AUTH?: string };
@@ -30,6 +43,11 @@ interface NormalizedDeployEntry {
   excerpt: string;
   revised_at: string | null;
   links: string[];
+}
+
+interface LearnRelationAuthority {
+  release: PublicationReleaseIdentity | null;
+  entries: LearnRelationEntry[];
 }
 
 const LEARN_RELATION_MANIFEST_KEY = 'learn:relation-manifest';
@@ -54,6 +72,12 @@ export async function handleLearn(
       return apiError(403, 'local_preview_read_only', 'Local Learn preview does not manage publication lifecycle');
     }
     return updatePublication(request, env, ctx);
+  }
+  if (pathname === '/api/learn/internal/release/prepare' && request.method === 'POST') {
+    return updateReleaseBarrier(request, env, 'prepare');
+  }
+  if (pathname === '/api/learn/internal/release/abort' && request.method === 'POST') {
+    return updateReleaseBarrier(request, env, 'abort');
   }
   if (pathname === '/api/learn/internal/publications' && request.method === 'POST') {
     return syncDeployedMetadata(request, env, ctx);
@@ -97,6 +121,9 @@ async function updatePublication(request: Request, env: LearnEnv, ctx: Execution
 
   const existing = await getPublication(env.DB, slug);
   if (existing?.visibility === visibility) return json({ entry: existing, created: false });
+  if (await readLearnPendingRelease(env.DB)) {
+    return apiError(503, 'publication_release_pending', 'Learn publication lifecycle is temporarily unavailable during production release activation');
+  }
   const relationFailure = await validateProposedPublicRelations(env, slug, visibility);
   if (relationFailure) return relationFailure;
   if (!existing) {
@@ -107,13 +134,19 @@ async function updatePublication(request: Request, env: LearnEnv, ctx: Execution
     const candidate = firstPublicationCandidate(slug, title, excerpt, now);
     const [publicationWrite, footprintWrite] = await env.DB.batch([
       env.DB.prepare(`INSERT OR IGNORE INTO learn_publications (
-        slug, visibility, published_at, last_revised_at, updated_at
-      ) VALUES (?, 'public', ?, ?, ?)`).bind(slug, now, revisedAt, now),
-      footprintInsert(env.DB, candidate, now),
+          slug, visibility, published_at, last_revised_at, updated_at
+        ) SELECT ?, 'public', ?, ?, ?
+        WHERE NOT EXISTS (
+          SELECT 1 FROM publication_release_guards WHERE guard_key = 'learn-pending'
+        )`).bind(slug, now, revisedAt, now),
+      firstPublicationFootprintInsert(env.DB, candidate, now),
     ]);
+    const created = (publicationWrite.meta.changes ?? 0) > 0;
+    if (!created && await readLearnPendingRelease(env.DB)) {
+      return apiError(503, 'publication_release_pending', 'Learn publication lifecycle is temporarily unavailable during production release activation');
+    }
     const entry = await getPublication(env.DB, slug);
     if (!entry) throw new Error('Learn publication write was not persisted');
-    const created = (publicationWrite.meta.changes ?? 0) > 0;
     if (created && (footprintWrite.meta.changes ?? 0) === 0) {
       throw new Error('Learn first-publication footprint was not persisted');
     }
@@ -122,26 +155,71 @@ async function updatePublication(request: Request, env: LearnEnv, ctx: Execution
   }
 
   const updatedAt = new Date().toISOString();
-  await env.DB.prepare(
-    'UPDATE learn_publications SET visibility = ?, updated_at = ? WHERE slug = ?',
-  ).bind(visibility, updatedAt, slug).run();
+  const result = await env.DB.prepare(`UPDATE learn_publications
+    SET visibility = ?, updated_at = ?
+    WHERE slug = ? AND NOT EXISTS (
+      SELECT 1 FROM publication_release_guards WHERE guard_key = 'learn-pending'
+    )`).bind(visibility, updatedAt, slug).run();
+  if ((result.meta.changes ?? 0) === 0) {
+    if (await readLearnPendingRelease(env.DB)) {
+      return apiError(503, 'publication_release_pending', 'Learn publication lifecycle is temporarily unavailable during production release activation');
+    }
+    return apiError(409, 'publication_changed', 'Learn publication changed while the lifecycle request was being applied');
+  }
   refreshAfterMutation(env, ctx);
   return json({ entry: await getPublication(env.DB, slug), created: false });
 }
 
-async function syncDeployedMetadata(request: Request, env: LearnEnv, ctx: ExecutionContext): Promise<Response> {
-  const authorization = request.headers.get('Authorization');
-  if (!env.FOOTPRINT_INGEST_TOKEN || !(await timingSafeEqualText(authorization, `Bearer ${env.FOOTPRINT_INGEST_TOKEN}`))) {
-    return apiError(env.FOOTPRINT_INGEST_TOKEN ? 401 : 503, 'unauthorized', 'Publication metadata sync is not available');
-  }
-  const body = await readJson<{ schema_version?: unknown; entries?: unknown; deployed_at?: unknown }>(request, 128 * 1_024);
+async function updateReleaseBarrier(
+  request: Request,
+  env: LearnEnv,
+  action: 'prepare' | 'abort',
+): Promise<Response> {
+  const authFailure = await requireInternalPublicationAuth(request, env, 'Learn production release barrier is not available');
+  if (authFailure) return authFailure;
+  const body = await readJson<{ release?: unknown }>(request, 4_096);
   if (body instanceof Response) return body;
-  if (body.schema_version !== 3 || !Array.isArray(body.entries) || body.entries.length > 500) {
+  const release = normalizePublicationReleaseIdentity(body.release);
+  if (!release) return apiError(400, 'invalid_release', 'Publication release identity is invalid');
+
+  if (action === 'abort') {
+    if (!await abortLearnRelease(env.DB, release)) {
+      return apiError(409, 'release_not_pending', 'The exact Learn publication release is not pending');
+    }
+    return json({ release, pending: false });
+  }
+
+  const result = await prepareLearnRelease(env.DB, release);
+  if (result.ok) return json({ release, pending: true });
+  if (result.state === 'stale') {
+    return apiError(409, 'stale_release', 'Learn production release is older than the active release');
+  }
+  if (result.state === 'pending') {
+    return apiError(409, 'release_pending', 'A different Learn production release is already pending');
+  }
+  return apiError(409, 'release_conflict', 'Learn production release conflicts with the active release');
+}
+
+async function syncDeployedMetadata(request: Request, env: LearnEnv, ctx: ExecutionContext): Promise<Response> {
+  const authFailure = await requireInternalPublicationAuth(request, env, 'Publication metadata sync is not available');
+  if (authFailure) return authFailure;
+  const body = await readJson<{
+    schema_version?: unknown;
+    release?: unknown;
+    entries?: unknown;
+    deployed_at?: unknown;
+  }>(request, 128 * 1_024);
+  if (body instanceof Response) return body;
+  const release = normalizePublicationReleaseIdentity(body.release);
+  if (body.schema_version !== 3 || !release || !Array.isArray(body.entries) || body.entries.length > 500) {
     return apiError(400, 'invalid_manifest', 'Learn publication metadata manifest is invalid');
   }
   const deployedAt = normalizeTimestamp(body.deployed_at);
   const entries = normalizeDeployEntries(body.entries as LearnDeployEntry[]);
   if (!deployedAt || !entries) return apiError(400, 'invalid_manifest', 'Learn publication metadata manifest is invalid');
+
+  const releaseMode = await validateLearnSyncRelease(env.DB, release);
+  if (releaseMode instanceof Response) return releaseMode;
 
   const publications = await listPublications(env.DB);
   const publicationBySlug = new Map(publications.map((entry) => [entry.slug, entry]));
@@ -173,11 +251,46 @@ async function syncDeployedMetadata(request: Request, env: LearnEnv, ctx: Execut
     ]);
     if ((footprintWrite.meta.changes ?? 0) > 0) created += 1;
   }
-  await env.AUTH_KV.put(LEARN_RELATION_MANIFEST_KEY, JSON.stringify(
-    entries.map(({ slug, links }) => ({ slug, links })),
-  ));
+
+  const relationEntries = entries.map(({ slug, links }) => ({ slug, links }));
+  await env.AUTH_KV.put(LEARN_RELATION_MANIFEST_KEY, JSON.stringify({
+    schema_version: 2,
+    release,
+    entries: relationEntries,
+  }));
+  if (releaseMode === 'pending' && !await activateLearnRelease(env.DB, release)) {
+    return apiError(409, 'release_activation_failed', 'Learn publication release could not be activated; lifecycle remains unavailable');
+  }
   if (created > 0) refreshAfterMutation(env, ctx);
   return json({ synced: entries.length, created });
+}
+
+async function validateLearnSyncRelease(
+  database: D1Database,
+  release: PublicationReleaseIdentity,
+): Promise<'pending' | 'active_retry' | Response> {
+  const pending = await readLearnPendingRelease(database);
+  if (pending) {
+    if (samePublicationRelease(release, pending)) return 'pending';
+    const comparison = comparePublicationRelease(release, pending);
+    if (comparison === 'stale') {
+      return apiError(409, 'stale_release', 'Learn publication sync release is older than the pending release');
+    }
+    return apiError(409, 'release_pending', 'Learn publication sync does not match the pending release');
+  }
+
+  const active = await readLearnActiveRelease(database);
+  if (active && samePublicationRelease(release, active)) return 'active_retry';
+  if (active) {
+    const comparison = comparePublicationRelease(release, active);
+    if (comparison === 'stale') {
+      return apiError(409, 'stale_release', 'Learn publication sync release is older than the active release');
+    }
+    if (comparison === 'conflict') {
+      return apiError(409, 'release_conflict', 'Learn publication sync release conflicts with the active release');
+    }
+  }
+  return apiError(409, 'release_not_prepared', 'Learn publication sync release was not prepared before Site deployment');
 }
 
 function firstPublicationCandidate(slug: string, title: string, excerpt: string, occurredAt: string): PublicFootprintCandidate {
@@ -222,6 +335,30 @@ function footprintInsert(database: D1Database, candidate: PublicFootprintCandida
     id, source_module, source_ref, source_version, event_type, snapshot_json,
     occurred_at, visibility, idempotency_key, created_at
   ) VALUES (?, ?, ?, ?, ?, ?, ?, 'public', ?, ?)`).bind(
+    crypto.randomUUID(),
+    candidate.source_module,
+    candidate.source_ref,
+    candidate.source_version,
+    candidate.event_type,
+    candidate.snapshot_json,
+    candidate.occurred_at,
+    candidate.idempotency_key,
+    createdAt,
+  );
+}
+
+function firstPublicationFootprintInsert(
+  database: D1Database,
+  candidate: PublicFootprintCandidate,
+  createdAt: string,
+): D1PreparedStatement {
+  return database.prepare(`INSERT OR IGNORE INTO public_footprints (
+      id, source_module, source_ref, source_version, event_type, snapshot_json,
+      occurred_at, visibility, idempotency_key, created_at
+    ) SELECT ?, ?, ?, ?, ?, ?, ?, 'public', ?, ?
+    WHERE NOT EXISTS (
+      SELECT 1 FROM publication_release_guards WHERE guard_key = 'learn-pending'
+    )`).bind(
     crypto.randomUUID(),
     candidate.source_module,
     candidate.source_ref,
@@ -287,17 +424,25 @@ async function validateProposedPublicRelations(
   slug: string,
   visibility: LearnPublicationVisibility,
 ): Promise<Response | null> {
-  const manifest = normalizeRelationManifest(
+  const authority = normalizeRelationAuthority(
     await env.AUTH_KV.get<unknown>(LEARN_RELATION_MANIFEST_KEY, 'json'),
   );
-  if (!manifest) {
+  if (!authority) {
     return apiError(503, 'relation_manifest_unavailable', 'Learn relation metadata is unavailable');
+  }
+
+  const activeRelease = await readLearnActiveRelease(env.DB);
+  if (
+    (activeRelease && !samePublicationRelease(activeRelease, authority.release))
+    || (!activeRelease && authority.release)
+  ) {
+    return apiError(503, 'relation_manifest_unavailable', 'Learn relation metadata does not match the active Site release');
   }
 
   const publicSlugs = new Set((await listPublications(env.DB, 'public')).map((entry) => entry.slug));
   if (visibility === 'public') publicSlugs.add(slug);
   else publicSlugs.delete(slug);
-  const bySlug = new Map(manifest.map((entry) => [entry.slug, entry]));
+  const bySlug = new Map(authority.entries.map((entry) => [entry.slug, entry]));
   const proposed: LearnRelationEntry[] = [];
   for (const publicSlug of publicSlugs) {
     const entry = bySlug.get(publicSlug);
@@ -314,8 +459,21 @@ async function validateProposedPublicRelations(
   }
 }
 
-function normalizeRelationManifest(value: unknown): LearnRelationEntry[] | null {
-  if (!Array.isArray(value) || value.length > 500) return null;
+function normalizeRelationAuthority(value: unknown): LearnRelationAuthority | null {
+  if (Array.isArray(value)) {
+    const entries = normalizeRelationEntries(value);
+    return entries ? { release: null, entries } : null;
+  }
+  if (!value || typeof value !== 'object') return null;
+  const record = value as Record<string, unknown>;
+  if (record.schema_version !== 2 || !Array.isArray(record.entries)) return null;
+  const release = normalizePublicationReleaseIdentity(record.release);
+  const entries = normalizeRelationEntries(record.entries);
+  return release && entries ? { release, entries } : null;
+}
+
+function normalizeRelationEntries(value: unknown[]): LearnRelationEntry[] | null {
+  if (value.length > 500) return null;
   const entries = value.map((candidate) => {
     if (!candidate || typeof candidate !== 'object') return null;
     const record = candidate as Record<string, unknown>;
@@ -326,6 +484,18 @@ function normalizeRelationManifest(value: unknown): LearnRelationEntry[] | null 
   if (entries.some((entry) => entry === null)) return null;
   const normalized = entries as LearnRelationEntry[];
   return new Set(normalized.map((entry) => entry.slug)).size === normalized.length ? normalized : null;
+}
+
+async function requireInternalPublicationAuth(
+  request: Request,
+  env: LearnEnv,
+  unavailableMessage: string,
+): Promise<Response | null> {
+  const authorization = request.headers.get('Authorization');
+  if (!env.FOOTPRINT_INGEST_TOKEN || !(await timingSafeEqualText(authorization, `Bearer ${env.FOOTPRINT_INGEST_TOKEN}`))) {
+    return apiError(env.FOOTPRINT_INGEST_TOKEN ? 401 : 503, 'unauthorized', unavailableMessage);
+  }
+  return null;
 }
 
 function normalizeTimestamp(value: unknown): string | null {

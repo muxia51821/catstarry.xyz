@@ -56,6 +56,8 @@ export default {
     const isProtectedProducer = request.method === 'POST' && (
       pathname === '/api/feed/internal/footprints'
       || pathname === '/api/learn/internal/publications'
+      || pathname === '/api/learn/internal/release/prepare'
+      || pathname === '/api/learn/internal/release/abort'
       || pathname === '/api/blog/internal/publications'
     );
     const originRejection = isProtectedProducer ? null : rejectUntrustedStateChange(request, cors);

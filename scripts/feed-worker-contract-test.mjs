@@ -24,6 +24,9 @@ const childEnv = {
 const validPng = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
 const password = `contract-${crypto.randomUUID()}`;
 const footprintToken = `footprint-${crypto.randomUUID()}`;
+const blogRelease101 = { sha: '1'.repeat(40), generation: 101 };
+const blogRelease102 = { sha: '2'.repeat(40), generation: 102 };
+const learnRelease201 = { sha: '3'.repeat(40), generation: 201 };
 
 async function command(...args) { await run(process.execPath, [wrangler, ...args], { cwd, windowsHide: true, env: childEnv }); }
 async function waitForWorker() {
@@ -63,7 +66,7 @@ function footprintBody(overrides = {}) {
   };
 }
 function learnManifest(entries, deployedAt = '2026-08-12T10:00:00.000Z') {
-  return { schema_version: 3, deployed_at: deployedAt, entries };
+  return { schema_version: 3, release: learnRelease201, deployed_at: deployedAt, entries };
 }
 function learnEntry(overrides = {}) {
   return {
@@ -122,15 +125,28 @@ try {
   assert.equal(duplicateFootprint.status, 200);
   assert.equal((await duplicateFootprint.json()).created, false);
   const publicationHeaders = { Authorization: `Bearer ${footprintToken}`, 'Content-Type': 'application/json' };
-  const syncBlog = (entries, deployedAt) => rawRequest('/api/blog/internal/publications', {
-    method: 'POST', headers: publicationHeaders, body: JSON.stringify({ entries, deployed_at: deployedAt }),
+  const syncBlog = (entries, deployedAt, release = blogRelease102) => rawRequest('/api/blog/internal/publications', {
+    method: 'POST', headers: publicationHeaders, body: JSON.stringify({ release, entries, deployed_at: deployedAt }),
   });
-  assert.equal((await syncBlog([{ slug: 'contract', title: 'Contract blog', summary: 'snapshot', state: 'published' }], '2026-07-25T12:00:00.000Z')).status, 200);
+  assert.equal((await syncBlog(
+    [{ slug: 'contract', title: 'Contract blog', summary: 'snapshot', state: 'published' }],
+    '2026-07-25T12:00:00.000Z',
+    blogRelease101,
+  )).status, 200);
   let publicPage = await rawRequest('/api/feed?limit=20').then((response) => response.json());
   assert.equal(publicPage.items.some((item) => item.id === firstFootprint.footprint.id), true, 'public Blog source and public footprint must project');
   assert.equal((await syncBlog([], '2026-07-25T12:01:00.000Z')).status, 200);
   publicPage = await rawRequest('/api/feed?limit=20').then((response) => response.json());
   assert.equal(publicPage.items.some((item) => item.id === firstFootprint.footprint.id), false, 'removed Blog source must suppress its historical footprint');
+  const staleBlogSync = await syncBlog(
+    [{ slug: 'contract', title: 'Stale contract', summary: 'must not restore', state: 'published' }],
+    '2026-07-25T12:01:30.000Z',
+    blogRelease101,
+  );
+  assert.equal(staleBlogSync.status, 409, 'older Blog release must be rejected after a newer release is accepted');
+  assert.equal((await staleBlogSync.json()).error.code, 'stale_release');
+  publicPage = await rawRequest('/api/feed?limit=20').then((response) => response.json());
+  assert.equal(publicPage.items.some((item) => item.id === firstFootprint.footprint.id), false, 'stale Blog writer must not roll the projection backward');
   const adminHistory = await request('/api/feed/admin?limit=20', { headers: { Cookie: cookie } }).then((response) => response.json());
   const sourceHiddenFootprint = adminHistory.items.find((item) => item.id === firstFootprint.footprint.id);
   assert.equal(Boolean(sourceHiddenFootprint), true, 'admin history must retain source-hidden Blog footprints');
@@ -218,6 +234,17 @@ try {
   const secondCursorPage = await rawRequest(`/api/feed?limit=2&cursor=${encodeURIComponent(firstCursorPage.cursor)}`).then((response) => response.json());
   assert.equal(firstCursorPage.items.some((firstItem) => secondCursorPage.items.some((secondItem) => secondItem.id === firstItem.id)), false, 'stable cursor pages must not duplicate entries');
 
+  assert.equal((await rawRequest('/api/learn/internal/release/prepare', {
+    method: 'POST', headers: publicationHeaders, body: JSON.stringify({ release: learnRelease201 }),
+  })).status, 200);
+  const blockedDuringPending = await request('/api/learn/admin/publications', {
+    method: 'PATCH',
+    headers: { Cookie: cookie, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ slug: 'learn-contract', visibility: 'public', title: 'Learn contract', excerpt: 'Pending must block.', revised_at: null }),
+  });
+  assert.equal(blockedDuringPending.status, 503, 'pending release must block first Publish before the Site relation graph is activated');
+  assert.equal((await blockedDuringPending.json()).error.code, 'publication_release_pending');
+
   const baseline = await rawRequest('/api/learn/internal/publications', { method: 'POST', headers: publicationHeaders, body: JSON.stringify(learnManifest([
     learnEntry(),
     learnEntry({ slug: 'new-note', title: 'New note' }),
@@ -261,6 +288,14 @@ try {
   assert.deepEqual(await maintenanceRetry.json(), { synced: 2, created: 0 });
   const lifecycleRegression = await rawRequest('/api/learn/internal/publications', { method: 'POST', headers: publicationHeaders, body: JSON.stringify(learnManifest([learnEntry(), learnEntry({ slug: 'new-note', title: 'New note' })], '2026-08-12T13:30:00.000Z')) });
   assert.equal(lifecycleRegression.status, 409);
+
+  const staleLearnSync = await rawRequest('/api/learn/internal/publications', {
+    method: 'POST',
+    headers: publicationHeaders,
+    body: JSON.stringify({ ...learnManifest([learnEntry()]), release: { sha: '4'.repeat(40), generation: 200 } }),
+  });
+  assert.equal(staleLearnSync.status, 409);
+  assert.equal((await staleLearnSync.json()).error.code, 'stale_release');
 
   const retiredComplete = await request('/api/learn/complete', { method: 'POST', headers: { Cookie: cookie } });
   assert.equal(retiredComplete.status, 410);
