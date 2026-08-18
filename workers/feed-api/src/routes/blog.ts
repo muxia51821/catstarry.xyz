@@ -1,4 +1,5 @@
 import type { BlogLifecycleEntry, BlogLifecycleState } from '../../../../shared/types';
+import { normalizePublicationReleaseIdentity } from '../../../../shared/publication-release';
 import { timingSafeEqualText } from '../../../../shared/security';
 import { logWorkerError } from '../../../../shared/worker-log';
 import { FeedStore } from '../adapters/feed-store';
@@ -11,6 +12,7 @@ import {
   writeBlogLifecycle,
 } from '../modules/blog-publications';
 import { parseFootprintCandidate } from '../modules/footprints';
+import { claimBlogSyncRelease } from '../modules/publication-release-guards';
 import { requireMainSession } from './auth';
 
 type BlogEnv = Env & { FOOTPRINT_INGEST_TOKEN?: string };
@@ -50,9 +52,10 @@ async function syncDeployManifest(request: Request, env: BlogEnv, ctx: Execution
   if (!env.FOOTPRINT_INGEST_TOKEN || !(await timingSafeEqualText(authorization, `Bearer ${env.FOOTPRINT_INGEST_TOKEN}`))) {
     return apiError(env.FOOTPRINT_INGEST_TOKEN ? 401 : 503, 'unauthorized', 'Blog publication sync is not available');
   }
-  const body = await readJson<{ entries?: unknown; deployed_at?: unknown }>(request, 128 * 1_024);
+  const body = await readJson<{ release?: unknown; entries?: unknown; deployed_at?: unknown }>(request, 128 * 1_024);
   if (body instanceof Response) return body;
-  if (!Array.isArray(body.entries) || body.entries.length > 500) {
+  const release = normalizePublicationReleaseIdentity(body.release);
+  if (!release || !Array.isArray(body.entries) || body.entries.length > 500) {
     return apiError(400, 'invalid_manifest', 'Blog publication manifest is invalid');
   }
   const deployedAt = new Date(typeof body.deployed_at === 'string' ? body.deployed_at : '');
@@ -61,6 +64,17 @@ async function syncDeployManifest(request: Request, env: BlogEnv, ctx: Execution
   }
   const incoming = normalizeEntries(body.entries as PublicationEntry[]);
   if (!incoming) return apiError(400, 'invalid_manifest', 'Blog publication entries are invalid');
+
+  const releaseGuard = await claimBlogSyncRelease(env.DB, release);
+  if (!releaseGuard.ok) {
+    return apiError(
+      409,
+      releaseGuard.state === 'stale' ? 'stale_release' : 'release_conflict',
+      releaseGuard.state === 'stale'
+        ? 'Blog publication sync release is older than the accepted release'
+        : 'Blog publication sync release conflicts with the accepted release',
+    );
+  }
 
   const previous = await readBlogLifecycle(env);
   if (previous === null) {
