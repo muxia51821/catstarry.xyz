@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 const packageJson = JSON.parse(await readFile('package.json', 'utf8'));
 const validate = await readFile('.github/workflows/validate.yml', 'utf8');
 const publication = await readFile('.github/workflows/sync-production-publications.yml', 'utf8');
+const siteProductionDeploy = await readFile('scripts/deploy-site-production.ps1', 'utf8');
 const nodeVersion = (await readFile('.node-version', 'utf8')).trim();
 
 assert.match(nodeVersion, /^\d+\.\d+\.\d+$/, '.node-version must pin an exact runtime');
@@ -44,4 +45,29 @@ assert.match(publication, /id:\s*blog-sync[\s\S]*?continue-on-error:\s*true[\s\S
 assert.match(publication, /id:\s*learn-sync[\s\S]*?continue-on-error:\s*true[\s\S]*?npm run learn:sync-publications/);
 assert.match(publication, /if:\s*always\(\)[\s\S]*?steps\.blog-sync\.outcome[\s\S]*?steps\.learn-sync\.outcome/);
 
-console.log('CI command and production publication convergence contracts passed.');
+const realSiteDeploy = siteProductionDeploy.indexOf(
+  'Invoke-RequiredCommand npx wrangler deploy --config $workerConfig --name catstarry-site-production --keep-vars',
+);
+const finalSiteSmoke = siteProductionDeploy.indexOf("Assert-Http200 'https://catstarry.xyz/api/feed?limit=1'");
+const redirectCleanup = siteProductionDeploy.indexOf('Remove-WranglerDeployRedirect -RepoRoot $repoRoot');
+assert.ok(realSiteDeploy >= 0, 'site production runner must contain the real Wrangler deploy');
+assert.ok(finalSiteSmoke > realSiteDeploy, 'site production smoke must follow the real deploy');
+assert.ok(redirectCleanup > finalSiteSmoke, 'Wrangler redirect cleanup must run only after production smoke passes');
+assert.equal(
+  siteProductionDeploy.match(/Remove-WranglerDeployRedirect -RepoRoot \$repoRoot/g)?.length,
+  1,
+  'site production runner must have exactly one redirect cleanup call',
+);
+assert.match(siteProductionDeploy, /Join-Path \$RepoRoot '\.wrangler\/deploy\/config\.json'/);
+assert.match(
+  siteProductionDeploy,
+  /Remove-Item -LiteralPath \$redirectConfig -Force -ErrorAction Stop[\s\S]*?catch \{[\s\S]*?Write-Warning/,
+  'redirect cleanup must be best-effort after a successful deployment',
+);
+assert.doesNotMatch(
+  siteProductionDeploy,
+  /Remove-Item[^\n]*dist[\\/]server[\\/]wrangler\.json/i,
+  'cleanup must preserve the generated Site Worker config for diagnostics and exact-build reuse',
+);
+
+console.log('CI command, production publication convergence, and Site deploy cleanup contracts passed.');
