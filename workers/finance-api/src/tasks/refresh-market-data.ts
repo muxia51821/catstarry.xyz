@@ -1,4 +1,5 @@
 // 腾讯行情索引权威来源 = a-stock-data skill §1.2 腾讯字段速查表（simonlin1212/a-stock-data）。
+import { MARKET_FRESHNESS_SLA_MS, isAStockTradingWindow } from '../modules/market-authority';
 import type { FinanceEnv } from '../routes/auth';
 import { logWorkerWarning } from '../../../../shared/worker-log';
 
@@ -22,7 +23,6 @@ interface ProviderIndexRecord {
 
 const MAX_MARKET_RECORDS = 100;
 const MAX_PROVIDER_BYTES = 1_048_576;
-const STALE_QUOTE_SLA_MS = 30 * 60 * 1000;
 const TENCENT_INDEXES = [
   { providerTicker: 'sh000001', symbol: 'SSE_COMPOSITE', displayName: '上证指数' },
   { providerTicker: 'sh000300', peTicker: 'CSI300_PE' },
@@ -360,26 +360,12 @@ function tencentTimestamp(rawTime: string): Pick<TencentQuote, 'marketTime' | 't
 // 且行情时间可验证地超过 freshness SLA 时，才视为僵尸。停牌、未开盘、收盘后、周末/节假日、
 // 合法零成交平盘以及行情时间不可验证时，一律保留 Tencent 原报价。
 function isStaleQuote(quote: TencentQuote, now: Date): boolean {
-  if (!isTradingTime(now)) return false;
+  if (!isAStockTradingWindow(now)) return false;
   if (!quote.tradingDate || quote.tradingDate !== todayInShanghai(now)) return false;
   if (!quote.marketTime) return false;
   const marketTime = Date.parse(quote.marketTime);
   if (!Number.isFinite(marketTime)) return false;
-  return now.getTime() - marketTime > STALE_QUOTE_SLA_MS;
-}
-
-function isTradingTime(now: Date): boolean {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Shanghai',
-    weekday: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-    hourCycle: 'h23',
-  }).formatToParts(now);
-  const value = Object.fromEntries(parts.map((part) => [part.type, part.value]));
-  if (value.weekday === 'Sat' || value.weekday === 'Sun') return false;
-  const minutes = Number(value.hour) * 60 + Number(value.minute);
-  return (minutes >= 570 && minutes < 690) || (minutes >= 780 && minutes < 900);
+  return now.getTime() - marketTime > MARKET_FRESHNESS_SLA_MS;
 }
 
 function todayInShanghai(now: Date): string {

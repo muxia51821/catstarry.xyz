@@ -85,7 +85,9 @@
   let changes = [];
   let nextCursor = null;
   let loadingChanges = false;
-  let canAdmin = null;
+  let loadingChangeCapability = false;
+  let reviewCapability = 'unknown';
+  let changeLogCapability = 'unknown';
   let refreshTimer = null;
   let sessionEpoch = 0;
 
@@ -94,8 +96,8 @@
   function syncVisibility() {
     const records = recordsActive();
     activityPanel.hidden = !records;
-    reviewPanel.hidden = !(records && canAdmin === true);
-    changeLogPanel.hidden = !(records && canAdmin === true);
+    reviewPanel.hidden = !(records && (reviewCapability === 'allowed' || reviewCapability === 'error'));
+    changeLogPanel.hidden = !(records && (changeLogCapability === 'allowed' || changeLogCapability === 'error'));
     if (app.hidden) return;
     if (records) scheduleRecordsRefresh();
   }
@@ -143,8 +145,46 @@
     activityMore.hidden = !activityCursor;
   }
 
+  async function probeChangeLogCapability({ force = false } = {}) {
+    if (app.hidden || !recordsActive() || loadingChangeCapability) return;
+    if (!force && (changeLogCapability === 'allowed' || changeLogCapability === 'denied')) return;
+    const epoch = sessionEpoch;
+    loadingChangeCapability = true;
+    try {
+      const response = await rawFetch(`${apiBase}/api/change-log?limit=1`, { credentials: 'include' });
+      if (epoch !== sessionEpoch || app.hidden) return;
+      if (response.status === 403) {
+        changeLogCapability = 'denied';
+        changes = [];
+        nextCursor = null;
+        changeLogList.replaceChildren();
+        changeLogError.hidden = true;
+        changeLogPanel.hidden = true;
+        document.documentElement.classList.add('operation-change-log-capability-ready');
+        return;
+      }
+      if (!response.ok) throw new Error(await responseMessage(response, '数据变更记录暂时无法读取'));
+      changeLogCapability = 'allowed';
+      changeLogError.hidden = true;
+      changeLogPanel.hidden = !recordsActive();
+      changeLogPanel.querySelector('[data-operation-state]').textContent = '管理员审计';
+      document.documentElement.classList.add('operation-change-log-capability-ready');
+      if (changeLogPanel.open) loadChangeLog();
+    } catch (error) {
+      if (epoch !== sessionEpoch || app.hidden) return;
+      changeLogCapability = 'error';
+      changeLogPanel.hidden = !recordsActive();
+      changeLogError.textContent = error instanceof Error ? error.message : '数据变更记录暂时无法读取';
+      changeLogError.hidden = false;
+      changeLogPanel.querySelector('[data-operation-state]').textContent = '读取失败';
+      document.documentElement.classList.add('operation-change-log-capability-ready');
+    } finally {
+      if (epoch === sessionEpoch) loadingChangeCapability = false;
+    }
+  }
+
   async function loadChangeLog({ append = false } = {}) {
-    if (loadingChanges || app.hidden || !recordsActive() || canAdmin !== true || !changeLogPanel.open) return;
+    if (loadingChanges || app.hidden || !recordsActive() || changeLogCapability !== 'allowed' || !changeLogPanel.open) return;
     const epoch = sessionEpoch;
     loadingChanges = true;
     changeLogError.hidden = true;
@@ -155,9 +195,19 @@
       params.set('limit', '50');
       if (append && nextCursor) params.set('cursor', nextCursor);
       const response = await rawFetch(`${apiBase}/api/change-log?${params}`, { credentials: 'include' });
+      if (response.status === 403) {
+        if (epoch !== sessionEpoch || app.hidden) return;
+        changeLogCapability = 'denied';
+        changes = [];
+        nextCursor = null;
+        changeLogList.replaceChildren();
+        changeLogPanel.hidden = true;
+        return;
+      }
       if (!response.ok) throw new Error(await responseMessage(response, '数据变更记录暂时无法读取'));
       const body = await response.json();
       if (epoch !== sessionEpoch || app.hidden) return;
+      changeLogCapability = 'allowed';
       changes = append ? [...changes, ...(body.items ?? [])] : body.items ?? [];
       nextCursor = body.nextCursor ?? null;
       renderChangeLog();
@@ -166,6 +216,8 @@
       document.documentElement.classList.add('operation-history-ready');
     } catch (error) {
       if (epoch !== sessionEpoch || app.hidden) return;
+      changeLogCapability = 'error';
+      changeLogPanel.hidden = !recordsActive();
       changeLogError.textContent = error instanceof Error ? error.message : '数据变更记录暂时无法读取';
       changeLogError.hidden = false;
       changeLogPanel.querySelector('[data-operation-state]').textContent = '读取失败';
@@ -203,7 +255,7 @@
   }
 
   async function loadWorkbookReview() {
-    if (app.hidden || !recordsActive() || canAdmin === false) return;
+    if (app.hidden || !recordsActive() || reviewCapability === 'denied') return;
     const epoch = sessionEpoch;
     const state = reviewPanel.querySelector('[data-canonical-review-state]');
     state.textContent = '正在读取';
@@ -212,25 +264,24 @@
       const response = await rawFetch(`${apiBase}/api/workbook-review?status=pending`, { credentials: 'include' });
       if (response.status === 403) {
         if (epoch !== sessionEpoch || app.hidden) return;
-        canAdmin = false;
+        reviewCapability = 'denied';
         reviewList.replaceChildren();
         reviewPanel.hidden = true;
-        changeLogPanel.hidden = true;
         document.documentElement.classList.add('operation-workbook-review-ready');
         return;
       }
       if (!response.ok) throw new Error(await responseMessage(response, '导入异常暂时无法读取'));
       const body = await response.json();
       if (epoch !== sessionEpoch || app.hidden) return;
-      canAdmin = true;
+      reviewCapability = 'allowed';
       renderWorkbookReview(body.review ?? []);
       reviewPanel.hidden = !recordsActive();
-      changeLogPanel.hidden = !recordsActive();
       state.textContent = `${body.review?.length ?? 0} 条待处理`;
       document.documentElement.classList.add('operation-workbook-review-ready');
-      if (changeLogPanel.open) loadChangeLog();
     } catch (error) {
       if (epoch !== sessionEpoch || app.hidden) return;
+      reviewCapability = 'error';
+      reviewPanel.hidden = !recordsActive();
       reviewError.textContent = error instanceof Error ? error.message : '导入异常暂时无法读取';
       reviewError.hidden = false;
       state.textContent = '读取失败';
@@ -264,7 +315,7 @@
       if (!response.ok) throw new Error(await responseMessage(response, '结案失败'));
       if (epoch !== sessionEpoch || app.hidden) return;
       await loadWorkbookReview();
-      if (changeLogPanel.open) await loadChangeLog();
+      if (changeLogPanel.open && changeLogCapability === 'allowed') await loadChangeLog();
     } catch (error) {
       if (epoch !== sessionEpoch || app.hidden) return;
       reviewError.textContent = error instanceof Error ? error.message : '结案失败';
@@ -280,7 +331,8 @@
     refreshTimer = setTimeout(() => {
       loadActivity();
       loadWorkbookReview();
-      if (changeLogPanel.open) loadChangeLog();
+      probeChangeLogCapability({ force: changeLogCapability === 'error' });
+      if (changeLogPanel.open && changeLogCapability === 'allowed') loadChangeLog();
     }, 80);
   }
 
@@ -290,7 +342,9 @@
     refreshTimer = null;
     loadingActivity = false;
     loadingChanges = false;
-    canAdmin = null;
+    loadingChangeCapability = false;
+    reviewCapability = 'unknown';
+    changeLogCapability = 'unknown';
     activities = [];
     activityCursor = null;
     changes = [];
@@ -315,7 +369,7 @@
     activityPanel.hidden = true;
     changeLogPanel.hidden = true;
     reviewPanel.hidden = true;
-    document.documentElement.classList.remove('operation-history-ready', 'operation-workbook-review-ready');
+    document.documentElement.classList.remove('operation-history-ready', 'operation-workbook-review-ready', 'operation-change-log-capability-ready');
   }
 
   activityFilters.addEventListener('submit', (event) => { event.preventDefault(); activityCursor = null; loadActivity(); });
@@ -324,7 +378,11 @@
   filters.addEventListener('submit', (event) => { event.preventDefault(); nextCursor = null; loadChangeLog(); });
   filters.addEventListener('reset', () => setTimeout(() => { nextCursor = null; loadChangeLog(); }));
   more.addEventListener('click', () => loadChangeLog({ append: true }));
-  changeLogPanel.addEventListener('toggle', () => { if (changeLogPanel.open) loadChangeLog(); });
+  changeLogPanel.addEventListener('toggle', () => {
+    if (!changeLogPanel.open) return;
+    if (changeLogCapability === 'allowed') loadChangeLog();
+    else probeChangeLogCapability({ force: changeLogCapability === 'error' });
+  });
   for (const tab of document.querySelectorAll('[data-tab]')) tab.addEventListener('click', () => setTimeout(syncVisibility));
   document.querySelector('[data-refresh]')?.addEventListener('click', () => setTimeout(scheduleRecordsRefresh));
 

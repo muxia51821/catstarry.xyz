@@ -14,6 +14,7 @@ import hashlib
 import json
 import math
 import re
+from datetime import date
 from pathlib import Path
 
 DAY = re.compile(r'^\d{4}-\d{2}-\d{2}$')
@@ -42,6 +43,16 @@ def normalize_ticker(value: str) -> str:
     return candidate
 
 
+def validate_price_date(value: str) -> str:
+    if not DAY.fullmatch(value):
+        raise ValueError(f'invalid price_date: {value!r}')
+    try:
+        date.fromisoformat(value)
+    except ValueError as error:
+        raise ValueError(f'invalid price_date: {value!r}') from error
+    return value
+
+
 def main():
     parser = argparse.ArgumentParser(description='Generate canonical Finance raw-price import SQL')
     parser.add_argument('csv_input', type=Path)
@@ -65,9 +76,7 @@ def main():
         for line_number, raw in enumerate(reader, 2):
             try:
                 ticker = normalize_ticker(raw.get('ticker') or '')
-                price_date = (raw.get('price_date') or '').strip()
-                if not DAY.fullmatch(price_date):
-                    raise ValueError(f'invalid price_date: {price_date!r}')
+                price_date = validate_price_date((raw.get('price_date') or '').strip())
                 if price_date < START_DATE:
                     raise ValueError(f'price_date precedes accepted reconstruction boundary {START_DATE}')
                 close = float((raw.get('close') or '').strip())

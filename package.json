@@ -44,7 +44,7 @@
     "test:finance:site": "node scripts/finance-site-contract-test.mjs",
     "test:finance:activity": "node --experimental-transform-types --import ./scripts/register-typescript-loader.mjs scripts/finance-activity-query-contract.mjs",
     "test:finance:account-state": "node --experimental-transform-types --import ./scripts/register-typescript-loader.mjs scripts/finance-account-state-contract.mjs && node --experimental-transform-types --import ./scripts/register-typescript-loader.mjs scripts/finance-current-assets-correctness-contract.mjs",
-    "test:finance:asset-history": "node scripts/finance-asset-history-contract.mjs && node --experimental-transform-types --import ./scripts/register-typescript-loader.mjs scripts/finance-asset-valuation-rebuild-contract.mjs",
+    "test:finance:asset-history": "node --experimental-transform-types --import ./scripts/register-typescript-loader.mjs scripts/finance-asset-history-contract.mjs && node --experimental-transform-types --import ./scripts/register-typescript-loader.mjs scripts/finance-asset-valuation-rebuild-contract.mjs",
     "test:finance:operations": "node --experimental-transform-types --import ./scripts/register-typescript-loader.mjs scripts/finance-operation-history-query-contract.mjs",
     "test:finance:audit-atomicity": "node scripts/finance-core-audit-atomicity-contract.mjs",
     "test:finance:final-acceptance": "node --experimental-transform-types --import ./scripts/register-typescript-loader.mjs scripts/finance-final-acceptance-contract.mjs",

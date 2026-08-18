@@ -8,8 +8,8 @@ import { readAccountState } from '../workers/finance-api/src/routes/account-stat
 
 const refreshSource = await readFile('workers/finance-api/src/tasks/refresh-market-data.ts', 'utf8');
 assert.equal(MARKET_FRESHNESS_SLA_MS, 30 * 60 * 1000);
-assert.match(refreshSource, /const STALE_QUOTE_SLA_MS = 30 \* 60 \* 1000;/, 'current-account freshness must stay aligned with the accepted market refresh SLA');
-assert.match(refreshSource, /\(minutes >= 570 && minutes < 690\) \|\| \(minutes >= 780 && minutes < 900\)/, 'current-account freshness must stay aligned with the accepted A-share trading windows');
+assert.match(refreshSource, /MARKET_FRESHNESS_SLA_MS, isAStockTradingWindow.*market-authority/, 'market refresh and current-account reads must share the same freshness authority');
+assert.doesNotMatch(refreshSource, /const STALE_QUOTE_SLA_MS|function isTradingTime/, 'market refresh must not retain a second freshness SLA or trading-window implementation');
 
 const TRADING_NOW = new Date('2026-07-31T06:00:00.000Z'); // 14:00 Asia/Shanghai
 const AFTER_CLOSE = new Date('2026-07-31T12:00:00.000Z'); // 20:00 Asia/Shanghai

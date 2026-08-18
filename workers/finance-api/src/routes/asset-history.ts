@@ -11,6 +11,8 @@ type ValuationRow = {
   calculated_at: string;
 };
 
+export const WEEK_START_BUCKET_SQL = "date(valuation_date, '-' || ((CAST(strftime('%w', valuation_date) AS INTEGER) + 6) % 7) || ' days')";
+
 export async function handleAssetHistory(request: Request, env: FinanceEnv): Promise<Response> {
   if (request.method !== 'GET') return apiError(405, 'method_not_allowed', 'Method is not allowed');
   const session = await requireFinanceRole(request, env);
@@ -21,7 +23,7 @@ export async function handleAssetHistory(request: Request, env: FinanceEnv): Pro
 
   const bucket = view === 'month'
     ? "substr(valuation_date, 1, 7)"
-    : "strftime('%Y-W%W', valuation_date)";
+    : WEEK_START_BUCKET_SQL;
   const rows = await env.DB.prepare(`WITH ranked AS (
       SELECT valuation_date, securities_value, cash_value, other_assets_value, total_value, source, calculated_at,
         ROW_NUMBER() OVER (PARTITION BY ${bucket} ORDER BY valuation_date DESC) AS rn
