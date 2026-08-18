@@ -75,7 +75,7 @@ for (const source of navSources) assert.match(source, /STAR_MAP_DESTINATION/);
 const blogRoute = await readFile('workers/feed-api/src/routes/blog.ts', 'utf8');
 assert.match(blogRoute, /Only a published Blog entry can be withdrawn/);
 assert.match(blogRoute, /ever_published/);
-assert.match(blogRoute, /writeLifecycle\(env, entries\)/);
+assert.match(blogRoute, /writeBlogLifecycle\(env, entries\)/);
 assert.doesNotMatch(blogRoute, /updateFootprintVisibility/);
 
 const feedRoute = await readFile('workers/feed-api/src/routes/feed.ts', 'utf8');
