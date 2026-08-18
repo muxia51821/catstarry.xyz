@@ -1,5 +1,71 @@
 # 更新记录
 
+## 2026-08-18 — Post-audit corrective production release and Finance reconciliation closure
+
+### Source / accepted corrective implementation
+
+- 本轮 production release 以 `main@b7833e05cbb0a7760366b506af16638098c0990d` 为 exact deployed source；该 SHA 合并 PR #40 `fix(publication): guard production release convergence`，并包含本轮此前已经进入 main 的 Finance 与 Blog corrective chain。
+- Finance 主体实现来自 PR #31 `feat(finance): reconcile operation history and portfolio workspace`，完成 Operation History、Data Change Log、Current Account State、Historical Asset Valuation、Security Reference、Portfolio 权威边界与相关 D1 schema；随后 PR #37 收紧 current asset / market freshness 与 failure isolation，PR #38 关闭 Total Assets UI authority seam，移除 legacy `app.js` 对 Total Assets 与 freshness surface 的竞争写入。
+- Blog corrective PR #39 将 `blog:lifecycle-manifest:v1` 固定为 Blog runtime publication authority；legacy `blog:published-manifest` 只保留 rollback compatibility mirror。Present-empty lifecycle 仍然是权威状态，只有 lifecycle key 真正缺失时才允许 legacy bootstrap；malformed/unreadable lifecycle fail closed。
+- Publication corrective PR #40 引入最小 release identity `{sha, generation}` 与窄 release guard：Blog 使用 monotonic sync fence；Learn 使用 `learn-pending` / `learn-active` barrier；relation manifest 带 active release identity；official production publication workflow 使用固定 concurrency group 串行化 writer。没有引入 generic release state machine、release history、Blog pending lifecycle 或 Projects publication lifecycle。
+
+### Finance production D1 migrations `0008` → `0012`
+
+- Production Finance D1 `finance-db` 已完成 `0008_operation_history.sql`、`0009_historical_valuation.sql`、`0010_security_reference.sql`、`0011_asset_reconciliation_other_assets.sql`、`0012_final_acceptance_invariants.sql`。
+- `0008_operation_history.sql` 首次通过普通 `wrangler d1 migrations apply` 时因 compound SQLite trigger 被 Wrangler SQL splitting 误拆，返回 `incomplete input: SQLITE_ERROR`。该失败被判定为 migration runner parsing 问题，而不是 schema 设计失败；没有通过 mock acceptance 或删减 trigger 绕过。
+- 对 `0008` 使用 canonical SQL 文件执行 remote direct import，随后精确核对 5 tables、8 indexes、10 triggers、`PRAGMA quick_check` 与目标 schema；再以受控的 temporary no-op ledger alignment 让 Wrangler migration ledger 记录同名 `0008_operation_history.sql`，避免重复执行已经成功导入的 DDL。
+- `0009`–`0012` 均通过标准 migration path 成功执行。`0011` 重建 `finance_asset_snapshots` 并加入 `other_assets_value DEFAULT 0` 后，最新人工 / 券商快照保持原值：holdings `109,698.7`、cash `20,725.5`、other assets `0`、total `130,424.2`；未发生 snapshot authority 漂移。
+- `0012` 建立 partial unique index `idx_finance_memos_one_active_per_trade`，数据库层保证每个 Trade 至多一个未删除的 active Investment Memo；迁移前后 duplicate-active query 均为 0。
+- 最终 remote migration ledger readback 明确显示 id `8`–`12` 连续存在，最新项为 `0012_final_acceptance_invariants.sql`，且只读核对 `rows_written=0` / `changed_db=false`。
+
+### Feed D1 publication release guard
+
+- Production Feed D1 `catstarry-db` 在本轮 release 前只有 `0001`–`0004`；本轮应用 `0005_publication_release_guards.sql`，新增一个严格限定 key 的 `publication_release_guards` table：`blog-sync`、`learn-active`、`learn-pending`。
+- 执行前取得 D1 Time Travel bookmark `00000265-00000000-000050cb-267875ba6f3f699614006dfbf20dfdd2` 作为恢复锚点；之后通过 repository canonical runner `scripts/apply-feed-production-migrations.ps1` 执行 migration，Wrangler 返回 `0005_publication_release_guards.sql ✅`。
+- 最终 Feed migration ledger readback 显示 id `5` = `0005_publication_release_guards.sql`，其后没有新的 pending migration。
+
+### Feed Worker, release token and Site deployment
+
+- 先从 Cloudflare production Worker 实际 settings 读取并复用 Feed D1、`AUTH_KV`、`VIEW_KV`、`MEDIA_BUCKET`、`HOME_PROJECTIONS` 与 cron contract，生成一次性 `.scratch` production config；没有把 production resource ID 写入 repository，也没有复用 staging placeholder config。
+- Feed Worker production deploy 完成后，`/api/feed?limit=1`、`/api/blog/publications`、`/api/learn/publications`、`/activity-signals.json` 与 auth boundary smoke 均正常。
+- PR #40 之后 Site production runner 新增 `FOOTPRINT_INGEST_TOKEN` release-barrier requirement。原有 Cloudflare Feed Worker secret 无法读取明文，因此本轮执行一次受控 token rotation：同一新 token 写入 GitHub `production` environment secret、Cloudflare `catstarry-feed-api-production` Worker secret，并保留在当前 release PowerShell process environment 中供 Site runner 使用。
+- Cloudflare 第一次 `wrangler secret put` 返回 upstream `502 Bad Gateway`。没有把该 timeout/error 当成成功，也没有立即继续 Site deploy；使用无副作用的 `/api/learn/internal/release/prepare` + invalid body 探针验证新 token，当时返回 `401 unauthorized`，证明 Cloudflare secret 尚未切换。随后仅重试 Cloudflare secret write 一次并成功；同一探针变为 `400 invalid_release`，证明 bearer authentication 已通过且没有创建 pending release。
+- `scripts/deploy-site-production.ps1` 随后完整通过 build / scoped validation、Wrangler dry-run、Blog source-survival preflight、Learn exact pending prepare、Learn transition preflight、真实 Site deploy 与 HTTP smoke。
+- Production Site Worker 本轮 deployment version 为 `2ccb57fe-ae75-42cd-a479-778167e6e6f1`；runner 明确报告 `Deployed commit SHA: b7833e05cbb0a7760366b506af16638098c0990d`，并确认 `/`、`/activity-signals.json`、`/api/feed?limit=1` 均为 HTTP 200。
+
+### Exact-SHA Blog / Learn publication convergence
+
+- Site 确认成功后，发送 `repository_dispatch` event `catstarry-production-deployment-succeeded`，payload 固定 `environment=production`、`status=success`、exact SHA `b7833e05cbb0a7760366b506af16638098c0990d`；没有使用“当前 main”替代 deployed SHA。
+- GitHub Actions publication sync run `32097175402` 完整成功：`Verify deployed commit`、`Sync Blog publications`、`Sync Learn publications`、`Require both publication syncs` 全部 `success`。
+- Final D1 release-guard readback：
+  - `blog-sync` → SHA `b7833e05cbb0a7760366b506af16638098c0990d`, generation `407`；
+  - `learn-active` → 同一 SHA、同一 generation `407`；
+  - `learn-pending` 不存在。
+- 因此 Blog runtime projection、Learn relation metadata 与 active Site release 已收敛到同一个 exact release；Learn lifecycle pending barrier 已正常解除。Content Production Release 在该 readback 后可判定 CLOSED。
+
+### Finance Worker and Pages production deployment
+
+- Finance D1 已在 Worker deploy 前确认到 `0012`，因此本阶段没有重复 migration、rollback 或数据清理。
+- Finance Worker 使用 live account bindings 生成一次性 production config，保留 production `finance-db`、`FINANCE_AUTH_KV`、现有 dashboard vars/secrets 与 accepted crons `*/15 * * * *`、`30 7 * * 1-5`；dry-run 通过后部署 `catstarry-finance-api-production`。
+- 本轮 Finance Worker production deployment id 为 `c63cd60a-7323-42a2-8fcc-3c074ef854c7`。部署后 `/api/account-state`、`/api/holdings`、`/api/trades` 未登录边界均稳定返回 `401 Authentication required`；不存在的 Finance route 返回 `404 Finance route not found`，证明 account-state route 已进入 production runtime。
+- Worker 刚部署后的第一次 `/api/account-state` probe 曾短暂返回 404；没有据此 rollback。随后 readback 显示新的 deployment 已存在，重复 probe 稳定为预期 401，而真实不存在 route 保持 404，因此将该现象记录为 deploy/route propagation window，而非 current-code route 缺失。
+- Finance static site 通过 `wrangler pages deploy finance-site --project-name catstarry-finance-production --branch main --commit-hash b7833e05...` 发布。Cloudflare Pages deployment id 为 `29409a76-9960-4107-b290-321ab02548e8`，Environment = Production，Branch = `main`，Source = `b7833e0`；`https://f.catstarry.xyz/` 最终 HTTP 200。
+- Pages CLI 当时检测到前序 Site build 遗留的 `dist/server/wrangler.json` redirect configuration，并提示其缺少 `pages_build_output_dir`；Wrangler 明确忽略该 config 的 Pages build-output contract，仍按显式 `finance-site` directory 与 `catstarry-finance-production` project 完成部署。后续 deployment list 和 custom-domain 200 readback 证明 deployment target 正确。该 redirect warning 仅作为后续 deployment-tooling cleanup 记录，不作为本次 release blocker。
+
+### Finance correctness boundary carried into production
+
+- `/api/account-state` 现在是 current account-state authority；Total Assets 只在 holdings、Broker Cash、Other Account Assets 均可被可靠计算时形成 exact value。
+- Portfolio UI 是 current Total Assets surface 的 sole owner；legacy `app.js` 不再把 securities-only `holdings.total_market_value` 写入 Total Assets DOM，也不再竞争 account-state freshness surface。
+- Current-account holdings 在 accepted A-share trading window 内受 persisted quote freshness SLA 约束；stale intraday quote 会让 exact Total Assets unavailable，而非展示过期精确值。休市 / 收盘后的 accepted quote 不做机械 30-minute expiry。
+- Operation History / Data Change Log、Historical Asset Valuation、Security Reference、Reconciliation sealed-history、same-day Trade ordering、reverse-repo principal 与 cash-effect separation、one-active-Memo invariant 均随 PR #31 / #37 / #38 进入本次 production code + schema baseline。
+
+### Operational observations / deferred cleanup
+
+- Wrangler/Worker 命令的非零退出、502 或 timeout 不再自动解释为业务失败或成功；本轮 secret rotation 通过独立 authenticated probe 明确判定第一次写入未生效，再进行单次精确 retry。
+- Production deployment 时保留 failure-domain separation：Content / Publication 完成并收敛后才进入 Finance；没有把已经成功的 migration/Worker/Pages mutation 回滚来追求“版本看起来整齐”。
+- Deferred、非本轮 blocker：清理 Site build 遗留 Wrangler redirect 对后续 Pages CLI 的提示噪音；Finance legacy dashboard 大 `Promise.all` decomposition；account-state early scheduling；generic release coordinator / release history；Blog pending lifecycle；Projects publication lifecycle；删除 legacy Blog published mirror。
+- Infrastructure / release convergence 已有完整 production readback。Finance 最终产品 acceptance 仍应由 owner 登录 `f.catstarry.xyz` 后快速确认 Total Assets、Portfolio/持仓、交易/操作记录与基本交互；不要把该真实使用 smoke 替换为未登录 HTTP probe。
+
 ## 2026-08-16 — Governance documentation reality reconciliation
 
 ### Governance / Documentation
