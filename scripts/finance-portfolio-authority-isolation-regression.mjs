@@ -34,16 +34,29 @@ const server = createServer(async (request, response) => {
   if (url.pathname === '/' || url.pathname === '/index.html') {
     mode = url.searchParams.get('mode') || 'auxfail';
     response.setHeader('Content-Type', 'text/html; charset=utf-8');
-    response.end(html);
+    response.end(mode === 'composed' ? await readFile('finance-site/index.html') : html);
     return;
   }
-  if (url.pathname === '/portfolio-ui.js') {
-    response.setHeader('Content-Type', 'text/javascript; charset=utf-8');
-    response.end(await readFile('finance-site/portfolio-ui.js'));
+  const files = {
+    '/app.js': ['finance-site/app.js', 'text/javascript; charset=utf-8'],
+    '/portfolio-ui.js': ['finance-site/portfolio-ui.js', 'text/javascript; charset=utf-8'],
+    '/operations-ui.js': ['finance-site/operations-ui.js', 'text/javascript; charset=utf-8'],
+    '/styles.css': ['finance-site/styles.css', 'text/css; charset=utf-8'],
+    '/portfolio.css': ['finance-site/portfolio.css', 'text/css; charset=utf-8'],
+    '/operations.css': ['finance-site/operations.css', 'text/css; charset=utf-8'],
+  };
+  if (files[url.pathname]) {
+    response.setHeader('Content-Type', files[url.pathname][1]);
+    response.end(await readFile(files[url.pathname][0]));
     return;
+  }
+  if (mode === 'composed' && url.pathname === '/api/auth/session') {
+    await delay(250);
+    return json(response, 200, { authenticated: true, username: 'contract-admin', role: 'admin' });
   }
   if (url.pathname === '/api/account-state') {
     if (mode === 'accountfail') return json(response, 503, { message: 'account unavailable' });
+    if (mode === 'composed') await delay(120);
     return json(response, 200, {
       reconciliation: { through_date: '2026-08-16', observed_at: '2026-08-16T02:29:00.000Z' },
       holdings: { market_value: 109698.70, complete: true, missing_tickers: [], stale_tickers: [], problems: [] },
@@ -55,6 +68,13 @@ const server = createServer(async (request, response) => {
   }
   if (url.pathname === '/api/holdings') {
     if (mode === 'auxfail') return json(response, 503, { message: 'holdings unavailable' });
+    if (mode === 'composed') return json(response, 200, {
+      holdings: [{ ...holdings[0], market_value: 109698.70 }],
+      total_market_value: 109698.70,
+      market_data_complete: true,
+      positions: [],
+      market_overview: { label: '上证指数', current_value: 3452.17, change: 18.24, change_pct: .53, market_time: '2026-08-18 15:00' },
+    });
     return json(response, 200, { holdings, total_market_value: 4023 });
   }
   if (url.pathname === '/api/securities') {
@@ -72,6 +92,26 @@ const server = createServer(async (request, response) => {
   if (url.pathname === '/api/assets/snapshots') {
     if (mode === 'auxfail') return json(response, 503, { message: 'reconciliation unavailable' });
     return json(response, 200, { snapshots: [] });
+  }
+  if (mode === 'composed') {
+    const composedFixtures = {
+      '/api/pe': { indexes: [] },
+      '/api/circuit': { active: null },
+      '/api/review': { reviews: [] },
+      '/api/notifications': { active_circuit: null, monthly_confirmation: null, unconfirmed_viewers: [], annual_review_due: false },
+      '/api/monthly': { records: [] },
+      '/api/plan': { plan: null },
+      '/api/memos': { memos: [] },
+      '/api/risk-rules': { rules: [] },
+      '/api/rebalances': { rebalances: [] },
+      '/api/access-log': { access_log: [], nextCursor: null },
+      '/api/import-review': { review: [] },
+      '/api/assets/series': { view: 'month', records: [], legacy_monthly_records: [] },
+      '/api/cash-flows': { cash_flows: [] },
+      '/api/account-events': { account_events: [] },
+      '/api/risk/signals': { single_position_loss: null, worst_ticker: null, monthly_drawdown: null, annual_drawdown: null, data_complete: false, missing_reasons: [], signals: [] },
+    };
+    if (composedFixtures[url.pathname]) return json(response, 200, composedFixtures[url.pathname]);
   }
   response.statusCode = 404;
   response.end();
@@ -129,6 +169,29 @@ try {
   await waitFor(`document.querySelector('[data-total-value]')?.textContent === '待核验'`, 'account authority failure state');
   await waitFor(`document.querySelector('[data-holdings-body]')?.textContent.includes('深科技')`, 'auxiliary holdings continue independently');
   assert.match(await evaluate(`document.querySelector('[data-market-freshness]')?.textContent ?? ''`), /account unavailable/);
+
+  // The real Finance page composes app.js, Portfolio UI and Operations UI. Legacy holdings may
+  // render first, but securities-only market value must never occupy the Total Assets surface.
+  await send('Page.addScriptToEvaluateOnNewDocument', { source: `
+    document.addEventListener('DOMContentLoaded', () => {
+      const total = document.querySelector('[data-total-value]');
+      if (!total) return;
+      window.__financeTotalHistory = [total.textContent];
+      new MutationObserver(() => window.__financeTotalHistory.push(total.textContent))
+        .observe(total, { childList: true, subtree: true, characterData: true });
+    });
+  ` });
+  await send('Page.navigate', { url: `${baseUrl}/?mode=composed` });
+  await waitFor(`document.readyState === 'complete' && document.querySelector('[data-app]')?.hidden === false`, 'composed Finance runtime');
+  await waitFor(`document.querySelector('[data-total-value]')?.textContent.includes('130,424.20')`, 'composed authoritative total');
+  const composed = await evaluate(`({
+    total: document.querySelector('[data-total-value]')?.textContent ?? '',
+    freshness: document.querySelector('[data-market-freshness]')?.textContent ?? '',
+    history: window.__financeTotalHistory ?? [],
+  })`);
+  assert.match(composed.total, /130,424\.20/);
+  assert.match(composed.freshness, /已对账.*2026-08-16/);
+  assert.equal(composed.history.some((value) => String(value).includes('109,698.70')), false, `securities-only holdings value leaked into Total Assets: ${JSON.stringify(composed.history)}`);
 
   assert.deepEqual(diagnostics.consoleProblems, []);
   assert.deepEqual(diagnostics.exceptions, []);

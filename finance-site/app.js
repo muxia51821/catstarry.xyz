@@ -162,13 +162,11 @@ function renderCircuitBanner() {
 
 function renderSummary() {
   const holdings = state.holdings;
-  const total = $('[data-total-value]'); const numeric = holdings?.total_market_value !== null && holdings?.total_market_value !== undefined;
-  total.textContent = numeric ? valueOrDash(holdings?.total_market_value, money) : '行情不完整'; total.dataset.numeric = String(numeric);
   const market = holdings?.market_overview; const change = Number(market?.change_pct); const indexValue = Number(market?.current_value); const hasChange = Number.isFinite(change); const hasValue = Number.isFinite(indexValue);
   const marketSummary = hasValue ? number.format(indexValue) : '—';
   const marketFreshness = !holdings?.holdings?.length ? '暂无持仓' : !holdings.market_data_complete ? '部分持仓缺少价格，市值与占比不展示。' : hasValue && hasChange ? `${market?.label ?? '上证指数'} ${change > 0 ? '+' : ''}${Number(market?.change ?? 0).toFixed(2)} · ${change > 0 ? '+' : ''}${change.toFixed(2)}%${market?.market_time ? ` · 截至 ${market.market_time}` : ''}` : '上证指数快照尚未接入当前 API。';
   const summary = $('[data-market-summary]'); summary.textContent = marketSummary; summary.className = hasChange ? (change >= 0 ? 'value-up' : 'value-down') : '';
-  $('[data-market-freshness]').textContent = holdings?.market_data_complete ? '' : marketFreshness; $('[data-market-freshness-copy]').textContent = marketFreshness;
+  $('[data-market-freshness-copy]').textContent = marketFreshness;
   $('[data-circuit-level]').textContent = state.circuit ? circuitLabel(state.circuit.level) : '正常';
   $('[data-circuit-action]').textContent = state.circuit ? circuitReason(state.circuit.reason) : '未发现未解除的熔断记录';
 }
