@@ -121,6 +121,9 @@ async function updatePublication(request: Request, env: LearnEnv, ctx: Execution
 
   const existing = await getPublication(env.DB, slug);
   if (existing?.visibility === visibility) return json({ entry: existing, created: false });
+  if (await readLearnPendingRelease(env.DB)) {
+    return apiError(503, 'publication_release_pending', 'Learn publication lifecycle is temporarily unavailable during production release activation');
+  }
   const relationFailure = await validateProposedPublicRelations(env, slug, visibility);
   if (relationFailure) return relationFailure;
   if (!existing) {
