@@ -47,4 +47,11 @@ assert.ok(learnEntries.every((entry) => entry.title && !('published_at' in entry
 assert.ok(learnEntries.every((entry) => Array.isArray(entry.links)));
 assert.equal(new Set(learnEntries.map((entry) => entry.slug)).size, learnEntries.length);
 
-console.log('Blog publication manifest contract passed.');
+const runtimeAuthority = spawnSync(process.execPath, [
+  '--experimental-transform-types',
+  '--import', './scripts/register-typescript-loader.mjs',
+  'scripts/blog-runtime-authority-contract-test.mjs',
+], { encoding: 'utf8' });
+assert.equal(runtimeAuthority.status, 0, `${runtimeAuthority.stdout}${runtimeAuthority.stderr}`);
+
+console.log('Blog publication manifest and runtime authority contracts passed.');
