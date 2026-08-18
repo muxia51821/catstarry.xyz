@@ -65,11 +65,17 @@
 - Content / Publication 与 Finance 的 deployment、migration、release guard、publication sync、Pages/Worker runtime 和 owner real-use acceptance 均已闭环；本轮未使用 rollback。
 - **Post-Audit Corrective Production Release & Acceptance = CLOSED.**
 
+### Deployment tooling follow-up
+
+- PR #41 `fix(deploy): clean generated Wrangler redirect after Site release` 关闭了本轮 Finance Pages 发布时暴露出的本地 Wrangler config 泄漏：Site production runner 现在只在真实 Site deploy 与三个 production HTTP 200 smoke 全部成功后删除 `.wrangler/deploy/config.json`，避免后续独立的 `wrangler pages deploy` 继承上一轮 Site build 的 redirected `dist/server/wrangler.json` context。
+- Cleanup 为 best-effort：本地 redirect 删除失败只记录 warning，不会把已经成功的 production deploy 伪装成失败；真实 deploy 或任何 production smoke 失败时，执行会在 cleanup 之前终止，因此 redirect 与 `dist/server/wrangler.json` 都保留用于诊断 / exact-build reuse。
+- PR #41 exact head `012f3a74daa9b33a57fd3eb8d6979187300757ec` 的 GitHub Validate #271 全部通过，包括 contracts、Worker config/types/typecheck、Site typecheck/build/output、Learn/Blog preview、local-preview lifecycle、browser CI、Feed Worker、双 D1 migration repeat、Worker dry-run 与 `git diff --check`。该 follow-up 没有重新部署 production。
+
 ### Operational observations / deferred cleanup
 
 - Wrangler/Worker 命令的非零退出、502 或 timeout 不再自动解释为业务失败或成功；本轮 secret rotation 通过独立 authenticated probe 明确判定第一次写入未生效，再进行单次精确 retry。
 - Production deployment 时保留 failure-domain separation：Content / Publication 完成并收敛后才进入 Finance；没有把已经成功的 migration/Worker/Pages mutation 回滚来追求“版本看起来整齐”。
-- Deferred、非本轮 blocker：清理 Site build 遗留 Wrangler redirect 对后续 Pages CLI 的提示噪音；Finance legacy dashboard 大 `Promise.all` decomposition；account-state early scheduling；generic release coordinator / release history；Blog pending lifecycle；Projects publication lifecycle；删除 legacy Blog published mirror。
+- Deferred、非本轮 blocker：Finance legacy dashboard 大 `Promise.all` decomposition；account-state early scheduling；generic release coordinator / release history；Blog pending lifecycle；Projects publication lifecycle；删除 legacy Blog published mirror。
 
 ## 2026-08-16 — Governance documentation reality reconciliation
 
