@@ -1,0 +1,201 @@
+import assert from 'node:assert/strict';
+
+import { handleBlog } from '../workers/feed-api/src/routes/blog.ts';
+import { handleFeed } from '../workers/feed-api/src/routes/feed.ts';
+import { refreshActivitySignals } from '../workers/feed-api/src/modules/activity-signals.ts';
+import {
+  BLOG_LEGACY_PUBLISHED_KEY,
+  BLOG_LIFECYCLE_KEY,
+  readPublishedBlogSlugs,
+  writeBlogLifecycle,
+} from '../workers/feed-api/src/modules/blog-publications.ts';
+
+class MemoryKv {
+  values = new Map();
+  failGetKeys = new Set();
+  failPutKeys = new Set();
+
+  async get(key, type) {
+    if (this.failGetKeys.has(key)) throw new Error(`injected KV get failure: ${key}`);
+    const value = this.values.get(key);
+    if (value === undefined) return null;
+    if (type === 'json') return typeof value === 'string' ? JSON.parse(value) : value;
+    return value;
+  }
+
+  async put(key, value) {
+    if (this.failPutKeys.has(key)) throw new Error(`injected KV put failure: ${key}`);
+    this.values.set(key, value);
+  }
+}
+
+class TimelineD1 {
+  constructor(rows = []) {
+    this.rows = rows;
+    this.learnPublications = ['learn-visible'];
+  }
+
+  prepare(sql) {
+    return new TimelineStatement(this, sql);
+  }
+}
+
+class TimelineStatement {
+  constructor(database, sql) {
+    this.database = database;
+    this.sql = sql.replace(/\s+/g, ' ').trim();
+    this.values = [];
+  }
+
+  bind(...values) {
+    this.values = values;
+    return this;
+  }
+
+  async all() {
+    if (this.sql.startsWith("SELECT slug FROM learn_publications WHERE visibility = 'public'")) {
+      return { results: this.database.learnPublications.map((slug) => ({ slug })) };
+    }
+    if (this.sql.startsWith('SELECT * FROM (')) {
+      const publishedBlogSlugs = new Set(JSON.parse(this.values[1]));
+      const publishedLearnSlugs = new Set(JSON.parse(this.values[2]));
+      const rows = this.database.rows.filter((row) => (
+        row.visibility === 'public'
+        && (row.kind !== 'system_footprint' || row.source_module !== 'blog' || publishedBlogSlugs.has(row.source_ref))
+        && (row.kind !== 'system_footprint' || row.source_module !== 'learn'
+          || row.event_type === 'learn_section_completed' || publishedLearnSlugs.has(row.source_ref))
+      ));
+      return { results: rows };
+    }
+    throw new Error(`Unhandled D1 query: ${this.sql}`);
+  }
+}
+
+class ProjectionBucket {
+  constructor(value) {
+    this.value = value;
+    this.putCount = 0;
+  }
+
+  async put(_key, value) {
+    this.putCount += 1;
+    this.value = value;
+  }
+}
+
+function lifecycleEntry(slug, state) {
+  return {
+    slug,
+    title: slug,
+    summary: '',
+    state,
+    ever_published: state === 'published' || state === 'withdrawn',
+  };
+}
+
+function createContext() {
+  return { waitUntil() {}, passThroughOnException() {} };
+}
+
+function timelineRow({ id, kind = 'system_footprint', sourceModule = null, sourceRef = null, eventType = null }) {
+  return {
+    kind,
+    id,
+    occurred_at: '2026-08-18T00:00:00.000Z',
+    visibility: 'public',
+    type: kind === 'native_post' ? 'note' : null,
+    content: kind === 'native_post' ? 'native' : null,
+    media_json: null,
+    link_url: null,
+    link_title: null,
+    link_summary: null,
+    link_image: null,
+    updated_at: kind === 'native_post' ? '2026-08-18T00:00:00.000Z' : null,
+    source_module: sourceModule,
+    source_ref: sourceRef,
+    source_version: sourceModule ? 'v1' : null,
+    event_type: eventType,
+    snapshot_json: sourceModule ? JSON.stringify({ title: id }) : null,
+  };
+}
+
+const conflictingKv = new MemoryKv();
+conflictingKv.values.set(BLOG_LIFECYCLE_KEY, [
+  lifecycleEntry('legacy-only', 'withdrawn'),
+  lifecycleEntry('lifecycle-public', 'published'),
+]);
+conflictingKv.values.set(BLOG_LEGACY_PUBLISHED_KEY, ['legacy-only']);
+assert.deepEqual(await readPublishedBlogSlugs({ AUTH_KV: conflictingKv }), ['lifecycle-public']);
+assert.deepEqual(await handleBlog(
+  new Request('https://api.test/api/blog/publications'),
+  { AUTH_KV: conflictingKv },
+  createContext(),
+  '/api/blog/publications',
+).then((response) => response.json()), { slugs: ['lifecycle-public'] }, 'lifecycle must win over a conflicting legacy mirror');
+
+const emptyLifecycleKv = new MemoryKv();
+emptyLifecycleKv.values.set(BLOG_LIFECYCLE_KEY, []);
+emptyLifecycleKv.values.set(BLOG_LEGACY_PUBLISHED_KEY, ['must-not-reappear']);
+assert.deepEqual(await readPublishedBlogSlugs({ AUTH_KV: emptyLifecycleKv }), [], 'present empty lifecycle is authoritative');
+
+const bootstrapKv = new MemoryKv();
+bootstrapKv.values.set(BLOG_LEGACY_PUBLISHED_KEY, ['legacy-bootstrap']);
+assert.deepEqual(await readPublishedBlogSlugs({ AUTH_KV: bootstrapKv }), ['legacy-bootstrap'], 'legacy mirror is only a missing-lifecycle bootstrap fallback');
+
+const malformedKv = new MemoryKv();
+malformedKv.values.set(BLOG_LIFECYCLE_KEY, { entries: [] });
+malformedKv.values.set(BLOG_LEGACY_PUBLISHED_KEY, ['must-not-mask-corruption']);
+await assert.rejects(() => readPublishedBlogSlugs({ AUTH_KV: malformedKv }), /lifecycle manifest is invalid/);
+
+const mirrorFailureKv = new MemoryKv();
+mirrorFailureKv.values.set(BLOG_LEGACY_PUBLISHED_KEY, ['old-rollback-view']);
+mirrorFailureKv.failPutKeys.add(BLOG_LEGACY_PUBLISHED_KEY);
+const originalConsoleError = console.error;
+console.error = () => {};
+try {
+  await writeBlogLifecycle({ AUTH_KV: mirrorFailureKv }, [lifecycleEntry('canonical-public', 'published')]);
+} finally {
+  console.error = originalConsoleError;
+}
+assert.deepEqual(JSON.parse(mirrorFailureKv.values.get(BLOG_LIFECYCLE_KEY)), [lifecycleEntry('canonical-public', 'published')]);
+assert.deepEqual(mirrorFailureKv.values.get(BLOG_LEGACY_PUBLISHED_KEY), ['old-rollback-view'], 'legacy mirror failure must not roll back canonical lifecycle');
+
+const feedKv = new MemoryKv();
+feedKv.failGetKeys.add(BLOG_LIFECYCLE_KEY);
+const feedRows = [
+  timelineRow({ id: '00000000-0000-4000-8000-000000000001', kind: 'native_post' }),
+  timelineRow({ id: '00000000-0000-4000-8000-000000000002', sourceModule: 'blog', sourceRef: 'blog-public', eventType: 'blog_published' }),
+  timelineRow({ id: '00000000-0000-4000-8000-000000000003', sourceModule: 'learn', sourceRef: 'learn-visible', eventType: 'learn_note_published' }),
+  timelineRow({ id: '00000000-0000-4000-8000-000000000004', sourceModule: 'projects', sourceRef: 'project-1', eventType: 'project_updated' }),
+];
+console.error = () => {};
+let publicFeed;
+try {
+  publicFeed = await handleFeed(
+    new Request('https://api.test/api/feed?limit=20'),
+    { AUTH_KV: feedKv, DB: new TimelineD1(feedRows) },
+    createContext(),
+    '/api/feed',
+  );
+} finally {
+  console.error = originalConsoleError;
+}
+assert.equal(publicFeed.status, 200, 'Blog publication KV failure must not take down Public Feed');
+const publicFeedBody = await publicFeed.json();
+assert.deepEqual(publicFeedBody.items.map((entry) => entry.id).sort(), [
+  '00000000-0000-4000-8000-000000000001',
+  '00000000-0000-4000-8000-000000000003',
+  '00000000-0000-4000-8000-000000000004',
+]);
+
+const previousProjection = JSON.stringify({ schema_version: 1, signals: { blog: { state: 'stable' } } });
+const projectionBucket = new ProjectionBucket(previousProjection);
+await assert.rejects(() => refreshActivitySignals({
+  AUTH_KV: feedKv,
+  DB: {},
+  HOME_PROJECTIONS: projectionBucket,
+}), /injected KV get failure/);
+assert.equal(projectionBucket.putCount, 0, 'Blog authority failure must abort activity projection refresh');
+assert.equal(projectionBucket.value, previousProjection, 'activity projection failure must preserve the previous object');
+
+console.log('Blog runtime authority convergence contract passed.');

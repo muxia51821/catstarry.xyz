@@ -4,6 +4,12 @@ import { logWorkerError } from '../../../../shared/worker-log';
 import { FeedStore } from '../adapters/feed-store';
 import { apiError, json, readJson } from '../lib/http';
 import { refreshActivitySignals } from '../modules/activity-signals';
+import {
+  readBlogLifecycle,
+  readPublishedBlogSlugs,
+  type StoredBlogLifecycleEntry,
+  writeBlogLifecycle,
+} from '../modules/blog-publications';
 import { parseFootprintCandidate } from '../modules/footprints';
 import { requireMainSession } from './auth';
 
@@ -16,13 +22,6 @@ interface PublicationEntry {
   state?: unknown;
 }
 
-interface StoredBlogLifecycleEntry extends BlogLifecycleEntry {
-  ever_published: boolean;
-}
-
-const LIFECYCLE_KEY = 'blog:lifecycle-manifest:v1';
-const PUBLISHED_KEY = 'blog:published-manifest';
-
 export async function handleBlog(
   request: Request,
   env: BlogEnv,
@@ -30,17 +29,12 @@ export async function handleBlog(
   pathname: string,
 ): Promise<Response> {
   if (pathname === '/api/blog/publications' && request.method === 'GET') {
-    const entries = await readLifecycle(env);
-    if (entries.length > 0) {
-      return json({ slugs: entries.filter((entry) => entry.state === 'published').map((entry) => entry.slug) });
-    }
-    const legacy = await env.AUTH_KV.get<unknown>(PUBLISHED_KEY, 'json');
-    return json({ slugs: validSlugs(legacy) });
+    return json({ slugs: await readPublishedBlogSlugs(env) });
   }
   if (pathname === '/api/blog/admin/publications' && request.method === 'GET') {
     const session = await requireMainSession(request, env);
     if (session instanceof Response) return session;
-    return json({ entries: await readLifecycle(env) });
+    return json({ entries: (await readBlogLifecycle(env)) ?? [] });
   }
   if (pathname === '/api/blog/admin/publications' && request.method === 'PATCH') {
     return updateLifecycle(request, env, ctx);
@@ -68,10 +62,10 @@ async function syncDeployManifest(request: Request, env: BlogEnv, ctx: Execution
   const incoming = normalizeEntries(body.entries as PublicationEntry[]);
   if (!incoming) return apiError(400, 'invalid_manifest', 'Blog publication entries are invalid');
 
-  const previous = await env.AUTH_KV.get<StoredBlogLifecycleEntry[]>(LIFECYCLE_KEY, 'json');
-  if (!Array.isArray(previous)) {
+  const previous = await readBlogLifecycle(env);
+  if (previous === null) {
     const initialized = incoming.map((entry) => ({ ...entry, ever_published: entry.state === 'published' }));
-    await writeLifecycle(env, initialized);
+    await writeBlogLifecycle(env, initialized);
     return json({ initialized: true, synced: incoming.length, created: 0 });
   }
 
@@ -88,7 +82,7 @@ async function syncDeployManifest(request: Request, env: BlogEnv, ctx: Execution
     }
     next.push(nextEntry);
   }
-  await writeLifecycle(env, next);
+  await writeBlogLifecycle(env, next);
   if (created > 0) refreshAfterMutation(env, ctx);
   return json({ initialized: false, synced: next.length, created });
 }
@@ -102,7 +96,7 @@ async function updateLifecycle(request: Request, env: BlogEnv, ctx: ExecutionCon
     || (body.state !== 'published' && body.state !== 'withdrawn')) {
     return apiError(400, 'invalid_lifecycle', 'slug and a published or withdrawn state are required');
   }
-  const entries = await readLifecycle(env);
+  const entries = (await readBlogLifecycle(env)) ?? [];
   const index = entries.findIndex((entry) => entry.slug === body.slug);
   if (index < 0) return apiError(404, 'not_found', 'Blog entry not found');
   const entry = entries[index];
@@ -120,7 +114,7 @@ async function updateLifecycle(request: Request, env: BlogEnv, ctx: ExecutionCon
     updated.ever_published = true;
   }
   entries[index] = updated;
-  await writeLifecycle(env, entries);
+  await writeBlogLifecycle(env, entries);
   refreshAfterMutation(env, ctx);
   return json({ entry: updated, created: created === 1 });
 }
@@ -146,26 +140,6 @@ async function recordFirstPublication(
   if (!candidate) throw new Error('Blog publication entry could not be normalized');
   const result = await new FeedStore(env.DB).recordFootprint(candidate, new Date().toISOString());
   return result.created ? 1 : 0;
-}
-
-async function readLifecycle(env: BlogEnv): Promise<StoredBlogLifecycleEntry[]> {
-  const entries = await env.AUTH_KV.get<StoredBlogLifecycleEntry[]>(LIFECYCLE_KEY, 'json');
-  return Array.isArray(entries) ? entries : [];
-}
-
-function validSlugs(value: unknown): string[] {
-  return Array.isArray(value) ? [...new Set(value.filter((slug): slug is string => (
-    typeof slug === 'string' && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)
-  )))] : [];
-}
-
-async function writeLifecycle(env: BlogEnv, entries: StoredBlogLifecycleEntry[]): Promise<void> {
-  const ordered = [...entries].sort((a, b) => a.slug.localeCompare(b.slug));
-  const published = ordered.filter((entry) => entry.state === 'published').map((entry) => entry.slug);
-  await Promise.all([
-    env.AUTH_KV.put(LIFECYCLE_KEY, JSON.stringify(ordered)),
-    env.AUTH_KV.put(PUBLISHED_KEY, JSON.stringify(published)),
-  ]);
 }
 
 function normalizeEntries(entries: PublicationEntry[]): BlogLifecycleEntry[] | null {

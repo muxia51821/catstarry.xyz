@@ -2,6 +2,7 @@ import type { FeedPostInput, PublicFootprint, PublicFootprintCandidate, Timeline
 import { timingSafeEqualText } from '../../../../shared/security';
 import { FeedStore, decodeCursor } from '../adapters/feed-store';
 import { apiError, json, parseBoundedLimit, readJson } from '../lib/http';
+import { readPublishedBlogSlugs } from '../modules/blog-publications';
 import { recordPublicFootprint, parseFootprintCandidate } from '../modules/footprints';
 import { refreshActivitySignals } from '../modules/activity-signals';
 import { requireMainSession } from './auth';
@@ -53,7 +54,10 @@ async function listPublic(request: Request, env: FeedEnv, store: FeedStore): Pro
   const cursor = rawCursor ? decodeCursor(rawCursor) ?? undefined : undefined;
   if (rawCursor && !cursor) return apiError(400, 'invalid_cursor', 'cursor is invalid');
   const [publishedBlogSlugs, publishedLearnSlugs] = await Promise.all([
-    loadPublishedBlogSlugs(env),
+    readPublishedBlogSlugs(env).catch((error: unknown) => {
+      logWorkerError('public_feed_blog_publication_read_failed', {}, error);
+      return [];
+    }),
     loadPublishedLearnSlugs(env.DB),
   ]);
   return json(await store.listPublic(cursor, limit, publishedBlogSlugs, publishedLearnSlugs));
@@ -88,22 +92,13 @@ async function listAdmin(request: Request, env: FeedEnv, store: FeedStore): Prom
     to: to ?? undefined,
     cursor,
     limit,
-  }), loadPublishedBlogSlugs(env), loadPublishedLearnSlugs(env.DB)]);
+  }), readPublishedBlogSlugs(env), loadPublishedLearnSlugs(env.DB)]);
   const publishedBlogSlugSet = new Set(publishedBlogSlugs);
   const publishedLearnSlugSet = new Set(publishedLearnSlugs);
   return json({
     ...page,
     items: page.items.map((entry) => withProjectionState(entry, publishedBlogSlugSet, publishedLearnSlugSet)),
   });
-}
-
-async function loadPublishedBlogSlugs(env: FeedEnv): Promise<string[]> {
-  const manifest = await env.AUTH_KV.get<unknown>('blog:published-manifest', 'json');
-  return Array.isArray(manifest)
-    ? [...new Set(manifest.filter((slug): slug is string => (
-      typeof slug === 'string' && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)
-    )))]
-    : [];
 }
 
 async function loadPublishedLearnSlugs(database: D1Database): Promise<string[]> {
