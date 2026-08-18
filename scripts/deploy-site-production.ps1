@@ -63,6 +63,22 @@ function Assert-SiteWorkerConfig {
   Write-Host "Validated Site Worker bindings and targeted FEED_API at production."
 }
 
+function Remove-WranglerDeployRedirect {
+  param([Parameter(Mandatory)][string]$RepoRoot)
+
+  $redirectConfig = Join-Path $RepoRoot '.wrangler/deploy/config.json'
+  if (-not (Test-Path -LiteralPath $redirectConfig -PathType Leaf)) {
+    return
+  }
+
+  try {
+    Remove-Item -LiteralPath $redirectConfig -Force -ErrorAction Stop
+    Write-Host "Removed generated Wrangler deploy redirect: $redirectConfig"
+  } catch {
+    Write-Warning "Production deploy and smoke succeeded, but generated Wrangler deploy redirect could not be removed: $($_.Exception.Message)"
+  }
+}
+
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 Set-Location $repoRoot
 
@@ -117,5 +133,6 @@ try {
 Assert-Http200 'https://catstarry.xyz/'
 Assert-Http200 'https://catstarry.xyz/activity-signals.json'
 Assert-Http200 'https://catstarry.xyz/api/feed?limit=1'
+Remove-WranglerDeployRedirect -RepoRoot $repoRoot
 Write-Host "Deployed commit SHA: $head"
 Write-Host "Dispatch the exact SHA for production publication sync; the Learn pending barrier remains until that sync activates this release."
