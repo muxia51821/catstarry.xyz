@@ -61,6 +61,7 @@ class MemoryMediaBucket {
 class MemoryD1 {
   footprints = new Map();
   learnPublications = new Map();
+  releaseGuards = new Map();
   viewVisitors = new Set();
   viewCounts = new Map();
 
@@ -88,7 +89,80 @@ class MemoryStatement {
   }
 
   async run() {
+    if (this.sql.startsWith('INSERT INTO publication_release_guards') && this.sql.includes("VALUES ('blog-sync'")) {
+      const [releaseSha, releaseGeneration, updatedAt] = this.values;
+      const current = this.database.releaseGuards.get('blog-sync');
+      if (
+        current
+        && (
+          current.release_generation > releaseGeneration
+          || (current.release_generation === releaseGeneration && current.release_sha !== releaseSha)
+        )
+      ) return { meta: { changes: 0 } };
+      this.database.releaseGuards.set('blog-sync', {
+        release_sha: releaseSha,
+        release_generation: releaseGeneration,
+        updated_at: updatedAt,
+      });
+      return { meta: { changes: 1 } };
+    }
+    if (this.sql.startsWith('INSERT OR IGNORE INTO publication_release_guards')) {
+      const [releaseSha, releaseGeneration, updatedAt] = this.values;
+      const active = this.database.releaseGuards.get('learn-active');
+      const pending = this.database.releaseGuards.get('learn-pending');
+      if (
+        pending
+        || (active && (
+          active.release_generation > releaseGeneration
+          || (active.release_generation === releaseGeneration && active.release_sha !== releaseSha)
+        ))
+      ) return { meta: { changes: 0 } };
+      this.database.releaseGuards.set('learn-pending', {
+        release_sha: releaseSha,
+        release_generation: releaseGeneration,
+        updated_at: updatedAt,
+      });
+      return { meta: { changes: 1 } };
+    }
+    if (this.sql.startsWith("DELETE FROM publication_release_guards WHERE guard_key = 'learn-pending'")) {
+      const [releaseSha, releaseGeneration] = this.values;
+      const pending = this.database.releaseGuards.get('learn-pending');
+      if (!pending || pending.release_sha !== releaseSha || pending.release_generation !== releaseGeneration) {
+        return { meta: { changes: 0 } };
+      }
+      this.database.releaseGuards.delete('learn-pending');
+      return { meta: { changes: 1 } };
+    }
+    if (this.sql.startsWith("DELETE FROM publication_release_guards WHERE guard_key = 'learn-active'")) {
+      const [releaseGeneration, sameGeneration, releaseSha] = this.values;
+      const active = this.database.releaseGuards.get('learn-active');
+      if (!active) return { meta: { changes: 0 } };
+      if (
+        active.release_generation < releaseGeneration
+        || (active.release_generation === sameGeneration && active.release_sha === releaseSha)
+      ) {
+        this.database.releaseGuards.delete('learn-active');
+        return { meta: { changes: 1 } };
+      }
+      return { meta: { changes: 0 } };
+    }
+    if (this.sql.startsWith("UPDATE publication_release_guards SET guard_key = 'learn-active'")) {
+      const [updatedAt, releaseSha, releaseGeneration] = this.values;
+      const pending = this.database.releaseGuards.get('learn-pending');
+      if (
+        !pending
+        || this.database.releaseGuards.has('learn-active')
+        || pending.release_sha !== releaseSha
+        || pending.release_generation !== releaseGeneration
+      ) return { meta: { changes: 0 } };
+      this.database.releaseGuards.delete('learn-pending');
+      this.database.releaseGuards.set('learn-active', { ...pending, updated_at: updatedAt });
+      return { meta: { changes: 1 } };
+    }
     if (this.sql.startsWith('INSERT OR IGNORE INTO learn_publications')) {
+      if (this.sql.includes('publication_release_guards') && this.database.releaseGuards.has('learn-pending')) {
+        return { meta: { changes: 0 } };
+      }
       const [slug, publishedAt, lastRevisedAt, updatedAt] = this.values;
       if (this.database.learnPublications.has(slug)) return { meta: { changes: 0 } };
       this.database.learnPublications.set(slug, {
@@ -101,6 +175,9 @@ class MemoryStatement {
       return { meta: { changes: 1 } };
     }
     if (this.sql.startsWith('UPDATE learn_publications SET visibility = ?')) {
+      if (this.sql.includes('publication_release_guards') && this.database.releaseGuards.has('learn-pending')) {
+        return { meta: { changes: 0 } };
+      }
       const [visibility, updatedAt, slug] = this.values;
       const record = this.database.learnPublications.get(slug);
       if (!record) return { meta: { changes: 0 } };
@@ -115,6 +192,9 @@ class MemoryStatement {
       return { meta: { changes: 1 } };
     }
     if (this.sql.startsWith('INSERT OR IGNORE INTO public_footprints')) {
+      if (this.sql.includes('publication_release_guards') && this.database.releaseGuards.has('learn-pending')) {
+        return { meta: { changes: 0 } };
+      }
       const [id, sourceModule, sourceRef, sourceVersion, eventType, snapshotJson, occurredAt, idempotencyKey] = this.values;
       if (this.database.footprints.has(idempotencyKey)) return { meta: { changes: 0 } };
       this.database.footprints.set(idempotencyKey, {
@@ -142,6 +222,9 @@ class MemoryStatement {
   }
 
   async first() {
+    if (this.sql.includes('FROM publication_release_guards WHERE guard_key = ?')) {
+      return this.database.releaseGuards.get(this.values[0]) ?? null;
+    }
     if (this.sql.includes('FROM learn_publications WHERE slug = ?')) {
       return this.database.learnPublications.get(this.values[0]) ?? null;
     }
@@ -413,6 +496,8 @@ assert.equal((await fetchWorker(env, 'https://api.test/api/feed/internal/footpri
   body: JSON.stringify({ payload: 'x'.repeat(41 * 1_024) }),
 })).status, 413, 'producer payloads must remain bounded without relying on Content-Length');
 
+const release101 = { sha: '1'.repeat(40), generation: 101 };
+const learnRelease = { sha: '2'.repeat(40), generation: 201 };
 const blogEnv = createEnv();
 const blogManifestUrl = 'https://api.test/api/blog/internal/publications';
 const blogHeaders = {
@@ -420,6 +505,7 @@ const blogHeaders = {
   'Content-Type': 'application/json',
 };
 const historicalManifest = {
+  release: release101,
   deployed_at: '2026-07-25T00:00:00.000Z',
   entries: [{ slug: 'historical-post', title: 'Historical post', summary: 'Seed only', state: 'published' }],
 };
@@ -440,6 +526,7 @@ assert.deepEqual(await fetchWorker(blogEnv, blogManifestUrl, {
   body: JSON.stringify(historicalManifest),
 }).then((response) => response.json()), { initialized: false, synced: 1, created: 0 });
 const nextManifest = {
+  release: release101,
   deployed_at: '2026-07-26T00:00:00.000Z',
   entries: [
     historicalManifest.entries[0],
@@ -456,6 +543,7 @@ assert.equal((await fetchWorker(blogEnv, blogManifestUrl, {
   method: 'POST',
   headers: blogHeaders,
   body: JSON.stringify({
+    release: release101,
     deployed_at: '2026-07-26T00:01:00.000Z',
     entries: [{ slug: 'missing-state', title: 'Missing state', summary: 'Invalid' }],
   }),
@@ -572,12 +660,19 @@ const deploymentHeaders = {
 const deployedAt = new Date().toISOString();
 const revisionManifest = (revisedAt) => ({
   schema_version: 3,
+  release: learnRelease,
   deployed_at: deployedAt,
   entries: [
     { slug: 'runtime-note', title: 'Runtime note', excerpt: 'Revision fixture', revised_at: revisedAt, links: [] },
     { slug: 'never-published', title: 'Never published', excerpt: '', revised_at: revisedAt, links: [] },
   ],
 });
+assert.equal((await fetchWorker(learnEnv, 'https://api.test/api/learn/internal/release/prepare', {
+  method: 'POST', headers: deploymentHeaders, body: JSON.stringify({ release: learnRelease }),
+})).status, 200);
+assert.equal((await fetchWorker(learnEnv, learnLifecycleUrl, {
+  method: 'PATCH', headers: learnOwnerHeaders, body: JSON.stringify({ slug: 'runtime-note', visibility: 'hidden' }),
+})).status, 503, 'pending production release must freeze Learn lifecycle mutations');
 assert.deepEqual(await fetchWorker(learnEnv, learnDeployUrl, {
   method: 'POST', headers: deploymentHeaders, body: JSON.stringify(revisionManifest('2026-08-01T00:00:00.000Z')),
 }).then((response) => response.json()), { synced: 2, created: 0 }, 'deployment sync must not manufacture first publication');
