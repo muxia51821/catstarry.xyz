@@ -7,6 +7,7 @@ import {
   BLOG_LEGACY_PUBLISHED_KEY,
   BLOG_LIFECYCLE_KEY,
   readPublishedBlogSlugs,
+  reconcileBlogLifecycle,
   writeBlogLifecycle,
 } from '../workers/feed-api/src/modules/blog-publications.ts';
 
@@ -159,6 +160,74 @@ try {
 }
 assert.deepEqual(JSON.parse(mirrorFailureKv.values.get(BLOG_LIFECYCLE_KEY)), [lifecycleEntry('canonical-public', 'published')]);
 assert.deepEqual(mirrorFailureKv.values.get(BLOG_LEGACY_PUBLISHED_KEY), ['old-rollback-view'], 'legacy mirror failure must not roll back canonical lifecycle');
+
+const absentIdentity = reconcileBlogLifecycle([
+  lifecycleEntry('identity-post', 'withdrawn'),
+], []);
+assert.deepEqual(absentIdentity.first_publications, []);
+assert.deepEqual(absentIdentity.entries, [{
+  ...lifecycleEntry('identity-post', 'withdrawn'),
+  source_present: false,
+}], 'an ever-published withdrawn identity must survive source absence');
+
+const reintroducedIdentity = reconcileBlogLifecycle(absentIdentity.entries, [{
+  slug: 'identity-post',
+  title: 'Reintroduced source',
+  summary: 'Source frontmatter must not restore publication authority',
+  state: 'published',
+}]);
+assert.deepEqual(reintroducedIdentity.first_publications, []);
+assert.equal(reintroducedIdentity.entries[0].state, 'withdrawn', 'same-slug reintroduction must inherit runtime lifecycle state');
+assert.equal(reintroducedIdentity.entries[0].ever_published, true);
+assert.equal(reintroducedIdentity.entries[0].source_present, true);
+assert.equal(reintroducedIdentity.entries[0].title, 'Reintroduced source', 'reintroduction may refresh source metadata without resetting lifecycle');
+
+const removedDraft = reconcileBlogLifecycle([
+  lifecycleEntry('never-published-draft', 'draft'),
+], []);
+assert.deepEqual(removedDraft.entries, [], 'never-published drafts do not need durable publication identity after source removal');
+
+const tombstoneKv = new MemoryKv();
+tombstoneKv.values.set(BLOG_LIFECYCLE_KEY, absentIdentity.entries);
+tombstoneKv.values.set(BLOG_LEGACY_PUBLISHED_KEY, ['identity-post']);
+assert.deepEqual(await readPublishedBlogSlugs({ AUTH_KV: tombstoneKv }), [], 'source-absent history must never project as public');
+const tombstoneToken = crypto.randomUUID();
+tombstoneKv.values.set(`session:${tombstoneToken}`, {
+  username: 'contract-owner',
+  expires_at: new Date(Date.now() + 60_000).toISOString(),
+});
+const tombstoneEnv = { AUTH_KV: tombstoneKv, DB: new TimelineD1() };
+const tombstoneHeaders = { Cookie: `token=${tombstoneToken}`, 'Content-Type': 'application/json' };
+assert.deepEqual(await handleBlog(
+  new Request('https://api.test/api/blog/admin/publications', { headers: tombstoneHeaders }),
+  tombstoneEnv,
+  createContext(),
+  '/api/blog/admin/publications',
+).then((response) => response.json()), { entries: [] }, 'source-absent identities must not appear as restorable admin entries');
+assert.equal((await handleBlog(
+  new Request('https://api.test/api/blog/admin/publications', {
+    method: 'PATCH',
+    headers: tombstoneHeaders,
+    body: JSON.stringify({ slug: 'identity-post', state: 'published' }),
+  }),
+  tombstoneEnv,
+  createContext(),
+  '/api/blog/admin/publications',
+)).status, 409, 'direct lifecycle mutation must not restore a source-absent identity');
+
+tombstoneKv.values.set(BLOG_LIFECYCLE_KEY, reintroducedIdentity.entries);
+assert.deepEqual(await readPublishedBlogSlugs({ AUTH_KV: tombstoneKv }), [], 'source reintroduction alone must not restore publication');
+assert.equal((await handleBlog(
+  new Request('https://api.test/api/blog/admin/publications', {
+    method: 'PATCH',
+    headers: tombstoneHeaders,
+    body: JSON.stringify({ slug: 'identity-post', state: 'published' }),
+  }),
+  tombstoneEnv,
+  createContext(),
+  '/api/blog/admin/publications',
+)).status, 200, 'explicit Owner Restore is legal again once the source is deployed');
+assert.deepEqual(await readPublishedBlogSlugs({ AUTH_KV: tombstoneKv }), ['identity-post']);
 
 const feedKv = new MemoryKv();
 feedKv.failGetKeys.add(BLOG_LIFECYCLE_KEY);

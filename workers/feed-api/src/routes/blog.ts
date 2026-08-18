@@ -8,6 +8,7 @@ import { refreshActivitySignals } from '../modules/activity-signals';
 import {
   readBlogLifecycle,
   readPublishedBlogSlugs,
+  reconcileBlogLifecycle,
   type StoredBlogLifecycleEntry,
   writeBlogLifecycle,
 } from '../modules/blog-publications';
@@ -41,7 +42,8 @@ export async function handleBlog(
   if (pathname === '/api/blog/admin/publications' && request.method === 'GET') {
     const session = await requireMainSession(request, env);
     if (session instanceof Response) return session;
-    return json({ entries: (await readBlogLifecycle(env)) ?? [] });
+    const entries = (await readBlogLifecycle(env)) ?? [];
+    return json({ entries: entries.filter((entry) => entry.source_present !== false) });
   }
   if (pathname === '/api/blog/admin/publications' && request.method === 'PATCH') {
     return updateLifecycle(request, env, ctx);
@@ -84,27 +86,23 @@ async function syncDeployManifest(request: Request, env: BlogEnv, ctx: Execution
 
   const previous = await readBlogLifecycle(env);
   if (previous === null) {
-    const initialized = incoming.map((entry) => ({ ...entry, ever_published: entry.state === 'published' }));
+    const initialized = incoming.map((entry) => ({
+      ...entry,
+      ever_published: entry.state === 'published',
+      source_present: true,
+    }));
     await writeBlogLifecycle(env, initialized);
     return json({ initialized: true, synced: incoming.length, created: 0 });
   }
 
-  const priorBySlug = new Map(previous.map((entry) => [entry.slug, entry]));
-  const next: StoredBlogLifecycleEntry[] = [];
+  const reconciled = reconcileBlogLifecycle(previous, incoming);
   let created = 0;
-  for (const entry of incoming) {
-    const prior = priorBySlug.get(entry.slug);
-    const state = prior?.state ?? entry.state;
-    const everPublished = prior?.ever_published === true;
-    const nextEntry = { ...entry, state, ever_published: everPublished || state === 'published' };
-    if (state === 'published' && !everPublished) {
-      created += await recordFirstPublication(env, nextEntry, deployedAt.toISOString());
-    }
-    next.push(nextEntry);
+  for (const entry of reconciled.first_publications) {
+    created += await recordFirstPublication(env, entry, deployedAt.toISOString());
   }
-  await writeBlogLifecycle(env, next);
+  await writeBlogLifecycle(env, reconciled.entries);
   if (created > 0) refreshAfterMutation(env, ctx);
-  return json({ initialized: false, synced: next.length, created });
+  return json({ initialized: false, synced: incoming.length, created });
 }
 
 async function updateLifecycle(request: Request, env: BlogEnv, ctx: ExecutionContext): Promise<Response> {
@@ -120,6 +118,9 @@ async function updateLifecycle(request: Request, env: BlogEnv, ctx: ExecutionCon
   const index = entries.findIndex((entry) => entry.slug === body.slug);
   if (index < 0) return apiError(404, 'not_found', 'Blog entry not found');
   const entry = entries[index];
+  if (entry.source_present === false) {
+    return apiError(409, 'source_missing', 'Blog source is not deployed');
+  }
   if (body.state === 'withdrawn' && entry.state !== 'published') {
     return apiError(409, 'invalid_transition', 'Only a published Blog entry can be withdrawn');
   }
