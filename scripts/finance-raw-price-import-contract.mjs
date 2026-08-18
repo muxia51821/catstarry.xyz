@@ -72,10 +72,11 @@ try {
 
   await rejects('adjusted', 'ticker,price_date,close,source,adjustment\n515880,2026-06-30,0.8974,adjusted-source,split_adjusted\n', /adjustment must be raw/);
   await rejects('duplicate', 'ticker,price_date,close,source,adjustment\n515880,2026-06-30,1.7948,mootdx,raw\n515880,2026-06-30,1.8,other,raw\n', /duplicate canonical security\/day/);
+  await rejects('impossible-date', 'ticker,price_date,close,source,adjustment\n515880,2026-06-31,1.8,mootdx,raw\n', /invalid price_date: '2026-06-31'/);
   await rejects('pre-boundary', 'ticker,price_date,close,source,adjustment\n515880,2026-06-02,1.9,mootdx,raw\n', /precedes accepted reconstruction boundary 2026-06-03/);
   await rejects('price-status', 'ticker,price_date,close,source,adjustment,price_status\n515880,2026-07-01,1.8,mootdx,raw,guessed\n', /price_status must be observed or carried_forward/);
 
-  console.log('Finance canonical raw-price import and carried-forward evidence contract passed.');
+  console.log('Finance canonical raw-price import, calendar-date, and carried-forward evidence contract passed.');
 } finally {
   await rm(root, { recursive: true, force: true });
 }

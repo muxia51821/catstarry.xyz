@@ -5,6 +5,7 @@ import { DatabaseSync } from 'node:sqlite';
 
 import {
   HISTORICAL_RECONSTRUCTION_START,
+  isCanonicalHistoricalDay,
   rebuildAssetValuations,
 } from '../workers/finance-api/src/routes/asset-valuation-rebuild.ts';
 
@@ -53,6 +54,11 @@ function seedPrice(database, ticker, date, close) {
   database.prepare(`INSERT INTO finance_security_prices (ticker, price_date, close, source, adjustment, observed_at, created_at, created_by)
     VALUES (?, ?, ?, 'mootdx', 'raw', NULL, '2026-08-17T00:00:00.000Z', 'contract')`).run(ticker, date, close);
 }
+
+assert.equal(isCanonicalHistoricalDay('2026-06-30'), true);
+assert.equal(isCanonicalHistoricalDay('2026-06-31'), false);
+assert.equal(isCanonicalHistoricalDay('2026-02-29'), false);
+assert.equal(isCanonicalHistoricalDay('2028-02-29'), true);
 
 // Full reconstruction: reverse a post-split anchor, keep repo principal in other assets,
 // and refuse to make an incomplete price day chart-eligible.
@@ -106,6 +112,16 @@ function seedPrice(database, ticker, date, close) {
   assert.ok(tooEarly instanceof Response);
   assert.equal(tooEarly.status, 400);
   assert.match(await tooEarly.text(), new RegExp(HISTORICAL_RECONSTRUCTION_START));
+
+  const impossibleStart = await rebuildAssetValuations(env, { startDate: '2026-06-31', endDate: '2026-07-04', actor: 'contract' });
+  assert.ok(impossibleStart instanceof Response);
+  assert.equal(impossibleStart.status, 400);
+  assert.match(await impossibleStart.text(), /invalid_start_date/);
+
+  const impossibleEnd = await rebuildAssetValuations(env, { startDate: '2026-07-04', endDate: '2026-07-32', actor: 'contract' });
+  assert.ok(impossibleEnd instanceof Response);
+  assert.equal(impossibleEnd.status, 400);
+  assert.match(await impossibleEnd.text(), /invalid_end_date/);
   database.close();
 }
 
@@ -127,5 +143,5 @@ function seedPrice(database, ticker, date, close) {
   database.close();
 }
 
-console.log('Finance facts-to-derived-valuation rebuild contract passed.');
+console.log('Finance facts-to-derived-valuation rebuild and strict calendar-date contract passed.');
 await import('./finance-asset-reconciliation-contract.mjs');

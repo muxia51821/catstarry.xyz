@@ -69,8 +69,8 @@ const server = createServer(async (request, response) => {
     });
   }
   if (url.pathname === '/api/change-log') {
-    if (mode === 'fail') return json(response, 503, { message: 'change log unavailable' });
     if (mode === 'viewer') return json(response, 403, { message: 'forbidden' });
+    if (mode === 'fail' || mode === 'changefail') return json(response, 503, { message: 'change log unavailable' });
     const cursor = url.searchParams.get('cursor');
     return json(response, 200, {
       items: cursor ? [secondChange] : [firstChange],
@@ -80,7 +80,7 @@ const server = createServer(async (request, response) => {
   }
   if (url.pathname === '/api/workbook-review' && request.method === 'GET') {
     if (mode === 'viewer') return json(response, 403, { message: 'forbidden' });
-    if (mode === 'fail') return json(response, 503, { message: 'review unavailable' });
+    if (mode === 'fail' || mode === 'reviewfail') return json(response, 503, { message: 'review unavailable' });
     return json(response, 200, { review: pendingReview });
   }
   if (url.pathname === '/api/workbook-review/7' && request.method === 'PATCH') {
@@ -138,10 +138,11 @@ try {
 
   await delay(100);
   assert.equal(requests.filter((item) => item.mode === 'admin' && item.pathname === '/api/activity').length, 0, 'Activity stays lazy until Records is opened');
-  assert.equal(requests.filter((item) => item.mode === 'admin' && item.pathname === '/api/change-log').length, 0, 'Audit stays lazy and collapsed');
+  assert.equal(requests.filter((item) => item.mode === 'admin' && item.pathname === '/api/change-log').length, 0, 'Data Change Log capability stays lazy until Records is opened');
   await evaluate(`document.querySelector('[data-tab="records"]').click()`);
   await waitFor(`document.querySelectorAll('[data-activity-list] .activity-row').length === 1`, 'account activity first page');
   await waitFor(`document.querySelectorAll('[data-canonical-review-list] .import-review-row').length === 1 && document.documentElement.classList.contains('operation-workbook-review-ready')`, 'canonical Workbook Review');
+  await waitFor(`document.documentElement.classList.contains('operation-change-log-capability-ready')`, 'Data Change Log endpoint capability');
   const adminBeforeOpen = await evaluate(`({
     activityTitle: document.querySelector('#account-activity-title')?.textContent,
     activityFirst: document.querySelector('[data-activity-list] .activity-main strong')?.textContent,
@@ -155,7 +156,10 @@ try {
     activityTitle: '账户动态', activityFirst: '资产对账', changeLogVisible: true, changeLogCollapsed: true,
     securityAccessVisible: true, securityAccessCollapsed: true, legacyReviewHidden: true,
   });
-  assert.equal(requests.filter((item) => item.pathname === '/api/change-log').length, 0, 'collapsed change log must not query audit data');
+  const adminCapabilityRequests = requests.filter((item) => item.mode === 'admin' && item.pathname === '/api/change-log');
+  assert.equal(adminCapabilityRequests.length, 1, 'collapsed Data Change Log performs only its own minimal capability probe');
+  assert.match(adminCapabilityRequests[0].search, /limit=1/);
+  assert.equal(await evaluate(`document.querySelectorAll('[data-operation-list] .operation-row').length`), 0, 'capability probe must not pre-render audit data');
 
   await evaluate(`document.querySelector('[data-activity-more]').click()`);
   await waitFor(`document.querySelectorAll('[data-activity-list] .activity-row').length === 2`, 'activity cursor page');
@@ -189,24 +193,47 @@ try {
   })`);
   assert.deepEqual(reset, { summaryLabel: '总资产', summaryValue: '130,424.20', activityRows: 0, changeRows: 0, reviewRows: 0, legacyAccessRows: 0, legacyReviewRows: 0 });
 
-  // Backend failure remains local to Records and leaves legacy fallbacks visible.
+  // A broad Records failure remains local and keeps legacy fallbacks available.
   pendingReview = [{ id: 7, batch_id: 'fixture-batch', sheet_name: '操作记录', row_number: 12, record_kind: 'trade', reason: 'fixture review', raw: { ticker: 'BAD' } }];
   await send('Page.navigate', { url: `${baseUrl}/?mode=fail` });
   await waitFor(`document.readyState === 'complete' && Boolean(document.querySelector('[data-tab="records"]'))`, 'records fallback fixture');
   await evaluate(`document.querySelector('[data-tab="records"]').click()`);
-  await waitFor(`document.querySelector('[data-activity-error]')?.hidden === false && document.querySelector('[data-canonical-review-error]')?.hidden === false`, 'records failure state');
+  await waitFor(`document.querySelector('[data-activity-error]')?.hidden === false && document.querySelector('[data-canonical-review-error]')?.hidden === false && document.querySelector('[data-operation-error]')?.hidden === false`, 'records failure state');
   const fallback = await evaluate(`({
     workbookReady: document.documentElement.classList.contains('operation-workbook-review-ready'),
+    changeLogVisible: getComputedStyle(document.querySelector('.operation-history-panel')).display !== 'none',
     legacyAccessVisible: getComputedStyle(document.querySelector('[data-access-panel]')).display !== 'none',
     legacyReviewVisible: getComputedStyle(document.querySelector('[data-import-review-panel]')).display !== 'none',
   })`);
-  assert.deepEqual(fallback, { workbookReady: false, legacyAccessVisible: true, legacyReviewVisible: true });
+  assert.deepEqual(fallback, { workbookReady: false, changeLogVisible: true, legacyAccessVisible: true, legacyReviewVisible: true });
 
-  // Viewer keeps Activity but never receives administrator review/change-log data.
+  // Workbook Review failure must not decide Data Change Log capability.
+  await send('Page.navigate', { url: `${baseUrl}/?mode=reviewfail` });
+  await waitFor(`document.readyState === 'complete' && Boolean(document.querySelector('[data-tab="records"]'))`, 'workbook review isolation fixture');
+  await evaluate(`document.querySelector('[data-tab="records"]').click()`);
+  await waitFor(`document.querySelector('[data-canonical-review-error]')?.hidden === false && document.documentElement.classList.contains('operation-change-log-capability-ready')`, 'Workbook Review failure with independent Change Log capability');
+  assert.equal(await evaluate(`getComputedStyle(document.querySelector('.operation-history-panel')).display !== 'none'`), true);
+  await evaluate(`document.querySelector('.operation-history-panel').open = true`);
+  await waitFor(`document.querySelectorAll('[data-operation-list] .operation-row').length === 1`, 'Change Log remains available when Workbook Review fails');
+
+  // Data Change Log failure must not hide or disable Workbook Review.
+  pendingReview = [{ id: 7, batch_id: 'fixture-batch', sheet_name: '操作记录', row_number: 12, record_kind: 'trade', reason: 'fixture review', raw: { ticker: 'BAD' } }];
+  await send('Page.navigate', { url: `${baseUrl}/?mode=changefail` });
+  await waitFor(`document.readyState === 'complete' && Boolean(document.querySelector('[data-tab="records"]'))`, 'change log isolation fixture');
+  await evaluate(`document.querySelector('[data-tab="records"]').click()`);
+  await waitFor(`document.querySelectorAll('[data-canonical-review-list] .import-review-row').length === 1 && document.querySelector('[data-operation-error]')?.hidden === false`, 'Change Log failure with independent Workbook Review');
+  const changeFailure = await evaluate(`({
+    reviewVisible: getComputedStyle(document.querySelector('.operation-review-panel')).display !== 'none',
+    changeLogVisible: getComputedStyle(document.querySelector('.operation-history-panel')).display !== 'none',
+    workbookReady: document.documentElement.classList.contains('operation-workbook-review-ready'),
+  })`);
+  assert.deepEqual(changeFailure, { reviewVisible: true, changeLogVisible: true, workbookReady: true });
+
+  // Viewer keeps Activity; each admin-only surface independently receives a 403 from its own endpoint.
   await send('Page.navigate', { url: `${baseUrl}/?mode=viewer` });
   await waitFor(`document.readyState === 'complete' && document.querySelector('[data-tab="records"]')?.textContent === '账户动态'`, 'viewer operation history');
   await evaluate(`document.querySelector('[data-tab="records"]').click()`);
-  await waitFor(`document.querySelectorAll('[data-activity-list] .activity-row').length === 1 && document.documentElement.classList.contains('operation-workbook-review-ready')`, 'records viewer permissions');
+  await waitFor(`document.querySelectorAll('[data-activity-list] .activity-row').length === 1 && document.documentElement.classList.contains('operation-workbook-review-ready') && document.documentElement.classList.contains('operation-change-log-capability-ready')`, 'records viewer permissions');
   const viewer = await evaluate(`({
     activityVisible: document.querySelector('[data-activity-list] .activity-row') !== null,
     canonicalReviewHidden: document.querySelector('.operation-review-panel').hidden,
@@ -215,12 +242,14 @@ try {
     fetchPreserved: window.fetch === window.__fetchBeforeOperations,
   })`);
   assert.deepEqual(viewer, { activityVisible: true, canonicalReviewHidden: true, changeLogHidden: true, legacyReviewHidden: true, fetchPreserved: true });
-  assert.equal(requests.filter((item) => item.mode === 'viewer' && item.pathname === '/api/change-log').length, 0);
+  const viewerChangeRequests = requests.filter((item) => item.mode === 'viewer' && item.pathname === '/api/change-log');
+  assert.equal(viewerChangeRequests.length, 1, 'viewer Data Change Log capability is decided by its own endpoint 403');
+  assert.match(viewerChangeRequests[0].search, /limit=1/);
   assert.equal(requests.filter((item) => item.pathname === '/api/account-state').length, 0);
 
   assert.deepEqual(diagnostics.consoleProblems, []);
   assert.deepEqual(diagnostics.exceptions, []);
-  console.log('Finance Activity + data change-log ownership browser regression passed.');
+  console.log('Finance Activity + independent Workbook Review / Data Change Log capability regression passed.');
 } finally {
   cdp?.close();
   await browser?.close();

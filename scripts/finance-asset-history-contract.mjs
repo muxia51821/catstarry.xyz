@@ -3,6 +3,8 @@ import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 
+import { WEEK_START_BUCKET_SQL } from '../workers/finance-api/src/routes/asset-history.ts';
+
 const db = new DatabaseSync(':memory:');
 for (const file of (await readdir('workers/finance-api/migrations')).filter((name) => name.endsWith('.sql')).sort()) {
   db.exec(await readFile(path.join('workers/finance-api/migrations', file), 'utf8'));
@@ -52,12 +54,23 @@ assert.equal(monthRows[2].total_value, 130_424.20);
 
 const weekRows = db.prepare(`WITH ranked AS (
     SELECT valuation_date, total_value,
-      ROW_NUMBER() OVER (PARTITION BY strftime('%Y-W%W', valuation_date) ORDER BY valuation_date DESC) AS rn
+      ROW_NUMBER() OVER (PARTITION BY ${WEEK_START_BUCKET_SQL} ORDER BY valuation_date DESC) AS rn
     FROM finance_asset_valuations WHERE is_complete = 1
   ) SELECT valuation_date FROM ranked WHERE rn = 1 ORDER BY valuation_date`).all().map((row) => row.valuation_date);
 assert.ok(weekRows.includes('2026-06-26'));
 assert.ok(weekRows.includes('2026-08-14'));
 assert.ok(!weekRows.includes('2026-08-15'), 'incomplete valuations must never become chart points');
+
+// Monday-based week buckets must remain stable across a calendar-year boundary.
+valuation('2026-12-31', 100, 20);
+valuation('2027-01-01', 110, 20);
+const yearBoundaryWeek = db.prepare(`WITH ranked AS (
+    SELECT valuation_date,
+      ROW_NUMBER() OVER (PARTITION BY ${WEEK_START_BUCKET_SQL} ORDER BY valuation_date DESC) AS rn
+    FROM finance_asset_valuations
+    WHERE is_complete = 1 AND valuation_date >= '2026-12-28' AND valuation_date <= '2027-01-03'
+  ) SELECT valuation_date FROM ranked WHERE rn = 1 ORDER BY valuation_date`).all().map((row) => row.valuation_date);
+assert.deepEqual(yearBoundaryWeek, ['2027-01-01'], 'dates in the same Monday-start week must not split at January 1');
 
 // Reconciliation observations are evidence; they are not copied into the derived valuation cache.
 db.prepare(`INSERT INTO finance_asset_snapshots (
@@ -69,7 +82,7 @@ const recordsRoute = await readFile('workers/finance-api/src/routes/records.ts',
 assert.doesNotMatch(recordsRoute, /\/api\/assets\/snapshots|\/api\/assets\/series|finance_asset_snapshots|assetSeries|saveAssetSnapshot|listAssetSnapshots/, 'generic records routing must not retain a second asset-history or reconciliation implementation');
 
 db.close();
-console.log('Finance single-authority historical price and valuation cache contract passed.');
+console.log('Finance single-authority historical price, Monday-week, and valuation cache contract passed.');
 await import('./finance-raw-price-import-contract.mjs');
 await import('./finance-security-reference-contract.mjs');
 await import('./finance-market-authority-contract.mjs');

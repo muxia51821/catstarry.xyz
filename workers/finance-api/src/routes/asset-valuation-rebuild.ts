@@ -74,9 +74,15 @@ export async function rebuildAssetValuations(
   env: FinanceEnv,
   options: { startDate: string; endDate: string; reconciliation?: ReconciliationRow; actor?: string },
 ) {
+  if (!isCanonicalHistoricalDay(options.startDate) || options.startDate < HISTORICAL_RECONSTRUCTION_START) {
+    return apiError(400, 'invalid_start_date', `Historical reconstruction starts at ${HISTORICAL_RECONSTRUCTION_START}`);
+  }
+  if (!isCanonicalHistoricalDay(options.endDate) || options.endDate < options.startDate) {
+    return apiError(400, 'invalid_end_date', 'end_date must be on or after start_date');
+  }
+
   const reconciliation = options.reconciliation ?? await latestReconciliation(env);
   if (!reconciliation) return apiError(409, 'missing_reconciliation', 'A complete manual or broker reconciliation is required before rebuilding history');
-  if (options.startDate < HISTORICAL_RECONSTRUCTION_START) return apiError(400, 'invalid_start_date', `Historical reconstruction starts at ${HISTORICAL_RECONSTRUCTION_START}`);
   if (options.endDate > reconciliation.snapshot_date) return apiError(409, 'beyond_reconciliation', 'Historical valuation cannot extend beyond the reconciliation anchor');
 
   const [holdings, trades, cashFlows, accountEvents, prices] = await Promise.all([
@@ -381,9 +387,16 @@ async function replaceValuationRange(env: FinanceEnv, startDate: string, endDate
   await env.DB.batch(statements);
 }
 
+export function isCanonicalHistoricalDay(value: unknown): value is string {
+  if (typeof value !== 'string' || !DAY.test(value)) return false;
+  const [year, month, day] = value.split('-').map(Number);
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  return parsed.getUTCFullYear() === year && parsed.getUTCMonth() === month - 1 && parsed.getUTCDate() === day;
+}
+
 function normalizeDay(value: unknown, fallback: string) {
   const day = value === undefined || value === null || value === '' ? fallback : typeof value === 'string' ? value.trim() : '';
-  return DAY.test(day) ? day : null;
+  return isCanonicalHistoricalDay(day) ? day : null;
 }
 
 function normalizeMoney(value: number) {

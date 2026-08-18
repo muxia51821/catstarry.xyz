@@ -61,35 +61,56 @@ function portfolioCanRender() {
 function schedulePortfolioRefresh() {
   if (portfolioScheduled) return;
   portfolioScheduled = true;
-  queueMicrotask(async () => {
+  queueMicrotask(() => {
     portfolioScheduled = false;
     if (!portfolioCanRender()) return;
     const epoch = ++portfolioEpoch;
-    try {
-      const [accountState, holdingsPage, securitiesPage, tradeCatalog, reconciliationPage] = await Promise.all([
-        portfolioRequest('/api/account-state'),
-        portfolioRequest('/api/holdings'),
-        portfolioRequest('/api/securities'),
-        loadPortfolioTradeCatalog(),
-        portfolioRequest('/api/assets/snapshots').catch(() => null),
-      ]);
-      if (epoch !== portfolioEpoch || !portfolioCanRender()) return;
-      portfolioHoldings = holdingsPage?.holdings ?? [];
-      portfolioSecurities = new Map((securitiesPage?.securities ?? []).map((row) => [row.ticker, row]));
-      portfolioTradeCatalog = tradeCatalog;
-      renderPortfolioAccountState(accountState);
-      renderPortfolioRecentTrades(tradeCatalog);
-      installPortfolioClassificationFilters();
-      renderPortfolioHoldings();
-      decoratePortfolioTradeTable();
-      if (reconciliationPage) renderPortfolioReconciliations(reconciliationPage.snapshots ?? reconciliationPage.reconciliations ?? []);
-      normalizePortfolioHistoryCopy();
-    } catch (error) {
-      if (epoch !== portfolioEpoch || !portfolioCanRender()) return;
-      renderPortfolioUnavailable(error);
-      normalizePortfolioHistoryCopy();
-    }
+    void refreshPortfolioAccountState(epoch);
+    void refreshPortfolioAuxiliary(epoch);
   });
+}
+
+async function refreshPortfolioAccountState(epoch) {
+  try {
+    const accountState = await portfolioRequest('/api/account-state');
+    if (epoch !== portfolioEpoch || !portfolioCanRender()) return;
+    renderPortfolioAccountState(accountState);
+  } catch (error) {
+    if (epoch !== portfolioEpoch || !portfolioCanRender()) return;
+    renderPortfolioAccountStateUnavailable(error);
+  }
+}
+
+async function refreshPortfolioAuxiliary(epoch) {
+  const [holdingsResult, securitiesResult, tradeResult, reconciliationResult] = await Promise.allSettled([
+    portfolioRequest('/api/holdings'),
+    portfolioRequest('/api/securities'),
+    loadPortfolioTradeCatalog(),
+    portfolioRequest('/api/assets/snapshots'),
+  ]);
+  if (epoch !== portfolioEpoch || !portfolioCanRender()) return;
+
+  if (holdingsResult.status === 'fulfilled') {
+    portfolioHoldings = holdingsResult.value?.holdings ?? [];
+  }
+  if (securitiesResult.status === 'fulfilled') {
+    portfolioSecurities = new Map((securitiesResult.value?.securities ?? []).map((row) => [row.ticker, row]));
+  }
+  if (holdingsResult.status === 'fulfilled') {
+    installHoldingsFilters();
+    renderPortfolioHoldings();
+  }
+  if (tradeResult.status === 'fulfilled') {
+    portfolioTradeCatalog = tradeResult.value;
+    renderPortfolioRecentTrades(portfolioTradeCatalog);
+    installTradeFilters();
+    decoratePortfolioTradeTable();
+  }
+  if (reconciliationResult.status === 'fulfilled') {
+    const reconciliationPage = reconciliationResult.value;
+    renderPortfolioReconciliations(reconciliationPage?.snapshots ?? reconciliationPage?.reconciliations ?? []);
+  }
+  normalizePortfolioHistoryCopy();
 }
 
 function renderPortfolioAccountState(accountState) {
@@ -131,7 +152,7 @@ function accountStateStatus(accountState) {
   const cash = accountState?.cash;
   if (!accountState?.reconciliation) return '尚无 Broker Cash 对账';
   if (accountState?.total_status === 'incomplete' || cash?.status === 'incomplete') {
-    const firstProblem = cash?.problems?.[0] ?? accountState?.other_assets?.problems?.[0];
+    const firstProblem = accountState?.holdings?.problems?.[0] ?? cash?.problems?.[0] ?? accountState?.other_assets?.problems?.[0];
     return firstProblem ? `账户状态不完整 · ${firstProblem}` : '账户状态不完整，等待核验';
   }
   if (cash?.status === 'projected') {
@@ -432,7 +453,7 @@ function replaceDirectLabelText(label, text) {
   else label.prepend(document.createTextNode(text));
 }
 
-function renderPortfolioUnavailable(error) {
+function renderPortfolioAccountStateUnavailable(error) {
   if (!portfolioTotal || !portfolioStatus) return;
   portfolioTotal.textContent = '待核验';
   portfolioTotal.dataset.numeric = 'false';
