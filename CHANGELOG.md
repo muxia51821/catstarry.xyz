@@ -59,12 +59,17 @@
 - Current-account holdings 在 accepted A-share trading window 内受 persisted quote freshness SLA 约束；stale intraday quote 会让 exact Total Assets unavailable，而非展示过期精确值。休市 / 收盘后的 accepted quote 不做机械 30-minute expiry。
 - Operation History / Data Change Log、Historical Asset Valuation、Security Reference、Reconciliation sealed-history、same-day Trade ordering、reverse-repo principal 与 cash-effect separation、one-active-Memo invariant 均随 PR #31 / #37 / #38 进入本次 production code + schema baseline。
 
+### Final production acceptance
+
+- Owner 已在 production `f.catstarry.xyz` 完成真实使用验收，确认 Total Assets、Portfolio / 持仓、交易 / 操作记录与基本交互正常；未登录 HTTP probe 不再承担最终产品验收职责。
+- Content / Publication 与 Finance 的 deployment、migration、release guard、publication sync、Pages/Worker runtime 和 owner real-use acceptance 均已闭环；本轮未使用 rollback。
+- **Post-Audit Corrective Production Release & Acceptance = CLOSED.**
+
 ### Operational observations / deferred cleanup
 
 - Wrangler/Worker 命令的非零退出、502 或 timeout 不再自动解释为业务失败或成功；本轮 secret rotation 通过独立 authenticated probe 明确判定第一次写入未生效，再进行单次精确 retry。
 - Production deployment 时保留 failure-domain separation：Content / Publication 完成并收敛后才进入 Finance；没有把已经成功的 migration/Worker/Pages mutation 回滚来追求“版本看起来整齐”。
 - Deferred、非本轮 blocker：清理 Site build 遗留 Wrangler redirect 对后续 Pages CLI 的提示噪音；Finance legacy dashboard 大 `Promise.all` decomposition；account-state early scheduling；generic release coordinator / release history；Blog pending lifecycle；Projects publication lifecycle；删除 legacy Blog published mirror。
-- Infrastructure / release convergence 已有完整 production readback。Finance 最终产品 acceptance 仍应由 owner 登录 `f.catstarry.xyz` 后快速确认 Total Assets、Portfolio/持仓、交易/操作记录与基本交互；不要把该真实使用 smoke 替换为未登录 HTTP probe。
 
 ## 2026-08-16 — Governance documentation reality reconciliation
 
