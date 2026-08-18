@@ -213,7 +213,7 @@ try {
     form.elements.password.dispatchEvent(new Event('input', { bubbles: true }));
     form.requestSubmit();
   })()`);
-  await waitFor(`document.querySelector('[data-app]')?.hidden === false && document.querySelector('[data-total-value]')?.textContent !== '—'`, 'Finance dashboard');
+  await waitFor(`document.querySelector('[data-app]')?.hidden === false && document.querySelector('[data-dashboard]')?.getAttribute('aria-busy') === 'false' && document.querySelectorAll('[data-holdings-body] tr').length === 3`, 'Finance dashboard');
   await delay(400);
 
   diagnostics.checks.rendered = await evaluate(`({
@@ -351,7 +351,7 @@ try {
   diagnostics.checks.riskSignals = await evaluate(`({ rows: document.querySelectorAll('[data-risk-signals-list] article').length, signal: document.querySelector('[data-risk-signals-list] article:last-child strong')?.textContent, incomplete: document.querySelector('[data-risk-signals-list]')?.textContent.includes('数据积累中') })`);
   riskSignalsFailure = true;
   await evaluate(`document.querySelector('[data-refresh]').click()`);
-  await waitFor(`!document.querySelector('[data-risk-signals-error]').hidden && document.querySelector('[data-total-value]').textContent !== '—'`, 'risk signal failure isolation');
+  await waitFor(`!document.querySelector('[data-risk-signals-error]').hidden && document.querySelector('[data-dashboard]')?.getAttribute('aria-busy') === 'false'`, 'risk signal failure isolation');
   diagnostics.checks.riskSignalsFailureIsolated = true;
   riskSignalsFailure = false;
 
@@ -546,7 +546,8 @@ try {
     document.querySelector('[data-login]')?.hidden === true
     && document.querySelector('[data-app]')?.hidden === false
     && document.querySelector('[data-role]')?.textContent === 'CATI · READ ONLY'
-    && document.querySelector('[data-total-value]')?.textContent !== '—'
+    && document.querySelector('[data-dashboard]')?.getAttribute('aria-busy') === 'false'
+    && document.querySelectorAll('[data-holdings-body] tr').length === 3
     && document.querySelector('[data-dashboard-status]')?.textContent === ''
     && !document.querySelector('[data-notification-dialog]')?.open
   `, 'viewer dashboard without monthly confirmation');
