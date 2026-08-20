@@ -47,8 +47,9 @@ try {
   const incompleteSnapshot = await fetch(`${baseUrl}/api/assets/snapshots`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ snapshot_at: '2026-08-01T15:00', source: 'manual', holdings_value: 14000, cash_value: 1000, is_complete: false, incomplete_reason: '等待账户对账。' }) });
   assert.equal(incompleteSnapshot.status, 201);
   const assetSeries = await fetch(`${baseUrl}/api/assets/series?view=month`).then((response) => response.json());
-  assert.equal(assetSeries.records.length, 2);
-  assert.equal(assetSeries.legacy_monthly_records.length, 2);
+  assert.equal(assetSeries.series.length, 2);
+  assert.equal('records' in assetSeries, false);
+  assert.equal('legacy_monthly_records' in assetSeries, false);
   assert.equal((await fetch(`${baseUrl}/api/assets/snapshots`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ snapshot_at: '2026-08-01T15:00', source: 'manual', holdings_value: 14000, cash_value: 1000, is_complete: false, incomplete_reason: '' }) })).status, 400);
   const created = await fetch(`${baseUrl}/api/trades`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ trade_date: '2026-07-30', ticker: '510500', direction: 'buy', quantity: 1, price: 5, position_category: 'A股宽基指数底仓' }) }).then((response) => response.json());
   assert.equal(created.trade.ticker, '510500');
