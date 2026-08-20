@@ -139,6 +139,12 @@ assert.equal(state.cash.projected_delta, 219.49);
 assert.equal(state.other_assets.status, 'open_repo');
 assert.equal(state.other_assets.value, 200);
 assert.equal(state.total_assets, 40_812.49);
+assert.equal(state.portfolio_roles.total_assets, state.total_assets);
+assert.equal(state.portfolio_roles.percentage_available, true);
+assert.deepEqual(state.portfolio_roles.roles.map(({ role, value, sources }) => ({ role, value, sources })), [
+  { role: '主动操作仓（A股）', value: 39_393, sources: ['security_holding'] },
+  { role: '机动仓', value: 1_419.49, sources: ['broker_cash', 'open_reverse_repo'] },
+]);
 
 // An intraday reconciliation is a timestamp boundary, not a whole-day watermark.
 database.prepare(`INSERT INTO finance_asset_snapshots (
@@ -155,6 +161,8 @@ assert.equal(intradayState.cash.projected_delta, -180.01);
 assert.equal(intradayState.cash.replayed_facts, 2);
 assert.match(intradayState.cash.problems.join(' '), /cash-flow:1.*同一财务日/);
 assert.equal(intradayState.total_assets, null, 'incomplete cash ordering must block an exact current total');
+assert.equal(intradayState.portfolio_roles.percentage_available, false);
+assert.ok(intradayState.portfolio_roles.roles.every((role) => role.percentage === null));
 
 database.close();
 console.log('Finance current cash, repo asset, and intraday reconciliation contract passed.');

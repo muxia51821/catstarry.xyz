@@ -39,6 +39,7 @@ export type RepoEventRow = {
 type CurrentHoldingRow = {
   ticker: string;
   quantity: number;
+  position_category: string | null;
   price: number | null;
   fetched_at: string | null;
 };
@@ -61,7 +62,7 @@ export async function readAccountState(env: FinanceEnv, now: Date = new Date()) 
   const repoState = projectRepoAssets(await allRepoEvents(env));
 
   if (!reconciliation) {
-    return {
+    const state = {
       reconciliation: null,
       holdings,
       cash: {
@@ -76,6 +77,7 @@ export async function readAccountState(env: FinanceEnv, now: Date = new Date()) 
       total_assets: null,
       total_status: 'incomplete',
     };
+    return { ...state, portfolio_roles: projectPortfolioRoles(state) };
   }
 
   const candidateFacts = await cashFactsOnOrAfter(env, reconciliation.snapshot_date);
@@ -85,7 +87,7 @@ export async function readAccountState(env: FinanceEnv, now: Date = new Date()) 
     ? Number(holdings.market_value) + Number(cash.value) + Number(repoState.value)
     : null;
 
-  return {
+  const state = {
     reconciliation: {
       id: reconciliation.id,
       observed_at: reconciliation.snapshot_at,
@@ -104,6 +106,7 @@ export async function readAccountState(env: FinanceEnv, now: Date = new Date()) 
     total_assets: totalAssets,
     total_status: totalAssets === null ? 'incomplete' : cash.status,
   };
+  return { ...state, portfolio_roles: projectPortfolioRoles(state) };
 }
 
 async function latestReconciliation(env: FinanceEnv) {
@@ -120,7 +123,7 @@ async function currentHoldings(env: FinanceEnv, now: Date) {
       SELECT ticker, MAX(snapshot_date || ':' || printf('%020d', id)) AS marker
       FROM holdings_snapshots GROUP BY ticker
     )
-    SELECT h.ticker, h.quantity,
+    SELECT h.ticker, h.quantity, h.position_category,
       (SELECT price FROM market_data m WHERE m.ticker = h.ticker ORDER BY fetched_at DESC, id DESC LIMIT 1) AS price,
       (SELECT fetched_at FROM market_data m WHERE m.ticker = h.ticker ORDER BY fetched_at DESC, id DESC LIMIT 1) AS fetched_at
     FROM holdings_snapshots h
@@ -134,16 +137,18 @@ async function currentHoldings(env: FinanceEnv, now: Date) {
     return {
       ticker: row.ticker,
       quantity: Number(row.quantity),
+      position_category: typeof row.position_category === 'string' && row.position_category.trim() ? row.position_category.trim() : null,
       price: hasPrice && !stale ? numericPrice : null,
       fetched_at: row.fetched_at,
       stale,
       missing_price: !hasPrice,
+      market_value: hasPrice && !stale ? Number(row.quantity) * numericPrice : null,
     };
   });
   const unavailable = normalized.filter((row) => row.price === null).map((row) => row.ticker);
   const stale = normalized.filter((row) => row.stale).map((row) => row.ticker);
   const missingPrice = normalized.filter((row) => row.missing_price).map((row) => row.ticker);
-  const priced = normalized.reduce((sum, row) => sum + (row.price === null ? 0 : row.quantity * row.price), 0);
+  const priced = normalized.reduce((sum, row) => sum + (row.market_value ?? 0), 0);
   const problems = [
     ...(missingPrice.length ? [`持仓 ${missingPrice.join('、')} 缺少当前市场价格。`] : []),
     ...(stale.length ? [`开市期间持仓 ${stale.join('、')} 的最后成功行情刷新已超过当前 market authority 的 freshness SLA。`] : []),
@@ -152,9 +157,59 @@ async function currentHoldings(env: FinanceEnv, now: Date) {
     market_value: unavailable.length ? null : priced,
     priced_market_value: priced,
     complete: unavailable.length === 0,
+    items: normalized.map(({ ticker, position_category, market_value }) => ({ ticker, position_category, market_value })),
     missing_tickers: unavailable,
     stale_tickers: stale,
     problems,
+  };
+}
+
+type PortfolioRoleProjectionInput = {
+  holdings: { items: Array<{ ticker: string; position_category: string | null; market_value: number | null }> };
+  cash: { value: number | null };
+  other_assets: { value: number | null; status: string };
+  total_assets: number | null;
+  total_status: string;
+};
+
+type PortfolioRoleSource = 'security_holding' | 'broker_cash' | 'open_reverse_repo';
+
+export function projectPortfolioRoles(state: PortfolioRoleProjectionInput) {
+  const roles = new Map<string, { value: number; sources: Set<PortfolioRoleSource> }>();
+  const unclassified: Array<{ source: 'security_holding'; ticker: string; value: number | null }> = [];
+  const add = (role: string, value: number | null, source: PortfolioRoleSource) => {
+    if (value === null || !Number.isFinite(value) || value <= 0) return;
+    const current = roles.get(role) ?? { value: 0, sources: new Set<PortfolioRoleSource>() };
+    current.value += value;
+    current.sources.add(source);
+    roles.set(role, current);
+  };
+
+  for (const holding of state.holdings.items) {
+    const role = holding.position_category?.trim() || null;
+    if (role === null) {
+      unclassified.push({ source: 'security_holding', ticker: holding.ticker, value: holding.market_value });
+      continue;
+    }
+    add(role, holding.market_value, 'security_holding');
+  }
+  add('机动仓', state.cash.value, 'broker_cash');
+  if (state.other_assets.status === 'open_repo') add('机动仓', state.other_assets.value, 'open_reverse_repo');
+
+  const total = state.total_assets !== null && Number.isFinite(state.total_assets) && state.total_assets > 0
+    ? state.total_assets
+    : null;
+  return {
+    total_assets: state.total_assets,
+    total_status: state.total_status,
+    percentage_available: total !== null,
+    roles: [...roles.entries()].map(([role, entry]) => ({
+      role,
+      value: entry.value,
+      percentage: total === null ? null : entry.value / total,
+      sources: [...entry.sources],
+    })),
+    unclassified,
   };
 }
 
