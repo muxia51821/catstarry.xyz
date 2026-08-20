@@ -10,6 +10,7 @@ import {
 import { apiError, json, readJson } from '../lib/http';
 import { buildXlsx, type WorkbookCell } from '../modules/xlsx';
 import { isPersistedMarketSnapshotUsable } from '../modules/market-authority';
+import { buildHistoricalPosition, type HistoricalValuationObservation } from '../modules/historical-valuation';
 import { financePeriodState } from '../modules/periods';
 import { requireFinanceRole, type FinanceEnv } from './auth';
 
@@ -55,7 +56,7 @@ export async function handleDashboard(
 ): Promise<Response> {
   if (pathname === '/api/holdings' && request.method === 'GET') return holdings(request, env, now);
   if (pathname === '/api/market' && request.method === 'GET') return market(request, env);
-  if (pathname === '/api/pe' && request.method === 'GET') return pe(request, env);
+  if (pathname === '/api/pe' && request.method === 'GET') return pe(request, env, now);
   if (pathname === '/api/risk/signals' && request.method === 'GET') return riskSignals(request, env, now);
   if (pathname === '/api/circuit' && request.method === 'GET') return circuit(request, env);
   if (pathname === '/api/circuit/evaluate' && request.method === 'POST') return evaluateCircuit(request, env);
@@ -188,23 +189,34 @@ async function market(request: Request, env: FinanceEnv): Promise<Response> {
   return json({ market: result.results });
 }
 
-async function pe(request: Request, env: FinanceEnv): Promise<Response> {
+async function pe(request: Request, env: FinanceEnv, now: Date): Promise<Response> {
   const session = await requireFinanceRole(request, env);
   if (session instanceof Response) return session;
-  const [rows, temperatureRule] = await Promise.all([
+  const [rows, temperatureRule, histories] = await Promise.all([
     Promise.all(PE_INDEXES.map(async (index) => ({ index, row: await env.DB.prepare(`SELECT ticker, pe_ttm, fetched_at FROM market_data
       WHERE ticker IN (${index.aliases.map(() => '?').join(', ')}) ORDER BY fetched_at DESC, id DESC LIMIT 1`)
       .bind(...index.aliases).first<{ ticker: string; pe_ttm: number | null; fetched_at: string }>() }))),
     env.DB.prepare(`SELECT value_json FROM finance_investment_rules WHERE rule_key = 'temperature'`).first<{ value_json: string }>(),
+    Promise.all(PE_INDEXES.filter((index) => index.symbol !== 'NASDAQ100_PE').map(async (index) => ({ symbol: index.symbol, rows: await env.DB.prepare(`SELECT observation_date, pe_ttm
+      FROM finance_index_valuation_history WHERE symbol = ? ORDER BY observation_date`).bind(index.symbol).all<HistoricalValuationObservation>() }))),
   ]);
   const boundaries = storedTemperatureBoundaries(temperatureRule?.value_json);
-  return json({ indexes: rows.map(({ index, row }) => ({
-    ticker: index.symbol, display_name: index.display_name, source_ticker: row?.ticker ?? null,
-    pe_ttm: row?.pe_ttm === null || row?.pe_ttm === undefined ? null : Number(row.pe_ttm),
-    fetched_at: row?.fetched_at ?? null,
-    stale: !row?.fetched_at || Date.now() - Date.parse(row.fetched_at) > 36 * 60 * 60 * 1_000,
-    temperature: 'temperature' in index && index.temperature && row?.pe_ttm !== null && row?.pe_ttm !== undefined ? peTemperature(Number(row.pe_ttm), boundaries) : null,
-  })) });
+  const historyBySymbol = new Map(histories.map(({ symbol, rows: result }) => [symbol, result.results]));
+  return json({ indexes: rows.map(({ index, row }) => {
+    const currentPe = row?.pe_ttm === null || row?.pe_ttm === undefined ? null : Number(row.pe_ttm);
+    const currentStale = !row?.fetched_at || now.getTime() - Date.parse(row.fetched_at) > 36 * 60 * 60 * 1_000;
+    const historical_position = index.symbol === 'NASDAQ100_PE'
+      ? null
+      : buildHistoricalPosition(currentStale ? null : currentPe, historyBySymbol.get(index.symbol) ?? [], now);
+    return {
+      ticker: index.symbol, display_name: index.display_name, source_ticker: row?.ticker ?? null,
+      pe_ttm: currentPe,
+      fetched_at: row?.fetched_at ?? null,
+      stale: currentStale,
+      temperature: 'temperature' in index && index.temperature && currentPe !== null ? peTemperature(currentPe, boundaries) : null,
+      historical_position,
+    };
+  }) });
 }
 
 async function riskSignals(request: Request, env: FinanceEnv, now: Date): Promise<Response> {

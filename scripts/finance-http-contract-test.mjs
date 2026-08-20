@@ -35,6 +35,16 @@ class MemoryD1 {
   monthlyConfirmations = new Set();
   monthlyRecords = [];
   annualReviews = [];
+  marketData = [
+    { ticker: 'CSI300_PE', pe_ttm: 12.5, fetched_at: '2026-08-20T00:00:00.000Z' },
+    { ticker: 'CSI500_PE', pe_ttm: 23.5, fetched_at: '2026-08-20T00:00:00.000Z' },
+  ];
+  indexValuationHistory = [
+    { symbol: 'CSI300_PE', observation_date: '2023-08-14', pe_ttm: 10 },
+    { symbol: 'CSI300_PE', observation_date: '2024-08-14', pe_ttm: 12 },
+    { symbol: 'CSI300_PE', observation_date: '2025-08-14', pe_ttm: 14 },
+    { symbol: 'CSI300_PE', observation_date: '2026-08-20', pe_ttm: 16 },
+  ];
   activeBlackCircuit = false;
   ruleAudits = [];
   plan = { id: 1, initial_capital: 0, monthly_invest: 0, months_year1: 7, months_year2plus: 12, rate_low: .03, rate_base: .06, rate_high: .1, bonus1: 50000, bonus2to4: 35000, start_year: 2026, end_year: 2030 };
@@ -177,6 +187,9 @@ class MemoryStatement {
     throw new Error(`Unhandled D1 run: ${this.sql}`);
   }
   async first() {
+    if (this.sql.startsWith('SELECT ticker, pe_ttm, fetched_at FROM market_data')) {
+      return this.database.marketData.find((row) => this.values.includes(row.ticker)) ?? null;
+    }
     if (this.sql.startsWith('SELECT trade_date, ticker, position_category, direction FROM trades WHERE id')) {
       const trade = this.database.trades.find((item) => item.id === this.values[0] && !item.deleted_at);
       return trade ? { trade_date: trade.trade_date, ticker: trade.ticker, position_category: trade.position_category, direction: trade.direction } : null;
@@ -204,6 +217,9 @@ class MemoryStatement {
     throw new Error(`Unhandled D1 first: ${this.sql}`);
   }
   async all() {
+    if (this.sql.startsWith('SELECT observation_date, pe_ttm FROM finance_index_valuation_history')) {
+      return { results: this.database.indexValuationHistory.filter((row) => row.symbol === this.values[0]).map(({ observation_date, pe_ttm }) => ({ observation_date, pe_ttm })) };
+    }
     if (this.sql.startsWith('SELECT * FROM finance_account_events')) return { results: this.database.accountEvents.filter((event) => !event.deleted_at).reverse() };
     if (this.sql.startsWith('SELECT t.*, m.id AS memo_id')) {
       let index = 0;
@@ -498,6 +514,14 @@ assert.equal(sameDayFirst.status, 201); assert.equal(sameDaySecond.status, 201, 
 assert.equal((await sameDaySecond.json()).holding.quantity, 200, 'same-day holdings snapshots accumulate both trades');
 assert.equal((await fetchWorker('/api/access-log?limit=20', { headers: { Cookie: adminCookie } })).status, 200);
 assert.equal((await fetchWorker('/api/notifications', { headers: { Cookie: adminCookie } })).status, 200);
+const pePayload = await fetchWorker('/api/pe', { headers: { Cookie: adminCookie } }).then((response) => response.json());
+assert.equal(pePayload.indexes.find((row) => row.ticker === 'CSI300_PE').historical_position.status, 'available');
+assert.equal(pePayload.indexes.find((row) => row.ticker === 'CSI300_PE').historical_position.source, 'CSI');
+assert.equal(pePayload.indexes.find((row) => row.ticker === 'CSI500_PE').historical_position.reason, 'missing_history');
+assert.equal(pePayload.indexes.find((row) => row.ticker === 'NASDAQ100_PE').historical_position, null);
+env.DB.marketData.find((row) => row.ticker === 'CSI300_PE').fetched_at = '2026-01-01T00:00:00.000Z';
+const stalePePayload = await fetchWorker('/api/pe', { headers: { Cookie: adminCookie } }).then((response) => response.json());
+assert.equal(stalePePayload.indexes.find((row) => row.ticker === 'CSI300_PE').historical_position.reason, 'current_pe_unavailable', 'stale current PE must not produce a historical position');
 const pendingReview = await fetchWorker('/api/import-review?status=pending', { headers: { Cookie: adminCookie } }).then((response) => response.json());
 assert.equal(pendingReview.review.length, 1);
 assert.deepEqual(pendingReview.review[0].raw, { ticker: 'BAD' });

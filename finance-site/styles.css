@@ -200,6 +200,12 @@ tbody tr:last-child td { border-bottom: 0; }
 .pe-scale__segment--normal { background: #d4c94e; }
 .pe-scale__segment--high { background: var(--amber); }
 .pe-scale__segment--overheat { background: var(--market-up); }
+.pe-history { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 10px 0 0; }
+.pe-history div { min-width: 0; }
+.pe-history dt { color: var(--muted); font-size: 11px; }
+.pe-history dd { margin: 2px 0 0; font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 12px; font-variant-numeric: tabular-nums; }
+.pe-source { font-family: "JetBrains Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+@media (max-width: 560px) { .pe-history { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .review-row button { margin-top: var(--space-3); }
 .row-actions { display: flex; gap: 8px; }
 .text-button { min-height: 30px; padding: 3px 0; border: 0; border-radius: 0; color: var(--green); background: transparent; font-size: 12px; font-weight: 600; }
