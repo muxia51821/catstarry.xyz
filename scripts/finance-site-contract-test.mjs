@@ -1,12 +1,14 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-const [html, css, script, headers, worker, operationsUi, operationsCss, accountStateRoute, activityRoute, operationsRoute, legacyReviewRoute, operationMigration] = await Promise.all([
+const [html, css, script, headers, worker, portfolioUi, portfolioCss, operationsUi, operationsCss, accountStateRoute, activityRoute, operationsRoute, legacyReviewRoute, operationMigration] = await Promise.all([
   readFile('finance-site/index.html', 'utf8'),
   readFile('finance-site/styles.css', 'utf8'),
   readFile('finance-site/app.js', 'utf8'),
   readFile('finance-site/_headers', 'utf8'),
   readFile('workers/finance-api/src/index.ts', 'utf8'),
+  readFile('finance-site/portfolio-ui.js', 'utf8'),
+  readFile('finance-site/portfolio.css', 'utf8'),
   readFile('finance-site/operations-ui.js', 'utf8'),
   readFile('finance-site/operations.css', 'utf8'),
   readFile('workers/finance-api/src/routes/account-state.ts', 'utf8'),
@@ -57,6 +59,9 @@ assert.match(html, /PE 与温度由行情接入写入/);
 assert.match(html, /data-cash-flows-body/);
 assert.match(html, /data-asset-snapshots-body/);
 assert.match(html, /data-risk-signals-list/);
+assert.match(html, /data-portfolio-allocation/);
+assert.match(html, /data-portfolio-allocation-plot/);
+assert.match(html, /data-portfolio-allocation-detail/);
 assert.match(script, /\/api\/cash-flows/);
 assert.match(script, /\/api\/account-events/);
 assert.match(script, /\/api\/assets\/snapshots/);
@@ -100,6 +105,12 @@ assert.match(css, /"HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei"/);
 assert.doesNotMatch(html, /name="sse300_pe"|name="sse500_pe"|name="sse1000_pe"|name="blue_chip_temp"/);
 assert.match(css, /\.trade-total strong\[data-placeholder\]/);
 assert.match(script, /setStatus\(\$\('\[data-dashboard-status\]'\), ''\)/);
+assert.match(portfolioUi, /portfolio_roles/);
+assert.match(portfolioUi, /percentage_available/);
+assert.match(portfolioUi, /allocationTreemapLayout/);
+assert.match(portfolioUi, /未投影账户资产/);
+assert.match(portfolioCss, /\.portfolio-allocation__plot/);
+assert.match(portfolioCss, /\.portfolio-allocation__cell\.is-selected/);
 
 assert.match(html, /<link rel="stylesheet" href="\/operations\.css">/);
 assert.match(html, /<script src="\/operations-ui\.js" defer><\/script>/);

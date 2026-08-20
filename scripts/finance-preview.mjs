@@ -24,6 +24,35 @@ const state = {
     ],
     market_overview: { label: '上证指数', current_value: 3452.17, previous_close: 3433.93, change: 18.24, change_pct: .5312, market_status: 'closed', market_time: '2026-07-30 15:00', trading_date: '2026-07-30' },
   },
+  accountState: {
+    reconciliation: { through_date: '2026-07-31', observed_at: '2026-07-31T15:00:00.000Z' },
+    holdings: {
+      market_value: 12600,
+      complete: true,
+      items: [
+        { ticker: '510300', position_category: 'A股宽基指数底仓', market_value: 7200 },
+        { ticker: '513100', position_category: '美股ETF（A股跨境ETF）', market_value: 3600 },
+        { ticker: '518880', position_category: '黄金ETF', market_value: 1800 },
+      ],
+      missing_tickers: [], stale_tickers: [], problems: [],
+    },
+    cash: { value: 1000, known_value: 1000, status: 'reconciled', replayed_facts: 0, problems: [] },
+    other_assets: { value: 0, known_value: 0, status: 'clear', problems: [] },
+    total_assets: 13600,
+    total_status: 'reconciled',
+    portfolio_roles: {
+      total_assets: 13600,
+      total_status: 'reconciled',
+      percentage_available: true,
+      roles: [
+        { role: 'A股宽基指数底仓', value: 7200, percentage: 7200 / 13600, sources: ['security_holding'] },
+        { role: '美股ETF（A股跨境ETF）', value: 3600, percentage: 3600 / 13600, sources: ['security_holding'] },
+        { role: '黄金ETF', value: 1800, percentage: 1800 / 13600, sources: ['security_holding'] },
+        { role: '机动仓', value: 1000, percentage: 1000 / 13600, sources: ['broker_cash'] },
+      ],
+      unclassified: [],
+    },
+  },
   trades: [{ id: 1, trade_date: '2026-07-24', ticker: '510300', ticker_name: '沪深300ETF', direction: 'buy', quantity: 100, price: 12, position_category: 'A股宽基指数底仓', reason: '历史交易理由仅在审计与导出中保留。', created_by: 'local-preview' }],
   pe: [
     { ticker: 'CSI300_PE', display_name: '沪深 300 PE-TTM', pe_ttm: 12.5, temperature: { zone: 'normal', suggestion: 'normal_dca' } },
@@ -53,7 +82,9 @@ const files = {
   '/': ['finance-site/index.html', 'text/html; charset=utf-8'],
   '/index.html': ['finance-site/index.html', 'text/html; charset=utf-8'],
   '/styles.css': ['finance-site/styles.css', 'text/css; charset=utf-8'],
+  '/portfolio.css': ['finance-site/portfolio.css', 'text/css; charset=utf-8'],
   '/app.js': ['finance-site/app.js', 'text/javascript; charset=utf-8'],
+  '/portfolio-ui.js': ['finance-site/portfolio-ui.js', 'text/javascript; charset=utf-8'],
   '/fonts/Geist-Variable.ttf': ['finance-site/fonts/Geist-Variable.ttf', 'font/ttf'],
   '/fonts/JetBrainsMono-Variable.ttf': ['finance-site/fonts/JetBrainsMono-Variable.ttf', 'font/ttf'],
   '/fonts/HarmonyOS-Sans-SC.ttf': ['finance-site/fonts/HarmonyOS-Sans-SC.ttf', 'font/ttf'],
@@ -167,6 +198,7 @@ const server = createServer(async (request, response) => {
     return;
   }
   if (!authenticated(response)) return;
+  if (pathname === '/api/account-state') return json(response, 200, state.accountState);
   if (pathname === '/api/holdings') return json(response, 200, state.holdings);
   if (pathname === '/api/trades' && request.method === 'GET') { const rows = listTrades(url); return json(response, 200, { trades: rows.slice(0, 50), items: rows.slice(0, 50), nextCursor: null }); }
   if (pathname === '/api/pe') return json(response, 200, { indexes: state.pe });
