@@ -9,6 +9,7 @@ import {
 } from '../modules/calculations';
 import { apiError, json, readJson } from '../lib/http';
 import { buildXlsx, type WorkbookCell } from '../modules/xlsx';
+import { isPersistedMarketSnapshotUsable } from '../modules/market-authority';
 import { financePeriodState } from '../modules/periods';
 import { requireFinanceRole, type FinanceEnv } from './auth';
 
@@ -50,11 +51,12 @@ export async function handleDashboard(
   request: Request,
   env: FinanceEnv,
   pathname: string,
+  now: Date = new Date(),
 ): Promise<Response> {
-  if (pathname === '/api/holdings' && request.method === 'GET') return holdings(request, env);
+  if (pathname === '/api/holdings' && request.method === 'GET') return holdings(request, env, now);
   if (pathname === '/api/market' && request.method === 'GET') return market(request, env);
   if (pathname === '/api/pe' && request.method === 'GET') return pe(request, env);
-  if (pathname === '/api/risk/signals' && request.method === 'GET') return riskSignals(request, env);
+  if (pathname === '/api/risk/signals' && request.method === 'GET') return riskSignals(request, env, now);
   if (pathname === '/api/circuit' && request.method === 'GET') return circuit(request, env);
   if (pathname === '/api/circuit/evaluate' && request.method === 'POST') return evaluateCircuit(request, env);
   if (pathname === '/api/circuit/objection' && request.method === 'POST') return recordObjection(request, env);
@@ -75,7 +77,7 @@ export async function handleDashboard(
   return apiError(404, 'not_found', 'Finance route not found');
 }
 
-async function holdings(request: Request, env: FinanceEnv): Promise<Response> {
+async function holdings(request: Request, env: FinanceEnv, now: Date): Promise<Response> {
   const session = await requireFinanceRole(request, env);
   if (session instanceof Response) return session;
   const rows = await env.DB.prepare(`WITH latest AS (
@@ -94,7 +96,10 @@ async function holdings(request: Request, env: FinanceEnv): Promise<Response> {
     WHERE h.quantity > 0 ORDER BY h.ticker`).all<HoldingRow>();
   const limits = await env.DB.prepare('SELECT * FROM position_limits ORDER BY position_category').all<PositionLimitRow>();
   const values = rows.results.map((row) => {
-    const price = row.price === null ? null : Number(row.price);
+    const numericPrice = row.price === null ? null : Number(row.price);
+    const hasPrice = numericPrice !== null && Number.isFinite(numericPrice);
+    const stale = hasPrice && !isPersistedMarketSnapshotUsable(row.fetched_at, now);
+    const price = hasPrice && !stale ? numericPrice : null;
     const marketValue = price === null ? null : Number(row.quantity) * price;
     const costValue = Number(row.quantity) * Number(row.avg_cost);
     return {
@@ -102,7 +107,8 @@ async function holdings(request: Request, env: FinanceEnv): Promise<Response> {
       quantity: Number(row.quantity),
       avg_cost: Number(row.avg_cost),
       price,
-      stale: !row.fetched_at || Date.now() - Date.parse(row.fetched_at) > 30 * 60 * 1_000,
+      stale,
+      missing_price: !hasPrice,
       market_value: marketValue,
       pnl: marketValue === null ? null : marketValue - costValue,
       pnl_ratio: marketValue === null || costValue === 0 ? null : (marketValue - costValue) / costValue,
@@ -201,7 +207,7 @@ async function pe(request: Request, env: FinanceEnv): Promise<Response> {
   })) });
 }
 
-async function riskSignals(request: Request, env: FinanceEnv): Promise<Response> {
+async function riskSignals(request: Request, env: FinanceEnv, now: Date): Promise<Response> {
   const session = await requireFinanceRole(request, env); if (session instanceof Response) return session;
   const rows = await env.DB.prepare(`WITH latest AS (
       SELECT ticker, MAX(snapshot_date || ':' || printf('%020d', id)) AS marker FROM holdings_snapshots GROUP BY ticker
@@ -212,7 +218,7 @@ async function riskSignals(request: Request, env: FinanceEnv): Promise<Response>
     FROM holdings_snapshots h JOIN latest l ON l.ticker = h.ticker AND l.marker = h.snapshot_date || ':' || printf('%020d', h.id)
     WHERE h.quantity > 0`).all<{ ticker: string; ticker_name: string | null; avg_cost: number; price: number | null; fetched_at: string | null }>();
   const priced = rows.results.map((row) => ({ ...row, loss_ratio: row.price === null || Number(row.avg_cost) <= 0 ? null : (Number(row.price) - Number(row.avg_cost)) / Number(row.avg_cost) }));
-  const usable = priced.filter((row) => row.loss_ratio !== null && row.fetched_at && Date.now() - Date.parse(row.fetched_at) <= 30 * 60 * 1_000);
+  const usable = priced.filter((row) => row.loss_ratio !== null && isPersistedMarketSnapshotUsable(row.fetched_at, now));
   const worst = usable.sort((left, right) => Number(left.loss_ratio) - Number(right.loss_ratio))[0] ?? null;
   const snapshotCount = await env.DB.prepare(`SELECT COUNT(*) AS count FROM finance_asset_snapshots WHERE deleted_at IS NULL AND is_complete = 1`).first<{ count: number }>();
   const signals = [] as { level: 'yellow' | 'stop_loss'; reason: string }[];
