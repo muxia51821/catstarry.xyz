@@ -11,8 +11,8 @@ const securities = [
   { ticker: '300750', instrument_type: 'stock', security_attribute: '电池', attribute_source: 'eastmoney' },
 ];
 const holdings = [
-  { ticker: '000021', ticker_name: '深科技', quantity: 100, avg_cost: 39.97, price: 40.23, market_value: 4023, pnl: 26, position_category: '主动操作仓（A股）', stale: false },
-  { ticker: '300750', ticker_name: '宁德时代', quantity: 100, avg_cost: 395, price: 393.93, market_value: 39393, pnl: -107, position_category: '主动操作仓（A股）', stale: false },
+  { ticker: '000021', ticker_name: '深科技', quantity: 100, avg_cost: 39.97, price: 40.23, market_value: 4023, pnl: 26, pnl_ratio: 26 / 3997, position_category: '主动操作仓（A股）', stale: false },
+  { ticker: '300750', ticker_name: '宁德时代', quantity: 100, avg_cost: 395, price: 393.93, market_value: 39393, pnl: -107, pnl_ratio: -107 / 39500, position_category: '主动操作仓（A股）', stale: false },
 ];
 const trades = [
   { id: 2, trade_date: '2026-08-13', ticker: '000021', ticker_name: '深科技', direction: 'buy', quantity: 100, price: 40.23, position_category: '主动操作仓（A股）', security_attribute: '消费电子' },
@@ -28,7 +28,7 @@ const html = `<!doctype html><html><head>
   <button data-refresh>刷新</button>
   <main data-dashboard aria-busy="false">
     <article class="metric"><span>总资产</span><strong data-total-value>—</strong><small data-market-freshness>等待账户状态</small></article>
-    <section class="panel portfolio-allocation" data-portfolio-allocation><span data-portfolio-allocation-total>等待账户状态</span><div class="portfolio-allocation__body" data-portfolio-allocation-body hidden><div data-portfolio-allocation-plot></div><aside class="portfolio-allocation__detail"><h3 data-portfolio-allocation-detail-title>选择角色</h3><div data-portfolio-allocation-detail></div></aside></div><p data-portfolio-allocation-unavailable>总资产待核验，暂不展示资产配置比例。</p></section>
+    <section class="panel portfolio-allocation" data-portfolio-allocation><span data-portfolio-allocation-total>等待账户状态</span><div class="portfolio-allocation__body" data-portfolio-allocation-body hidden><div data-portfolio-allocation-plot></div><aside class="portfolio-allocation__detail"><h3 data-portfolio-allocation-detail-title>选择角色</h3><div data-portfolio-allocation-detail></div></aside><div class="portfolio-role-composition"><table><tbody data-portfolio-role-composition-body></tbody></table></div></div><p data-portfolio-allocation-unavailable>总资产待核验，暂不展示资产配置比例。</p></section>
     <button data-asset-view="month" class="is-active">月</button><button data-asset-view="week">周</button>
     <span data-net-worth-state>3 个已核验月末快照</span>
     <p data-net-worth-empty>旧快照文案</p>
@@ -82,6 +82,11 @@ const server = createServer(async (request, response) => {
         roles: [
           { role: '主动操作仓（A股）', value: 43416, percentage: 43416 / 130424.20, sources: ['security_holding'] },
           { role: '机动仓', value: 20725.50, percentage: 20725.50 / 130424.20, sources: ['broker_cash'] },
+        ],
+        composition: [
+          { role: '主动操作仓', value: 43416, percentage: 43416 / 130424.20, sources: ['security_holding'], raw_roles: ['主动操作仓（A股）'], target_ratio: .4, lower_ratio: .35, upper_ratio: .45, deviation: 43416 / 130424.20 - .4 },
+          { role: '机动仓', value: 20725.50, percentage: 20725.50 / 130424.20, sources: ['broker_cash'], raw_roles: [], target_ratio: .15, lower_ratio: .1, upper_ratio: .2, deviation: 20725.50 / 130424.20 - .15 },
+          { role: 'A股宽基指数', value: 0, percentage: 0, sources: [], raw_roles: [], target_ratio: .15, lower_ratio: .1, upper_ratio: .2, deviation: -.15 },
         ],
         unclassified: [],
       },
@@ -168,6 +173,7 @@ try {
       return { key: cell.dataset.key, share: rect?.dataset.share, x: rect?.getAttribute('x'), y: rect?.getAttribute('y') };
     }),
     allocationDetail: document.querySelector('[data-portfolio-allocation-detail]')?.textContent,
+    composition: document.querySelector('[data-portfolio-role-composition-body]')?.textContent,
   })`);
   assert.match(overview.total ?? '', /130,424\.20/);
   assert.match(overview.status ?? '', /已对账.*2026-08-16/);
@@ -175,8 +181,8 @@ try {
   assert.match(overview.firstTrade ?? '', /买入.*100.*40\.23/);
   assert.equal(overview.historyState, '3 个完整月末历史估值');
   assert.match(overview.historyEmpty ?? '', /canonical raw close/);
-  assert.match(overview.holdingHeaders ?? '', /标的组合角色证券属性数量成本现价市值盈亏/);
-  assert.match(overview.holdingFirst ?? '', /深科技.*主动操作仓.*消费电子/s);
+  assert.match(overview.holdingHeaders ?? '', /标的组合角色证券属性数量成本现价市值总资产占比盈亏盈亏%/);
+  assert.match(overview.holdingFirst ?? '', /深科技.*主动操作仓.*消费电子.*3\.1%.*¥26\.00.*0\.7%/s);
   assert.match(overview.tradeHeaders ?? '', /类别|组合角色/);
   assert.match(overview.tradeHeaders ?? '', /证券属性/);
   assert.match(overview.tradeFirst ?? '', /消费电子/);
@@ -184,15 +190,17 @@ try {
   assert.ok(overview.securityStyle, 'Security Attribute is rendered as a neutral badge, not a second taxonomy color system');
   assert.match(overview.allocationTotal ?? '', /130,424\.20/);
   assert.equal(overview.allocationCells.length, 3, `Allocation Map cells: ${JSON.stringify(overview.allocationCells)}`);
-  assert.deepEqual(overview.allocationCells.map((cell) => cell.key), ['unclassified', '主动操作仓（A股）', '机动仓']);
+  assert.deepEqual(overview.allocationCells.map((cell) => cell.key), ['unclassified', '主动操作仓', '机动仓']);
   assert.ok(Math.abs(overview.allocationCells.reduce((sum, cell) => sum + Number(cell.share), 0) - 100) < .01, 'Treemap cells must account for the authoritative total, including unclassified assets');
   assert.equal(overview.allocationCells[1].x, overview.allocationCells[2].x, 'Secondary treemap cells share a column instead of forming visual stripes');
   assert.notEqual(overview.allocationCells[1].y, overview.allocationCells[2].y, 'Secondary treemap cells must stack within that column');
   assert.match(overview.allocationDetail ?? '', /未投影账户资产/);
+  assert.match(overview.composition ?? '', /未投影账户资产.*66,282\.70.*50\.8%/s);
+  assert.match(overview.composition ?? '', /A股主动仓.*43,416\.00.*33\.3%.*40\.0%.*-6\.7pp/s);
 
   await evaluate(`document.querySelector('.portfolio-allocation__cell[data-key="机动仓"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))`);
   await waitFor(`document.querySelector('[data-portfolio-allocation-detail-title]')?.textContent === '机动仓'`, 'Portfolio allocation role selection');
-  assert.match(await evaluate(`document.querySelector('[data-portfolio-allocation-detail]')?.textContent ?? ''`), /Broker Cash/);
+  assert.match(await evaluate(`document.querySelector('[data-portfolio-allocation-detail]')?.textContent ?? ''`), /Broker Cash.*—/s);
 
   await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
   const mobileAllocation = await evaluate(`(() => {

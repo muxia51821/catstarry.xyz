@@ -40,6 +40,9 @@
   grid-column: 1 / -1;
 }
 
+/* The securities-only position view remains an API compatibility surface, not a user-facing role allocation. */
+.portfolio-legacy-position { display: none !important; }
+
 .portfolio-allocation__body {
   display: grid;
   grid-template-columns: minmax(0, 2fr) minmax(240px, .8fr);
@@ -93,6 +96,37 @@
   padding: 16px;
   border-left: 1px solid var(--line);
 }
+
+.portfolio-role-composition {
+  grid-column: 1 / -1;
+  overflow-x: auto;
+  border-top: 1px solid var(--line);
+}
+
+.portfolio-role-composition table {
+  width: 100%;
+  min-width: 620px;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.portfolio-role-composition th,
+.portfolio-role-composition td {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.portfolio-role-composition th {
+  color: var(--muted);
+  font-weight: 400;
+  text-align: right;
+}
+
+.portfolio-role-composition th:first-child,
+.portfolio-role-composition td:first-child { text-align: left; }
+.portfolio-role-composition td { text-align: right; font-family: "JetBrains Mono", ui-monospace, monospace; white-space: nowrap; }
+.portfolio-role-composition .value-up { color: var(--positive); }
+.portfolio-role-composition .value-down { color: var(--negative); }
 
 .portfolio-allocation__detail .eyebrow { margin: 0; }
 .portfolio-allocation__detail h3 { margin: 0; font-size: 18px; font-weight: 500; }
@@ -264,6 +298,7 @@
   .portfolio-allocation__body { grid-template-columns: 1fr; gap: 14px; }
   .portfolio-allocation__plot { min-height: 190px; }
   .portfolio-allocation__detail { padding: 14px 0 0; border-top: 1px solid var(--line); border-left: 0; }
+  .portfolio-role-composition { margin-top: 2px; }
   .portfolio-allocation__label { font-size: 13px; }
   .portfolio-allocation__value { font-size: 10px; }
 

@@ -13,9 +13,9 @@ const state = {
     total_market_value: 12600,
     market_data_complete: true,
     holdings: [
-      { ticker: '510300', ticker_name: '沪深300ETF', quantity: 100, avg_cost: 66, price: 72, market_value: 7200, pnl: 600, position_category: 'A股宽基指数底仓', fetched_at: '2026-07-25T10:00:00.000Z' },
-      { ticker: '513100', ticker_name: '纳斯达克100ETF', quantity: 100, avg_cost: 33, price: 36, market_value: 3600, pnl: 300, position_category: '美股ETF（A股跨境ETF）', fetched_at: '2026-07-25T10:00:00.000Z' },
-      { ticker: '518880', ticker_name: '黄金ETF', quantity: 100, avg_cost: 16, price: 18, market_value: 1800, pnl: 200, position_category: '黄金ETF', fetched_at: '2026-07-25T10:00:00.000Z' },
+      { ticker: '510300', ticker_name: '沪深300ETF', quantity: 100, avg_cost: 66, price: 72, market_value: 7200, pnl: 600, pnl_ratio: 600 / 6600, position_category: 'A股宽基指数底仓', fetched_at: '2026-07-25T10:00:00.000Z' },
+      { ticker: '513100', ticker_name: '纳斯达克100ETF', quantity: 100, avg_cost: 33, price: 36, market_value: 3600, pnl: 300, pnl_ratio: 300 / 3300, position_category: '美股ETF（A股跨境ETF）', fetched_at: '2026-07-25T10:00:00.000Z' },
+      { ticker: '518880', ticker_name: '黄金ETF', quantity: 100, avg_cost: 16, price: 18, market_value: 1800, pnl: 200, pnl_ratio: 200 / 1600, position_category: '黄金ETF', fetched_at: '2026-07-25T10:00:00.000Z' },
     ],
     positions: [
       { position_category: 'A股宽基指数底仓', current_ratio: 7200 / 12600, target_ratio: .15, lower_ratio: .1, upper_ratio: .2, suggestedChange: -.35, status: 'above_upper' },
@@ -49,6 +49,13 @@ const state = {
         { role: '美股ETF（A股跨境ETF）', value: 3600, percentage: 3600 / 13600, sources: ['security_holding'] },
         { role: '黄金ETF', value: 1800, percentage: 1800 / 13600, sources: ['security_holding'] },
         { role: '机动仓', value: 1000, percentage: 1000 / 13600, sources: ['broker_cash'] },
+      ],
+      composition: [
+        { role: 'A股宽基指数', value: 7200, percentage: 7200 / 13600, sources: ['security_holding'], raw_roles: ['A股宽基指数底仓'], target_ratio: .15, lower_ratio: .1, upper_ratio: .2, deviation: 7200 / 13600 - .15 },
+        { role: '美股 ETF', value: 3600, percentage: 3600 / 13600, sources: ['security_holding'], raw_roles: ['美股ETF（A股跨境ETF）'], target_ratio: .2, lower_ratio: .15, upper_ratio: .25, deviation: 3600 / 13600 - .2 },
+        { role: '黄金ETF', value: 1800, percentage: 1800 / 13600, sources: ['security_holding'], raw_roles: ['黄金ETF'], target_ratio: .1, lower_ratio: .05, upper_ratio: .15, deviation: 1800 / 13600 - .1 },
+        { role: '机动仓', value: 1000, percentage: 1000 / 13600, sources: ['broker_cash'], raw_roles: [], target_ratio: .15, lower_ratio: .1, upper_ratio: .2, deviation: 1000 / 13600 - .15 },
+        { role: '主动操作仓', value: 0, percentage: 0, sources: [], raw_roles: [], target_ratio: .4, lower_ratio: .35, upper_ratio: .45, deviation: -.4 },
       ],
       unclassified: [],
     },
