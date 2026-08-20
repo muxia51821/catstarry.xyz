@@ -66,6 +66,7 @@
     "test:finance:xlsx": "node --experimental-transform-types --import ./scripts/register-typescript-loader.mjs scripts/finance-xlsx-contract-test.mjs",
     "test:finance:http": "node --experimental-transform-types --import ./scripts/register-typescript-loader.mjs scripts/finance-http-contract-test.mjs",
     "test:finance:market": "node --experimental-transform-types --import ./scripts/register-typescript-loader.mjs scripts/finance-market-contract-test.mjs",
+    "test:finance:historical-valuation": "node --experimental-transform-types --import ./scripts/register-typescript-loader.mjs scripts/finance-historical-valuation-contract.mjs && node scripts/finance-csi-valuation-import-contract.mjs",
     "test:finance:periods": "node --experimental-transform-types --import ./scripts/register-typescript-loader.mjs scripts/finance-periods-contract-test.mjs",
     "test:finance:concurrency": "node --experimental-transform-types --import ./scripts/register-typescript-loader.mjs scripts/finance-concurrency-contract-test.mjs",
     "test:migrations": "node scripts/d1-migration-contract-test.mjs",

@@ -27,6 +27,7 @@ const portfolioAllocationDetail = document.querySelector('[data-portfolio-alloca
 const portfolioAllocationDetailTitle = document.querySelector('[data-portfolio-allocation-detail-title]');
 const portfolioAllocationTotal = document.querySelector('[data-portfolio-allocation-total]');
 const portfolioAllocationUnavailable = document.querySelector('[data-portfolio-allocation-unavailable]');
+const portfolioRoleCompositionBody = document.querySelector('[data-portfolio-role-composition-body]');
 
 let portfolioEpoch = 0;
 let portfolioScheduled = false;
@@ -149,12 +150,13 @@ function renderPortfolioAccountState(accountState) {
   }
   portfolioStatus.before(breakdown);
   renderPortfolioAllocation(accountState);
+  renderPortfolioHoldings();
 }
 
 const PORTFOLIO_ALLOCATION_LABELS = new Map([
-  ['主动操作仓（A股）', 'A股主动仓'],
-  ['A股宽基指数底仓', 'A股宽基'],
-  ['美股ETF（A股跨境ETF）', '美股 ETF'],
+  ['主动操作仓', 'A股主动仓'],
+  ['A股宽基指数', 'A股宽基'],
+  ['美股 ETF', '美股 ETF'],
   ['黄金ETF', '黄金'],
   ['机动仓', '机动仓'],
   ['其他', '其他'],
@@ -162,7 +164,7 @@ const PORTFOLIO_ALLOCATION_LABELS = new Map([
 ]);
 
 function renderPortfolioAllocation(accountState) {
-  if (!portfolioAllocationBody || !portfolioAllocationPlot || !portfolioAllocationDetail || !portfolioAllocationDetailTitle || !portfolioAllocationTotal || !portfolioAllocationUnavailable) return;
+  if (!portfolioAllocationBody || !portfolioAllocationPlot || !portfolioAllocationDetail || !portfolioAllocationDetailTitle || !portfolioAllocationTotal || !portfolioAllocationUnavailable || !portfolioRoleCompositionBody) return;
   const projection = accountState?.portfolio_roles;
   const total = finiteNumber(projection?.total_assets);
   const roles = allocationRoles(projection);
@@ -174,32 +176,68 @@ function renderPortfolioAllocation(accountState) {
     portfolioAllocationPlot.replaceChildren();
     portfolioAllocationDetail.replaceChildren();
     portfolioAllocationDetailTitle.textContent = '配置待核验';
+    portfolioRoleCompositionBody.replaceChildren();
     return;
   }
   if (!roles.some((role) => role.key === portfolioAllocationSelected)) portfolioAllocationSelected = roles[0].key;
   renderPortfolioAllocationMap(roles, total);
   renderPortfolioAllocationDetail(roles, accountState);
+  renderPortfolioRoleComposition(projection);
 }
 
 function allocationRoles(projection) {
   const grouped = new Map();
-  for (const row of projection?.roles ?? []) {
+  for (const row of projection?.composition ?? []) {
     const value = finiteNumber(row.value);
     if (value === null || value <= 0) continue;
-    const key = row.role === '机动仓（货币ETF）' ? '机动仓' : row.role;
-    const entry = grouped.get(key) ?? { key, value: 0, rawRoles: [] };
-    entry.value += value;
-    entry.rawRoles.push(row.role);
-    grouped.set(key, entry);
+    grouped.set(row.role, {
+      key: row.role,
+      value,
+      rawRoles: row.raw_roles ?? [],
+      targetRatio: finiteNumber(row.target_ratio),
+      lowerRatio: finiteNumber(row.lower_ratio),
+      upperRatio: finiteNumber(row.upper_ratio),
+      deviation: finiteNumber(row.deviation),
+    });
   }
-  const unclassifiedValue = (projection?.unclassified ?? []).reduce((sum, item) => sum + (finiteNumber(item.value) ?? 0), 0);
   const projectedValue = [...grouped.values()].reduce((sum, entry) => sum + entry.value, 0);
   const total = finiteNumber(projection?.total_assets);
-  const unprojectedValue = total === null ? 0 : Math.max(0, total - projectedValue - unclassifiedValue);
-  if (unclassifiedValue + unprojectedValue > 0) grouped.set('unclassified', { key: 'unclassified', value: unclassifiedValue + unprojectedValue, rawRoles: [] });
+  const unprojectedValue = total === null ? 0 : Math.max(0, total - projectedValue);
+  if (unprojectedValue > 0) {
+    const entry = grouped.get('unclassified') ?? { key: 'unclassified', value: 0, rawRoles: [], targetRatio: null, lowerRatio: null, upperRatio: null, deviation: null };
+    entry.value += unprojectedValue;
+    grouped.set('unclassified', entry);
+  }
   return [...grouped.values()]
     .sort((left, right) => right.value - left.value)
     .map((entry) => ({ ...entry, label: PORTFOLIO_ALLOCATION_LABELS.get(entry.key) ?? entry.key }));
+}
+
+function renderPortfolioRoleComposition(projection) {
+  if (!portfolioRoleCompositionBody) return;
+  const rows = [...(projection?.composition ?? [])]
+    .filter((row) => finiteNumber(row.value) !== null || finiteNumber(row.target_ratio) !== null)
+    .sort((left, right) => (finiteNumber(right.value) ?? 0) - (finiteNumber(left.value) ?? 0));
+  const total = finiteNumber(projection?.total_assets);
+  const projectedValue = rows.reduce((sum, row) => sum + Math.max(0, finiteNumber(row.value) ?? 0), 0);
+  const unprojectedValue = total === null ? 0 : Math.max(0, total - projectedValue);
+  if (unprojectedValue > 0) rows.unshift({
+    role: 'unprojected', value: unprojectedValue, percentage: unprojectedValue / total,
+    target_ratio: null, deviation: null,
+  });
+  portfolioRoleCompositionBody.replaceChildren(...rows.map((row) => {
+    const percentage = finiteNumber(row.percentage);
+    const deviation = finiteNumber(row.deviation);
+    const deviationClass = deviation === null ? '' : deviation > 0 ? 'value-up' : deviation < 0 ? 'value-down' : '';
+    const role = row.role === 'unprojected' ? '未投影账户资产' : PORTFOLIO_ALLOCATION_LABELS.get(row.role) ?? row.role;
+    return holdingRow([
+      portfolioElement('th', '', role),
+      dataCell(maybeMoney(row.value)),
+      dataCell(percentage === null ? '—' : formatPortfolioPercent(percentage)),
+      dataCell(finiteNumber(row.target_ratio) === null ? '—' : formatPortfolioPercent(Number(row.target_ratio))),
+      dataCell(deviation === null ? '—' : formatPortfolioDeviation(deviation), deviationClass),
+    ]);
+  }));
 }
 
 function renderPortfolioAllocationMap(roles, total) {
@@ -276,42 +314,51 @@ function renderPortfolioAllocationDetail(roles, accountState) {
   const summary = portfolioElement('p', 'portfolio-allocation__summary');
   summary.append(portfolioElement('strong', '', portfolioMoney.format(selected.value)), portfolioElement('span', '', total === null ? '—' : formatPortfolioPercent(selected.value / total)));
   const table = portfolioElement('table', 'portfolio-allocation__table');
+  const head = document.createElement('thead');
+  const headings = document.createElement('tr');
+  headings.append(portfolioElement('th', '', '构成'), portfolioElement('th', '', '当前价值'), portfolioElement('th', '', '盈亏'));
+  head.append(headings);
   const body = document.createElement('tbody');
   for (const item of allocationComposition(selected, accountState)) {
     const row = document.createElement('tr');
-    row.append(portfolioElement('th', '', item.label), portfolioElement('td', '', item.value === null ? '—' : portfolioMoney.format(item.value)));
+    row.append(
+      portfolioElement('th', '', item.label),
+      portfolioElement('td', '', item.value === null ? '—' : portfolioMoney.format(item.value)),
+      portfolioElement('td', item.pnl === null ? '' : item.pnl >= 0 ? 'value-up' : 'value-down', item.pnl === null ? '—' : portfolioMoney.format(item.pnl)),
+    );
     body.append(row);
   }
-  table.append(body);
+  table.append(head, body);
   portfolioAllocationDetail.replaceChildren(summary, table);
 }
 
 function allocationComposition(role, accountState) {
   const projection = accountState?.portfolio_roles;
   if (role.key === 'unclassified') {
-    const rows = (projection?.unclassified ?? []).map((item) => ({ label: `未分类持仓 · ${item.ticker}`, value: finiteNumber(item.value) }));
+    const rows = (projection?.unclassified ?? []).map((item) => ({ label: `未分类持仓 · ${item.ticker}`, value: finiteNumber(item.value), pnl: null }));
     const listed = rows.reduce((sum, item) => sum + (item.value ?? 0), 0);
     const remainder = Math.max(0, role.value - listed);
-    if (remainder > 0) rows.push({ label: '未投影账户资产', value: remainder });
+    if (remainder > 0) rows.push({ label: '未投影账户资产', value: remainder, pnl: null });
     return rows;
   }
   const rows = [];
-  const sourceItems = accountState?.holdings?.items ?? [];
+  const sourceItems = portfolioHoldings.length ? portfolioHoldings : accountState?.holdings?.items ?? [];
   for (const rawRole of role.rawRoles) {
     for (const item of sourceItems.filter((holding) => holding.position_category === rawRole)) {
-      rows.push({ label: rawRole === '机动仓（货币ETF）' ? `货币ETF · ${item.ticker}` : `证券持仓 · ${item.ticker}`, value: finiteNumber(item.market_value) });
+      rows.push({ label: rawRole === '机动仓（货币ETF）' ? `货币ETF · ${item.ticker}` : `证券持仓 · ${item.ticker}`, value: finiteNumber(item.market_value), pnl: finiteNumber(item.pnl) });
     }
   }
   if (role.key === '机动仓') {
     const cash = finiteNumber(accountState?.cash?.value);
-    if (cash !== null && cash > 0) rows.unshift({ label: 'Broker Cash', value: cash });
+    if (cash !== null && cash > 0) rows.unshift({ label: 'Broker Cash', value: cash, pnl: null });
     const repo = finiteNumber(accountState?.other_assets?.value);
-    if (accountState?.other_assets?.status === 'open_repo' && repo !== null && repo > 0) rows.push({ label: '逆回购应收', value: repo });
+    if (accountState?.other_assets?.status === 'open_repo' && repo !== null && repo > 0) rows.push({ label: '逆回购应收', value: repo, pnl: null });
   }
-  return rows.length ? rows : [{ label: '当前角色资产', value: role.value }];
+  return rows.length ? rows : [{ label: '当前角色资产', value: role.value, pnl: null }];
 }
 
 function formatPortfolioPercent(value) { return `${(value * 100).toFixed(1)}%`; }
+function formatPortfolioDeviation(value) { return `${value > 0 ? '+' : ''}${(value * 100).toFixed(1)}pp`; }
 
 function accountBreakdownRow(label, value) {
   const row = portfolioElement('span', 'portfolio-account-breakdown__row');
@@ -411,7 +458,7 @@ function renderPortfolioHoldings() {
   const table = portfolioHoldingsBody.closest('table');
   const header = table?.querySelector('thead tr');
   if (header && !header.dataset.portfolioClassificationReady) {
-    header.replaceChildren(...['标的', '组合角色', '证券属性', '数量', '成本', '现价', '市值', '盈亏'].map((label) => portfolioElement('th', '', label)));
+    header.replaceChildren(...['标的', '组合角色', '证券属性', '数量', '成本', '现价', '市值', '总资产占比', '盈亏', '盈亏%'].map((label) => portfolioElement('th', '', label)));
     header.dataset.portfolioClassificationReady = 'true';
   }
 
@@ -422,6 +469,9 @@ function renderPortfolioHoldings() {
     if (row.ticker_name) title.append(portfolioElement('small', 'portfolio-ticker-code', row.ticker));
     if (row.stale) title.append(portfolioElement('small', 'stale-flag', '行情过期'));
     const pnl = finiteNumber(row.pnl);
+    const pnlRatio = finiteNumber(row.pnl_ratio);
+    const total = finiteNumber(portfolioAccountState?.total_assets);
+    const allocation = total === null || finiteNumber(row.market_value) === null ? null : Number(row.market_value) / total;
     return holdingRow([
       title,
       roleCell(row.position_category),
@@ -430,7 +480,9 @@ function renderPortfolioHoldings() {
       dataCell(maybeMoney(row.avg_cost)),
       dataCell(maybeMoney(row.price)),
       dataCell(maybeMoney(row.market_value)),
+      dataCell(allocation === null ? '—' : formatPortfolioPercent(allocation)),
       dataCell(maybeMoney(row.pnl), pnl === null ? '' : pnl >= 0 ? 'value-up' : 'value-down'),
+      dataCell(pnlRatio === null ? '—' : formatPortfolioPercent(pnlRatio), pnlRatio === null ? '' : pnlRatio >= 0 ? 'value-up' : 'value-down'),
     ]);
   }));
 
@@ -632,6 +684,7 @@ function renderPortfolioAccountStateUnavailable(error) {
   portfolioStatus.textContent = `账户状态暂时无法读取${error?.message ? ` · ${error.message}` : ''}`;
   portfolioTotal.closest('.metric')?.querySelector('[data-account-breakdown]')?.remove();
   renderPortfolioAllocation(null);
+  renderPortfolioHoldings();
 }
 
 function normalizePortfolioHistoryCopy() {

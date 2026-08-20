@@ -43,7 +43,7 @@ const fixtures = {
     market_overview: { label: '上证指数', current_value: 3452.17, change: 18.24, change_pct: .5312, market_time: '2026-07-30 15:00' },
   },
   '/api/trades': { trades: [{ id: 1, trade_date: '2026-07-24', ticker: '510300', ticker_name: '沪深300ETF', direction: 'buy', quantity: 100, price: 12, position_category: 'A股宽基指数底仓', reason: 'fixture trade', created_by: 'contract-admin', memo_id: 1, memo_reason: 'historical fixture memo', memo_reason_source: 'original' }] },
-  '/api/pe': { indexes: [{ ticker: 'CSI300_PE', display_name: '沪深 300 PE-TTM', pe_ttm: 12.5, temperature: { zone: 'normal', suggestion: 'normal_dca' } }, { ticker: 'CSI500_PE', display_name: '中证 500 PE-TTM', pe_ttm: 22.8 }, { ticker: 'CSI1000_PE', display_name: '中证 1000 PE-TTM', pe_ttm: 31.4 }, { ticker: 'STAR50_PE', display_name: '科创 50 PE-TTM', pe_ttm: 48.2 }, { ticker: 'NASDAQ100_PE', display_name: '纳斯达克 100 PE', pe_ttm: 36.1 }] },
+  '/api/pe': { indexes: [{ ticker: 'CSI300_PE', display_name: '沪深 300 PE-TTM', pe_ttm: 12.5, temperature: { zone: 'normal', suggestion: 'normal_dca' }, historical_position: { status: 'available', source: 'CSI', source_date: '2026-07-30', percentile: .18, p20: 12.7, p50: 14.4, p80: 16.8, band: 'historical_low' } }, { ticker: 'CSI500_PE', display_name: '中证 500 PE-TTM', pe_ttm: 22.8, historical_position: { status: 'unavailable', reason: 'insufficient_history', source: 'CSI', source_date: '2026-07-30' } }, { ticker: 'CSI1000_PE', display_name: '中证 1000 PE-TTM', pe_ttm: 31.4, historical_position: { status: 'unavailable', reason: 'history_stale', source: 'CSI', source_date: '2026-07-20' } }, { ticker: 'STAR50_PE', display_name: '科创 50 PE-TTM', pe_ttm: 48.2, historical_position: { status: 'unavailable', reason: 'missing_history', source: 'CSI', source_date: null } }, { ticker: 'NASDAQ100_PE', display_name: '纳斯达克 100 PE', pe_ttm: 36.1 }] },
   '/api/circuit': { active: null },
   '/api/review': { reviews: [{ year: 2026, summary: 'fixture annual review', calculation: { dietz: { returnRate: .08 } }, confirmed_at: null, confirmed_by: null }] },
   '/api/monthly': { records: [{ id: 1, year_month: '2026-06', muxia_invest: 5000, cati_invest: 0, end_total: 12000, blue_chip_temp: 'normal', summary: 'fixture monthly record' }, { id: 2, year_month: '2026-07', muxia_invest: 5000, cati_invest: 0, end_total: 12600, blue_chip_temp: 'normal', summary: 'fixture monthly record' }] },
@@ -258,6 +258,7 @@ try {
     tradeCellSemantics: [...document.querySelector('[data-trades-body] tr').cells].map((cell) => ({ className: cell.className, align: getComputedStyle(cell).textAlign })),
     accessStructure: [...document.querySelectorAll('[data-access-list] .access-log__row')].map((row) => [...row.children].map((cell) => ({ tag: cell.tagName, label: cell.dataset.label, text: cell.textContent }))),
     unavailablePeCopy: [...document.querySelectorAll('[data-pe-list] .pe-row')].find((row) => row.querySelector('strong')?.textContent.includes('中证 500'))?.querySelector('p')?.textContent,
+    availablePeHistory: [...document.querySelectorAll('[data-pe-list] .pe-row')].find((row) => row.querySelector('strong')?.textContent.includes('沪深 300'))?.querySelector('.pe-history')?.textContent.replace(/\s+/g, ' ').trim(),
     fontsLoaded: document.fonts.check('16px Geist') && document.fonts.check('16px "HarmonyOS Sans SC"') && document.fonts.check('16px "JetBrains Mono"'),
   })`);
   await capture('finance-dashboard-desktop-1440.png');
@@ -661,7 +662,8 @@ try {
       { tag: 'SPAN', label: '用户', text: 'contract-admin' },
       { tag: 'SPAN', label: '动作', text: 'login' },
     ]],
-    unavailablePeCopy: '估值区间暂不可用。',
+    unavailablePeCopy: '历史估值位置暂不可用。',
+    availablePeHistory: 'P2012.7P5014.4P8016.8CSI 截至2026-07-30',
     fontsLoaded: true,
   });
   assert.equal(diagnostics.checks.importReviewResolved, true);

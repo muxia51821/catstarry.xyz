@@ -44,6 +44,13 @@ type CurrentHoldingRow = {
   fetched_at: string | null;
 };
 
+type PositionLimitRow = {
+  position_category: string;
+  target_ratio: number;
+  lower_ratio: number;
+  upper_ratio: number;
+};
+
 export const SYNTHETIC_RECONCILIATION_SOURCES = ['auto_close', 'historical_backfill', 'history_import'];
 const CASH_ACCOUNT_EVENT_TYPES = new Set(['dividend', 'dividend_tax', 'repo_start', 'repo_maturity', 'refund']);
 const CASH_TOLERANCE = 0.000001;
@@ -57,9 +64,13 @@ export async function handleAccountState(request: Request, env: FinanceEnv): Pro
 }
 
 export async function readAccountState(env: FinanceEnv, now: Date = new Date()) {
-  const reconciliation = await latestReconciliation(env);
-  const holdings = await currentHoldings(env, now);
-  const repoState = projectRepoAssets(await allRepoEvents(env));
+  const [reconciliation, holdings, repoEvents, positionLimits] = await Promise.all([
+    latestReconciliation(env),
+    currentHoldings(env, now),
+    allRepoEvents(env),
+    readPositionLimits(env),
+  ]);
+  const repoState = projectRepoAssets(repoEvents);
 
   if (!reconciliation) {
     const state = {
@@ -77,7 +88,7 @@ export async function readAccountState(env: FinanceEnv, now: Date = new Date()) 
       total_assets: null,
       total_status: 'incomplete',
     };
-    return { ...state, portfolio_roles: projectPortfolioRoles(state) };
+    return { ...state, portfolio_roles: projectPortfolioRoles(state, positionLimits) };
   }
 
   const candidateFacts = await cashFactsOnOrAfter(env, reconciliation.snapshot_date);
@@ -106,7 +117,18 @@ export async function readAccountState(env: FinanceEnv, now: Date = new Date()) 
     total_assets: totalAssets,
     total_status: totalAssets === null ? 'incomplete' : cash.status,
   };
-  return { ...state, portfolio_roles: projectPortfolioRoles(state) };
+  return { ...state, portfolio_roles: projectPortfolioRoles(state, positionLimits) };
+}
+
+async function readPositionLimits(env: FinanceEnv) {
+  const rows = await env.DB.prepare(`SELECT position_category, target_ratio, lower_ratio, upper_ratio
+    FROM position_limits ORDER BY position_category`).all<PositionLimitRow>();
+  return rows.results.filter((row) => row.position_category !== 'A股总敞口（主动+宽基）').map((row) => ({
+    position_category: row.position_category,
+    target_ratio: Number(row.target_ratio),
+    lower_ratio: Number(row.lower_ratio),
+    upper_ratio: Number(row.upper_ratio),
+  }));
 }
 
 async function latestReconciliation(env: FinanceEnv) {
@@ -174,8 +196,9 @@ type PortfolioRoleProjectionInput = {
 
 type PortfolioRoleSource = 'security_holding' | 'broker_cash' | 'open_reverse_repo';
 
-export function projectPortfolioRoles(state: PortfolioRoleProjectionInput) {
+export function projectPortfolioRoles(state: PortfolioRoleProjectionInput, positionLimits: PositionLimitRow[] = []) {
   const roles = new Map<string, { value: number; sources: Set<PortfolioRoleSource> }>();
+  const composition = new Map<string, { value: number; sources: Set<PortfolioRoleSource>; rawRoles: Set<string> }>();
   const unclassified: Array<{ source: 'security_holding'; ticker: string; value: number | null }> = [];
   const add = (role: string, value: number | null, source: PortfolioRoleSource) => {
     if (value === null || !Number.isFinite(value) || value <= 0) return;
@@ -183,6 +206,16 @@ export function projectPortfolioRoles(state: PortfolioRoleProjectionInput) {
     current.value += value;
     current.sources.add(source);
     roles.set(role, current);
+  };
+  const addComposition = (role: string, value: number | null, source: PortfolioRoleSource, rawRole?: string) => {
+    const hasValue = value !== null && Number.isFinite(value) && value > 0;
+    if (!hasValue && !rawRole) return;
+    const key = normalizePortfolioRole(role);
+    const current = composition.get(key) ?? { value: 0, sources: new Set<PortfolioRoleSource>(), rawRoles: new Set<string>() };
+    if (hasValue) current.value += value;
+    current.sources.add(source);
+    if (rawRole) current.rawRoles.add(rawRole);
+    composition.set(key, current);
   };
 
   for (const holding of state.holdings.items) {
@@ -192,13 +225,31 @@ export function projectPortfolioRoles(state: PortfolioRoleProjectionInput) {
       continue;
     }
     add(role, holding.market_value, 'security_holding');
+    addComposition(role, holding.market_value, 'security_holding', role);
   }
   add('机动仓', state.cash.value, 'broker_cash');
-  if (state.other_assets.status === 'open_repo') add('机动仓', state.other_assets.value, 'open_reverse_repo');
+  addComposition('机动仓', state.cash.value, 'broker_cash');
+  if (state.other_assets.status === 'open_repo') {
+    add('机动仓', state.other_assets.value, 'open_reverse_repo');
+    addComposition('机动仓', state.other_assets.value, 'open_reverse_repo');
+  }
 
   const total = state.total_assets !== null && Number.isFinite(state.total_assets) && state.total_assets > 0
     ? state.total_assets
     : null;
+  const limits = new Map(positionLimits
+    .filter((limit) => limit.position_category !== 'A股总敞口（主动+宽基）')
+    .map((limit) => [normalizePortfolioRole(limit.position_category), limit]));
+  for (const role of limits.keys()) {
+    if (!composition.has(role)) composition.set(role, { value: 0, sources: new Set<PortfolioRoleSource>(), rawRoles: new Set<string>() });
+  }
+  const unclassifiedValue = unclassified.reduce((sum, item) => sum + (item.value ?? 0), 0);
+  if (unclassifiedValue > 0) composition.set('unclassified', {
+    value: unclassifiedValue,
+    sources: new Set<PortfolioRoleSource>(['security_holding']),
+    rawRoles: new Set<string>(),
+  });
+
   return {
     total_assets: state.total_assets,
     total_status: state.total_status,
@@ -209,8 +260,36 @@ export function projectPortfolioRoles(state: PortfolioRoleProjectionInput) {
       percentage: total === null ? null : entry.value / total,
       sources: [...entry.sources],
     })),
+    composition: [...composition.entries()].map(([role, entry]) => {
+      const limit = limits.get(role) ?? null;
+      const percentage = total === null ? null : entry.value / total;
+      return {
+        role,
+        value: entry.value,
+        percentage,
+        sources: [...entry.sources],
+        raw_roles: [...entry.rawRoles],
+        target_ratio: limit ? limit.target_ratio : null,
+        lower_ratio: limit ? limit.lower_ratio : null,
+        upper_ratio: limit ? limit.upper_ratio : null,
+        deviation: percentage === null || !limit ? null : percentage - limit.target_ratio,
+      };
+    }),
     unclassified,
   };
+}
+
+function normalizePortfolioRole(role: string) {
+  const aliases: Record<string, string> = {
+    '主动操作仓（A股）': '主动操作仓',
+    '主动仓': '主动操作仓',
+    'A股宽基指数底仓': 'A股宽基指数',
+    '机动仓（货币ETF）': '机动仓',
+    '货币基金/现金': '机动仓',
+    '美股ETF（A股跨境ETF）': '美股 ETF',
+    '美股宽基指数底仓': '美股 ETF',
+  };
+  return aliases[role] ?? role;
 }
 
 async function cashFactsOnOrAfter(env: FinanceEnv, throughDate: string) {

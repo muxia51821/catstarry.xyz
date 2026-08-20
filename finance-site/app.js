@@ -261,11 +261,25 @@ function renderPe() {
   const rows = state.pe ?? []; const zones = ['freeze', 'low', 'normal', 'high', 'overheat'];
   replace($('[data-pe-list]'), rows.map((row) => {
     const hasPe = row.pe_ttm !== null && row.pe_ttm !== undefined;
-    const status = row.temperature ? peSuggestion(row.temperature) : hasPe ? '估值区间暂不可用。' : row.stale ? 'PE 数据过期或不可用。' : '暂无 PE 数据。';
+    const historical = row.historical_position;
+    const historicalBand = { historical_low: '历史低位', normal_range: '常态区间', historical_high: '历史高位' };
+    const historicalStatus = !hasPe ? row.stale ? 'PE 数据过期或不可用。' : '暂无 PE 数据。'
+      : !historical ? '历史估值位置仅覆盖 CSI 指数。'
+        : historical.status !== 'available' ? historical.reason === 'current_pe_unavailable' ? '当前 PE 暂不可用，无法计算历史位置。' : '历史估值位置暂不可用。'
+          : `历史${formatPercent(historical.percentile)} · ${historicalBand[historical.band] ?? '常态区间'}`;
+    const historicalDetails = historical?.status === 'available'
+      ? el('dl', { className: 'pe-history' },
+        el('div', {}, el('dt', { text: 'P20' }), el('dd', { text: number.format(historical.p20) })),
+        el('div', {}, el('dt', { text: 'P50' }), el('dd', { text: number.format(historical.p50) })),
+        el('div', {}, el('dt', { text: 'P80' }), el('dd', { text: number.format(historical.p80) })),
+        el('div', {}, el('dt', { text: 'CSI 截至' }), el('dd', { text: historical.source_date || '—' })),
+      ) : historical?.source_date ? el('p', { className: 'pe-source', text: `CSI 最近数据：${historical.source_date}` }) : null;
+    const status = row.temperature ? `${peSuggestion(row.temperature)} ${historicalStatus}` : historicalStatus;
     return el('article', { className: 'pe-row' },
     el('header', {}, el('strong', { text: row.display_name || row.ticker }), el('span', { className: `state-${row.temperature?.zone ?? 'unavailable'}`, text: row.pe_ttm === null ? '数据不可用' : `${number.format(row.pe_ttm)} PE` })),
     el('div', { className: 'pe-scale' }, ...zones.map((zone) => el('i', { className: `pe-scale__segment pe-scale__segment--${zone}`, attrs: row.temperature?.zone === zone ? { 'data-active': '' } : {} }))),
     el('p', { text: status }),
+    historicalDetails,
   );
   }));
   $('[data-pe-empty]').hidden = rows.length > 0;

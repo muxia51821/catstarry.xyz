@@ -70,6 +70,7 @@
             <div class="portfolio-allocation__body" data-portfolio-allocation-body hidden>
               <figure class="portfolio-allocation__figure"><div class="portfolio-allocation__plot" data-portfolio-allocation-plot></div><figcaption>面积表示当前角色占 authoritative Total Assets 的比例。</figcaption></figure>
               <aside class="portfolio-allocation__detail" aria-live="polite"><p class="eyebrow">ROLE COMPOSITION</p><h3 data-portfolio-allocation-detail-title>选择角色</h3><div data-portfolio-allocation-detail></div></aside>
+              <div class="portfolio-role-composition"><table><thead><tr><th>组合角色</th><th>当前价值</th><th>总资产占比</th><th>目标</th><th>偏离</th></tr></thead><tbody data-portfolio-role-composition-body></tbody></table></div>
             </div>
             <p class="empty-state" data-portfolio-allocation-unavailable>总资产待核验，暂不展示资产配置比例。</p>
           </section>
@@ -90,7 +91,7 @@
             <p class="empty-state" data-holdings-empty hidden>还没有可展示的持仓快照。先录入一笔交易，或通过受审阅的导入流程写入快照。</p>
           </section>
 
-          <section class="panel" data-pane="holdings" aria-labelledby="positions-title">
+          <section class="panel portfolio-legacy-position" data-pane="holdings" aria-labelledby="positions-title">
             <header class="panel-header"><div><p class="eyebrow">ALLOCATION</p><h2 id="positions-title">仓位偏离</h2></div></header>
             <div class="position-list" data-position-list></div><p class="empty-state" data-position-empty hidden>尚未配置仓位目标或有效市值。</p>
           </section>

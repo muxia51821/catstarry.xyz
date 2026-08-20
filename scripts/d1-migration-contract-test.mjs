@@ -95,6 +95,7 @@ for (const table of [
   'finance_cash_flows',
   'finance_import_batches',
   'finance_import_review',
+  'finance_index_valuation_history',
   'holdings_snapshots',
   'market_data',
   'finance_market_indexes',
@@ -133,6 +134,12 @@ assert.match(
     .all('510300').map(({ detail }) => detail).join(' '),
   /sqlite_autoindex_market_data_1/,
 );
+finance.prepare(`INSERT INTO finance_index_valuation_history
+  (symbol, observation_date, pe_ttm, source, imported_at, imported_by) VALUES (?, ?, ?, ?, ?, ?)`)
+  .run('CSI300_PE', '2026-08-14', 12.5, 'CSI', '2026-08-14T16:00:00.000Z', 'migration-contract');
+assert.throws(() => finance.prepare(`INSERT INTO finance_index_valuation_history
+  (symbol, observation_date, pe_ttm, source, imported_at, imported_by) VALUES (?, ?, ?, ?, ?, ?)`)
+  .run('NASDAQ100_PE', '2026-08-14', 12.5, 'CSI', '2026-08-14T16:00:00.000Z', 'migration-contract'), /CHECK constraint failed/);
 assert.match(
   finance.prepare('EXPLAIN QUERY PLAN SELECT * FROM trades ORDER BY trade_date DESC, id DESC LIMIT 100')
     .all().map(({ detail }) => detail).join(' '),
