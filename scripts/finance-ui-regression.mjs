@@ -35,9 +35,9 @@ const fixtures = {
     total_market_value: 12600,
     market_data_complete: true,
     holdings: [
-      { ticker: '510300', ticker_name: '沪深300ETF', quantity: 100, avg_cost: 66, price: 72, market_value: 7200, pnl: 600, position_category: 'A股宽基指数底仓', fetched_at: '2026-07-25T10:00:00.000Z' },
-      { ticker: '513100', ticker_name: '纳斯达克100ETF', quantity: 100, avg_cost: 33, price: 36, market_value: 3600, pnl: 300, position_category: '美股ETF（A股跨境ETF）', fetched_at: '2026-07-25T10:00:00.000Z' },
-      { ticker: '518880', ticker_name: '黄金ETF', quantity: 100, avg_cost: 16, price: 18, market_value: 1800, pnl: 200, position_category: '黄金ETF', fetched_at: '2026-07-25T10:00:00.000Z' },
+      { ticker: '510300', ticker_name: '沪深300ETF', quantity: 100, avg_cost: 66, price: 72, market_value: 7200, pnl: 600, pnl_ratio: 600 / 6600, position_category: 'A股宽基指数底仓', fetched_at: '2026-07-25T10:00:00.000Z' },
+      { ticker: '513100', ticker_name: '纳斯达克100ETF', quantity: 100, avg_cost: 33, price: 36, market_value: 3600, pnl: 300, pnl_ratio: null, position_category: '美股ETF（A股跨境ETF）', fetched_at: '2026-07-25T10:00:00.000Z' },
+      { ticker: '518880', ticker_name: '黄金ETF', quantity: 100, avg_cost: 16, price: null, market_value: null, pnl: null, pnl_ratio: null, position_category: '黄金ETF', fetched_at: '2026-07-25T10:00:00.000Z' },
     ],
     positions: [{ position_category: 'core', current_ratio: 1, target_ratio: 1, lower_ratio: 0.8, upper_ratio: 1, suggestedChange: 0, status: 'normal' }],
     market_overview: { label: '上证指数', current_value: 3452.17, change: 18.24, change_pct: .5312, market_time: '2026-07-30 15:00' },
@@ -47,7 +47,7 @@ const fixtures = {
   '/api/circuit': { active: null },
   '/api/review': { reviews: [{ year: 2026, summary: 'fixture annual review', calculation: { dietz: { returnRate: .08 } }, confirmed_at: null, confirmed_by: null }] },
   '/api/monthly': { records: [{ id: 1, year_month: '2026-06', muxia_invest: 5000, cati_invest: 0, end_total: 12000, blue_chip_temp: 'normal', summary: 'fixture monthly record' }, { id: 2, year_month: '2026-07', muxia_invest: 5000, cati_invest: 0, end_total: 12600, blue_chip_temp: 'normal', summary: 'fixture monthly record' }] },
-  '/api/assets/series': { view: 'month', records: [{ snapshot_date: '2026-06-30', total_value: 12000 }, { snapshot_date: '2026-07-31', total_value: 12600 }], legacy_monthly_records: [] },
+  '/api/assets/series': { view: 'month', series: [{ snapshot_date: '2026-06-30', total_value: 12000 }, { snapshot_date: '2026-07-31', total_value: 12600 }], source_model: 'derived_valuation', coverage: { note: 'fixture complete valuations' } },
   '/api/cash-flows': { cash_flows: [{ id: 1, occurred_on: '2026-07-28', contributor: 'muxia', flow_type: 'bonus_investment', confirmed_amount: 10000, manager_share_offset: 1000, net_amount: 9000, note: 'fixture cash flow' }] },
   '/api/assets/snapshots': { snapshots: [{ id: 1, snapshot_at: '2026-07-31T15:00', snapshot_date: '2026-07-31', total_value: 12600, source: 'fixture statement', is_complete: 1, incomplete_reason: null, created_at: '2026-07-31T15:10:00.000Z' }] },
   '/api/risk/signals': { single_position_loss: null, worst_ticker: null, monthly_drawdown: null, annual_drawdown: null, data_complete: false, missing_reasons: ['完整资产快照不足，组合回撤数据积累中。'], signals: [{ level: 'yellow', reason: 'fixture signal' }] },
@@ -221,7 +221,8 @@ try {
     holdings: document.querySelectorAll('[data-holdings-body] tr').length,
     pe: document.querySelectorAll('[data-pe-list] article').length,
     peSegments: document.querySelectorAll('[data-pe-list] .pe-scale__segment').length,
-    accessRows: document.querySelectorAll('[data-access-list] p').length,
+    accessRows: document.querySelectorAll('[data-access-list] .access-log__row').length,
+    accessLabels: [...document.querySelectorAll('[data-access-list] .access-log__header span')].map((node) => node.textContent),
     importReviewRows: document.querySelectorAll('[data-import-review-list] article').length,
     monthlyRows: document.querySelectorAll('[data-monthly-list] article').length,
     cashFlowRows: document.querySelectorAll('[data-cash-flows-body] tr').length,
@@ -249,6 +250,14 @@ try {
     tabPressedState: [...document.querySelectorAll('[data-tab]')].map((button) => ({ tab: button.dataset.tab, pressed: button.getAttribute('aria-pressed') })),
     holdingsSummary: [...document.querySelectorAll('[data-top-holdings] p')].map((node) => node.textContent.replace(/\s+/g, ' ').trim()),
     categoryDistribution: document.querySelectorAll('[data-category-distribution] article').length,
+    overviewHistory: {
+      points: document.querySelectorAll('[data-net-worth-chart] circle').length,
+      state: document.querySelector('[data-net-worth-state]').textContent,
+    },
+    holdingsPnl: [...document.querySelectorAll('[data-holdings-body] tr')].map((row) => row.cells[5].textContent),
+    tradeCellSemantics: [...document.querySelector('[data-trades-body] tr').cells].map((cell) => ({ className: cell.className, align: getComputedStyle(cell).textAlign })),
+    accessStructure: [...document.querySelectorAll('[data-access-list] .access-log__row')].map((row) => [...row.children].map((cell) => ({ tag: cell.tagName, label: cell.dataset.label, text: cell.textContent }))),
+    unavailablePeCopy: [...document.querySelectorAll('[data-pe-list] .pe-row')].find((row) => row.querySelector('strong')?.textContent.includes('中证 500'))?.querySelector('p')?.textContent,
     fontsLoaded: document.fonts.check('16px Geist') && document.fonts.check('16px "HarmonyOS Sans SC"') && document.fonts.check('16px "JetBrains Mono"'),
   })`);
   await capture('finance-dashboard-desktop-1440.png');
@@ -256,6 +265,20 @@ try {
   await delay(100);
   await capture('finance-dashboard-desktop-1366.png');
   await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
+
+  await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+  await evaluate(`document.querySelector('[data-tab="records"]').click()`);
+  await delay(100);
+  diagnostics.checks.mobileAccessLog = await evaluate(`(() => {
+    const row = document.querySelector('[data-access-list] .access-log__row');
+    return {
+      headerHidden: getComputedStyle(document.querySelector('[data-access-list] .access-log__header')).display === 'none',
+      singleColumn: getComputedStyle(row).gridTemplateColumns.trim().split(/\\s+/).length === 1,
+      labels: [...row.children].map((cell) => cell.dataset.label),
+    };
+  })()`);
+  await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
+  await evaluate(`document.querySelector('[data-tab="overview"]').click()`);
 
   await evaluate(`(() => {
     const row = document.querySelector('[data-import-review-list] article');
@@ -586,6 +609,7 @@ try {
     pe: 5,
     peSegments: 25,
     accessRows: 1,
+    accessLabels: ['时间', '用户', '动作'],
     importReviewRows: 1,
     monthlyRows: 2,
     cashFlowRows: 1,
@@ -618,8 +642,26 @@ try {
       { tab: 'planning', pressed: 'false' },
       { tab: 'records', pressed: 'false' },
     ],
-    holdingsSummary: ['沪深300ETF57.1%', '纳斯达克100ETF28.6%', '黄金ETF14.3%'],
+    holdingsSummary: ['沪深300ETF57.1%', '纳斯达克100ETF28.6%', '黄金ETF0.0%'],
     categoryDistribution: 3,
+    overviewHistory: { points: 2, state: '2 个已核验月末快照' },
+    holdingsPnl: ['+¥600.00 (+9.09%)', '+¥300.00 (—)', '—'],
+    tradeCellSemantics: [
+      { className: 'table-data trade-cell--date', align: 'left' },
+      { className: 'table-text trade-cell--text', align: 'left' },
+      { className: 'trade-cell--text trade-buy', align: 'left' },
+      { className: 'table-data trade-cell--number', align: 'right' },
+      { className: 'table-data trade-cell--number', align: 'right' },
+      { className: 'table-text trade-cell--text', align: 'left' },
+      { className: 'table-text trade-cell--text', align: 'left' },
+      { className: 'trade-cell--action', align: 'left' },
+    ],
+    accessStructure: [[
+      { tag: 'TIME', label: '时间', text: '2026-07-25T10:00:00.000Z' },
+      { tag: 'SPAN', label: '用户', text: 'contract-admin' },
+      { tag: 'SPAN', label: '动作', text: 'login' },
+    ]],
+    unavailablePeCopy: '估值区间暂不可用。',
     fontsLoaded: true,
   });
   assert.equal(diagnostics.checks.importReviewResolved, true);
@@ -628,6 +670,7 @@ try {
   assert.deepEqual(diagnostics.checks.modalRestored, { background: true, focus: true });
   assert.deepEqual(diagnostics.checks.management, { editAvailable: true, monthlyEntryAvailable: true, planEntryAvailable: true, memoEntryAvailable: true, rulesEntryAvailable: true });
   assert.deepEqual(diagnostics.checks.cashFlows, { rows: 1, netAmount: '¥1,000.00', adminActions: 2 });
+  assert.deepEqual(diagnostics.checks.mobileAccessLog, { headerHidden: true, singleColumn: true, labels: ['时间', '用户', '动作'] });
   assert.deepEqual(diagnostics.checks.assetSnapshots, { rows: 2, hasReadOnlyActions: true });
   assert.deepEqual(diagnostics.checks.riskSignals, { rows: 7, signal: '黄色关注', incomplete: true });
   assert.equal(diagnostics.checks.riskSignalsFailureIsolated, true);

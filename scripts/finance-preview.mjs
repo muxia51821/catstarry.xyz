@@ -132,7 +132,7 @@ function assetSeries(view) {
     const key = view === 'week' ? `${row.snapshot_date.slice(0, 4)}-W${isoWeek(row.snapshot_date)}` : row.snapshot_date.slice(0, 7);
     selected.set(key, row);
   }
-  return { view, records: [...selected.values()], legacy_monthly_records: view === 'month' ? state.monthly.filter((row) => row.end_total !== null && row.end_total !== undefined).map((row) => ({ year_month: row.year_month, end_total: row.end_total })) : [] };
+  return { view, series: [...selected.values()] };
 }
 
 function listTrades(url) {

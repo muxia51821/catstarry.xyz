@@ -72,6 +72,13 @@ function setStatus(node, message, tone = '') {
 function isAdmin() { return state.session?.role === 'admin'; }
 function valueOrDash(value, formatter = number) { return value === null || value === undefined ? '—' : formatter.format(Number(value)); }
 function formatPercent(value) { return value === null || value === undefined ? '—' : `${(Number(value) * 100).toFixed(1)}%`; }
+function formatPnl(row) {
+  if (row.pnl === null || row.pnl === undefined) return '—';
+  const ratioValue = Number(row.pnl_ratio);
+  const ratio = row.pnl_ratio === null || row.pnl_ratio === undefined ? '—' : `${ratioValue > 0 ? '+' : ''}${(ratioValue * 100).toFixed(2)}%`;
+  const pnl = Number(row.pnl);
+  return `${pnl > 0 ? '+' : ''}${money.format(pnl)} (${ratio})`;
+}
 function escapeHtml(value) { return String(value ?? '').replace(/[&<>'"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char]); }
 
 async function boot() {
@@ -172,7 +179,7 @@ function renderSummary() {
 }
 
 function renderOverview() {
-  const snapshots = state.assetSeries?.records ?? [];
+  const snapshots = state.assetSeries?.series ?? [];
   const records = snapshots.map((row) => ({ year_month: state.assetView === 'week' ? String(row.snapshot_date) : String(row.snapshot_date).slice(0, 7), end_total: row.total_value }));
   const chart = $('[data-net-worth-chart]'); const empty = $('[data-net-worth-empty]');
   empty.hidden = records.length > 0; chart.hidden = records.length === 0;
@@ -204,11 +211,14 @@ function renderNetWorthChart(node, records) {
 
 function renderHoldings() {
   const rows = state.holdings?.holdings ?? [];
-  replace($('[data-holdings-body]'), rows.map((row) => el('tr', {},
+  replace($('[data-holdings-body]'), rows.map((row) => {
+    const hasPnl = row.pnl !== null && row.pnl !== undefined;
+    return el('tr', {},
     el('td', { className: 'table-text' }, el('strong', { text: row.ticker_name || row.ticker }), row.stale ? el('small', { className: 'stale-flag', text: '行情过期' }) : null),
     ...[valueOrDash(row.quantity), valueOrDash(row.avg_cost, money), valueOrDash(row.price, money), valueOrDash(row.market_value, money)].map((value) => el('td', { className: 'table-data', text: value })),
-    el('td', { className: `table-data ${Number(row.pnl) >= 0 ? 'value-up' : 'value-down'}`, text: valueOrDash(row.pnl, money) }),
-  )));
+    el('td', { className: `table-data ${hasPnl ? (Number(row.pnl) >= 0 ? 'value-up' : 'value-down') : ''}`, text: formatPnl(row) }),
+  );
+  }));
   $('[data-holdings-empty]').hidden = rows.length > 0;
   renderHoldingsSummary(rows);
 }
@@ -249,23 +259,27 @@ function renderPositions() {
 
 function renderPe() {
   const rows = state.pe ?? []; const zones = ['freeze', 'low', 'normal', 'high', 'overheat'];
-  replace($('[data-pe-list]'), rows.map((row) => el('article', { className: 'pe-row' },
+  replace($('[data-pe-list]'), rows.map((row) => {
+    const hasPe = row.pe_ttm !== null && row.pe_ttm !== undefined;
+    const status = row.temperature ? peSuggestion(row.temperature) : hasPe ? '估值区间暂不可用。' : row.stale ? 'PE 数据过期或不可用。' : '暂无 PE 数据。';
+    return el('article', { className: 'pe-row' },
     el('header', {}, el('strong', { text: row.display_name || row.ticker }), el('span', { className: `state-${row.temperature?.zone ?? 'unavailable'}`, text: row.pe_ttm === null ? '数据不可用' : `${number.format(row.pe_ttm)} PE` })),
     el('div', { className: 'pe-scale' }, ...zones.map((zone) => el('i', { className: `pe-scale__segment pe-scale__segment--${zone}`, attrs: row.temperature?.zone === zone ? { 'data-active': '' } : {} }))),
-    el('p', { text: row.temperature ? peSuggestion(row.temperature) : row.stale ? 'PE 数据过期或不可用。' : '暂无 PE 数据。' }),
-  )));
+    el('p', { text: status }),
+  );
+  }));
   $('[data-pe-empty]').hidden = rows.length > 0;
 }
 
 function renderTrades() {
   const rows = state.trades ?? [];
   replace($('[data-trades-body]'), rows.map((row) => {
-    const actions = el('td', { text: '—' });
+    const actions = el('td', { className: 'trade-cell--action', text: '—' });
     if (isAdmin()) { const edit = el('button', { className: 'text-button', text: '修改', attrs: { type: 'button' }, dataset: { editTrade: row.id } }); const remove = el('button', { className: 'text-button text-button--danger', text: '删除', attrs: { type: 'button' }, dataset: { deleteTrade: row.id } }); actions.replaceChildren(el('div', { className: 'row-actions' }, edit, remove)); }
     const memo = row.memo_reason ? `${row.memo_reason_source === 'reconstructed_confirmed' ? '事后确认：' : '原始记录：'}${row.memo_reason.slice(0, 44)}${row.memo_reason.length > 44 ? '…' : ''}` : '—';
     if (isAdmin() && row.memo_id) actions.firstElementChild?.append(el('button', { className: 'text-button', text: '改理由', attrs: { type: 'button' }, dataset: { editMemoFromTrade: row.memo_id } }));
     if (isAdmin() && !row.memo_id) actions.firstElementChild?.append(el('button', { className: 'text-button', text: '补理由', attrs: { type: 'button' }, dataset: { memoTrade: row.id } }));
-    return el('tr', {}, el('td', { className: 'table-data', text: row.trade_date }), el('td', { className: 'table-text', text: row.ticker_name || row.ticker }), el('td', { className: row.direction === 'sell' ? 'trade-sell' : 'trade-buy', text: row.direction === 'buy' ? '买入' : '卖出' }), el('td', { className: 'table-data', text: valueOrDash(row.quantity) }), el('td', { className: 'table-data', text: valueOrDash(row.price, money) }), el('td', { className: 'table-text' }, categoryLabel(row.position_category)), el('td', { className: 'table-text', text: memo }), actions);
+    return el('tr', {}, el('td', { className: 'table-data trade-cell--date', text: row.trade_date }), el('td', { className: 'table-text trade-cell--text', text: row.ticker_name || row.ticker }), el('td', { className: `trade-cell--text ${row.direction === 'sell' ? 'trade-sell' : 'trade-buy'}`, text: row.direction === 'buy' ? '买入' : '卖出' }), el('td', { className: 'table-data trade-cell--number', text: valueOrDash(row.quantity) }), el('td', { className: 'table-data trade-cell--number', text: valueOrDash(row.price, money) }), el('td', { className: 'table-text trade-cell--text' }, categoryLabel(row.position_category)), el('td', { className: 'table-text trade-cell--text', text: memo }), actions);
   }));
   $('[data-trades-empty]').hidden = rows.length > 0;
   renderPagination('trade');
@@ -392,7 +406,11 @@ function renderRiskSignals() {
 function renderAccessLog() {
   const panel = $('[data-access-panel]');
   panel.hidden = !isAdmin();
-  replace($('[data-access-list]'), (state.accessLog ?? []).map((row) => el('p', { text: `${row.occurred_at} · ${row.username} · ${row.action}` })));
+  replace($('[data-access-rows]'), (state.accessLog ?? []).map((row) => el('article', { className: 'access-log__row' },
+    el('time', { className: 'access-log__time', text: row.occurred_at || '—', attrs: { datetime: row.occurred_at || '' }, dataset: { label: '时间' } }),
+    el('span', { className: 'access-log__user', text: row.username || '—', dataset: { label: '用户' } }),
+    el('span', { className: 'access-log__action', text: row.action || '—', dataset: { label: '动作' } }),
+  )));
   $('[data-access-empty]').hidden = (state.accessLog ?? []).length > 0;
   renderPagination('access');
 }
