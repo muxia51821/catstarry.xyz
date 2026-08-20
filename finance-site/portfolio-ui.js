@@ -21,12 +21,20 @@ const portfolioHistoryState = document.querySelector('[data-net-worth-state]');
 const portfolioHistoryEmpty = document.querySelector('[data-net-worth-empty]');
 const portfolioHoldingsBody = document.querySelector('[data-holdings-body]');
 const portfolioTradesBody = document.querySelector('[data-trades-body]');
+const portfolioAllocationBody = document.querySelector('[data-portfolio-allocation-body]');
+const portfolioAllocationPlot = document.querySelector('[data-portfolio-allocation-plot]');
+const portfolioAllocationDetail = document.querySelector('[data-portfolio-allocation-detail]');
+const portfolioAllocationDetailTitle = document.querySelector('[data-portfolio-allocation-detail-title]');
+const portfolioAllocationTotal = document.querySelector('[data-portfolio-allocation-total]');
+const portfolioAllocationUnavailable = document.querySelector('[data-portfolio-allocation-unavailable]');
 
 let portfolioEpoch = 0;
 let portfolioScheduled = false;
 let portfolioHoldings = [];
 let portfolioSecurities = new Map();
 let portfolioTradeCatalog = [];
+let portfolioAllocationSelected = null;
+let portfolioAccountState = null;
 
 function portfolioElement(tag, className, text) {
   const node = document.createElement(tag);
@@ -119,6 +127,7 @@ function renderPortfolioAccountState(accountState) {
   portfolioTotal.textContent = total === null ? '待核验' : portfolioMoney.format(total);
   portfolioTotal.dataset.numeric = String(total !== null);
   portfolioStatus.textContent = accountStateStatus(accountState);
+  portfolioAccountState = accountState;
 
   const metric = portfolioTotal.closest('.metric');
   if (!metric) return;
@@ -139,7 +148,170 @@ function renderPortfolioAccountState(accountState) {
     breakdown.append(accountBreakdownRow('其他账户资产', other !== null ? portfolioMoney.format(other) : knownOther !== null ? `${portfolioMoney.format(knownOther)} · 待核验` : '待核验'));
   }
   portfolioStatus.before(breakdown);
+  renderPortfolioAllocation(accountState);
 }
+
+const PORTFOLIO_ALLOCATION_LABELS = new Map([
+  ['主动操作仓（A股）', 'A股主动仓'],
+  ['A股宽基指数底仓', 'A股宽基'],
+  ['美股ETF（A股跨境ETF）', '美股 ETF'],
+  ['黄金ETF', '黄金'],
+  ['机动仓', '机动仓'],
+  ['其他', '其他'],
+  ['unclassified', '未分类'],
+]);
+
+function renderPortfolioAllocation(accountState) {
+  if (!portfolioAllocationBody || !portfolioAllocationPlot || !portfolioAllocationDetail || !portfolioAllocationDetailTitle || !portfolioAllocationTotal || !portfolioAllocationUnavailable) return;
+  const projection = accountState?.portfolio_roles;
+  const total = finiteNumber(projection?.total_assets);
+  const roles = allocationRoles(projection);
+  const available = projection?.percentage_available === true && total !== null && total > 0 && roles.length > 0;
+  portfolioAllocationBody.hidden = !available;
+  portfolioAllocationUnavailable.hidden = available;
+  portfolioAllocationTotal.textContent = available ? `Total Assets · ${portfolioMoney.format(total)}` : 'Allocation unavailable';
+  if (!available) {
+    portfolioAllocationPlot.replaceChildren();
+    portfolioAllocationDetail.replaceChildren();
+    portfolioAllocationDetailTitle.textContent = '配置待核验';
+    return;
+  }
+  if (!roles.some((role) => role.key === portfolioAllocationSelected)) portfolioAllocationSelected = roles[0].key;
+  renderPortfolioAllocationMap(roles, total);
+  renderPortfolioAllocationDetail(roles, accountState);
+}
+
+function allocationRoles(projection) {
+  const grouped = new Map();
+  for (const row of projection?.roles ?? []) {
+    const value = finiteNumber(row.value);
+    if (value === null || value <= 0) continue;
+    const key = row.role === '机动仓（货币ETF）' ? '机动仓' : row.role;
+    const entry = grouped.get(key) ?? { key, value: 0, rawRoles: [] };
+    entry.value += value;
+    entry.rawRoles.push(row.role);
+    grouped.set(key, entry);
+  }
+  const unclassifiedValue = (projection?.unclassified ?? []).reduce((sum, item) => sum + (finiteNumber(item.value) ?? 0), 0);
+  const projectedValue = [...grouped.values()].reduce((sum, entry) => sum + entry.value, 0);
+  const total = finiteNumber(projection?.total_assets);
+  const unprojectedValue = total === null ? 0 : Math.max(0, total - projectedValue - unclassifiedValue);
+  if (unclassifiedValue + unprojectedValue > 0) grouped.set('unclassified', { key: 'unclassified', value: unclassifiedValue + unprojectedValue, rawRoles: [] });
+  return [...grouped.values()]
+    .sort((left, right) => right.value - left.value)
+    .map((entry) => ({ ...entry, label: PORTFOLIO_ALLOCATION_LABELS.get(entry.key) ?? entry.key }));
+}
+
+function renderPortfolioAllocationMap(roles, total) {
+  const width = 960;
+  const height = 400;
+  const selected = portfolioAllocationSelected;
+  const layout = allocationTreemapLayout(roles, 0, 0, width, height);
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+  svg.setAttribute('role', 'img');
+  svg.setAttribute('aria-label', '当前资产配置图，面积表示角色占总资产比例。');
+  for (const [index, cell] of layout.entries()) {
+    const role = cell.role;
+    const percentage = role.value / total;
+    const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    group.classList.add('portfolio-allocation__cell');
+    group.dataset.key = role.key;
+    group.dataset.rank = String(index);
+    group.classList.toggle('is-selected', role.key === selected);
+    group.setAttribute('tabindex', '0');
+    group.setAttribute('role', 'button');
+    group.setAttribute('aria-pressed', String(role.key === selected));
+    group.setAttribute('aria-label', `${role.label}，${portfolioMoney.format(role.value)}，${formatPortfolioPercent(percentage)}`);
+    const activate = () => {
+      portfolioAllocationSelected = role.key;
+      renderPortfolioAllocationMap(roles, total);
+      renderPortfolioAllocationDetail(roles, portfolioAccountState);
+    };
+    group.addEventListener('click', activate);
+    group.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); activate(); } });
+    const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+    title.textContent = `${role.label} · ${portfolioMoney.format(role.value)} · ${formatPortfolioPercent(percentage)}`;
+    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rect.setAttribute('x', String(cell.x)); rect.setAttribute('y', String(cell.y)); rect.setAttribute('width', String(cell.width)); rect.setAttribute('height', String(cell.height)); rect.setAttribute('rx', '3'); rect.dataset.share = (percentage * 100).toFixed(4);
+    group.append(title, rect);
+    if (cell.width >= 145 && cell.height >= 72) {
+      const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      label.classList.add('portfolio-allocation__label'); label.setAttribute('x', String(cell.x + 16)); label.setAttribute('y', String(cell.y + 28)); label.textContent = role.label;
+      const value = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      value.classList.add('portfolio-allocation__value'); value.setAttribute('x', String(cell.x + 16)); value.setAttribute('y', String(cell.y + 48)); value.textContent = `${portfolioMoney.format(role.value)} · ${formatPortfolioPercent(percentage)}`;
+      group.append(label, value);
+    }
+    svg.append(group);
+  }
+  portfolioAllocationPlot.replaceChildren(svg);
+}
+
+function allocationTreemapLayout(roles, x, y, width, height, splitVertically = width >= height) {
+  if (roles.length === 1) return [{ role: roles[0], x, y, width, height }];
+  const total = roles.reduce((sum, role) => sum + role.value, 0);
+  let split = 1;
+  let running = roles[0].value;
+  while (split < roles.length - 1 && Math.abs(total / 2 - (running + roles[split].value)) <= Math.abs(total / 2 - running)) running += roles[split++].value;
+  const gutter = 4;
+  if (splitVertically) {
+    const firstWidth = Math.max(0, Math.round((width - gutter) * running / total));
+    return [
+      ...allocationTreemapLayout(roles.slice(0, split), x, y, firstWidth, height, !splitVertically),
+      ...allocationTreemapLayout(roles.slice(split), x + firstWidth + gutter, y, width - firstWidth - gutter, height, !splitVertically),
+    ];
+  }
+  const firstHeight = Math.max(0, Math.round((height - gutter) * running / total));
+  return [
+    ...allocationTreemapLayout(roles.slice(0, split), x, y, width, firstHeight, !splitVertically),
+    ...allocationTreemapLayout(roles.slice(split), x, y + firstHeight + gutter, width, height - firstHeight - gutter, !splitVertically),
+  ];
+}
+
+function renderPortfolioAllocationDetail(roles, accountState) {
+  const selected = roles.find((role) => role.key === portfolioAllocationSelected) ?? roles[0];
+  if (!selected) return;
+  portfolioAllocationDetailTitle.textContent = selected.label;
+  const total = finiteNumber(accountState?.portfolio_roles?.total_assets);
+  const summary = portfolioElement('p', 'portfolio-allocation__summary');
+  summary.append(portfolioElement('strong', '', portfolioMoney.format(selected.value)), portfolioElement('span', '', total === null ? '—' : formatPortfolioPercent(selected.value / total)));
+  const table = portfolioElement('table', 'portfolio-allocation__table');
+  const body = document.createElement('tbody');
+  for (const item of allocationComposition(selected, accountState)) {
+    const row = document.createElement('tr');
+    row.append(portfolioElement('th', '', item.label), portfolioElement('td', '', item.value === null ? '—' : portfolioMoney.format(item.value)));
+    body.append(row);
+  }
+  table.append(body);
+  portfolioAllocationDetail.replaceChildren(summary, table);
+}
+
+function allocationComposition(role, accountState) {
+  const projection = accountState?.portfolio_roles;
+  if (role.key === 'unclassified') {
+    const rows = (projection?.unclassified ?? []).map((item) => ({ label: `未分类持仓 · ${item.ticker}`, value: finiteNumber(item.value) }));
+    const listed = rows.reduce((sum, item) => sum + (item.value ?? 0), 0);
+    const remainder = Math.max(0, role.value - listed);
+    if (remainder > 0) rows.push({ label: '未投影账户资产', value: remainder });
+    return rows;
+  }
+  const rows = [];
+  const sourceItems = accountState?.holdings?.items ?? [];
+  for (const rawRole of role.rawRoles) {
+    for (const item of sourceItems.filter((holding) => holding.position_category === rawRole)) {
+      rows.push({ label: rawRole === '机动仓（货币ETF）' ? `货币ETF · ${item.ticker}` : `证券持仓 · ${item.ticker}`, value: finiteNumber(item.market_value) });
+    }
+  }
+  if (role.key === '机动仓') {
+    const cash = finiteNumber(accountState?.cash?.value);
+    if (cash !== null && cash > 0) rows.unshift({ label: 'Broker Cash', value: cash });
+    const repo = finiteNumber(accountState?.other_assets?.value);
+    if (accountState?.other_assets?.status === 'open_repo' && repo !== null && repo > 0) rows.push({ label: '逆回购应收', value: repo });
+  }
+  return rows.length ? rows : [{ label: '当前角色资产', value: role.value }];
+}
+
+function formatPortfolioPercent(value) { return `${(value * 100).toFixed(1)}%`; }
 
 function accountBreakdownRow(label, value) {
   const row = portfolioElement('span', 'portfolio-account-breakdown__row');
@@ -459,6 +631,7 @@ function renderPortfolioAccountStateUnavailable(error) {
   portfolioTotal.dataset.numeric = 'false';
   portfolioStatus.textContent = `账户状态暂时无法读取${error?.message ? ` · ${error.message}` : ''}`;
   portfolioTotal.closest('.metric')?.querySelector('[data-account-breakdown]')?.remove();
+  renderPortfolioAllocation(null);
 }
 
 function normalizePortfolioHistoryCopy() {
@@ -477,7 +650,10 @@ function resetPortfolioUi() {
   portfolioHoldings = [];
   portfolioSecurities = new Map();
   portfolioTradeCatalog = [];
+  portfolioAllocationSelected = null;
+  portfolioAccountState = null;
   portfolioTotal?.closest('.metric')?.querySelector('[data-account-breakdown]')?.remove();
+  renderPortfolioAllocation(null);
   if (portfolioTotal) portfolioTotal.textContent = '—';
   if (portfolioStatus) portfolioStatus.textContent = '等待账户状态';
   portfolioRecent?.replaceChildren();

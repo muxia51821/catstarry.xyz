@@ -36,6 +36,74 @@
   white-space: nowrap;
 }
 
+.overview-grid > .portfolio-allocation {
+  grid-column: 1 / -1;
+}
+
+.portfolio-allocation__body {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(240px, .8fr);
+  gap: 20px;
+  align-items: stretch;
+}
+
+.portfolio-allocation__figure {
+  min-width: 0;
+  margin: 0;
+}
+
+.portfolio-allocation__plot {
+  min-height: 280px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface-strong) 40%, transparent);
+}
+
+.portfolio-allocation__plot svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.portfolio-allocation__cell rect {
+  fill: color-mix(in srgb, var(--text) 7%, transparent);
+  stroke: color-mix(in srgb, var(--text) 30%, var(--line));
+  stroke-width: 1;
+  transition: fill 140ms ease, stroke 140ms ease, stroke-width 140ms ease;
+}
+
+.portfolio-allocation__cell[data-rank="1"] rect { fill: color-mix(in srgb, var(--text) 12%, transparent); }
+.portfolio-allocation__cell[data-rank="2"] rect { fill: color-mix(in srgb, var(--text) 9%, transparent); }
+.portfolio-allocation__cell[data-rank="3"] rect { fill: color-mix(in srgb, var(--text) 6%, transparent); }
+.portfolio-allocation__cell.is-selected rect { fill: color-mix(in srgb, var(--tab-overview) 21%, transparent); stroke: var(--tab-overview); stroke-width: 2; }
+.portfolio-allocation__cell:hover rect, .portfolio-allocation__cell:focus-visible rect { fill: color-mix(in srgb, var(--tab-overview) 15%, transparent); stroke: var(--tab-overview); }
+.portfolio-allocation__cell:focus-visible { outline: none; }
+.portfolio-allocation__label { fill: var(--text); font: 600 15px Geist, "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif; pointer-events: none; }
+.portfolio-allocation__value { fill: var(--muted); font: 11px "JetBrains Mono", ui-monospace, monospace; pointer-events: none; }
+
+.portfolio-allocation__figure figcaption {
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.portfolio-allocation__detail {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  padding: 16px;
+  border-left: 1px solid var(--line);
+}
+
+.portfolio-allocation__detail .eyebrow { margin: 0; }
+.portfolio-allocation__detail h3 { margin: 0; font-size: 18px; font-weight: 500; }
+.portfolio-allocation__summary { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 4px 0 0; }
+.portfolio-allocation__summary strong { font: 500 18px "JetBrains Mono", ui-monospace, monospace; }
+.portfolio-allocation__summary span { color: var(--muted); font: 13px "JetBrains Mono", ui-monospace, monospace; }
+.portfolio-allocation__table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.portfolio-allocation__table th, .portfolio-allocation__table td { padding: 9px 0; border-top: 1px solid var(--line); }
+.portfolio-allocation__table th { color: var(--muted); font-weight: 400; text-align: left; }
+.portfolio-allocation__table td { text-align: right; white-space: nowrap; font-family: "JetBrains Mono", ui-monospace, monospace; }
+
 .portfolio-classification-filters {
   display: flex;
   flex-wrap: wrap;
@@ -192,6 +260,12 @@
   .portfolio-account-breakdown {
     grid-template-columns: 1fr;
   }
+
+  .portfolio-allocation__body { grid-template-columns: 1fr; gap: 14px; }
+  .portfolio-allocation__plot { min-height: 190px; }
+  .portfolio-allocation__detail { padding: 14px 0 0; border-top: 1px solid var(--line); border-left: 0; }
+  .portfolio-allocation__label { font-size: 13px; }
+  .portfolio-allocation__value { font-size: 10px; }
 
   .portfolio-overview-trade {
     align-items: flex-start;

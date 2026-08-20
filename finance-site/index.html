@@ -65,6 +65,14 @@
             <div class="net-worth-chart" data-net-worth-chart tabindex="0" aria-label="总资产曲线"></div>
             <p class="empty-state" data-net-worth-empty hidden>尚无完整的历史估值。曲线只使用事实记录与 canonical raw close 重建出的完整数据。</p>
           </section>
+          <section class="panel portfolio-allocation" data-portfolio-allocation aria-labelledby="portfolio-allocation-title">
+            <header class="panel-header"><div><p class="eyebrow">CURRENT ALLOCATION</p><h2 id="portfolio-allocation-title">Portfolio Allocation Map</h2></div><span class="data-state" data-portfolio-allocation-total>等待账户状态</span></header>
+            <div class="portfolio-allocation__body" data-portfolio-allocation-body hidden>
+              <figure class="portfolio-allocation__figure"><div class="portfolio-allocation__plot" data-portfolio-allocation-plot></div><figcaption>面积表示当前角色占 authoritative Total Assets 的比例。</figcaption></figure>
+              <aside class="portfolio-allocation__detail" aria-live="polite"><p class="eyebrow">ROLE COMPOSITION</p><h3 data-portfolio-allocation-detail-title>选择角色</h3><div data-portfolio-allocation-detail></div></aside>
+            </div>
+            <p class="empty-state" data-portfolio-allocation-unavailable>总资产待核验，暂不展示资产配置比例。</p>
+          </section>
           <section class="panel panel--span-3" aria-labelledby="overview-trades-title">
             <header class="panel-header"><div><p class="eyebrow">RECENT ACTIVITY</p><h2 id="overview-trades-title">最近交易</h2></div></header>
             <div class="overview-trades" data-overview-trades></div><p class="empty-state" data-overview-trades-empty hidden>还没有交易记录。</p>

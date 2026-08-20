@@ -20,14 +20,15 @@ const trades = [
 ];
 
 const html = `<!doctype html><html><head>
-<meta charset="utf-8"><meta name="finance-api-base" content="">
-<style>.metric{padding:12px}.overview-trade{display:flex;justify-content:space-between}.panel{padding:12px}.table-scroll{overflow:auto}</style>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="finance-api-base" content="">
+<style>:root{--line:#303846;--surface-strong:#121722;--text:#edf2f7;--muted:#a8b1c0;--tab-overview:#3556fd}.metric{padding:12px}.overview-trade{display:flex;justify-content:space-between}.panel{padding:12px}.table-scroll{overflow:auto}</style>
 <link rel="stylesheet" href="/portfolio.css">
 </head><body>
 <div data-app hidden>
   <button data-refresh>刷新</button>
   <main data-dashboard aria-busy="false">
     <article class="metric"><span>总资产</span><strong data-total-value>—</strong><small data-market-freshness>等待账户状态</small></article>
+    <section class="panel portfolio-allocation" data-portfolio-allocation><span data-portfolio-allocation-total>等待账户状态</span><div class="portfolio-allocation__body" data-portfolio-allocation-body hidden><div data-portfolio-allocation-plot></div><aside class="portfolio-allocation__detail"><h3 data-portfolio-allocation-detail-title>选择角色</h3><div data-portfolio-allocation-detail></div></aside></div><p data-portfolio-allocation-unavailable>总资产待核验，暂不展示资产配置比例。</p></section>
     <button data-asset-view="month" class="is-active">月</button><button data-asset-view="week">周</button>
     <span data-net-worth-state>3 个已核验月末快照</span>
     <p data-net-worth-empty>旧快照文案</p>
@@ -66,11 +67,24 @@ const server = createServer(async (request, response) => {
     if (mode === 'fail') return json(response, 503, { message: 'account unavailable' });
     return json(response, 200, {
       reconciliation: { through_date: '2026-08-16', observed_at: '2026-08-16T02:29:00.000Z', cash_value: 20725.50 },
-      holdings: { market_value: 109698.70, complete: true, missing_tickers: [] },
+      holdings: { market_value: 109698.70, complete: true, missing_tickers: [], items: [
+        { ticker: '000021', position_category: '主动操作仓（A股）', market_value: 4023 },
+        { ticker: '300750', position_category: '主动操作仓（A股）', market_value: 39393 },
+      ] },
       cash: { value: 20725.50, known_value: 20725.50, status: 'reconciled', replayed_facts: 0, problems: [] },
       other_assets: { value: 0, known_value: 0, status: 'clear', problems: [] },
       total_assets: 130424.20,
       total_status: 'reconciled',
+      portfolio_roles: {
+        total_assets: 130424.20,
+        total_status: 'reconciled',
+        percentage_available: true,
+        roles: [
+          { role: '主动操作仓（A股）', value: 43416, percentage: 43416 / 130424.20, sources: ['security_holding'] },
+          { role: '机动仓', value: 20725.50, percentage: 20725.50 / 130424.20, sources: ['broker_cash'] },
+        ],
+        unclassified: [],
+      },
     });
   }
   if (url.pathname === '/api/holdings') {
@@ -148,6 +162,12 @@ try {
     tradeFirst: document.querySelector('[data-trades-body] tr')?.textContent,
     roleColor: getComputedStyle(document.querySelector('.portfolio-role-badge')).getPropertyValue('--portfolio-role-color').trim(),
     securityStyle: getComputedStyle(document.querySelector('.portfolio-security-attribute')).backgroundColor,
+    allocationTotal: document.querySelector('[data-portfolio-allocation-total]')?.textContent,
+    allocationCells: [...document.querySelectorAll('.portfolio-allocation__cell')].map((cell) => {
+      const rect = cell.querySelector('rect');
+      return { key: cell.dataset.key, share: rect?.dataset.share, x: rect?.getAttribute('x'), y: rect?.getAttribute('y') };
+    }),
+    allocationDetail: document.querySelector('[data-portfolio-allocation-detail]')?.textContent,
   })`);
   assert.match(overview.total ?? '', /130,424\.20/);
   assert.match(overview.status ?? '', /已对账.*2026-08-16/);
@@ -162,6 +182,33 @@ try {
   assert.match(overview.tradeFirst ?? '', /消费电子/);
   assert.equal(overview.roleColor, '#6685ff', 'Portfolio Role must retain its stable category color');
   assert.ok(overview.securityStyle, 'Security Attribute is rendered as a neutral badge, not a second taxonomy color system');
+  assert.match(overview.allocationTotal ?? '', /130,424\.20/);
+  assert.equal(overview.allocationCells.length, 3, `Allocation Map cells: ${JSON.stringify(overview.allocationCells)}`);
+  assert.deepEqual(overview.allocationCells.map((cell) => cell.key), ['unclassified', '主动操作仓（A股）', '机动仓']);
+  assert.ok(Math.abs(overview.allocationCells.reduce((sum, cell) => sum + Number(cell.share), 0) - 100) < .01, 'Treemap cells must account for the authoritative total, including unclassified assets');
+  assert.equal(overview.allocationCells[1].x, overview.allocationCells[2].x, 'Secondary treemap cells share a column instead of forming visual stripes');
+  assert.notEqual(overview.allocationCells[1].y, overview.allocationCells[2].y, 'Secondary treemap cells must stack within that column');
+  assert.match(overview.allocationDetail ?? '', /未投影账户资产/);
+
+  await evaluate(`document.querySelector('.portfolio-allocation__cell[data-key="机动仓"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))`);
+  await waitFor(`document.querySelector('[data-portfolio-allocation-detail-title]')?.textContent === '机动仓'`, 'Portfolio allocation role selection');
+  assert.match(await evaluate(`document.querySelector('[data-portfolio-allocation-detail]')?.textContent ?? ''`), /Broker Cash/);
+
+  await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+  const mobileAllocation = await evaluate(`(() => {
+    const plot = document.querySelector('[data-portfolio-allocation-plot]');
+    const detail = document.querySelector('.portfolio-allocation__detail');
+    return {
+      plotWidth: Math.ceil(plot.getBoundingClientRect().width),
+      viewportWidth: window.innerWidth,
+      layout: getComputedStyle(document.querySelector('.portfolio-allocation__body')).gridTemplateColumns,
+      detailBorder: getComputedStyle(detail).borderTopWidth,
+    };
+  })()`);
+  assert.ok(mobileAllocation.plotWidth <= mobileAllocation.viewportWidth, `Allocation Map must fit mobile viewport: ${JSON.stringify(mobileAllocation)}`);
+  assert.equal(mobileAllocation.layout.split(' ').length, 1, `Allocation detail must stack on mobile: ${JSON.stringify(mobileAllocation)}`);
+  assert.equal(mobileAllocation.detailBorder, '1px');
+  await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
 
   // Holdings filtering operates over the complete current holdings set owned by the portfolio composition module.
   await evaluate(`(() => { const select=document.querySelector('[name="portfolio_holding_attribute"]'); select.value='电池'; select.dispatchEvent(new Event('change', { bubbles:true })); })()`);
@@ -187,6 +234,7 @@ try {
   await waitFor(`document.querySelector('[data-market-freshness]')?.textContent.includes('暂时无法读取')`, 'Portfolio failure state');
   assert.equal(await evaluate(`document.querySelector('[data-total-value]')?.textContent`), '待核验');
   assert.equal(await evaluate(`Boolean(document.querySelector('[data-account-breakdown]'))`), false);
+  assert.equal(await evaluate(`document.querySelector('[data-portfolio-allocation-body]').hidden`), true);
 
   assert.deepEqual(diagnostics.consoleProblems, []);
   assert.deepEqual(diagnostics.exceptions, []);

@@ -18,6 +18,9 @@ try {
   assert.deepEqual(login, { authenticated: true, username: 'local-admin', role: 'admin' });
   const holdings = await fetch(`${baseUrl}/api/holdings`).then((response) => response.json());
   assert.equal(holdings.total_market_value, 12600);
+  const accountState = await fetch(`${baseUrl}/api/account-state`).then((response) => response.json());
+  assert.equal(accountState.portfolio_roles.percentage_available, true);
+  assert.equal(accountState.portfolio_roles.total_assets, 13600);
   const cashFlows = await fetch(`${baseUrl}/api/cash-flows`);
   assert.equal(cashFlows.status, 200);
   assert.equal((await cashFlows.json()).cash_flows.length, 1);
