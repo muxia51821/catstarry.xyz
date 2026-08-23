@@ -3,6 +3,14 @@ import { hash } from 'bcryptjs';
 
 import worker from '../workers/finance-api/src/index.ts';
 
+const fixtureNow = new Date();
+const fixtureNowIso = fixtureNow.toISOString();
+function fixtureDayYearsAgo(years) {
+  const date = new Date(fixtureNow);
+  date.setUTCFullYear(date.getUTCFullYear() - years);
+  return date.toISOString().slice(0, 10);
+}
+
 class MemoryKv {
   values = new Map();
   async get(key, type) {
@@ -36,14 +44,15 @@ class MemoryD1 {
   monthlyRecords = [];
   annualReviews = [];
   marketData = [
-    { ticker: 'CSI300_PE', pe_ttm: 12.5, fetched_at: '2026-08-20T00:00:00.000Z' },
-    { ticker: 'CSI500_PE', pe_ttm: 23.5, fetched_at: '2026-08-20T00:00:00.000Z' },
+    { ticker: 'CSI300_PE', pe_ttm: 12.5, fetched_at: fixtureNowIso },
+    { ticker: 'CSI500_PE', pe_ttm: 23.5, fetched_at: fixtureNowIso },
   ];
   indexValuationHistory = [
-    { symbol: 'CSI300_PE', observation_date: '2023-08-14', pe_ttm: 10 },
-    { symbol: 'CSI300_PE', observation_date: '2024-08-14', pe_ttm: 12 },
-    { symbol: 'CSI300_PE', observation_date: '2025-08-14', pe_ttm: 14 },
-    { symbol: 'CSI300_PE', observation_date: '2026-08-20', pe_ttm: 16 },
+    { symbol: 'CSI300_PE', observation_date: fixtureDayYearsAgo(4), pe_ttm: 10 },
+    { symbol: 'CSI300_PE', observation_date: fixtureDayYearsAgo(3), pe_ttm: 12 },
+    { symbol: 'CSI300_PE', observation_date: fixtureDayYearsAgo(2), pe_ttm: 14 },
+    { symbol: 'CSI300_PE', observation_date: fixtureDayYearsAgo(1), pe_ttm: 16 },
+    { symbol: 'CSI300_PE', observation_date: fixtureDayYearsAgo(0), pe_ttm: 18 },
   ];
   activeBlackCircuit = false;
   ruleAudits = [];
