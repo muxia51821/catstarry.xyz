@@ -23,11 +23,11 @@ assert.match(automaticValuationTask, /finance_asset_valuations/);
 assert.match(automaticValuationTask, /MAX_CATCH_UP_DAYS = 20/);
 assert.match(automaticValuationTask, /tencent-finance\+ths-coverage/);
 
-assert.match(workerIndex, /const MARKET_REFRESH_CRONS = new Set\(\['\*\/15 \* \* \* \*', '30 7 \* \* 1-5'\]\)/, 'Finance Worker must keep market refresh scoped to the intended cron triggers');
+assert.match(workerIndex, /const MARKET_REFRESH_CRONS = new Set\(\['\*\/15 \* \* \* \*'\]\)/, 'Finance Worker keeps a single quarter-hour market refresh; it already covers 15:30 China time');
 assert.match(workerIndex, /if \(MARKET_REFRESH_CRONS\.has\(controller\.cron\)\)/, 'only declared market crons may refresh current market data');
 assert.match(workerIndex, /controller\.cron in ASSET_VALUATION_REFRESH_CRONS/, 'only declared valuation crons may write historical authority');
 assert.match(wranglerConfig, /"\*\/15 \* \* \* \*"/);
-assert.match(wranglerConfig, /"30 7 \* \* 1-5"/);
+assert.doesNotMatch(wranglerConfig, /"30 7 \* \* 1-5"/, 'the redundant 15:30 weekday cron would exceed the account trigger capacity');
 assert.match(wranglerConfig, /"20 8 \* \* 1-5"/);
 assert.match(wranglerConfig, /"0 9 \* \* 1-5"/);
 assert.match(wranglerConfig, /"0 12 \* \* 1-5"/);
