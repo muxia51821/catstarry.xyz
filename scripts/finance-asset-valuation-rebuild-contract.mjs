@@ -16,6 +16,7 @@ class SqliteD1Statement {
   async all() { return { results: this.database.prepare(this.sql).all(...this.values).map(plain) }; }
   async run() { return this.execute(); }
   execute() {
+    assert.ok(this.values.length <= 100, `D1 permits at most 100 bound parameters per statement; received ${this.values.length}`);
     const result = this.database.prepare(this.sql).run(...this.values);
     return { success: true, meta: { changes: Number(result.changes), last_row_id: Number(result.lastInsertRowid ?? 0) } };
   }
@@ -140,6 +141,21 @@ assert.equal(isCanonicalHistoricalDay('2028-02-29'), true);
   const row = plain(database.prepare(`SELECT * FROM finance_asset_valuations WHERE valuation_date='2026-07-04'`).get());
   assert.equal(row.is_complete, 0);
   assert.match(row.incomplete_reason, /trade:1.*net_cash_amount/);
+  database.close();
+}
+
+// D1 has a 100-bound-parameter limit per statement. A multi-day rebuild must
+// preserve its single batch while keeping every valuation write below that limit.
+{
+  const { database, env } = await freshDatabase();
+  seedReconciliation(database, { cash: 100, holdings: 100, total: 200 });
+  database.prepare(`INSERT INTO holdings_snapshots (snapshot_date, ticker, quantity, avg_cost, position_category)
+    VALUES ('2026-07-31','510300',10,10,'A股宽基指数底仓')`).run();
+  const dates = ['2026-06-03', '2026-06-04', '2026-06-05', '2026-06-06', '2026-06-07', '2026-06-08', '2026-06-09', '2026-06-10', '2026-06-11'];
+  for (const date of dates) seedPrice(database, '510300', date, 10);
+  const result = await rebuildAssetValuations(env, { startDate: dates[0], endDate: dates.at(-1), actor: 'contract' });
+  assert.ok(!(result instanceof Response));
+  assert.deepEqual({ rebuilt: result.rebuilt, complete: result.complete, incomplete: result.incomplete }, { rebuilt: 9, complete: 9, incomplete: 0 });
   database.close();
 }
 
