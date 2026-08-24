@@ -75,6 +75,7 @@ const server = createServer(async (request, response) => {
       other_assets: { value: 0, known_value: 0, status: 'clear', problems: [] },
       total_assets: 130424.20,
       total_status: 'reconciled',
+      performance: { status: 'available', total_contributions: 125000, pnl: 5424.20 },
       portfolio_roles: {
         total_assets: 130424.20,
         total_status: 'reconciled',
@@ -177,7 +178,7 @@ try {
   })`);
   assert.match(overview.total ?? '', /130,424\.20/);
   assert.match(overview.status ?? '', /已对账.*2026-08-16/);
-  assert.match(overview.breakdown ?? '', /证券市值.*109,698\.70.*Broker Cash.*20,725\.50/s);
+  assert.match(overview.breakdown ?? '', /证券市值.*109,698\.70.*Broker Cash.*20,725\.50.*累计投入.*125,000\.00.*累计盈亏.*5,424\.20/s);
   assert.match(overview.firstTrade ?? '', /买入.*100.*40\.23/);
   assert.equal(overview.historyState, '3 个完整月末历史估值');
   assert.match(overview.historyEmpty ?? '', /canonical raw close/);
@@ -197,6 +198,10 @@ try {
   assert.match(overview.allocationDetail ?? '', /未投影账户资产/);
   assert.match(overview.composition ?? '', /未投影账户资产.*66,282\.70.*50\.8%/s);
   assert.match(overview.composition ?? '', /A股主动仓.*43,416\.00.*33\.3%.*40\.0%.*-6\.7pp/s);
+
+  await evaluate(`document.querySelector('.portfolio-allocation__cell[data-key="主动操作仓"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))`);
+  await waitFor(`document.querySelector('[data-portfolio-allocation-detail-title]')?.textContent === 'A股主动仓'`, 'Portfolio security composition selection');
+  assert.match(await evaluate(`document.querySelector('[data-portfolio-allocation-detail]')?.textContent ?? ''`), /深科技.*000021.*宁德时代.*300750/s);
 
   await evaluate(`document.querySelector('.portfolio-allocation__cell[data-key="机动仓"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))`);
   await waitFor(`document.querySelector('[data-portfolio-allocation-detail-title]')?.textContent === '机动仓'`, 'Portfolio allocation role selection');

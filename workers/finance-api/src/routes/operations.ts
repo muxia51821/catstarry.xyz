@@ -78,12 +78,14 @@ export async function handleChangeLog(request: Request, env: FinanceEnv): Promis
   }
 
   const built = buildChangeLogQuery({ filter, cursor, limit });
-  const rows = await env.DB.prepare(built.query).bind(...built.values).all<ChangeLogRow>();
-  const page = rows.results.slice(0, limit);
+  const sourceResults = await Promise.all(built.queries.map(({ query, values }) => env.DB.prepare(query).bind(...values).all<ChangeLogRow>()));
+  const rows = sourceResults.flatMap((result) => result.results)
+    .sort((left, right) => right.occurred_at.localeCompare(left.occurred_at) || right.change_key.localeCompare(left.change_key));
+  const page = rows.slice(0, limit);
   const last = page.at(-1);
   return json({
     items: page.map(humanizeChange),
-    nextCursor: rows.results.length > limit && last
+    nextCursor: rows.length > limit && last
       ? encodeChangeLogCursor({ occurred_at: last.occurred_at, change_key: last.change_key, filter })
       : null,
     coverage: {
@@ -110,11 +112,13 @@ export function buildChangeLogQuery(input: {
     values.push(input.cursor.occurred_at, input.cursor.occurred_at, input.cursor.change_key);
   }
   return {
-    query: `SELECT * FROM (${auditSources().join('\nUNION ALL\n')}) changes
-      WHERE ${clauses.join(' AND ')}
-      ORDER BY occurred_at DESC, change_key DESC
-      LIMIT ?`,
-    values: [...values, input.limit + 1],
+    queries: auditSources().map((source) => ({
+      query: `SELECT * FROM (${source}) changes
+        WHERE ${clauses.join(' AND ')}
+        ORDER BY occurred_at DESC, change_key DESC
+        LIMIT ?`,
+      values: [...values, input.limit + 1],
+    })),
   };
 }
 
@@ -144,37 +148,44 @@ function auditSources(): string[] {
       COALESCE(json_extract(a.after_json, '$.trade_date'), json_extract(a.before_json, '$.trade_date'), t.trade_date) AS business_date,
       a.before_json AS before_json, a.after_json AS after_json
       FROM finance_trade_audit a LEFT JOIN trades t ON t.id = a.trade_id`,
-    `SELECT 'cash-flow:' || a.id, a.occurred_at, a.actor, a.action, 'cash_flow', CAST(a.cash_flow_id AS TEXT),
-      COALESCE(json_extract(a.after_json, '$.occurred_on'), json_extract(a.before_json, '$.occurred_on'), f.occurred_on),
-      a.before_json, a.after_json
+    `SELECT 'cash-flow:' || a.id AS change_key, a.occurred_at AS occurred_at, a.actor AS actor, a.action AS action,
+      'cash_flow' AS entity_type, CAST(a.cash_flow_id AS TEXT) AS entity_id,
+      COALESCE(json_extract(a.after_json, '$.occurred_on'), json_extract(a.before_json, '$.occurred_on'), f.occurred_on) AS business_date,
+      a.before_json AS before_json, a.after_json AS after_json
       FROM finance_cash_flow_audit a LEFT JOIN finance_cash_flows f ON f.id = a.cash_flow_id`,
-    `SELECT 'account-event:' || a.id, a.occurred_at, a.actor, a.action, 'account_event', CAST(a.account_event_id AS TEXT),
-      COALESCE(json_extract(a.after_json, '$.event_date'), json_extract(a.before_json, '$.event_date'), e.event_date),
-      a.before_json, a.after_json
+    `SELECT 'account-event:' || a.id AS change_key, a.occurred_at AS occurred_at, a.actor AS actor, a.action AS action,
+      'account_event' AS entity_type, CAST(a.account_event_id AS TEXT) AS entity_id,
+      COALESCE(json_extract(a.after_json, '$.event_date'), json_extract(a.before_json, '$.event_date'), e.event_date) AS business_date,
+      a.before_json AS before_json, a.after_json AS after_json
       FROM finance_account_event_audit a LEFT JOIN finance_account_events e ON e.id = a.account_event_id`,
-    `SELECT 'plan:' || a.id, a.occurred_at, a.actor,
-      CASE WHEN a.before_json IS NULL THEN 'created' ELSE 'updated' END,
-      'investment_plan', '1', NULL, a.before_json, a.after_json
+    `SELECT 'plan:' || a.id AS change_key, a.occurred_at AS occurred_at, a.actor AS actor,
+      CASE WHEN a.before_json IS NULL THEN 'created' ELSE 'updated' END AS action,
+      'investment_plan' AS entity_type, '1' AS entity_id, NULL AS business_date, a.before_json AS before_json, a.after_json AS after_json
       FROM finance_plan_audit a`,
-    `SELECT 'rule:' || a.id, a.occurred_at, a.actor,
-      CASE WHEN a.before_json IS NULL THEN 'created' ELSE 'updated' END,
-      'investment_rule', a.rule_key, NULL, a.before_json, a.after_json
+    `SELECT 'rule:' || a.id AS change_key, a.occurred_at AS occurred_at, a.actor AS actor,
+      CASE WHEN a.before_json IS NULL THEN 'created' ELSE 'updated' END AS action,
+      'investment_rule' AS entity_type, a.rule_key AS entity_id, NULL AS business_date, a.before_json AS before_json, a.after_json AS after_json
       FROM finance_rule_audit a`,
-    `SELECT 'memo:' || a.id, a.occurred_at, a.actor, a.action, 'memo', CAST(a.memo_id AS TEXT),
-      COALESCE(json_extract(a.after_json, '$.memo_date'), json_extract(a.before_json, '$.memo_date'), m.memo_date),
-      a.before_json, a.after_json
+    `SELECT 'memo:' || a.id AS change_key, a.occurred_at AS occurred_at, a.actor AS actor, a.action AS action,
+      'memo' AS entity_type, CAST(a.memo_id AS TEXT) AS entity_id,
+      COALESCE(json_extract(a.after_json, '$.memo_date'), json_extract(a.before_json, '$.memo_date'), m.memo_date) AS business_date,
+      a.before_json AS before_json, a.after_json AS after_json
       FROM finance_memo_audit a LEFT JOIN finance_memos m ON m.id = a.memo_id`,
-    `SELECT 'monthly:' || a.id, a.occurred_at, a.actor, a.action, 'monthly_record', CAST(a.monthly_record_id AS TEXT),
-      NULL, a.before_json, a.after_json
+    `SELECT 'monthly:' || a.id AS change_key, a.occurred_at AS occurred_at, a.actor AS actor, a.action AS action,
+      'monthly_record' AS entity_type, CAST(a.monthly_record_id AS TEXT) AS entity_id,
+      NULL AS business_date, a.before_json AS before_json, a.after_json AS after_json
       FROM finance_monthly_record_audit a`,
-    `SELECT 'annual-review:' || a.id, a.occurred_at, a.actor, a.action, 'annual_review', CAST(a.review_year AS TEXT),
-      NULL, a.before_json, a.after_json
+    `SELECT 'annual-review:' || a.id AS change_key, a.occurred_at AS occurred_at, a.actor AS actor, a.action AS action,
+      'annual_review' AS entity_type, CAST(a.review_year AS TEXT) AS entity_id,
+      NULL AS business_date, a.before_json AS before_json, a.after_json AS after_json
       FROM finance_review_audit a`,
-    `SELECT 'workbook-review:' || a.id, a.occurred_at, a.actor, a.action, 'workbook_review', CAST(a.review_id AS TEXT),
-      NULL, a.before_json, a.after_json
+    `SELECT 'workbook-review:' || a.id AS change_key, a.occurred_at AS occurred_at, a.actor AS actor, a.action AS action,
+      'workbook_review' AS entity_type, CAST(a.review_id AS TEXT) AS entity_id,
+      NULL AS business_date, a.before_json AS before_json, a.after_json AS after_json
       FROM finance_workbook_review_audit a`,
-    `SELECT 'legacy-import-review:' || a.id, a.occurred_at, a.actor, a.action, 'workbook_review', 'legacy:' || CAST(a.review_id AS TEXT),
-      NULL, a.before_json, a.after_json
+    `SELECT 'legacy-import-review:' || a.id AS change_key, a.occurred_at AS occurred_at, a.actor AS actor, a.action AS action,
+      'workbook_review' AS entity_type, 'legacy:' || CAST(a.review_id AS TEXT) AS entity_id,
+      NULL AS business_date, a.before_json AS before_json, a.after_json AS after_json
       FROM finance_legacy_import_review_audit a`,
   ];
 }

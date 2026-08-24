@@ -177,6 +177,7 @@ try {
 
   await evaluate(`document.querySelector('[data-canonical-resolution-note]').value='reviewed'; document.querySelector('[data-canonical-resolve-review]').click()`);
   await waitFor(`document.querySelectorAll('[data-canonical-review-list] .import-review-row').length === 0`, 'Workbook Review resolution');
+  assert.equal(await evaluate(`document.querySelector('.operation-review-panel')?.hidden`), true, 'an empty import-review queue must not occupy the account activity workspace');
 
   // Same-document logout/session reset purges Operation History surfaces without
   // owning or rewriting the Portfolio summary.

@@ -172,6 +172,7 @@ th { color: var(--muted); font-weight: 500; }
 .trade-table .trade-cell--number { text-align: right; }
 .trade-table .trade-cell--date { min-width: 7.25rem; font-variant-numeric: tabular-nums; }
 .trade-table .trade-cell--action { width: 1%; min-width: 8.5rem; }
+.trade-table .portfolio-security-cell { text-align: left; }
 .access-log__header,
 .access-log__row { display: grid; grid-template-columns: minmax(11rem, 1.2fr) minmax(7rem, .8fr) minmax(8rem, 1fr); gap: var(--space-3); align-items: baseline; }
 .access-log__header { padding: 0 10px 8px; color: var(--muted); font-size: 12px; }
@@ -200,11 +201,14 @@ tbody tr:last-child td { border-bottom: 0; }
 .pe-scale__segment--normal { background: #d4c94e; }
 .pe-scale__segment--high { background: var(--amber); }
 .pe-scale__segment--overheat { background: var(--market-up); }
-.pe-history { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 10px 0 0; }
+.pe-scale--historical .pe-scale__segment { opacity: .16; }
+.pe-scale--historical .pe-scale__segment[data-active] { opacity: 1; }
+.pe-history { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 10px 0 0; }
 .pe-history div { min-width: 0; }
 .pe-history dt { color: var(--muted); font-size: 11px; }
 .pe-history dd { margin: 2px 0 0; font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 12px; font-variant-numeric: tabular-nums; }
 .pe-source { font-family: "JetBrains Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+.pe-scope { color: var(--muted); }
 @media (max-width: 560px) { .pe-history { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .review-row button { margin-top: var(--space-3); }
 .row-actions { display: flex; gap: 8px; }

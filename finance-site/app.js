@@ -117,14 +117,17 @@ async function loadDashboard() {
       request('/api/holdings'), request('/api/trades'), request('/api/pe'), request('/api/circuit'), request('/api/review'),
       request('/api/notifications'), request('/api/monthly'), request('/api/plan'), request('/api/memos'), request('/api/risk-rules'), request('/api/rebalances'),
     ];
-    if (isAdmin()) calls.push(request('/api/access-log'), request('/api/import-review'));
     const results = await Promise.all(calls);
     [state.holdings, { trades: state.trades, nextCursor: state.tradePaging.nextCursor }, { indexes: state.pe }, { active: state.circuit }, { reviews: state.reviews }, state.notifications,
       { records: state.monthly }, { plan: state.plan }, { memos: state.memos }, { rules: state.rules }, { rebalances: state.rebalances }] = results.slice(0, 11);
     if (isAdmin()) {
-      state.accessLog = results[11].access_log;
-      state.accessPaging.nextCursor = results[11].nextCursor;
-      state.importReview = results[12].review;
+      const [accessLog, importReview] = await Promise.all([
+        request('/api/access-log').catch(() => null),
+        request('/api/import-review').catch(() => null),
+      ]);
+      state.accessLog = accessLog?.access_log ?? [];
+      state.accessPaging.nextCursor = accessLog?.nextCursor ?? null;
+      state.importReview = importReview?.review ?? [];
     } else {
       state.accessLog = [];
       state.importReview = [];
@@ -145,6 +148,9 @@ async function loadDashboard() {
     state.riskSignalsError = optional[3].error;
     renderDashboard();
     setStatus($('[data-dashboard-status]'), '');
+  } catch (error) {
+    setStatus($('[data-dashboard-status]'), error instanceof Error ? error.message : 'Finance 数据暂时无法读取。', 'error');
+    throw error;
   } finally {
     dashboard.setAttribute('aria-busy', 'false');
   }
@@ -263,9 +269,15 @@ function renderPe() {
     const hasPe = row.pe_ttm !== null && row.pe_ttm !== undefined;
     const historical = row.historical_position;
     const historicalBand = { historical_low: '历史低位', normal_range: '常态区间', historical_high: '历史高位' };
+    const unavailableHistory = {
+      missing_history: 'CSI 历史 PE 尚未导入。',
+      insufficient_history: 'CSI 历史 PE 覆盖不足 3 年。',
+      history_stale: 'CSI 历史 PE 已过期。',
+      current_pe_unavailable: '当前 PE 暂不可用，无法计算历史位置。',
+    };
     const historicalStatus = !hasPe ? row.stale ? 'PE 数据过期或不可用。' : '暂无 PE 数据。'
       : !historical ? '历史估值位置仅覆盖 CSI 指数。'
-        : historical.status !== 'available' ? historical.reason === 'current_pe_unavailable' ? '当前 PE 暂不可用，无法计算历史位置。' : '历史估值位置暂不可用。'
+        : historical.status !== 'available' ? unavailableHistory[historical.reason] ?? '历史估值位置暂不可用。'
           : `历史${formatPercent(historical.percentile)} · ${historicalBand[historical.band] ?? '常态区间'}`;
     const historicalDetails = historical?.status === 'available'
       ? el('dl', { className: 'pe-history' },
@@ -273,13 +285,27 @@ function renderPe() {
         el('div', {}, el('dt', { text: 'P50' }), el('dd', { text: number.format(historical.p50) })),
         el('div', {}, el('dt', { text: 'P80' }), el('dd', { text: number.format(historical.p80) })),
         el('div', {}, el('dt', { text: 'CSI 截至' }), el('dd', { text: historical.source_date || '—' })),
+        el('div', {}, el('dt', { text: '窗口' }), el('dd', { text: historical.window_start && historical.window_end ? `${historical.window_start} - ${historical.window_end}` : '—' })),
+        el('div', {}, el('dt', { text: '样本' }), el('dd', { text: historical.observation_count === null || historical.observation_count === undefined ? '—' : String(historical.observation_count) })),
       ) : historical?.source_date ? el('p', { className: 'pe-source', text: `CSI 最近数据：${historical.source_date}` }) : null;
+    const historicalPercentileBand = historical?.status === 'available' && Number.isFinite(Number(historical.percentile))
+      ? Math.min(4, Math.max(0, Math.floor(Number(historical.percentile) * 5))) : null;
+    const scale = row.temperature
+      ? el('div', { className: 'pe-scale', attrs: { 'aria-label': 'PE temperature' } }, ...zones.map((zone) => el('i', { className: `pe-scale__segment pe-scale__segment--${zone}`, attrs: row.temperature?.zone === zone ? { 'data-active': '' } : {} })))
+      : historicalPercentileBand === null ? null
+        : el('div', { className: 'pe-scale pe-scale--historical', attrs: { 'aria-label': 'Historical PE percentile' } }, ...zones.map((zone, index) => el('i', { className: `pe-scale__segment pe-scale__segment--${zone}`, attrs: historicalPercentileBand === index ? { 'data-active': '' } : {} })));
+    const scopeNote = historical?.status === 'available'
+      ? row.ticker === 'STAR50_PE'
+        ? 'PE 仅作历史位置描述，不单独形成综合估值结论。'
+        : '本项为 PE 历史位置，不代表综合估值或交易结论。'
+      : null;
     const status = row.temperature ? `${peSuggestion(row.temperature)} ${historicalStatus}` : historicalStatus;
     return el('article', { className: 'pe-row' },
     el('header', {}, el('strong', { text: row.display_name || row.ticker }), el('span', { className: `state-${row.temperature?.zone ?? 'unavailable'}`, text: row.pe_ttm === null ? '数据不可用' : `${number.format(row.pe_ttm)} PE` })),
-    el('div', { className: 'pe-scale' }, ...zones.map((zone) => el('i', { className: `pe-scale__segment pe-scale__segment--${zone}`, attrs: row.temperature?.zone === zone ? { 'data-active': '' } : {} }))),
+    scale,
     el('p', { text: status }),
     historicalDetails,
+    scopeNote ? el('p', { className: 'pe-scope', text: scopeNote }) : null,
   );
   }));
   $('[data-pe-empty]').hidden = rows.length > 0;
@@ -444,7 +470,7 @@ async function loadPage(kind, cursor = null, reset = false, move = 1) {
 
 function renderImportReview() {
   const panel = $('[data-import-review-panel]');
-  panel.hidden = !isAdmin();
+  panel.hidden = true;
   replace($('[data-import-review-list]'), (state.importReview ?? []).map((row) => {
     const input = el('input', { attrs: { maxlength: 2000, placeholder: '说明如何在正式流程中修正' }, dataset: { resolutionNote: row.id } });
     const button = el('button', { text: '结案', attrs: { type: 'button' }, dataset: { resolveReview: row.id } });

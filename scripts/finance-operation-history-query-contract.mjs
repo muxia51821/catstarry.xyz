@@ -18,7 +18,9 @@ for (const file of (await readdir('workers/finance-api/migrations')).filter((nam
 const emptyFilter = { entity_type: null, action: null, actor: null, from: null, to: null };
 function rows({ filter = emptyFilter, cursor = null, limit = 50 } = {}) {
   const built = buildChangeLogQuery({ filter, cursor, limit });
-  return { built, rows: db.prepare(built.query).all(...built.values).map((row) => ({ ...row })) };
+  const records = built.queries.flatMap(({ query, values }) => db.prepare(query).all(...values).map((row) => ({ ...row })))
+    .sort((left, right) => right.occurred_at.localeCompare(left.occurred_at) || right.change_key.localeCompare(left.change_key));
+  return { built, rows: records };
 }
 
 const sameTime = '2026-08-17T01:00:00.000Z';
@@ -28,7 +30,7 @@ db.prepare(`INSERT INTO finance_cash_flow_audit (cash_flow_id, action, actor, oc
   VALUES (1, 'created', 'muxia', ?, '{"occurred_on":"2026-08-17","net_amount":5000}')`).run(sameTime);
 
 const firstPage = rows({ limit: 1 });
-assert.doesNotMatch(firstPage.built.query, /\bOFFSET\b/i, 'change log must use keyset cursor pagination');
+assert.doesNotMatch(firstPage.built.queries.map((item) => item.query).join('\n'), /\bOFFSET\b/i, 'change log must use keyset cursor pagination');
 assert.equal(firstPage.rows.length, 2, 'query asks for limit + 1 so the route can decide whether a cursor exists');
 assert.equal(firstPage.rows[0].change_key, 'trade:1', 'same-timestamp changes need a deterministic global secondary key');
 const humanizedFirst = humanizeChange(firstPage.rows[0]);
@@ -62,9 +64,10 @@ db.prepare(`INSERT INTO circuit_breaker_log (level, reason, triggered_at) VALUES
   ('yellow', '{"action":"pause_active_additions"}', '2026-08-17T03:00:00.000Z')`).run();
 db.prepare(`INSERT INTO monthly_confirmations (period, username, confirmed_at)
   VALUES ('2026-08', 'cati', '2026-09-01T01:00:00.000Z')`).run();
-assert.doesNotMatch(rows().built.query, /circuit_breaker_log|monthly_confirmations|finance_asset_snapshots|finance_workbook_imports|finance_rebalance_records/, 'business activity must not leak into data-change history');
-assert.doesNotMatch(rows().built.query, /finance_access_log/, 'security access logs remain separate');
-assert.doesNotMatch(rows().built.query, /provenance/i, 'row-provenance fallback is not a product change-log source after core audit atomicity');
+const auditSql = rows().built.queries.map((item) => item.query).join('\n');
+assert.doesNotMatch(auditSql, /circuit_breaker_log|monthly_confirmations|finance_asset_snapshots|finance_workbook_imports|finance_rebalance_records/, 'business activity must not leak into data-change history');
+assert.doesNotMatch(auditSql, /finance_access_log/, 'security access logs remain separate');
+assert.doesNotMatch(auditSql, /provenance/i, 'row-provenance fallback is not a product change-log source after core audit atomicity');
 
 // Annual review confirmation remains durable audit history even after recalculation clears current confirmation state.
 db.prepare(`INSERT INTO annual_reviews (year, calculation_json, summary, calculated_at)

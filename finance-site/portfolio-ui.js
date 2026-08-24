@@ -108,6 +108,7 @@ async function refreshPortfolioAuxiliary(epoch) {
   if (holdingsResult.status === 'fulfilled') {
     installHoldingsFilters();
     renderPortfolioHoldings();
+    if (portfolioAccountState) renderPortfolioAllocation(portfolioAccountState);
   }
   if (tradeResult.status === 'fulfilled') {
     portfolioTradeCatalog = tradeResult.value;
@@ -147,6 +148,14 @@ function renderPortfolioAccountState(accountState) {
   const knownOther = finiteNumber(accountState?.other_assets?.known_value);
   if ((other ?? knownOther ?? 0) > 0 || accountState?.other_assets?.status === 'incomplete') {
     breakdown.append(accountBreakdownRow('其他账户资产', other !== null ? portfolioMoney.format(other) : knownOther !== null ? `${portfolioMoney.format(knownOther)} · 待核验` : '待核验'));
+  }
+  const performance = accountState?.performance;
+  if (performance?.status === 'available') {
+    breakdown.append(accountBreakdownRow('累计投入', portfolioMoney.format(performance.total_contributions)));
+    const pnl = finiteNumber(performance.pnl);
+    breakdown.append(accountBreakdownRow('累计盈亏', pnl === null ? '—' : `${pnl >= 0 ? '+' : ''}${portfolioMoney.format(pnl)}`, pnl === null ? '' : pnl >= 0 ? 'value-up' : 'value-down'));
+  } else if (performance) {
+    breakdown.append(accountBreakdownRow('累计盈亏', '待核验'));
   }
   portfolioStatus.before(breakdown);
   renderPortfolioAllocation(accountState);
@@ -345,7 +354,8 @@ function allocationComposition(role, accountState) {
   const sourceItems = portfolioHoldings.length ? portfolioHoldings : accountState?.holdings?.items ?? [];
   for (const rawRole of role.rawRoles) {
     for (const item of sourceItems.filter((holding) => holding.position_category === rawRole)) {
-      rows.push({ label: rawRole === '机动仓（货币ETF）' ? `货币ETF · ${item.ticker}` : `证券持仓 · ${item.ticker}`, value: finiteNumber(item.market_value), pnl: finiteNumber(item.pnl) });
+      const securityLabel = item.ticker_name ? `${item.ticker_name} · ${item.ticker}` : item.ticker;
+      rows.push({ label: rawRole === '机动仓（货币ETF）' ? `货币ETF · ${securityLabel}` : `证券持仓 · ${securityLabel}`, value: finiteNumber(item.market_value), pnl: finiteNumber(item.pnl) });
     }
   }
   if (role.key === '机动仓') {
@@ -360,9 +370,9 @@ function allocationComposition(role, accountState) {
 function formatPortfolioPercent(value) { return `${(value * 100).toFixed(1)}%`; }
 function formatPortfolioDeviation(value) { return `${value > 0 ? '+' : ''}${(value * 100).toFixed(1)}pp`; }
 
-function accountBreakdownRow(label, value) {
+function accountBreakdownRow(label, value, valueClass = '') {
   const row = portfolioElement('span', 'portfolio-account-breakdown__row');
-  row.append(portfolioElement('i', '', label), portfolioElement('b', '', value));
+  row.append(portfolioElement('i', '', label), portfolioElement('b', valueClass, value));
   return row;
 }
 
@@ -509,7 +519,7 @@ function roleCell(role) {
 }
 
 function securityAttributeCell(attribute) {
-  const cell = portfolioElement('td', 'portfolio-security-cell');
+  const cell = portfolioElement('td', 'portfolio-security-cell trade-cell--text');
   cell.append(portfolioElement('span', 'portfolio-security-attribute', attribute || '—'));
   return cell;
 }
@@ -531,7 +541,7 @@ function decoratePortfolioTradeTable() {
     const headers = [...header.children];
     if (headers[5]) headers[5].textContent = '组合角色';
     if (!header.querySelector('[data-security-attribute-column]')) {
-      const cell = portfolioElement('th', '', '证券属性');
+      const cell = portfolioElement('th', 'trade-cell--text', '证券属性');
       cell.dataset.securityAttributeColumn = '';
       headers[5]?.after(cell);
     }
