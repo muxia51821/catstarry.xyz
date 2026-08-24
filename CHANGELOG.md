@@ -1,5 +1,11 @@
 # 更新记录
 
+## 2026-08-24 — Finance 修复上线与持仓分类修正
+
+- 最近几天修的 Finance 问题（估值刷新超载、交易记录和总览页显示等）已经全部发布到线上：f.catstarry.xyz 的前端和后端现在都是最新版本。
+- 两只 ETF（159841、515880）的持仓分类已从「其他」改为「主动操作仓（A股）」。修改前先做了完整备份，每笔改动都留有审计记录。
+- 发布后的检查全部正常：定时任务按新计划运行，网站和登录保护都没有问题。详细核对记录存在 `.scratch/release-finance-99dbdd5/production-release-reconciliation.md`。
+
 ## 2026-08-24 — Finance real-use corrections and historical valuation readiness
 
 - Finance Overview 现在隔离 Access Log、Import Review 等辅助读取失败；主资产数据不再因此长期停在加载状态。空的导入异常审阅不再占用账户动态空间，Data Change Log 改为逐审计源读取和全局排序，规避 D1 compound SELECT 上限。
@@ -92,6 +98,11 @@
 - 对齐 Home Activity Signal、Blog / Learn publication、Public Timeline、Finance scheduled market、Design → CSS token、Projects release / Footprint 和 ADR-005 source-projection 边界；明确 implementation、acceptance、merge、deployment 与 production evidence 彼此独立。
 - 完成 cold-start reading path 收敛：新 Agent / Session 从 `AGENTS.md` → `CONTEXT.md` 进入，再按任务读取 Product、Architecture、Design/Frontend、Routes 或 Deployment current source。
 - 本轮是 repository documentation reconciliation，不代表 production 重新部署。
+
+### 补记（2026-08-24 添加）
+
+- 同日还有一次漏记的 Finance 上线：两个历史数据修复（历史快照的时间规范化、历史数据验收加固）当天已发布到 f.catstarry.xyz 的后端。
+- 另补记 8 月 18 日合并的 Blog 修复（PR #42）：已发布文章的源文件如果暂时缺失，会保留它的发布身份，但不会对访客显示，也不会出现在可操作列表里；源文件恢复后自动接回。注意：主站最后一次部署停在 8 月 18 日上午，这个修复还没随主站上线。
 
 ## 2026-08-15 — Learn runtime publication and Content interaction follow-up
 
