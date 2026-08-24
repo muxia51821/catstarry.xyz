@@ -42,11 +42,11 @@ export async function handleActivity(request: Request, env: FinanceEnv): Promise
 
   const url = new URL(request.url);
   const kind = (url.searchParams.get('kind') ?? '').trim();
-  const ticker = (url.searchParams.get('ticker') ?? '').trim().toUpperCase();
+  const ticker = (url.searchParams.get('ticker') ?? '').trim();
   const from = optionalDay(url.searchParams.get('from'));
   const to = optionalDay(url.searchParams.get('to'));
   const limit = Number(url.searchParams.get('limit') ?? '50');
-  if ((kind && !KINDS.has(kind)) || ticker.length > 24 || from === undefined || to === undefined
+  if ((kind && !KINDS.has(kind)) || ticker.length > 100 || from === undefined || to === undefined
     || (from && to && from > to) || !Number.isInteger(limit) || limit < 1 || limit > 100) {
     return apiError(400, 'invalid_filter', 'Activity filters are invalid');
   }
@@ -91,7 +91,10 @@ export function buildActivityQuery(input: {
   const clauses = ['1 = 1'];
   const values: unknown[] = [];
   if (input.filter.kind) { clauses.push('kind = ?'); values.push(input.filter.kind); }
-  if (input.filter.ticker) { clauses.push('ticker = ?'); values.push(input.filter.ticker); }
+  if (input.filter.ticker) {
+    clauses.push(`(UPPER(ticker) = ? OR ticker_name LIKE ? ESCAPE '\\')`);
+    values.push(input.filter.ticker.toUpperCase(), likePattern(input.filter.ticker));
+  }
   if (input.filter.from) { clauses.push('business_date >= ?'); values.push(input.filter.from); }
   if (input.filter.to) { clauses.push('business_date <= ?'); values.push(input.filter.to); }
   if (input.cursor) {
@@ -177,7 +180,7 @@ function activitySources(): string[] {
 
 export function humanizeActivity(row: ActivityRow) {
   const data = parseJson(row.payload_json);
-  const subject = row.ticker_name || row.ticker || '';
+  const subject = securityDisplay(row);
   if (row.kind === 'trade') {
     const direction = data.direction === 'sell' ? '卖出' : data.direction === 'buy' ? '买入' : String(data.direction ?? '交易');
     return activityItem(row, `${direction}${subject ? ` · ${subject}` : ''}`, `${numberValue(data.quantity)} 股 × ${moneyValue(data.price)}`, data);
@@ -200,6 +203,10 @@ export function humanizeActivity(row: ActivityRow) {
   const otherAssets = Number(data.other_assets_value);
   const otherCopy = Number.isFinite(otherAssets) && otherAssets > 0 ? ` · 其他账户资产 ${moneyValue(otherAssets)}` : '';
   return activityItem(row, '资产对账', `总资产 ${moneyValue(data.total_value)} · Broker Cash ${moneyValue(data.cash_value)}${otherCopy}`, data);
+}
+
+function securityDisplay(row: Pick<ActivityRow, 'ticker' | 'ticker_name'>) {
+  return row.ticker && row.ticker_name ? `${row.ticker} · ${row.ticker_name}` : row.ticker_name || row.ticker || '';
 }
 
 function activityItem(row: ActivityRow, title: string, summary: string, details: JsonObject) {
@@ -238,6 +245,7 @@ function optionalDay(value: string | null): string | null | undefined {
   const candidate = new Date(Date.UTC(year, month - 1, day));
   return candidate.getUTCFullYear() === year && candidate.getUTCMonth() === month - 1 && candidate.getUTCDate() === day ? value : undefined;
 }
+function likePattern(value: string) { return `%${value.replace(/[\\%_]/g, '\\$&')}%`; }
 function moneyValue(value: unknown) { const number = Number(value); return Number.isFinite(number) ? `¥${number.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}` : '—'; }
 function signedMoney(value: unknown) { const number = Number(value); return Number.isFinite(number) ? `${number >= 0 ? '+' : '-'}¥${Math.abs(number).toLocaleString('zh-CN', { maximumFractionDigits: 2 })}` : '—'; }
 function numberValue(value: unknown) { const number = Number(value); return Number.isFinite(number) ? number.toLocaleString('zh-CN', { maximumFractionDigits: 4 }) : '—'; }

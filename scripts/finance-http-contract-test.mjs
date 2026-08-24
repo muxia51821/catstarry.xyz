@@ -234,11 +234,14 @@ class MemoryStatement {
       let index = 0;
       const start = this.sql.includes('t.trade_date >= ?') ? this.values[index++] : null;
       const end = this.sql.includes('t.trade_date <= ?') ? this.values[index++] : null;
-      const ticker = this.sql.includes('t.ticker = ?') ? this.values[index++] : null;
+      const ticker = this.sql.includes('UPPER(t.ticker) = ?')
+        ? this.values[index++]
+        : this.sql.includes('t.ticker = ?') ? this.values[index++] : null;
+      if (this.sql.includes('t.ticker_name LIKE ?')) index += 1;
       const direction = this.sql.includes('t.direction = ?') ? this.values[index++] : null;
       const cursor = this.sql.includes('(t.trade_date < ?') ? { sort: this.values[index], id: this.values[index + 2] } : null;
       const limit = this.values.at(-1);
-      const rows = this.database.trades.filter((trade) => !trade.deleted_at && (!start || trade.trade_date >= start) && (!end || trade.trade_date <= end) && (!ticker || trade.ticker === ticker) && (!direction || trade.direction === direction)).sort((left, right) => right.trade_date.localeCompare(left.trade_date) || right.id - left.id).filter((trade) => !cursor || trade.trade_date < cursor.sort || (trade.trade_date === cursor.sort && trade.id < cursor.id)).map((trade) => { const memo = this.database.memos.find((item) => item.trade_id === trade.id && !item.deleted_at); return { ...trade, memo_id: memo?.id ?? null, memo_reason: memo?.reason ?? null, memo_reason_source: memo?.reason_source ?? null }; });
+      const rows = this.database.trades.filter((trade) => !trade.deleted_at && (!start || trade.trade_date >= start) && (!end || trade.trade_date <= end) && (!ticker || trade.ticker.toUpperCase() === String(ticker).toUpperCase()) && (!direction || trade.direction === direction)).sort((left, right) => right.trade_date.localeCompare(left.trade_date) || right.id - left.id).filter((trade) => !cursor || trade.trade_date < cursor.sort || (trade.trade_date === cursor.sort && trade.id < cursor.id)).map((trade) => { const memo = this.database.memos.find((item) => item.trade_id === trade.id && !item.deleted_at); return { ...trade, memo_id: memo?.id ?? null, memo_reason: memo?.reason ?? null, memo_reason_source: memo?.reason_source ?? null }; });
       return { results: rows.slice(0, limit) };
     }
     if (this.sql.startsWith('SELECT year_month, muxia_invest, cati_invest, end_total FROM monthly_records')) {

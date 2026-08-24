@@ -34,7 +34,7 @@ const html = `<!doctype html><html><head>
   <nav><button data-tab="overview" class="is-active">总览</button><button data-tab="records">管理记录</button><button data-refresh>刷新</button></nav>
   <section class="summary-grid" data-pane="overview"><article class="metric"><span>总资产</span><strong data-total-value>130,424.20</strong></article></section>
   <div class="dashboard-grid">
-    <details class="panel" data-access-panel data-pane="records" hidden><summary>安全访问记录</summary><div data-access-list><p>legacy access fallback</p></div></details>
+    <details class="panel" data-access-panel data-pane="records" hidden><summary>安全访问记录</summary><div data-access-list><div class="access-log__header"><span>时间</span><span>用户</span><span>动作</span></div><div class="access-log__rows" data-access-rows></div></div></details>
     <section class="panel" data-import-review-panel data-pane="records" hidden><h2>旧 Import Review</h2><div data-import-review-list><p>legacy review fallback</p></div></section>
   </div>
 </div>
@@ -205,7 +205,7 @@ try {
     legacyAccessRows: document.querySelector('[data-access-list]')?.children.length ?? 0,
     legacyReviewRows: document.querySelector('[data-import-review-list]')?.children.length ?? 0,
   })`);
-  assert.deepEqual(reset, { summaryLabel: '总资产', summaryValue: '130,424.20', activityRows: 0, changeRows: 0, reviewRows: 0, legacyAccessRows: 0, legacyReviewRows: 0 });
+  assert.deepEqual(reset, { summaryLabel: '总资产', summaryValue: '130,424.20', activityRows: 0, changeRows: 0, reviewRows: 0, legacyAccessRows: 2, legacyReviewRows: 0 });
 
   // A broad Records failure remains local and keeps legacy fallbacks available.
   pendingReview = [{ id: 7, batch_id: 'fixture-batch', sheet_name: '操作记录', row_number: 12, record_kind: 'trade', reason: 'fixture review', raw: { ticker: 'BAD' } }];

@@ -166,12 +166,24 @@ th:first-child, td:first-child, th:last-child, td:last-child { text-align: left;
 th { color: var(--muted); font-weight: 500; }
 .table-data { font-family: "JetBrains Mono", ui-monospace, monospace; }
 .table-text, .trade-buy, .trade-sell { font-family: Geist, "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif; }
+.trade-table { table-layout: fixed; }
 .trade-table .trade-cell--date,
-.trade-table .trade-cell--text,
+.trade-table .trade-cell--security,
+.trade-table .trade-cell--direction,
+.trade-table .trade-cell--role,
+.trade-table .trade-cell--attribute,
+.trade-table .trade-cell--reason,
 .trade-table .trade-cell--action { text-align: left; }
 .trade-table .trade-cell--number { text-align: right; }
-.trade-table .trade-cell--date { min-width: 7.25rem; font-variant-numeric: tabular-nums; }
-.trade-table .trade-cell--action { width: 1%; min-width: 8.5rem; }
+.trade-table .trade-cell--security { width: 14%; }
+.trade-table .trade-cell--date { width: 9%; font-variant-numeric: tabular-nums; }
+.trade-table .trade-cell--direction { width: 6%; }
+.trade-table .trade-cell--number { width: 7%; }
+.trade-table .trade-cell--role { width: 10%; }
+.trade-table .trade-cell--attribute { width: 10%; }
+.trade-table .trade-cell--reason { width: 25%; white-space: normal; overflow-wrap: anywhere; vertical-align: top; }
+.trade-table .trade-cell--action { width: 12%; min-width: 8.5rem; }
+.trade-table .row-actions { flex-wrap: wrap; }
 .trade-table .portfolio-security-cell { text-align: left; }
 .access-log__header,
 .access-log__row { display: grid; grid-template-columns: minmax(11rem, 1.2fr) minmax(7rem, .8fr) minmax(8rem, 1fr); gap: var(--space-3); align-items: baseline; }

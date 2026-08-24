@@ -71,6 +71,11 @@ assert.deepEqual({
 }, { ticker: '000021', role: '主动操作仓（A股）' });
 assert.ok(!('security_attribute' in filtered.trades[0]), 'Trade facts stay independent of the security-reference projection');
 
+const nameFilteredResponse = await handleTrades(request(`limit=50&ticker=${encodeURIComponent('深科技')}`), env);
+assert.equal(nameFilteredResponse.status, 200, 'security name is a valid trade filter');
+const nameFiltered = await nameFilteredResponse.json();
+assert.deepEqual(nameFiltered.trades.map((row) => row.ticker), ['000021']);
+
 const firstPageResponse = await handleTrades(request(`limit=1&position_category=${encodeURIComponent('主动操作仓（A股）')}`), env);
 assert.equal(firstPageResponse.status, 200);
 const firstPage = await firstPageResponse.json();

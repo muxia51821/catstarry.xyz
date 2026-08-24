@@ -101,10 +101,10 @@
             <div class="pe-list" data-pe-list></div><p class="empty-state" data-pe-empty hidden>行情供应商尚未写入 PE-TTM。</p>
           </section>
 
-          <section class="panel panel--span-2" data-pane="entry" aria-labelledby="trades-title">
+          <section class="panel panel--span-3" data-pane="entry" aria-labelledby="trades-title">
             <header class="panel-header"><div><p class="eyebrow">LEDGER</p><h2 id="trades-title">交易记录</h2></div></header>
-            <form class="record-filters" data-trade-filters><label>开始日期<input name="start" type="date"></label><label>结束日期<input name="end" type="date"></label><label>标的<input name="ticker" maxlength="24" placeholder="代码"></label><label>方向<select name="direction"><option value="">全部</option><option value="buy">买入</option><option value="sell">卖出</option></select></label><button class="button-secondary" type="submit">筛选</button><button class="text-button" type="reset">清除</button></form>
-            <div class="table-scroll"><table class="trade-table"><thead><tr><th class="trade-cell--date">日期</th><th class="trade-cell--text">标的</th><th class="trade-cell--text">方向</th><th class="trade-cell--number">数量</th><th class="trade-cell--number">价格</th><th class="trade-cell--text">类别</th><th class="trade-cell--text">操作理由</th><th class="trade-cell--action">操作</th></tr></thead><tbody data-trades-body></tbody></table></div>
+            <form class="record-filters" data-trade-filters><label>开始日期<input name="start" type="date"></label><label>结束日期<input name="end" type="date"></label><label>标的<input name="ticker" maxlength="100" placeholder="代码或名称"></label><label>方向<select name="direction"><option value="">全部</option><option value="buy">买入</option><option value="sell">卖出</option></select></label><button class="button-secondary" type="submit">筛选</button><button class="text-button" type="reset">清除</button></form>
+            <div class="table-scroll"><table class="trade-table"><thead><tr><th class="trade-cell--date">日期</th><th class="trade-cell--security">标的</th><th class="trade-cell--direction">方向</th><th class="trade-cell--number">数量</th><th class="trade-cell--number">价格</th><th class="trade-cell--role">组合角色</th><th class="trade-cell--reason">操作理由</th><th class="trade-cell--action">操作</th></tr></thead><tbody data-trades-body></tbody></table></div>
             <p class="empty-state" data-trades-empty hidden>还没有交易记录。</p><div class="pagination" data-trade-pagination hidden><button class="button-secondary" type="button" data-trade-prev>上一页</button><span data-trade-page>第 1 页</span><button class="button-secondary" type="button" data-trade-next>下一页</button></div>
           </section>
 
@@ -158,7 +158,7 @@
             <p class="panel-copy">异常行不会静默覆盖正式数据。请先在正式录入流程中完成修正，再用结案说明记录处理依据。</p><div class="import-review-list" data-import-review-list></div><p class="empty-state" data-import-review-empty hidden>没有待处理的导入异常。</p>
           </section>
 
-          <details class="panel panel--span-2 access-disclosure" data-pane="records" data-access-panel hidden>
+          <details class="panel panel--span-3 access-disclosure" data-pane="records" data-access-panel hidden>
             <summary><span><span class="eyebrow">ADMINISTRATOR</span><strong>访问记录</strong></span><span>展开</span></summary>
             <form class="record-filters" data-access-filters><label>开始时间<input name="start" type="date"></label><label>结束时间<input name="end" type="date"></label><label>用户名<input name="username" maxlength="64"></label><label>动作<input name="action" maxlength="64"></label><button class="button-secondary" type="submit">筛选</button><button class="text-button" type="reset">清除</button></form><div class="access-list" data-access-list><div class="access-log__header" aria-hidden="true"><span>时间</span><span>用户</span><span>动作</span></div><div class="access-log__rows" data-access-rows></div></div><p class="empty-state" data-access-empty hidden>还没有访问记录。</p><div class="pagination" data-access-pagination hidden><button class="button-secondary" type="button" data-access-prev>上一页</button><span data-access-page>第 1 页</span><button class="button-secondary" type="button" data-access-next>下一页</button></div>
           </details>

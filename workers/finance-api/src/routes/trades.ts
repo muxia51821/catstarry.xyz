@@ -120,16 +120,16 @@ async function listTrades(request: Request, env: FinanceEnv): Promise<Response> 
   const url = new URL(request.url); const limit = Number(url.searchParams.get('limit') ?? '50');
   if (!Number.isInteger(limit) || limit < 1 || limit > 50) return apiError(400, 'invalid_limit', 'limit must be between 1 and 50');
   const start = optionalDate(url.searchParams.get('start')); const end = optionalDate(url.searchParams.get('end'));
-  const ticker = (url.searchParams.get('ticker') ?? '').trim().toUpperCase(); const direction = url.searchParams.get('direction') ?? '';
+  const ticker = optionalFilter(url.searchParams.get('ticker'), 100); const direction = url.searchParams.get('direction') ?? '';
   const positionCategory = optionalFilter(url.searchParams.get('position_category'), 64);
   const securityAttribute = optionalFilter(url.searchParams.get('security_attribute'), 100);
-  if (start === undefined || end === undefined || positionCategory === undefined || securityAttribute === undefined
-    || (start && end && start > end) || (ticker && !/^[A-Z0-9.-]{2,24}$/.test(ticker))
+  if (start === undefined || end === undefined || ticker === undefined || positionCategory === undefined || securityAttribute === undefined
+    || (start && end && start > end)
     || (direction && !['buy', 'sell'].includes(direction))) return apiError(400, 'invalid_filter', 'Trade filters are invalid');
   const filter = {
     start: start ?? null,
     end: end ?? null,
-    ticker: ticker || null,
+    ticker: ticker ?? null,
     direction: direction || null,
     position_category: positionCategory,
     security_attribute: securityAttribute,
@@ -143,7 +143,10 @@ async function listTrades(request: Request, env: FinanceEnv): Promise<Response> 
   const clauses = ['t.deleted_at IS NULL']; const values: unknown[] = [];
   if (filter.start) { clauses.push('t.trade_date >= ?'); values.push(filter.start); }
   if (filter.end) { clauses.push('t.trade_date <= ?'); values.push(filter.end); }
-  if (filter.ticker) { clauses.push('t.ticker = ?'); values.push(filter.ticker); }
+  if (filter.ticker) {
+    clauses.push(`(UPPER(t.ticker) = ? OR t.ticker_name LIKE ? ESCAPE '\\')`);
+    values.push(filter.ticker.toUpperCase(), likePattern(filter.ticker));
+  }
   if (filter.direction) { clauses.push('t.direction = ?'); values.push(filter.direction); }
   if (filter.position_category) { clauses.push('t.position_category = ?'); values.push(filter.position_category); }
   if (attributeTickers) {
@@ -172,6 +175,7 @@ function optionalFilter(value: string | null, maximum: number): string | null | 
   const result = value.trim();
   return result.length <= maximum ? result : undefined;
 }
+function likePattern(value: string) { return `%${value.replace(/[\\%_]/g, '\\$&')}%`; }
 function encodeCursor(value: { sort: string; id: number; filter: unknown }): string {
   const bytes = new TextEncoder().encode(JSON.stringify(value));
   let binary = '';

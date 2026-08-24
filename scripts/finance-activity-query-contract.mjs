@@ -61,17 +61,19 @@ assert.equal(reconciliation.details.other_assets_value, 36000, 'Activity must pr
 const trade = all.rows.find((row) => row.event_key === 'trade:100');
 assert.deepEqual(humanizeActivity(trade), {
   key: 'trade:100', business_date: '2026-08-14', business_time: '14:55', kind: 'trade', ticker: '300750', ticker_name: '宁德时代',
-  title: '买入 · 宁德时代', summary: '100 股 × ¥393.93',
+  title: '买入 · 300750 · 宁德时代', summary: '100 股 × ¥393.93',
   details: { direction: 'buy', quantity: 100, price: 393.93, fee: 0.2, net_cash_amount: -39393.2, position_category: '主动操作仓（A股）', reason: 'activity fixture' },
 });
 
 const tickerRows = rows({ filter: { ...emptyFilter, ticker: '300750' } }).rows;
 assert.deepEqual(tickerRows.map((row) => row.event_key), ['trade:100', 'account-event:102'], 'ticker filter should naturally exclude non-security cash/reconciliation events');
+const nameRows = rows({ filter: { ...emptyFilter, ticker: '宁德时代' } }).rows;
+assert.deepEqual(nameRows.map((row) => row.event_key), ['trade:100', 'account-event:102'], 'security name filter must match the same activity facts as a ticker');
 const dividend = rows({ filter: { ...emptyFilter, kind: 'account_event' } }).rows.find((row) => row.event_key === 'account-event:102');
-assert.equal(humanizeActivity(dividend).title, '现金分红 · 宁德时代');
+assert.equal(humanizeActivity(dividend).title, '现金分红 · 300750 · 宁德时代');
 assert.match(humanizeActivity(dividend).summary, /\+¥141\.1/);
 const split = rows({ filter: { ...emptyFilter, ticker: '515880' } }).rows[0];
-assert.equal(humanizeActivity(split).title, '份额分拆 · 通信ETF');
+assert.equal(humanizeActivity(split).title, '份额分拆 · 515880 · 通信ETF');
 assert.equal(humanizeActivity(split).summary, '1:2 份额分拆', 'split Activity must use explicit explanatory evidence instead of guessing the meaning of quantity');
 
 // Deleted facts leave Activity; the immutable audit remains available separately in Data Change Log.
