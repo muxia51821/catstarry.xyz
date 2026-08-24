@@ -22,7 +22,7 @@ import { refreshMarketData } from './tasks/refresh-market-data';
 import { ASSET_VALUATION_REFRESH_CRONS, refreshAutomaticAssetValuations } from './tasks/refresh-asset-valuations';
 import { logWorkerError, logWorkerWarning } from '../../../shared/worker-log';
 
-const MARKET_REFRESH_CRONS = new Set(['*/15 * * * *', '30 7 * * 1-5']);
+const MARKET_REFRESH_CRONS = new Set(['*/15 * * * *']);
 
 function corsFor(env: FinanceEnv) {
   const configured = env.FINANCE_SITE_ORIGIN?.replace(/\/$/, '');
