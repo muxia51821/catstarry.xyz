@@ -51,6 +51,12 @@ type PositionLimitRow = {
   upper_ratio: number;
 };
 
+type ContributionBasis = {
+  initial_capital: number | null;
+  net_cash_flows: number;
+  cash_flow_count: number;
+};
+
 export const SYNTHETIC_RECONCILIATION_SOURCES = ['auto_close', 'historical_backfill', 'history_import'];
 const CASH_ACCOUNT_EVENT_TYPES = new Set(['dividend', 'dividend_tax', 'repo_start', 'repo_maturity', 'refund']);
 const CASH_TOLERANCE = 0.000001;
@@ -64,11 +70,12 @@ export async function handleAccountState(request: Request, env: FinanceEnv): Pro
 }
 
 export async function readAccountState(env: FinanceEnv, now: Date = new Date()) {
-  const [reconciliation, holdings, repoEvents, positionLimits] = await Promise.all([
+  const [reconciliation, holdings, repoEvents, positionLimits, contributionBasis] = await Promise.all([
     latestReconciliation(env),
     currentHoldings(env, now),
     allRepoEvents(env),
     readPositionLimits(env),
+    readContributionBasis(env),
   ]);
   const repoState = projectRepoAssets(repoEvents);
 
@@ -87,6 +94,7 @@ export async function readAccountState(env: FinanceEnv, now: Date = new Date()) 
       other_assets: repoState,
       total_assets: null,
       total_status: 'incomplete',
+      performance: projectCumulativePnl(null, contributionBasis),
     };
     return { ...state, portfolio_roles: projectPortfolioRoles(state, positionLimits) };
   }
@@ -116,8 +124,46 @@ export async function readAccountState(env: FinanceEnv, now: Date = new Date()) 
     other_assets: repoState,
     total_assets: totalAssets,
     total_status: totalAssets === null ? 'incomplete' : cash.status,
+    performance: projectCumulativePnl(totalAssets, contributionBasis),
   };
   return { ...state, portfolio_roles: projectPortfolioRoles(state, positionLimits) };
+}
+
+async function readContributionBasis(env: FinanceEnv): Promise<ContributionBasis> {
+  const [plan, cashFlows] = await Promise.all([
+    env.DB.prepare('SELECT initial_capital FROM plan_params WHERE id = 1').first<{ initial_capital: number | null }>(),
+    env.DB.prepare('SELECT net_amount FROM finance_cash_flows WHERE deleted_at IS NULL').all<{ net_amount: number }>(),
+  ]);
+  const initialCapital = plan?.initial_capital === null || plan?.initial_capital === undefined
+    ? null
+    : Number(plan.initial_capital);
+  return {
+    initial_capital: initialCapital !== null && Number.isFinite(initialCapital) && initialCapital >= 0 ? initialCapital : null,
+    net_cash_flows: cashFlows.results.reduce((sum, row) => sum + Number(row.net_amount), 0),
+    cash_flow_count: cashFlows.results.length,
+  };
+}
+
+export function projectCumulativePnl(totalAssets: number | null, basis: ContributionBasis) {
+  if (basis.initial_capital === null || totalAssets === null || !Number.isFinite(totalAssets)) {
+    return {
+      status: 'unavailable' as const,
+      initial_capital: basis.initial_capital,
+      net_cash_flows: basis.net_cash_flows,
+      cash_flow_count: basis.cash_flow_count,
+      total_contributions: null,
+      pnl: null,
+    };
+  }
+  const totalContributions = normalizeMoney(basis.initial_capital + basis.net_cash_flows);
+  return {
+    status: 'available' as const,
+    initial_capital: basis.initial_capital,
+    net_cash_flows: normalizeMoney(basis.net_cash_flows),
+    cash_flow_count: basis.cash_flow_count,
+    total_contributions: totalContributions,
+    pnl: normalizeMoney(totalAssets - totalContributions),
+  };
 }
 
 async function readPositionLimits(env: FinanceEnv) {

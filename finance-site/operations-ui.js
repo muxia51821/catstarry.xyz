@@ -96,7 +96,7 @@
   function syncVisibility() {
     const records = recordsActive();
     activityPanel.hidden = !records;
-    reviewPanel.hidden = !(records && (reviewCapability === 'allowed' || reviewCapability === 'error'));
+    reviewPanel.hidden = !(records && (reviewCapability === 'error' || (reviewCapability === 'allowed' && reviewList.childElementCount > 0)));
     changeLogPanel.hidden = !(records && (changeLogCapability === 'allowed' || changeLogCapability === 'error'));
     if (app.hidden) return;
     if (records) scheduleRecordsRefresh();
@@ -274,9 +274,10 @@
       const body = await response.json();
       if (epoch !== sessionEpoch || app.hidden) return;
       reviewCapability = 'allowed';
-      renderWorkbookReview(body.review ?? []);
-      reviewPanel.hidden = !recordsActive();
-      state.textContent = `${body.review?.length ?? 0} 条待处理`;
+      const pending = body.review ?? [];
+      renderWorkbookReview(pending);
+      reviewPanel.hidden = !recordsActive() || pending.length === 0;
+      state.textContent = `${pending.length} 条待处理`;
       document.documentElement.classList.add('operation-workbook-review-ready');
     } catch (error) {
       if (epoch !== sessionEpoch || app.hidden) return;

@@ -1,5 +1,12 @@
 # 更新记录
 
+## 2026-08-24 — Finance real-use corrections and historical valuation readiness
+
+- Finance Overview 现在隔离 Access Log、Import Review 等辅助读取失败；主资产数据不再因此长期停在加载状态。空的导入异常审阅不再占用账户动态空间，Data Change Log 改为逐审计源读取和全局排序，规避 D1 compound SELECT 上限。
+- Portfolio Allocation Map 的成分明细显示标的名称与代码；总资产同时显示累计投入和累计盈亏，且只在 authoritative Total Assets 完整时提供。
+- Trade 表恢复语义列对齐；CSI 历史 PE 位置显示各指数自己的分位、窗口、样本数和 P20/P50/P80。科创 50 PE 保持描述性风险观察，不产生综合估值或交易结论。
+- 新增可审阅的日线 raw-close collector：腾讯候选价配合同花顺交易日覆盖核验，输出给既有 D1 SQL generator 的 CSV 和报告，不在 Worker 中直连外部行情。
+
 ## 2026-08-18 — Post-audit corrective production release and Finance reconciliation closure
 
 ### Source / accepted corrective implementation

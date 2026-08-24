@@ -111,6 +111,8 @@ database.prepare(`INSERT INTO finance_asset_snapshots (
 ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`).run(
   '2026-08-17T01:00:00.000Z', '2026-08-17', 39_000, 1_100, 0, 40_100, 'historical_backfill', '2026-08-17T01:00:00.000Z', 'system',
 );
+database.prepare(`UPDATE plan_params SET initial_capital = 40_000, updated_at = '2026-08-16T02:29:00.000Z', updated_by = 'muxia'
+  WHERE id = 1`).run();
 database.prepare(`INSERT INTO holdings_snapshots (snapshot_date, ticker, quantity, avg_cost, position_category)
   VALUES ('2026-08-17', '300750', 100, 380, '主动操作仓（A股）')`).run();
 database.prepare(`INSERT INTO market_data (ticker, price, pe_ttm, fetched_at)
@@ -139,6 +141,10 @@ assert.equal(state.cash.projected_delta, 219.49);
 assert.equal(state.other_assets.status, 'open_repo');
 assert.equal(state.other_assets.value, 200);
 assert.equal(state.total_assets, 40_812.49);
+assert.deepEqual(state.performance, {
+  status: 'available', initial_capital: 40_000, net_cash_flows: 500, cash_flow_count: 1,
+  total_contributions: 40_500, pnl: 312.49,
+});
 assert.equal(state.portfolio_roles.total_assets, state.total_assets);
 assert.equal(state.portfolio_roles.percentage_available, true);
 assert.deepEqual(state.portfolio_roles.roles.map(({ role, value, sources }) => ({ role, value, sources })), [
@@ -161,6 +167,7 @@ assert.equal(intradayState.cash.projected_delta, -180.01);
 assert.equal(intradayState.cash.replayed_facts, 2);
 assert.match(intradayState.cash.problems.join(' '), /cash-flow:1.*同一财务日/);
 assert.equal(intradayState.total_assets, null, 'incomplete cash ordering must block an exact current total');
+assert.equal(intradayState.performance.status, 'unavailable', 'cumulative P&L must not be fabricated without authoritative Total Assets');
 assert.equal(intradayState.portfolio_roles.percentage_available, false);
 assert.ok(intradayState.portfolio_roles.roles.every((role) => role.percentage === null));
 
