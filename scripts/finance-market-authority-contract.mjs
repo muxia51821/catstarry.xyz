@@ -25,11 +25,9 @@ assert.match(automaticValuationTask, /tencent-finance\+ths-coverage/);
 
 assert.match(workerIndex, /const MARKET_REFRESH_CRONS = new Set\(\['\*\/15 \* \* \* \*'\]\)/, 'Finance Worker keeps a single quarter-hour market refresh; it already covers 15:30 China time');
 assert.match(workerIndex, /if \(MARKET_REFRESH_CRONS\.has\(controller\.cron\)\)/, 'only declared market crons may refresh current market data');
-assert.match(workerIndex, /controller\.cron in ASSET_VALUATION_REFRESH_CRONS/, 'only declared valuation crons may write historical authority');
+assert.match(workerIndex, /controller\.cron === ASSET_VALUATION_REFRESH_CRON/, 'only the consolidated valuation cron may write historical authority');
 assert.match(wranglerConfig, /"\*\/15 \* \* \* \*"/);
 assert.doesNotMatch(wranglerConfig, /"30 7 \* \* 1-5"/, 'the redundant 15:30 weekday cron would exceed the account trigger capacity');
-assert.match(wranglerConfig, /"20 8 \* \* 1-5"/);
-assert.match(wranglerConfig, /"0 9 \* \* 1-5"/);
-assert.match(wranglerConfig, /"0 12 \* \* 1-5"/);
+assert.match(wranglerConfig, /"0,20 8,9,12 \* \* 1-5"/, 'one cron reserves the three exact China-time attempts without exceeding account capacity');
 
 console.log('Finance live-market, historical-price, and scheduled-refresh authority contract passed.');

@@ -19,7 +19,7 @@ import { handleSecurities } from './routes/securities';
 import { handleStewardship } from './routes/stewardship';
 import { handleTrades } from './routes/trades';
 import { refreshMarketData } from './tasks/refresh-market-data';
-import { ASSET_VALUATION_REFRESH_CRONS, refreshAutomaticAssetValuations } from './tasks/refresh-asset-valuations';
+import { ASSET_VALUATION_REFRESH_CRON, assetValuationRefreshAttempt, refreshAutomaticAssetValuations } from './tasks/refresh-asset-valuations';
 import { logWorkerError, logWorkerWarning } from '../../../shared/worker-log';
 
 const MARKET_REFRESH_CRONS = new Set(['*/15 * * * *']);
@@ -77,9 +77,11 @@ export default {
         logWorkerWarning('finance_scheduled_refresh_failed', { cron: controller.cron }, error);
       }
     }
-    if (controller.cron in ASSET_VALUATION_REFRESH_CRONS) {
+    if (controller.cron === ASSET_VALUATION_REFRESH_CRON) {
+      const attempt = assetValuationRefreshAttempt(new Date(controller.scheduledTime));
+      if (attempt === null) return;
       try {
-        await refreshAutomaticAssetValuations(env, { cron: controller.cron });
+        await refreshAutomaticAssetValuations(env, { triggerCron: controller.cron, attempt });
       } catch (error) {
         logWorkerWarning('finance_scheduled_asset_valuation_refresh_failed', { cron: controller.cron }, error);
       }
