@@ -60,7 +60,11 @@ export async function connectCdp(target, onEvent = () => {}) {
   async function waitFor(expression, label, timeoutMs = DEFAULT_TIMEOUT_MS) {
     const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {
-      if (await evaluate(expression)) return;
+      try {
+        if (await evaluate(expression)) return;
+      } catch (error) {
+        if (Date.now() >= deadline) throw error;
+      }
       await delay(100);
     }
     throw new Error(`Timed out waiting for ${label}`);
