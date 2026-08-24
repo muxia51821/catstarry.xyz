@@ -1,3 +1,6 @@
+// Manual operator tool, intentionally not in CI: needs a running server
+// (FEED_UI_URL, default 127.0.0.1:4322) plus real admin credentials
+// (FEED_UI_USERNAME / FEED_UI_PASSWORD). Run via `npm run test:feed:ui`.
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { connectCdp, delay } from './lib/cdp-session.mjs';

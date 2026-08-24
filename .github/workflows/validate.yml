@@ -32,6 +32,12 @@ jobs:
       - run: node scripts/learn-production-transition-contract-test.mjs
       - run: npm run test:learn:preview
       - run: npm run test:blog:preview
+      - run: npm run test:home-copy
+      - run: npm run test:home-css
+      - run: npm run test:blog:reconciliation
+      - run: npm run test:finance:historical-valuation
+      - run: npm run test:finance:portfolio-role
+      - run: npm run test:finance:preview
       - run: npm run test:preview:lifecycle
       - run: npm run test:browser:ci
       - run: npm run test:feed:worker
