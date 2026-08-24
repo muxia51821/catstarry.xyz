@@ -41,6 +41,18 @@
   activityPanel.append(activityFilters, activityList, activityEmpty, activityError, activityCoverage, activityMore);
   grid.insertBefore(activityPanel, oldImportPanel ?? null);
 
+  const valuationRefreshPanel = node('section', { className: 'panel panel--span-3 valuation-refresh-panel', 'data-pane': 'records', hidden: '' });
+  valuationRefreshPanel.setAttribute('aria-labelledby', 'valuation-refresh-title');
+  const valuationRefreshCopy = node('p', { className: 'panel-copy', 'data-valuation-refresh-copy': '', textContent: '正在读取自动历史估值状态。' });
+  valuationRefreshPanel.append(
+    node('header', { className: 'panel-header' },
+      node('div', {}, node('p', { className: 'eyebrow', textContent: 'AUTOMATIC VALUATION' }), node('h2', { id: 'valuation-refresh-title', textContent: '历史估值更新' })),
+      node('span', { className: 'data-state', 'data-valuation-refresh-state': '', textContent: '等待读取' }),
+    ),
+    valuationRefreshCopy,
+  );
+  grid.insertBefore(valuationRefreshPanel, oldImportPanel ?? null);
+
   const reviewPanel = node('section', { className: 'panel panel--span-3 operation-review-panel', 'data-pane': 'records', hidden: '' });
   reviewPanel.setAttribute('aria-labelledby', 'canonical-import-review-title');
   reviewPanel.append(
@@ -82,6 +94,7 @@
   let activities = [];
   let activityCursor = null;
   let loadingActivity = false;
+  let loadingValuationRefresh = false;
   let changes = [];
   let nextCursor = null;
   let loadingChanges = false;
@@ -96,6 +109,7 @@
   function syncVisibility() {
     const records = recordsActive();
     activityPanel.hidden = !records;
+    valuationRefreshPanel.hidden = !records;
     reviewPanel.hidden = !(records && (reviewCapability === 'error' || (reviewCapability === 'allowed' && reviewList.childElementCount > 0)));
     changeLogPanel.hidden = !(records && (changeLogCapability === 'allowed' || changeLogCapability === 'error'));
     if (app.hidden) return;
@@ -129,6 +143,43 @@
       activityPanel.querySelector('[data-activity-state]').textContent = '读取失败';
     } finally {
       if (epoch === sessionEpoch) loadingActivity = false;
+    }
+  }
+
+  async function loadValuationRefreshStatus() {
+    if (loadingValuationRefresh || app.hidden || !recordsActive()) return;
+    const epoch = sessionEpoch;
+    loadingValuationRefresh = true;
+    const state = valuationRefreshPanel.querySelector('[data-valuation-refresh-state]');
+    state.textContent = '正在读取';
+    try {
+      const response = await rawFetch(`${apiBase}/api/assets/refresh-status`, { credentials: 'include' });
+      if (!response.ok) throw new Error(await responseMessage(response, '自动历史估值状态暂时无法读取'));
+      const body = await response.json();
+      if (epoch !== sessionEpoch || app.hidden) return;
+      const latest = body.latest;
+      if (!latest) {
+        state.textContent = '尚未运行';
+        valuationRefreshCopy.textContent = '自动历史估值将在收盘后写入；页面刷新不会触发数据采集。';
+        return;
+      }
+      if (body.status === 'succeeded') {
+        state.textContent = '已完成';
+        valuationRefreshCopy.textContent = `${latest.business_date ?? '—'} 已写入 ${latest.valuation_rows_written} 个完整估值日；本页只读取已持久化结果。`;
+      } else if (body.status === 'skipped') {
+        state.textContent = '无新增交易日';
+        valuationRefreshCopy.textContent = '最近一次检查没有新的可用交易日；页面刷新不会触发数据采集。';
+      } else {
+        state.textContent = body.status === 'review_required' ? '需要审阅' : '更新失败';
+        const missing = Array.isArray(latest.missing_tickers) && latest.missing_tickers.length ? `缺少：${latest.missing_tickers.join('、')}。` : '';
+        valuationRefreshCopy.textContent = `${latest.business_date ?? '—'} 自动历史估值未写入。${missing}${latest.error_summary ?? '下一个计划任务会重试。'}`;
+      }
+    } catch (error) {
+      if (epoch !== sessionEpoch || app.hidden) return;
+      state.textContent = '读取失败';
+      valuationRefreshCopy.textContent = error instanceof Error ? error.message : '自动历史估值状态暂时无法读取';
+    } finally {
+      if (epoch === sessionEpoch) loadingValuationRefresh = false;
     }
   }
 
@@ -331,6 +382,7 @@
     clearTimeout(refreshTimer);
     refreshTimer = setTimeout(() => {
       loadActivity();
+      loadValuationRefreshStatus();
       loadWorkbookReview();
       probeChangeLogCapability({ force: changeLogCapability === 'error' });
       if (changeLogPanel.open && changeLogCapability === 'allowed') loadChangeLog();
@@ -342,6 +394,7 @@
     clearTimeout(refreshTimer);
     refreshTimer = null;
     loadingActivity = false;
+    loadingValuationRefresh = false;
     loadingChanges = false;
     loadingChangeCapability = false;
     reviewCapability = 'unknown';
@@ -364,10 +417,13 @@
     activityCoverage.textContent = '';
     coverage.textContent = '';
     activityPanel.querySelector('[data-activity-state]').textContent = '等待读取';
+    valuationRefreshPanel.querySelector('[data-valuation-refresh-state]').textContent = '等待读取';
+    valuationRefreshCopy.textContent = '正在读取自动历史估值状态。';
     changeLogPanel.querySelector('[data-operation-state]').textContent = '管理员审计';
     reviewPanel.querySelector('[data-canonical-review-state]').textContent = '等待读取';
     changeLogPanel.open = false;
     activityPanel.hidden = true;
+    valuationRefreshPanel.hidden = true;
     changeLogPanel.hidden = true;
     reviewPanel.hidden = true;
     document.documentElement.classList.remove('operation-history-ready', 'operation-workbook-review-ready', 'operation-change-log-capability-ready');

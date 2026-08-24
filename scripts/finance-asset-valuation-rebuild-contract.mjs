@@ -6,6 +6,7 @@ import { DatabaseSync } from 'node:sqlite';
 import {
   HISTORICAL_RECONSTRUCTION_START,
   isCanonicalHistoricalDay,
+  previewForwardAssetValuations,
   rebuildAssetValuations,
 } from '../workers/finance-api/src/routes/asset-valuation-rebuild.ts';
 
@@ -21,6 +22,7 @@ class SqliteD1Statement {
     return { success: true, meta: { changes: Number(result.changes), last_row_id: Number(result.lastInsertRowid ?? 0) } };
   }
 }
+
 class SqliteD1 {
   constructor(database) { this.database = database; }
   prepare(sql) { return new SqliteD1Statement(this.database, sql); }
@@ -60,6 +62,29 @@ assert.equal(isCanonicalHistoricalDay('2026-06-30'), true);
 assert.equal(isCanonicalHistoricalDay('2026-06-31'), false);
 assert.equal(isCanonicalHistoricalDay('2026-02-29'), false);
 assert.equal(isCanonicalHistoricalDay('2028-02-29'), true);
+
+// Automatic closes project forward from the latest reconciliation. They keep
+// broker cash and open repo receivables distinct.
+{
+  const { database, env } = await freshDatabase();
+  seedReconciliation(database, { cash: 100, holdings: 100, total: 200 });
+  database.prepare(`INSERT INTO holdings_snapshots (snapshot_date, ticker, quantity, avg_cost, position_category)
+    VALUES ('2026-07-31','510300',10,10,'A股宽基指数底仓')`).run();
+  database.prepare(`INSERT INTO trades (trade_date, ticker, ticker_name, direction, quantity, price, fee, net_cash_amount, position_category, reason, needs_review, created_at, created_by)
+    VALUES ('2026-08-02','510300','沪深300ETF','buy',5,10,0,-50,'A股宽基指数底仓',NULL,0,'2026-08-02T00:00:00.000Z','contract')`).run();
+  database.prepare(`INSERT INTO finance_account_events (event_date,event_time,event_type,ticker,ticker_name,quantity,reference_value,amount,position_category,note,created_at,created_by)
+    VALUES ('2026-08-02',NULL,'repo_start','R-001','R-001',NULL,20,-20,'机动仓',NULL,'2026-08-02T00:00:00.000Z','contract')`).run();
+  const projection = await previewForwardAssetValuations(env, {
+    dates: ['2026-08-03'],
+    prices: [{ ticker: '510300', price_date: '2026-08-03', close: 12, source: 'contract-raw' }],
+    calculatedAt: '2026-08-03T08:20:00.000Z',
+  });
+  assert.deepEqual(
+    projection.valuations.map((row) => ({ securities: row.securities_value, cash: row.cash_value, other: row.other_assets_value, total: row.total_value, complete: row.is_complete })),
+    [{ securities: 180, cash: 30, other: 20, total: 230, complete: 1 }],
+  );
+  database.close();
+}
 
 // Full reconstruction: reverse a post-split anchor, keep repo principal in other assets,
 // and refuse to make an incomplete price day chart-eligible.
