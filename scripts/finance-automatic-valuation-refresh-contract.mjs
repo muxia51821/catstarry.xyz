@@ -3,7 +3,7 @@ import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 
-import { refreshAutomaticAssetValuations } from '../workers/finance-api/src/tasks/refresh-asset-valuations.ts';
+import { assetValuationRefreshAttempt, refreshAutomaticAssetValuations } from '../workers/finance-api/src/tasks/refresh-asset-valuations.ts';
 
 class Statement {
   constructor(database, sql, values = []) { this.database = database; this.sql = sql; this.values = values; }
@@ -60,7 +60,7 @@ function fetchFixture({ close = 12, missingCoverage = false } = {}) {
 {
   const { database, env } = await fixture();
   const result = await refreshAutomaticAssetValuations(env, {
-    cron: '20 8 * * 1-5', now: new Date('2026-08-03T08:20:00.000Z'), fetchImpl: fetchFixture(),
+    triggerCron: '0,20 8,9,12 * * 1-5', attempt: 1, now: new Date('2026-08-03T08:20:00.000Z'), fetchImpl: fetchFixture(),
   });
   assert.deepEqual(result, { status: 'succeeded', business_date: '2026-08-03', price_rows_written: 1, valuation_rows_written: 1 });
   assert.equal(database.prepare("SELECT COUNT(*) AS count FROM finance_security_prices WHERE ticker='510300' AND price_date='2026-08-03'").get().count, 1);
@@ -72,7 +72,7 @@ function fetchFixture({ close = 12, missingCoverage = false } = {}) {
 {
   const { database, env } = await fixture();
   const result = await refreshAutomaticAssetValuations(env, {
-    cron: '0 9 * * 1-5', now: new Date('2026-08-03T09:00:00.000Z'), fetchImpl: fetchFixture({ missingCoverage: true }),
+    triggerCron: '0,20 8,9,12 * * 1-5', attempt: 2, now: new Date('2026-08-03T09:00:00.000Z'), fetchImpl: fetchFixture({ missingCoverage: true }),
   });
   assert.equal(result.status, 'failed');
   assert.equal(database.prepare("SELECT COUNT(*) AS count FROM finance_security_prices WHERE price_date='2026-08-03'").get().count, 0, 'missing coverage must not write canonical raw closes');
@@ -85,11 +85,17 @@ function fetchFixture({ close = 12, missingCoverage = false } = {}) {
   database.prepare(`INSERT INTO finance_security_prices (ticker,price_date,close,source,adjustment,price_status,created_at,created_by)
     VALUES ('510300','2026-08-03',11,'existing','raw','observed','2026-08-03T00:00:00.000Z','contract')`).run();
   const result = await refreshAutomaticAssetValuations(env, {
-    cron: '0 12 * * 1-5', now: new Date('2026-08-03T12:00:00.000Z'), fetchImpl: fetchFixture({ close: 12 }),
+    triggerCron: '0,20 8,9,12 * * 1-5', attempt: 3, now: new Date('2026-08-03T12:00:00.000Z'), fetchImpl: fetchFixture({ close: 12 }),
   });
   assert.equal(result.status, 'review_required');
   assert.equal(database.prepare("SELECT COUNT(*) AS count FROM finance_asset_valuations WHERE valuation_date='2026-08-03'").get().count, 0, 'a difference must never rebuild cache with a competing raw close');
   database.close();
 }
+
+assert.equal(assetValuationRefreshAttempt(new Date('2026-08-03T08:00:00.000Z')), null, 'the consolidated cron must not create an extra 16:00 run');
+assert.equal(assetValuationRefreshAttempt(new Date('2026-08-03T08:20:00.000Z')), 1);
+assert.equal(assetValuationRefreshAttempt(new Date('2026-08-03T09:00:00.000Z')), 2);
+assert.equal(assetValuationRefreshAttempt(new Date('2026-08-03T09:20:00.000Z')), null, 'the consolidated cron must not create an extra 17:20 run');
+assert.equal(assetValuationRefreshAttempt(new Date('2026-08-03T12:00:00.000Z')), 3);
 
 console.log('Finance automatic valuation refresh, failure isolation, and canonical-price review contract passed.');

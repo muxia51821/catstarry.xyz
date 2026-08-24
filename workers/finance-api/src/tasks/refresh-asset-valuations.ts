@@ -13,21 +13,24 @@ type RunStatus = 'succeeded' | 'failed' | 'skipped' | 'review_required';
 type DailyClose = { date: string; close: number };
 type ExistingPrice = { ticker: string; price_date: string; close: number; source: string };
 
-export const ASSET_VALUATION_REFRESH_CRONS: Record<string, number> = {
-  '20 8 * * 1-5': 1,
-  '0 9 * * 1-5': 2,
-  '0 12 * * 1-5': 3,
-};
+export const ASSET_VALUATION_REFRESH_CRON = '0,20 8,9,12 * * 1-5';
+
+export function assetValuationRefreshAttempt(value: Date): 1 | 2 | 3 | null {
+  const { hour, minute } = shanghaiClock(value);
+  if (hour === '16' && minute === '20') return 1;
+  if (hour === '17' && minute === '00') return 2;
+  if (hour === '20' && minute === '00') return 3;
+  return null;
+}
 
 export async function refreshAutomaticAssetValuations(
   env: FinanceEnv,
-  options: { cron: string; now?: Date; fetchImpl?: typeof fetch } ,
+  options: { triggerCron: string; attempt: 1 | 2 | 3; now?: Date; fetchImpl?: typeof fetch },
 ): Promise<{ status: RunStatus; business_date: string | null; price_rows_written: number; valuation_rows_written: number }> {
   const startedAt = (options.now ?? new Date()).toISOString();
   const now = options.now ?? new Date();
   const fetchImpl = options.fetchImpl ?? fetch;
-  const attempt = ASSET_VALUATION_REFRESH_CRONS[options.cron];
-  if (!attempt) throw new Error(`Unsupported valuation refresh cron: ${options.cron}`);
+  const attempt = options.attempt;
   const today = shanghaiDay(now);
   let status: RunStatus = 'failed';
   let tickerCount = 0;
@@ -135,7 +138,7 @@ export async function refreshAutomaticAssetValuations(
       price_rows_written, valuation_rows_written, missing_tickers_json, details_json,
       started_at, finished_at, error_summary
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .bind(today, options.cron, attempt, status, SOURCE, tickerCount, priceRowsWritten, valuationRowsWritten,
+      .bind(today, options.triggerCron, attempt, status, SOURCE, tickerCount, priceRowsWritten, valuationRowsWritten,
         missingTickers.length ? JSON.stringify([...new Set(missingTickers)].slice(0, 100)) : null,
         JSON.stringify(details), startedAt, finishedAt, errorSummary).run();
     return { status, business_date: today, price_rows_written: priceRowsWritten, valuation_rows_written: valuationRowsWritten };
@@ -205,11 +208,15 @@ function toTencentTicker(ticker: string) {
 }
 
 function shanghaiDay(value: Date) {
+  const { year, month, day } = shanghaiClock(value);
+  return `${year}-${month}-${day}`;
+}
+
+function shanghaiClock(value: Date) {
   const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit',
+    timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
   }).formatToParts(value);
-  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
-  return `${values.year}-${values.month}-${values.day}`;
+  return Object.fromEntries(parts.map((part) => [part.type, part.value])) as Record<'year' | 'month' | 'day' | 'hour' | 'minute', string>;
 }
 
 function daysBefore(day: string, count: number) {

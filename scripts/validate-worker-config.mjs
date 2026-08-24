@@ -21,7 +21,7 @@ const configs = [
       d1Binding: 'DB',
       kvBindings: ['FINANCE_AUTH_KV'],
       r2Bindings: [],
-      crons: ['*/15 * * * *', '20 8 * * 1-5', '0 9 * * 1-5', '0 12 * * 1-5'],
+      crons: ['*/15 * * * *', '0,20 8,9,12 * * 1-5'],
     },
   },
 ];
