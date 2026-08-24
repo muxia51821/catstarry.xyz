@@ -277,7 +277,14 @@ try {
 
   await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
   await evaluate(`document.querySelector('[data-tab="records"]').click()`);
-  await delay(100);
+  await waitFor(`(() => {
+    const list = document.querySelector('[data-access-list]');
+    const row = list && list.querySelector('.access-log__row');
+    const header = list && list.querySelector('.access-log__header');
+    return !!row && !!header
+      && getComputedStyle(header).display === 'none'
+      && getComputedStyle(row).gridTemplateColumns.trim().split(/\\s+/).length === 1;
+  })()`, 'mobile access log single-column layout');
   diagnostics.checks.mobileAccessLog = await evaluate(`(() => {
     const row = document.querySelector('[data-access-list] .access-log__row');
     return {
