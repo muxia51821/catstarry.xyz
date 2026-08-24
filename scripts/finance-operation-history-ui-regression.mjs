@@ -68,6 +68,16 @@ const server = createServer(async (request, response) => {
       coverage: { note: 'fixture business activity', timezone: 'Asia/Shanghai' },
     });
   }
+  if (url.pathname === '/api/assets/refresh-status') {
+    if (mode === 'fail') return json(response, 503, { message: 'valuation status unavailable' });
+    return json(response, 200, {
+      status: 'succeeded',
+      latest: {
+        business_date: '2026-08-20', ticker_count: 9, price_rows_written: 9, valuation_rows_written: 1,
+        missing_tickers: [], finished_at: '2026-08-20T08:21:00.000Z', error_summary: null,
+      },
+    });
+  }
   if (url.pathname === '/api/change-log') {
     if (mode === 'viewer') return json(response, 403, { message: 'forbidden' });
     if (mode === 'fail' || mode === 'changefail') return json(response, 503, { message: 'change log unavailable' });
@@ -141,6 +151,7 @@ try {
   assert.equal(requests.filter((item) => item.mode === 'admin' && item.pathname === '/api/change-log').length, 0, 'Data Change Log capability stays lazy until Records is opened');
   await evaluate(`document.querySelector('[data-tab="records"]').click()`);
   await waitFor(`document.querySelectorAll('[data-activity-list] .activity-row').length === 1`, 'account activity first page');
+  await waitFor(`document.querySelector('[data-valuation-refresh-state]')?.textContent === '已完成'`, 'automatic valuation status');
   await waitFor(`document.querySelectorAll('[data-canonical-review-list] .import-review-row').length === 1 && document.documentElement.classList.contains('operation-workbook-review-ready')`, 'canonical Workbook Review');
   await waitFor(`document.documentElement.classList.contains('operation-change-log-capability-ready')`, 'Data Change Log endpoint capability');
   const adminBeforeOpen = await evaluate(`({
@@ -151,10 +162,12 @@ try {
     securityAccessVisible: getComputedStyle(document.querySelector('[data-access-panel]')).display !== 'none',
     securityAccessCollapsed: document.querySelector('[data-access-panel]')?.open === false,
     legacyReviewHidden: getComputedStyle(document.querySelector('[data-import-review-panel]')).display === 'none',
+    valuationText: document.querySelector('[data-valuation-refresh-copy]')?.textContent,
   })`);
   assert.deepEqual(adminBeforeOpen, {
     activityTitle: '账户动态', activityFirst: '资产对账', changeLogVisible: true, changeLogCollapsed: true,
     securityAccessVisible: true, securityAccessCollapsed: true, legacyReviewHidden: true,
+    valuationText: '2026-08-20 已写入 1 个完整估值日；本页只读取已持久化结果。',
   });
   const adminCapabilityRequests = requests.filter((item) => item.mode === 'admin' && item.pathname === '/api/change-log');
   assert.equal(adminCapabilityRequests.length, 1, 'collapsed Data Change Log performs only its own minimal capability probe');

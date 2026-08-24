@@ -8,6 +8,7 @@ import { handleAccountState } from './routes/account-state';
 import { handleActivity } from './routes/activity';
 import { handleAssetHistory } from './routes/asset-history';
 import { handleAssetReconciliations } from './routes/asset-reconciliations';
+import { handleAssetValuationRefreshStatus } from './routes/asset-valuation-refresh';
 import { handleAssetValuationRebuild } from './routes/asset-valuation-rebuild';
 import { handleFinanceAuth, type FinanceEnv } from './routes/auth';
 import { handleDashboard } from './routes/dashboard';
@@ -18,6 +19,7 @@ import { handleSecurities } from './routes/securities';
 import { handleStewardship } from './routes/stewardship';
 import { handleTrades } from './routes/trades';
 import { refreshMarketData } from './tasks/refresh-market-data';
+import { ASSET_VALUATION_REFRESH_CRONS, refreshAutomaticAssetValuations } from './tasks/refresh-asset-valuations';
 import { logWorkerError, logWorkerWarning } from '../../../shared/worker-log';
 
 const MARKET_REFRESH_CRONS = new Set(['*/15 * * * *', '30 7 * * 1-5']);
@@ -48,6 +50,7 @@ export default {
       else if (pathname === '/api/securities') response = await handleSecurities(request, env);
       else if (pathname === '/api/assets/series') response = await handleAssetHistory(request, env);
       else if (pathname === '/api/assets/snapshots') response = await handleAssetReconciliations(request, env);
+      else if (pathname === '/api/assets/refresh-status') response = await handleAssetValuationRefreshStatus(request, env);
       else if (pathname === '/api/assets/valuations/rebuild') response = await handleAssetValuationRebuild(request, env);
       else if (/^\/api\/import-review\/\d+$/.test(pathname) && request.method === 'PATCH') response = await handleLegacyImportReviewWrite(request, env, pathname);
       else if (pathname === '/api/trades' || /^\/api\/trades\/\d+$/.test(pathname)) response = await handleTrades(request, env);
@@ -67,11 +70,19 @@ export default {
   },
 
   async scheduled(controller: ScheduledController, env: FinanceEnv): Promise<void> {
-    if (!MARKET_REFRESH_CRONS.has(controller.cron)) return;
-    try {
-      await refreshMarketData(env);
-    } catch (error) {
-      logWorkerWarning('finance_scheduled_refresh_failed', { cron: controller.cron }, error);
+    if (MARKET_REFRESH_CRONS.has(controller.cron)) {
+      try {
+        await refreshMarketData(env);
+      } catch (error) {
+        logWorkerWarning('finance_scheduled_refresh_failed', { cron: controller.cron }, error);
+      }
+    }
+    if (controller.cron in ASSET_VALUATION_REFRESH_CRONS) {
+      try {
+        await refreshAutomaticAssetValuations(env, { cron: controller.cron });
+      } catch (error) {
+        logWorkerWarning('finance_scheduled_asset_valuation_refresh_failed', { cron: controller.cron }, error);
+      }
     }
   },
 };

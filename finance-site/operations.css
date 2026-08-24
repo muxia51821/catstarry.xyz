@@ -4,7 +4,8 @@
 
 .activity-panel,
 .operation-history-panel,
-.operation-review-panel {
+.operation-review-panel,
+.valuation-refresh-panel {
   grid-column: 1 / -1;
 }
 

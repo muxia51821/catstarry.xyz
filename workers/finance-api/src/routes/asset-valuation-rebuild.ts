@@ -18,7 +18,7 @@ type HoldingRow = { ticker: string; quantity: number };
 type TradeRow = { id: number; trade_date: string; trade_time: string | null; ticker: string; direction: 'buy' | 'sell'; quantity: number; net_cash_amount: number | null };
 type CashFlowRow = { id: number; occurred_on: string; net_amount: number };
 type AccountEventRow = { id: number; event_date: string; event_time: string | null; event_type: string; ticker: string | null; ticker_name: string | null; quantity: number | null; reference_value: number | null; amount: number | null };
-type PriceRow = { ticker: string; price_date: string; close: number; source: string };
+export type HistoricalPriceRow = { ticker: string; price_date: string; close: number; source: string };
 type ValuationRow = {
   valuation_date: string;
   securities_value: number;
@@ -133,9 +133,9 @@ export async function rebuildAssetValuations(
   const priceDates = [...new Set(prices.map((row) => row.price_date))].sort();
   if (!priceDates.length) return apiError(409, 'missing_raw_prices', 'No canonical raw historical prices exist in the requested range');
 
-  const priceByDate = new Map<string, Map<string, PriceRow>>();
+  const priceByDate = new Map<string, Map<string, HistoricalPriceRow>>();
   for (const price of prices) {
-    const day = priceByDate.get(price.price_date) ?? new Map<string, PriceRow>();
+    const day = priceByDate.get(price.price_date) ?? new Map<string, HistoricalPriceRow>();
     day.set(price.ticker, price);
     priceByDate.set(price.price_date, day);
   }
@@ -188,6 +188,142 @@ export async function rebuildAssetValuations(
   };
 }
 
+export async function previewForwardAssetValuations(
+  env: FinanceEnv,
+  options: { dates: string[]; prices: HistoricalPriceRow[]; calculatedAt?: string },
+): Promise<{ reconciliation: ReconciliationRow; valuations: ValuationRow[] }> {
+  const dates = [...new Set(options.dates)].sort();
+  const reconciliation = await latestReconciliation(env);
+  if (!reconciliation) throw new Error('A complete manual or broker reconciliation is required before refreshing history');
+  if (!dates.length) return { reconciliation, valuations: [] };
+  if (dates[0] <= reconciliation.snapshot_date) throw new Error('Automatic valuation refresh only projects dates after the reconciliation anchor');
+
+  const endDate = dates.at(-1)!;
+  const [holdings, allTrades, allCashFlows, allAccountEvents] = await Promise.all([
+    holdingsAt(env, reconciliation.snapshot_date),
+    activeTradesThrough(env, endDate),
+    activeCashFlowsThrough(env, endDate),
+    activeAccountEventsThrough(env, endDate),
+  ]);
+  const trades = allTrades.filter((row) => row.trade_date > reconciliation.snapshot_date);
+  const cashFlows = allCashFlows.filter((row) => row.occurred_on > reconciliation.snapshot_date);
+  const accountEvents = allAccountEvents.filter((row) => row.event_date > reconciliation.snapshot_date);
+  const repoEvents = allAccountEvents
+    .filter((event) => event.event_type === 'repo_start' || event.event_type === 'repo_maturity')
+    .map<RepoEventRow>((event) => ({
+      id: event.id,
+      event_date: event.event_date,
+      event_time: event.event_time,
+      event_type: event.event_type as 'repo_start' | 'repo_maturity',
+      repo_key: event.ticker || event.ticker_name || 'repo',
+      reference_value: event.reference_value,
+      amount: event.amount,
+    }));
+  const priceByDate = new Map<string, Map<string, HistoricalPriceRow>>();
+  for (const price of options.prices) {
+    const day = priceByDate.get(price.price_date) ?? new Map<string, HistoricalPriceRow>();
+    day.set(price.ticker, price);
+    priceByDate.set(price.price_date, day);
+  }
+  const calculatedAt = options.calculatedAt ?? new Date().toISOString();
+  return {
+    reconciliation,
+    valuations: dates.map((valuationDate) => buildForwardValuation({
+      valuationDate,
+      anchorCash: Number(reconciliation.cash_value),
+      anchorHoldings: holdings,
+      trades,
+      cashFlows,
+      accountEvents,
+      repoEvents,
+      prices: priceByDate.get(valuationDate) ?? new Map(),
+      calculatedAt,
+    })),
+  };
+}
+
+function buildForwardValuation(input: {
+  valuationDate: string;
+  anchorCash: number;
+  anchorHoldings: HoldingRow[];
+  trades: TradeRow[];
+  cashFlows: CashFlowRow[];
+  accountEvents: AccountEventRow[];
+  repoEvents: RepoEventRow[];
+  prices: Map<string, HistoricalPriceRow>;
+  calculatedAt: string;
+}): ValuationRow {
+  const problems: string[] = [];
+  const positions = new Map(input.anchorHoldings.map((row) => [row.ticker, Number(row.quantity)]));
+  let cash = input.anchorCash;
+
+  for (const trade of input.trades) {
+    if (trade.trade_date > input.valuationDate) continue;
+    const previous = positions.get(trade.ticker) ?? 0;
+    const next = trade.direction === 'buy' ? previous + trade.quantity : previous - trade.quantity;
+    if (next < -EPSILON) problems.push(`trade:${trade.id} 正推后产生负持仓。`);
+    if (Math.abs(next) < EPSILON) positions.delete(trade.ticker);
+    else positions.set(trade.ticker, Math.max(0, next));
+    if (trade.net_cash_amount === null || !Number.isFinite(trade.net_cash_amount)) problems.push(`trade:${trade.id} 缺少 net_cash_amount。`);
+    else cash += trade.net_cash_amount;
+  }
+  for (const flow of input.cashFlows) {
+    if (flow.occurred_on > input.valuationDate) continue;
+    if (!Number.isFinite(flow.net_amount)) problems.push(`cash-flow:${flow.id} 缺少 net_amount。`);
+    else cash += flow.net_amount;
+  }
+  for (const event of input.accountEvents) {
+    if (event.event_date > input.valuationDate) continue;
+    if (event.event_type === 'split') {
+      problems.push(`account-event:${event.id} 包含拆分，需新的完整对账后才能自动正推。`);
+      continue;
+    }
+    if (event.event_type === 'other') {
+      problems.push(`account-event:${event.id} 是未分类事件，无法确定现金影响。`);
+      continue;
+    }
+    if (!CASH_EVENT_TYPES.has(event.event_type)) continue;
+    if (event.amount === null || !Number.isFinite(event.amount)) problems.push(`account-event:${event.id} 缺少明确现金影响。`);
+    else cash += event.amount;
+  }
+  if (cash < -EPSILON) problems.push(`正推 Broker Cash 为负数 ${cash.toFixed(2)}。`);
+  const cashValue = normalizeMoney(Math.max(0, cash));
+  const repoState = projectRepoAssets(input.repoEvents.filter((event) => event.event_date <= input.valuationDate));
+  problems.push(...repoState.problems);
+  const otherAssetsValue = normalizeMoney(Math.max(0, Number(repoState.known_value ?? 0)));
+
+  let securitiesValue = 0;
+  let pricedPositionCount = 0;
+  const priceSources = new Set<string>();
+  const held = [...positions.entries()].filter(([, quantity]) => quantity > EPSILON).sort(([left], [right]) => left.localeCompare(right));
+  for (const [ticker, quantity] of held) {
+    const price = input.prices.get(ticker);
+    if (!price) {
+      problems.push(`${ticker} 在 ${input.valuationDate} 缺少 canonical raw close。`);
+      continue;
+    }
+    securitiesValue += quantity * Number(price.close);
+    pricedPositionCount += 1;
+    priceSources.add(price.source);
+  }
+  const uniqueProblems = [...new Set(problems)];
+  const complete = uniqueProblems.length === 0 && pricedPositionCount === held.length;
+  return {
+    valuation_date: input.valuationDate,
+    securities_value: normalizeMoney(securitiesValue),
+    cash_value: cashValue,
+    other_assets_value: otherAssetsValue,
+    total_value: normalizeMoney(securitiesValue + cashValue + otherAssetsValue),
+    held_position_count: held.length,
+    priced_position_count: pricedPositionCount,
+    is_complete: complete ? 1 : 0,
+    incomplete_reason: complete ? null : uniqueProblems.join('；'),
+    price_source: priceSources.size === 0 ? null : priceSources.size === 1 ? [...priceSources][0] : 'mixed_raw',
+    source: 'derived',
+    calculated_at: input.calculatedAt,
+  };
+}
+
 function buildValuation(input: {
   valuationDate: string;
   anchorCash: number;
@@ -197,7 +333,7 @@ function buildValuation(input: {
   accountEvents: AccountEventRow[];
   reverseFacts: PositionReverseFact[];
   repoEvents: RepoEventRow[];
-  prices: Map<string, PriceRow>;
+  prices: Map<string, HistoricalPriceRow>;
   calculatedAt: string;
 }): ValuationRow {
   const problems: string[] = [];
@@ -364,11 +500,15 @@ async function activeAccountEventsThrough(env: FinanceEnv, throughDate: string) 
 async function rawPrices(env: FinanceEnv, startDate: string, endDate: string) {
   const rows = await env.DB.prepare(`SELECT ticker, price_date, close, source FROM finance_security_prices
     WHERE adjustment = 'raw' AND price_date >= ? AND price_date <= ?
-    ORDER BY price_date ASC, ticker ASC`).bind(startDate, endDate).all<PriceRow>();
+    ORDER BY price_date ASC, ticker ASC`).bind(startDate, endDate).all<HistoricalPriceRow>();
   return rows.results.map((row) => ({ ...row, close: Number(row.close) }));
 }
 
 async function replaceValuationRange(env: FinanceEnv, startDate: string, endDate: string, rows: ValuationRow[]) {
+  await env.DB.batch(valuationReplacementStatements(env, startDate, endDate, rows));
+}
+
+export function valuationReplacementStatements(env: FinanceEnv, startDate: string, endDate: string, rows: ValuationRow[]) {
   const statements = [env.DB.prepare('DELETE FROM finance_asset_valuations WHERE valuation_date >= ? AND valuation_date <= ?').bind(startDate, endDate)];
   for (const row of rows) {
     statements.push(env.DB.prepare(`INSERT INTO finance_asset_valuations (
@@ -381,7 +521,7 @@ async function replaceValuationRange(env: FinanceEnv, startDate: string, endDate
       row.price_source, row.source, row.calculated_at,
     ));
   }
-  await env.DB.batch(statements);
+  return statements;
 }
 
 export function isCanonicalHistoricalDay(value: unknown): value is string {
