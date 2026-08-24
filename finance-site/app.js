@@ -79,6 +79,11 @@ function formatPnl(row) {
   const pnl = Number(row.pnl);
   return `${pnl > 0 ? '+' : ''}${money.format(pnl)} (${ratio})`;
 }
+function securityDisplay(row) {
+  const ticker = typeof row?.ticker === 'string' ? row.ticker.trim() : '';
+  const name = typeof row?.ticker_name === 'string' ? row.ticker_name.trim() : '';
+  return ticker && name ? `${ticker} · ${name}` : name || ticker || '—';
+}
 function escapeHtml(value) { return String(value ?? '').replace(/[&<>'"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char]); }
 
 async function boot() {
@@ -193,7 +198,7 @@ function renderOverview() {
   for (const button of $$('[data-asset-view]')) { const active = button.dataset.assetView === state.assetView; button.classList.toggle('is-active', active); button.setAttribute('aria-pressed', String(active)); }
   if (records.length) renderNetWorthChart(chart, records);
   const recent = state.trades.slice(0, 5);
-  replace($('[data-overview-trades]'), recent.map((row) => el('article', { className: 'overview-trade' }, el('span', { text: `${row.trade_date} · ${row.ticker_name || row.ticker}` }), el('strong', { className: row.direction === 'sell' ? 'trade-sell' : 'trade-buy', text: row.direction === 'sell' ? '卖出' : '买入' }))));
+  replace($('[data-overview-trades]'), recent.map((row) => el('article', { className: 'overview-trade' }, el('span', { text: `${row.trade_date} · ${securityDisplay(row)}` }), el('strong', { className: row.direction === 'sell' ? 'trade-sell' : 'trade-buy', text: row.direction === 'sell' ? '卖出' : '买入' }))));
   $('[data-overview-trades-empty]').hidden = recent.length > 0;
 }
 
@@ -220,7 +225,7 @@ function renderHoldings() {
   replace($('[data-holdings-body]'), rows.map((row) => {
     const hasPnl = row.pnl !== null && row.pnl !== undefined;
     return el('tr', {},
-    el('td', { className: 'table-text' }, el('strong', { text: row.ticker_name || row.ticker }), row.stale ? el('small', { className: 'stale-flag', text: '行情过期' }) : null),
+    el('td', { className: 'table-text' }, el('strong', { text: securityDisplay(row) }), row.stale ? el('small', { className: 'stale-flag', text: '行情过期' }) : null),
     ...[valueOrDash(row.quantity), valueOrDash(row.avg_cost, money), valueOrDash(row.price, money), valueOrDash(row.market_value, money)].map((value) => el('td', { className: 'table-data', text: value })),
     el('td', { className: `table-data ${hasPnl ? (Number(row.pnl) >= 0 ? 'value-up' : 'value-down') : ''}`, text: formatPnl(row) }),
   );
@@ -244,7 +249,7 @@ function renderHoldingsSummary(rows) {
   const total = Number(state.holdings?.total_market_value); const summaryState = $('[data-holdings-summary-state]');
   summaryState.textContent = !rows.length ? '暂无持仓' : usable ? '按当前市值' : '行情不完整';
   const top = usable ? [...rows].sort((left, right) => Number(right.market_value) - Number(left.market_value)).slice(0, 3) : [];
-  replace($('[data-top-holdings]'), top.map((row) => el('p', {}, el('span', { className: 'table-text', text: row.ticker_name || row.ticker }), el('strong', { className: 'table-data', text: formatPercent(Number(row.market_value) / total) }))));
+  replace($('[data-top-holdings]'), top.map((row) => el('p', {}, el('span', { className: 'table-text', text: securityDisplay(row) }), el('strong', { className: 'table-data', text: formatPercent(Number(row.market_value) / total) }))));
   $('[data-top-holdings-empty]').hidden = top.length > 0;
   const categories = new Map();
   if (usable) for (const row of rows) { const item = categoryPresentation(row.position_category); categories.set(item.key, { ...item, value: (categories.get(item.key)?.value ?? 0) + Number(row.market_value) }); }
@@ -316,10 +321,10 @@ function renderTrades() {
   replace($('[data-trades-body]'), rows.map((row) => {
     const actions = el('td', { className: 'trade-cell--action', text: '—' });
     if (isAdmin()) { const edit = el('button', { className: 'text-button', text: '修改', attrs: { type: 'button' }, dataset: { editTrade: row.id } }); const remove = el('button', { className: 'text-button text-button--danger', text: '删除', attrs: { type: 'button' }, dataset: { deleteTrade: row.id } }); actions.replaceChildren(el('div', { className: 'row-actions' }, edit, remove)); }
-    const memo = row.memo_reason ? `${row.memo_reason_source === 'reconstructed_confirmed' ? '事后确认：' : '原始记录：'}${row.memo_reason.slice(0, 44)}${row.memo_reason.length > 44 ? '…' : ''}` : '—';
+    const rationale = row.reason || row.memo_reason || '—';
     if (isAdmin() && row.memo_id) actions.firstElementChild?.append(el('button', { className: 'text-button', text: '改理由', attrs: { type: 'button' }, dataset: { editMemoFromTrade: row.memo_id } }));
     if (isAdmin() && !row.memo_id) actions.firstElementChild?.append(el('button', { className: 'text-button', text: '补理由', attrs: { type: 'button' }, dataset: { memoTrade: row.id } }));
-    return el('tr', {}, el('td', { className: 'table-data trade-cell--date', text: row.trade_date }), el('td', { className: 'table-text trade-cell--text', text: row.ticker_name || row.ticker }), el('td', { className: `trade-cell--text ${row.direction === 'sell' ? 'trade-sell' : 'trade-buy'}`, text: row.direction === 'buy' ? '买入' : '卖出' }), el('td', { className: 'table-data trade-cell--number', text: valueOrDash(row.quantity) }), el('td', { className: 'table-data trade-cell--number', text: valueOrDash(row.price, money) }), el('td', { className: 'table-text trade-cell--text' }, categoryLabel(row.position_category)), el('td', { className: 'table-text trade-cell--text', text: memo }), actions);
+    return el('tr', {}, el('td', { className: 'table-data trade-cell--date', text: row.trade_date }), el('td', { className: 'table-text trade-cell--security', text: securityDisplay(row), dataset: { ticker: row.ticker } }), el('td', { className: `trade-cell--direction ${row.direction === 'sell' ? 'trade-sell' : 'trade-buy'}`, text: row.direction === 'buy' ? '买入' : '卖出' }), el('td', { className: 'table-data trade-cell--number', text: valueOrDash(row.quantity) }), el('td', { className: 'table-data trade-cell--number', text: valueOrDash(row.price, money) }), el('td', { className: 'table-text trade-cell--role' }, categoryLabel(row.position_category)), el('td', { className: 'table-text trade-cell--reason', text: rationale, attrs: rationale === '—' ? {} : { title: rationale } }), actions);
   }));
   $('[data-trades-empty]').hidden = rows.length > 0;
   renderPagination('trade');
@@ -365,7 +370,7 @@ function renderCashFlows() {
 const ACCOUNT_EVENT_TYPES = { dividend: '红利', dividend_tax: '红利税', split: 'ETF 分拆', repo_start: '逆回购发生', repo_maturity: '逆回购回款', refund: '退款', other: '其他' };
 function renderAccountEvents() {
   const rows = state.accountEvents ?? [];
-  replace($('[data-account-events-body]'), rows.slice(0, 16).map((row) => el('tr', {}, el('td', { className: 'table-data', text: `${row.event_date}${row.event_time ? ` ${row.event_time}` : ''}` }), el('td', { text: ACCOUNT_EVENT_TYPES[row.event_type] ?? row.event_type }), el('td', { text: row.ticker_name || row.ticker || '—' }), el('td', { className: 'table-data', text: valueOrDash(row.amount, money) }), el('td', { text: row.note || '—' }), el('td', {}, isAdmin() ? el('div', { className: 'row-actions' }, el('button', { className: 'text-button', text: '编辑', attrs: { type: 'button' }, dataset: { editAccountEvent: row.id } }), el('button', { className: 'text-button text-button--danger', text: '删除', attrs: { type: 'button' }, dataset: { deleteAccountEvent: row.id } })) : null))));
+  replace($('[data-account-events-body]'), rows.slice(0, 16).map((row) => el('tr', {}, el('td', { className: 'table-data', text: `${row.event_date}${row.event_time ? ` ${row.event_time}` : ''}` }), el('td', { text: ACCOUNT_EVENT_TYPES[row.event_type] ?? row.event_type }), el('td', { text: securityDisplay(row) }), el('td', { className: 'table-data', text: valueOrDash(row.amount, money) }), el('td', { text: row.note || '—' }), el('td', {}, isAdmin() ? el('div', { className: 'row-actions' }, el('button', { className: 'text-button', text: '编辑', attrs: { type: 'button' }, dataset: { editAccountEvent: row.id } }), el('button', { className: 'text-button text-button--danger', text: '删除', attrs: { type: 'button' }, dataset: { deleteAccountEvent: row.id } })) : null))));
   $('[data-account-events-empty]').hidden = rows.length > 0;
   for (const button of $$('[data-edit-account-event]')) button.addEventListener('click', () => openAccountEventEdit(Number(button.dataset.editAccountEvent), button));
   for (const button of $$('[data-delete-account-event]')) button.addEventListener('click', () => deleteAccountEvent(Number(button.dataset.deleteAccountEvent)));

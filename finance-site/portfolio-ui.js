@@ -519,7 +519,7 @@ function roleCell(role) {
 }
 
 function securityAttributeCell(attribute) {
-  const cell = portfolioElement('td', 'portfolio-security-cell trade-cell--text');
+  const cell = portfolioElement('td', 'portfolio-security-cell trade-cell--attribute');
   cell.append(portfolioElement('span', 'portfolio-security-attribute', attribute || '—'));
   return cell;
 }
@@ -539,9 +539,8 @@ function decoratePortfolioTradeTable() {
   const header = table?.querySelector('thead tr');
   if (header) {
     const headers = [...header.children];
-    if (headers[5]) headers[5].textContent = '组合角色';
     if (!header.querySelector('[data-security-attribute-column]')) {
-      const cell = portfolioElement('th', 'trade-cell--text', '证券属性');
+      const cell = portfolioElement('th', 'trade-cell--attribute', '证券属性');
       cell.dataset.securityAttributeColumn = '';
       headers[5]?.after(cell);
     }
@@ -557,8 +556,8 @@ function decoratePortfolioTradeTable() {
       attributeCell.dataset.securityAttributeCell = '';
       roleCellNode.after(attributeCell);
     }
-    const label = cells[1]?.textContent?.trim() ?? '';
-    attributeCell.replaceChildren(portfolioElement('span', 'portfolio-security-attribute', attributeByLabel.get(label) ?? '—'));
+    const ticker = cells[1]?.dataset.ticker || tickerForTradeCell(cells[1]?.textContent);
+    attributeCell.replaceChildren(portfolioElement('span', 'portfolio-security-attribute', attributeByLabel.get(ticker) ?? '—'));
   }
 }
 
@@ -566,13 +565,17 @@ function tradeAttributeByLabel() {
   const result = new Map();
   const conflicts = new Set();
   for (const row of portfolioTradeCatalog) {
-    const label = row.ticker_name || row.ticker;
     const attribute = row.security_attribute || portfolioSecurities.get(row.ticker)?.security_attribute || '—';
-    if (result.has(label) && result.get(label) !== attribute) conflicts.add(label);
-    else result.set(label, attribute);
+    if (result.has(row.ticker) && result.get(row.ticker) !== attribute) conflicts.add(row.ticker);
+    else result.set(row.ticker, attribute);
   }
   for (const label of conflicts) result.set(label, '—');
   return result;
+}
+
+function tickerForTradeCell(value) {
+  const text = String(value ?? '').trim();
+  return portfolioTradeCatalog.find((row) => text === row.ticker || text === row.ticker_name || text.includes(`${row.ticker} · ${row.ticker_name}`))?.ticker ?? '';
 }
 
 function renderPortfolioReconciliations(rows) {

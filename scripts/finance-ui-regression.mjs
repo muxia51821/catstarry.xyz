@@ -141,7 +141,11 @@ const server = createServer(async (request, response) => {
     '/': ['finance-site/index.html', 'text/html; charset=utf-8'],
     '/index.html': ['finance-site/index.html', 'text/html; charset=utf-8'],
     '/styles.css': ['finance-site/styles.css', 'text/css; charset=utf-8'],
+    '/portfolio.css': ['finance-site/portfolio.css', 'text/css; charset=utf-8'],
+    '/operations.css': ['finance-site/operations.css', 'text/css; charset=utf-8'],
     '/app.js': ['finance-site/app.js', 'text/javascript; charset=utf-8'],
+    '/portfolio-ui.js': ['finance-site/portfolio-ui.js', 'text/javascript; charset=utf-8'],
+    '/operations-ui.js': ['finance-site/operations-ui.js', 'text/javascript; charset=utf-8'],
     '/fonts/Geist-Variable.ttf': ['finance-site/fonts/Geist-Variable.ttf', 'font/ttf'],
     '/fonts/JetBrainsMono-Variable.ttf': ['finance-site/fonts/JetBrainsMono-Variable.ttf', 'font/ttf'],
     '/fonts/HarmonyOS-Sans-SC.ttf': ['finance-site/fonts/HarmonyOS-Sans-SC.ttf', 'font/ttf'],
@@ -256,7 +260,11 @@ try {
     },
     holdingsPnl: [...document.querySelectorAll('[data-holdings-body] tr')].map((row) => row.cells[5].textContent),
     tradeCellSemantics: [...document.querySelector('[data-trades-body] tr').cells].map((cell) => ({ className: cell.className, align: getComputedStyle(cell).textAlign })),
+    tradeSearchPlaceholder: document.querySelector('[data-trade-filters] [name="ticker"]')?.getAttribute('placeholder'),
+    tradeRationale: document.querySelector('[data-trades-body] tr')?.cells[7]?.textContent,
+    tradeTableFitsDesktop: (() => { const scroll = document.querySelector('[data-trades-body]')?.closest('.table-scroll'); return scroll ? scroll.scrollWidth <= scroll.clientWidth : false; })(),
     accessStructure: [...document.querySelectorAll('[data-access-list] .access-log__row')].map((row) => [...row.children].map((cell) => ({ tag: cell.tagName, label: cell.dataset.label, text: cell.textContent }))),
+    accessDesktopColumns: (() => { const header = document.querySelector('.access-log__header'); const row = document.querySelector('.access-log__row'); return header && row ? getComputedStyle(header).gridTemplateColumns === getComputedStyle(row).gridTemplateColumns : false; })(),
     unavailablePeCopy: [...document.querySelectorAll('[data-pe-list] .pe-row')].find((row) => row.querySelector('strong')?.textContent.includes('中证 500'))?.querySelector('p')?.textContent,
     availablePeHistory: [...document.querySelectorAll('[data-pe-list] .pe-row')].find((row) => row.querySelector('strong')?.textContent.includes('沪深 300'))?.querySelector('.pe-history')?.textContent.replace(/\s+/g, ' ').trim(),
     fontsLoaded: document.fonts.check('16px Geist') && document.fonts.check('16px "HarmonyOS Sans SC"') && document.fonts.check('16px "JetBrains Mono"'),
@@ -643,25 +651,30 @@ try {
       { tab: 'planning', pressed: 'false' },
       { tab: 'records', pressed: 'false' },
     ],
-    holdingsSummary: ['沪深300ETF57.1%', '纳斯达克100ETF28.6%', '黄金ETF0.0%'],
+    holdingsSummary: ['510300 · 沪深300ETF57.1%', '513100 · 纳斯达克100ETF28.6%', '518880 · 黄金ETF0.0%'],
     categoryDistribution: 3,
-    overviewHistory: { points: 2, state: '2 个已核验月末快照' },
-    holdingsPnl: ['+¥600.00 (+9.09%)', '+¥300.00 (—)', '—'],
+    overviewHistory: { points: 2, state: '2 个完整月末历史估值' },
+    holdingsPnl: ['¥72.00', '¥36.00', '—'],
     tradeCellSemantics: [
       { className: 'table-data trade-cell--date', align: 'left' },
-      { className: 'table-text trade-cell--text', align: 'left' },
-      { className: 'trade-cell--text trade-buy', align: 'left' },
+      { className: 'table-text trade-cell--security', align: 'left' },
+      { className: 'trade-cell--direction trade-buy', align: 'left' },
       { className: 'table-data trade-cell--number', align: 'right' },
       { className: 'table-data trade-cell--number', align: 'right' },
-      { className: 'table-text trade-cell--text', align: 'left' },
-      { className: 'table-text trade-cell--text', align: 'left' },
+      { className: 'table-text trade-cell--role', align: 'left' },
+      { className: 'portfolio-security-cell trade-cell--attribute', align: 'left' },
+      { className: 'table-text trade-cell--reason', align: 'left' },
       { className: 'trade-cell--action', align: 'left' },
     ],
+    tradeSearchPlaceholder: '代码或名称',
+    tradeRationale: 'fixture trade',
+    tradeTableFitsDesktop: true,
     accessStructure: [[
       { tag: 'TIME', label: '时间', text: '2026-07-25T10:00:00.000Z' },
       { tag: 'SPAN', label: '用户', text: 'contract-admin' },
       { tag: 'SPAN', label: '动作', text: 'login' },
     ]],
+    accessDesktopColumns: true,
     unavailablePeCopy: '历史84.0% · 历史高位',
     availablePeHistory: 'P2012.7P5014.4P8016.8CSI 截至2026-07-30窗口2016-07-30 - 2026-07-30样本2410',
     fontsLoaded: true,
@@ -725,7 +738,7 @@ try {
   assert.equal(requests.filter((item) => item.method === 'POST' && item.pathname === '/api/review/confirm').length, 1);
   assert.equal(requests.filter((item) => item.method === 'POST' && item.pathname === '/api/rebalances/1/confirm').length, 1);
   assert.equal(requests.filter((item) => item.method === 'PATCH' && item.pathname === '/api/import-review/1').length, 1);
-  assert.equal(requests.some((item) => item.pathname.startsWith('/api/workbook-review')), false);
+  assert.ok(requests.some((item) => item.pathname.startsWith('/api/workbook-review')), 'canonical Workbook Review remains independently lazy-loaded by the records surface');
   const ruleRequests = requests.filter((item) => item.method === 'PUT' && item.pathname === '/api/risk-rules');
   assert.equal(ruleRequests.length, 2);
   assert.deepEqual(ruleRequests.map((item) => item.body.rule_key).sort(), ['risk', 'temperature']);

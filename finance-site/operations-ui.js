@@ -28,7 +28,7 @@
   );
   const activityFilters = node('form', { className: 'record-filters activity-filters', 'data-activity-filters': '' },
     selectLabel('类型', 'kind', [['', '全部'], ...Object.entries(activityLabels).map(([value, label]) => [value, label])]),
-    inputLabel('标的', 'ticker', 'text', { maxlength: '24', placeholder: '代码' }),
+    inputLabel('标的', 'ticker', 'text', { maxlength: '100', placeholder: '代码或名称' }),
     inputLabel('开始', 'from', 'date'), inputLabel('结束', 'to', 'date'),
     node('button', { className: 'button-secondary', type: 'submit', textContent: '筛选' }),
     node('button', { className: 'text-button', type: 'reset', textContent: '清除' }),
@@ -406,7 +406,8 @@
     activityList.replaceChildren();
     changeLogList.replaceChildren();
     reviewList.replaceChildren();
-    oldAccessPanel?.querySelector('[data-access-list]')?.replaceChildren();
+    // Keep the static access-log column structure; app.js owns its row region.
+    oldAccessPanel?.querySelector('[data-access-rows]')?.replaceChildren();
     oldImportPanel?.querySelector('[data-import-review-list]')?.replaceChildren();
     activityEmpty.hidden = false;
     changeLogEmpty.hidden = false;
