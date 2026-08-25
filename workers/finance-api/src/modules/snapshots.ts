@@ -1,6 +1,6 @@
 import type { FinanceEnv } from '../routes/auth';
 
-export const SYNTHETIC_RECONCILIATION_SOURCES = ['auto_close', 'historical_backfill', 'history_import'];
+const SYNTHETIC_RECONCILIATION_SOURCES = ['auto_close', 'historical_backfill', 'history_import'];
 
 export type ReconciliationAnchorRow = {
   id: number;

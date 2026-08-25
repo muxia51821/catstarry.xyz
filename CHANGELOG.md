@@ -1,5 +1,15 @@
 # 更新记录
 
+## 2026-08-25 — 架构收敛与测试瘦身（已合并 main，未部署生产）
+
+- Finance API 域核心模块化（PR #55）：「最新持仓快照 / 最新有效对账」查询与估值引擎分别收敛为 `modules/snapshots.ts`、`modules/valuation-engine.ts`，cron 不再反向依赖路由文件；dashboard 死代码删除。行为等价。
+- Feed API 共享缝清理（PR #56）：三处 Bearer 令牌校验统一为 `requireIngestAuth`（漏配令牌路径错误码统一为 `not_configured`）；足迹插入 SQL 收敛为单一构造器；slug 校验正则收进 `shared/slug.ts`。
+- 测试基建深化（PR #57）：六份 SqliteD1 测试替身合并为 `scripts/lib/sqlite-d1.mjs`；finance HTTP 契约改跑真实 SQLite migrations（58 分支假 D1 删除）；新增 `scripts/lib/dev-server.mjs` 统一五个 astro dev 套件生命周期原语；CI 反向覆盖守卫上线，孤儿 `test:planets` 接入 validate.yml。
+- Finance 微收敛（PR #58）：`lib/dates|money|cursor` 助手落地，上海时钟四种实现归一为 Intl 单实现；现金流水/账户事件的乐观并发+审计协议唯一化为 `lib/audited-write.ts`，audit-atomicity 契约随协议唯一家重定向。
+- 瘦身第一轮（PR #59，净 −255 行）：audit-atomicity 字面量计数契约退役（行为仿真段保留）；feed HTTP 契约改跑真实 SQLite（235 行假 D1 删除）；五个 astro dev 浏览器套件共享 `dev-server.mjs`；home/blog 遗留清理（`_vars_backup.css`、退役组件 BlogTaxonomy 及其断言）。
+- 瘦身延续与本日收尾（PR #60）：blog-runtime-authority 最后一个 SQL 前缀假 D1 迁移真实 SQLite——全仓库此类测试替身清零；cursor/snapshots 死常量收回内部；docs 清扫：5 个重复字体 zip 删除（工作区 −67MB）、四个零引用历史文档归档至 `docs/_archive/`、Phase 4.2 期一次性补丁脚本目录 `_work/` 删除。
+- 以上均为仓库/测试层改动且经全量契约验证；**未部署生产**——Feed Worker 与 Finance Worker 的上线核验单已备于 `.scratch/deployment-feed-finance-refactor/`。
+
 ## 2026-08-24 — Finance 修复上线与持仓分类修正
 
 - 最近几天修的 Finance 问题（估值刷新超载、交易记录和总览页显示等）已经全部发布到线上：f.catstarry.xyz 的前端和后端现在都是最新版本。
