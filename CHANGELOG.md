@@ -8,7 +8,7 @@
 - Finance 微收敛（PR #58）：`lib/dates|money|cursor` 助手落地，上海时钟四种实现归一为 Intl 单实现；现金流水/账户事件的乐观并发+审计协议唯一化为 `lib/audited-write.ts`，audit-atomicity 契约随协议唯一家重定向。
 - 瘦身第一轮（PR #59，净 −255 行）：audit-atomicity 字面量计数契约退役（行为仿真段保留）；feed HTTP 契约改跑真实 SQLite（235 行假 D1 删除）；五个 astro dev 浏览器套件共享 `dev-server.mjs`；home/blog 遗留清理（`_vars_backup.css`、退役组件 BlogTaxonomy 及其断言）。
 - 瘦身延续与本日收尾（PR #60）：blog-runtime-authority 最后一个 SQL 前缀假 D1 迁移真实 SQLite——全仓库此类测试替身清零；cursor/snapshots 死常量收回内部；docs 清扫：5 个重复字体 zip 删除（工作区 −67MB）、四个零引用历史文档归档至 `docs/_archive/`、Phase 4.2 期一次性补丁脚本目录 `_work/` 删除。
-- 以上均为仓库/测试层改动且经全量契约验证；**未部署生产**——Feed Worker 与 Finance Worker 的上线核验单已备于 `.scratch/deployment-feed-finance-refactor/`。
+- 以上均为仓库/测试层改动且经全量契约验证；**同日 08:40Z / 08:55Z 已完成 Finance Worker 与 Feed Worker 生产发布**（code-only 上传，绑定/routes/secrets 未触碰，省略 crons 配置未影响远程计划——Finance 部署后首个 `*/15` 行情刻度 08:45Z 已实证存活）；发布证据存于 `.scratch/deployment-feed-finance-refactor/`。
 
 ## 2026-08-24 — Finance 修复上线与持仓分类修正
 
