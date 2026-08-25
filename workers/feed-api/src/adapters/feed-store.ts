@@ -12,6 +12,42 @@ import type { FootprintWrite } from '../modules/footprints';
 
 const PAGE_BUFFER = 1;
 
+export interface FootprintInsertOptions {
+  pendingReleaseGuardKey?: string;
+}
+
+export function footprintInsertStatement(
+  database: D1Database,
+  candidate: PublicFootprintCandidate,
+  createdAt: string,
+  options: FootprintInsertOptions = {},
+): D1PreparedStatement {
+  const values = [
+    crypto.randomUUID(),
+    candidate.source_module,
+    candidate.source_ref,
+    candidate.source_version,
+    candidate.event_type,
+    candidate.snapshot_json,
+    candidate.occurred_at,
+    candidate.idempotency_key,
+    createdAt,
+  ];
+  if (!options.pendingReleaseGuardKey) {
+    return database.prepare(`INSERT OR IGNORE INTO public_footprints (
+      id, source_module, source_ref, source_version, event_type, snapshot_json,
+      occurred_at, visibility, idempotency_key, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, 'public', ?, ?)`).bind(...values);
+  }
+  return database.prepare(`INSERT OR IGNORE INTO public_footprints (
+      id, source_module, source_ref, source_version, event_type, snapshot_json,
+      occurred_at, visibility, idempotency_key, created_at
+    ) SELECT ?, ?, ?, ?, ?, ?, ?, 'public', ?, ?
+    WHERE NOT EXISTS (
+      SELECT 1 FROM publication_release_guards WHERE guard_key = ?
+    )`).bind(...values, options.pendingReleaseGuardKey);
+}
+
 export interface Cursor {
   occurred_at: string;
   id: string;
@@ -177,26 +213,7 @@ export class FeedStore {
   }
 
   async recordFootprint(candidate: PublicFootprintCandidate, now: string): Promise<FootprintWrite> {
-    const id = crypto.randomUUID();
-    const result = await this.database
-      .prepare(
-        `INSERT OR IGNORE INTO public_footprints (
-          id, source_module, source_ref, source_version, event_type, snapshot_json,
-          occurred_at, visibility, idempotency_key, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, 'public', ?, ?)`,
-      )
-      .bind(
-        id,
-        candidate.source_module,
-        candidate.source_ref,
-        candidate.source_version,
-        candidate.event_type,
-        candidate.snapshot_json,
-        candidate.occurred_at,
-        candidate.idempotency_key,
-        now,
-      )
-      .run();
+    const result = await footprintInsertStatement(this.database, candidate, now).run();
 
     const row = await this.database
       .prepare(

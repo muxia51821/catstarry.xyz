@@ -1,10 +1,10 @@
 import { apiError, json, readJson } from '../lib/http';
 import { requireMainSession } from './auth';
+import { SLUG_PATTERN } from '../../../../shared/slug';
 import { logWorkerError } from '../../../../shared/worker-log';
 
 const MAX_SLUGS = 50;
 const MAX_RECORDS_PER_MINUTE = 120;
-const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 export async function handleViews(request: Request, env: Env): Promise<Response> {
   if (request.method === 'GET') {

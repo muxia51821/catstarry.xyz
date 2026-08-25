@@ -1,11 +1,10 @@
 import type { FeedPostInput, PublicFootprint, PublicFootprintCandidate, TimelineEntry, Visibility } from '../../../../shared/types';
-import { timingSafeEqualText } from '../../../../shared/security';
 import { FeedStore, decodeCursor } from '../adapters/feed-store';
 import { apiError, json, parseBoundedLimit, readJson } from '../lib/http';
 import { readPublishedBlogSlugs } from '../modules/blog-publications';
 import { recordPublicFootprint, parseFootprintCandidate } from '../modules/footprints';
 import { refreshActivitySignals } from '../modules/activity-signals';
-import { requireMainSession } from './auth';
+import { requireIngestAuth, requireMainSession } from './auth';
 import { logWorkerError } from '../../../../shared/worker-log';
 
 const MAX_MEDIA_KEYS = 6;
@@ -236,11 +235,8 @@ async function previewClip(request: Request, env: FeedEnv): Promise<Response> {
 }
 
 async function ingestFootprint(request: Request, env: FeedEnv, ctx: ExecutionContext): Promise<Response> {
-  const secret = env.FOOTPRINT_INGEST_TOKEN;
-  const authorization = request.headers.get('Authorization');
-  if (!secret || !(await timingSafeEqualText(authorization, `Bearer ${secret}`))) {
-    return apiError(secret ? 401 : 503, secret ? 'unauthorized' : 'not_configured', 'Footprint ingestion is not available');
-  }
+  const authFailure = await requireIngestAuth(request, env, 'Footprint ingestion is not available');
+  if (authFailure) return authFailure;
   const value = await readJson<Record<string, unknown>>(request, 40 * 1_024);
   if (value instanceof Response) return value;
   const candidate = parseFootprintCandidate(value);

@@ -1,4 +1,5 @@
 import type { LearnPublicationRecord } from '../../../shared/types';
+import { isCanonicalSlug } from '../../../shared/slug';
 import {
   getPublishedNotes,
   noteFromEntry,
@@ -92,7 +93,7 @@ function normalizeOwnerRecords(value: unknown): LearnPublicationRecord[] | null 
 }
 
 function validSlug(value: unknown): value is string {
-  return typeof value === 'string' && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value);
+  return isCanonicalSlug(value);
 }
 
 function validTimestamp(value: unknown): value is string {

@@ -9,12 +9,13 @@ import {
   normalizePublicationReleaseIdentity,
   samePublicationRelease,
 } from '../../../../shared/publication-release';
-import { timingSafeEqualText } from '../../../../shared/security';
+import { SLUG_PATTERN } from '../../../../shared/slug';
 import {
   assertValidLearnPublicRelations,
   type LearnRelationEntry,
 } from '../../../../shared/learn-relations';
 import { logWorkerError } from '../../../../shared/worker-log';
+import { footprintInsertStatement } from '../adapters/feed-store';
 import { apiError, json, readJson } from '../lib/http';
 import { refreshActivitySignals } from '../modules/activity-signals';
 import { parseFootprintCandidate } from '../modules/footprints';
@@ -25,7 +26,7 @@ import {
   readLearnActiveRelease,
   readLearnPendingRelease,
 } from '../modules/publication-release-guards';
-import { requireMainSession } from './auth';
+import { requireIngestAuth, requireMainSession } from './auth';
 
 type LearnEnv = Env & { FOOTPRINT_INGEST_TOKEN?: string; LOCAL_PREVIEW_AUTH?: string };
 
@@ -110,7 +111,7 @@ async function updatePublication(request: Request, env: LearnEnv, ctx: Execution
     ? null
     : normalizeTimestamp(body.revised_at);
   if (
-    !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)
+    !SLUG_PATTERN.test(slug)
     || (visibility !== 'public' && visibility !== 'hidden')
     || title.length > 200
     || excerpt.length > 2_000
@@ -139,7 +140,7 @@ async function updatePublication(request: Request, env: LearnEnv, ctx: Execution
         WHERE NOT EXISTS (
           SELECT 1 FROM publication_release_guards WHERE guard_key = 'learn-pending'
         )`).bind(slug, now, revisedAt, now),
-      firstPublicationFootprintInsert(env.DB, candidate, now),
+      footprintInsertStatement(env.DB, candidate, now, { pendingReleaseGuardKey: 'learn-pending' }),
     ]);
     const created = (publicationWrite.meta.changes ?? 0) > 0;
     if (!created && await readLearnPendingRelease(env.DB)) {
@@ -175,7 +176,7 @@ async function updateReleaseBarrier(
   env: LearnEnv,
   action: 'prepare' | 'abort',
 ): Promise<Response> {
-  const authFailure = await requireInternalPublicationAuth(request, env, 'Learn production release barrier is not available');
+  const authFailure = await requireIngestAuth(request, env, 'Learn production release barrier is not available');
   if (authFailure) return authFailure;
   const body = await readJson<{ release?: unknown }>(request, 4_096);
   if (body instanceof Response) return body;
@@ -201,7 +202,7 @@ async function updateReleaseBarrier(
 }
 
 async function syncDeployedMetadata(request: Request, env: LearnEnv, ctx: ExecutionContext): Promise<Response> {
-  const authFailure = await requireInternalPublicationAuth(request, env, 'Publication metadata sync is not available');
+  const authFailure = await requireIngestAuth(request, env, 'Publication metadata sync is not available');
   if (authFailure) return authFailure;
   const body = await readJson<{
     schema_version?: unknown;
@@ -244,7 +245,7 @@ async function syncDeployedMetadata(request: Request, env: LearnEnv, ctx: Execut
     }
     const candidate = revisionCandidate(entry, deployedAt);
     const [footprintWrite] = await env.DB.batch([
-      footprintInsert(env.DB, candidate, deployedAt),
+      footprintInsertStatement(env.DB, candidate, deployedAt),
       env.DB.prepare(
         'UPDATE learn_publications SET last_revised_at = ?, updated_at = ? WHERE slug = ?',
       ).bind(entry.revised_at, deployedAt, entry.slug),
@@ -330,47 +331,6 @@ function revisionCandidate(entry: NormalizedDeployEntry, deployedAt: string): Pu
   return candidate;
 }
 
-function footprintInsert(database: D1Database, candidate: PublicFootprintCandidate, createdAt: string): D1PreparedStatement {
-  return database.prepare(`INSERT OR IGNORE INTO public_footprints (
-    id, source_module, source_ref, source_version, event_type, snapshot_json,
-    occurred_at, visibility, idempotency_key, created_at
-  ) VALUES (?, ?, ?, ?, ?, ?, ?, 'public', ?, ?)`).bind(
-    crypto.randomUUID(),
-    candidate.source_module,
-    candidate.source_ref,
-    candidate.source_version,
-    candidate.event_type,
-    candidate.snapshot_json,
-    candidate.occurred_at,
-    candidate.idempotency_key,
-    createdAt,
-  );
-}
-
-function firstPublicationFootprintInsert(
-  database: D1Database,
-  candidate: PublicFootprintCandidate,
-  createdAt: string,
-): D1PreparedStatement {
-  return database.prepare(`INSERT OR IGNORE INTO public_footprints (
-      id, source_module, source_ref, source_version, event_type, snapshot_json,
-      occurred_at, visibility, idempotency_key, created_at
-    ) SELECT ?, ?, ?, ?, ?, ?, ?, 'public', ?, ?
-    WHERE NOT EXISTS (
-      SELECT 1 FROM publication_release_guards WHERE guard_key = 'learn-pending'
-    )`).bind(
-    crypto.randomUUID(),
-    candidate.source_module,
-    candidate.source_ref,
-    candidate.source_version,
-    candidate.event_type,
-    candidate.snapshot_json,
-    candidate.occurred_at,
-    candidate.idempotency_key,
-    createdAt,
-  );
-}
-
 async function getPublication(database: D1Database, slug: string): Promise<LearnPublicationRecord | null> {
   return database.prepare(`SELECT slug, visibility, published_at, last_revised_at, updated_at
     FROM learn_publications WHERE slug = ?`).bind(slug).first<LearnPublicationRecord>();
@@ -400,7 +360,7 @@ function normalizeDeployEntries(entries: LearnDeployEntry[]): NormalizedDeployEn
   })).sort((a, b) => a.slug.localeCompare(b.slug));
   if (
     normalized.some((entry) => (
-      !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(entry.slug)
+      !SLUG_PATTERN.test(entry.slug)
       || !entry.title
       || entry.title.length > 200
       || entry.excerpt.length > 2_000
@@ -415,7 +375,7 @@ function normalizeDeployEntries(entries: LearnDeployEntry[]): NormalizedDeployEn
 function normalizeLinks(value: unknown): string[] | null {
   if (!Array.isArray(value) || value.length > 500) return null;
   const links = value.map((entry) => typeof entry === 'string' ? entry.trim() : '');
-  if (links.some((entry) => !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(entry))) return null;
+  if (links.some((entry) => !SLUG_PATTERN.test(entry))) return null;
   return [...new Set(links)].sort((a, b) => a.localeCompare(b, 'en'));
 }
 
@@ -479,23 +439,11 @@ function normalizeRelationEntries(value: unknown[]): LearnRelationEntry[] | null
     const record = candidate as Record<string, unknown>;
     const slug = typeof record.slug === 'string' ? record.slug.trim() : '';
     const links = normalizeLinks(record.links);
-    return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug) && links ? { slug, links } : null;
+    return SLUG_PATTERN.test(slug) && links ? { slug, links } : null;
   });
   if (entries.some((entry) => entry === null)) return null;
   const normalized = entries as LearnRelationEntry[];
   return new Set(normalized.map((entry) => entry.slug)).size === normalized.length ? normalized : null;
-}
-
-async function requireInternalPublicationAuth(
-  request: Request,
-  env: LearnEnv,
-  unavailableMessage: string,
-): Promise<Response | null> {
-  const authorization = request.headers.get('Authorization');
-  if (!env.FOOTPRINT_INGEST_TOKEN || !(await timingSafeEqualText(authorization, `Bearer ${env.FOOTPRINT_INGEST_TOKEN}`))) {
-    return apiError(env.FOOTPRINT_INGEST_TOKEN ? 401 : 503, 'unauthorized', unavailableMessage);
-  }
-  return null;
 }
 
 function normalizeTimestamp(value: unknown): string | null {

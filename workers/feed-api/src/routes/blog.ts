@@ -1,6 +1,6 @@
 import type { BlogLifecycleEntry, BlogLifecycleState } from '../../../../shared/types';
 import { normalizePublicationReleaseIdentity } from '../../../../shared/publication-release';
-import { timingSafeEqualText } from '../../../../shared/security';
+import { SLUG_PATTERN } from '../../../../shared/slug';
 import { logWorkerError } from '../../../../shared/worker-log';
 import { FeedStore } from '../adapters/feed-store';
 import { apiError, json, readJson } from '../lib/http';
@@ -14,7 +14,7 @@ import {
 } from '../modules/blog-publications';
 import { parseFootprintCandidate } from '../modules/footprints';
 import { claimBlogSyncRelease } from '../modules/publication-release-guards';
-import { requireMainSession } from './auth';
+import { requireIngestAuth, requireMainSession } from './auth';
 
 type BlogEnv = Env & { FOOTPRINT_INGEST_TOKEN?: string; LOCAL_PREVIEW_AUTH?: string };
 
@@ -55,10 +55,8 @@ export async function handleBlog(
 }
 
 async function syncDeployManifest(request: Request, env: BlogEnv, ctx: ExecutionContext): Promise<Response> {
-  const authorization = request.headers.get('Authorization');
-  if (!env.FOOTPRINT_INGEST_TOKEN || !(await timingSafeEqualText(authorization, `Bearer ${env.FOOTPRINT_INGEST_TOKEN}`))) {
-    return apiError(env.FOOTPRINT_INGEST_TOKEN ? 401 : 503, 'unauthorized', 'Blog publication sync is not available');
-  }
+  const authFailure = await requireIngestAuth(request, env, 'Blog publication sync is not available');
+  if (authFailure) return authFailure;
   const body = await readJson<{ release?: unknown; entries?: unknown; deployed_at?: unknown }>(request, 128 * 1_024);
   if (body instanceof Response) return body;
   const release = normalizePublicationReleaseIdentity(body.release)
@@ -110,7 +108,7 @@ async function updateLifecycle(request: Request, env: BlogEnv, ctx: ExecutionCon
   if (session instanceof Response) return session;
   const body = await readJson<{ slug?: unknown; state?: unknown }>(request, 4_096);
   if (body instanceof Response) return body;
-  if (typeof body.slug !== 'string' || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(body.slug)
+  if (typeof body.slug !== 'string' || !SLUG_PATTERN.test(body.slug)
     || (body.state !== 'published' && body.state !== 'withdrawn')) {
     return apiError(400, 'invalid_lifecycle', 'slug and a published or withdrawn state are required');
   }
@@ -171,7 +169,7 @@ function normalizeEntries(entries: PublicationEntry[]): BlogLifecycleEntry[] | n
     state: entry.state as BlogLifecycleState,
   })).sort((a, b) => a.slug.localeCompare(b.slug));
   if (normalized.some((entry) => (
-    !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(entry.slug)
+    !SLUG_PATTERN.test(entry.slug)
     || !entry.title
     || !['draft', 'published', 'withdrawn'].includes(entry.state)
     || entry.title.length > 200
