@@ -1,19 +1,7 @@
 import { apiError, json } from '../lib/http';
 import { isPersistedMarketSnapshotUsable } from '../modules/market-authority';
+import { latestReconciliation, latestSnapshotHoldings } from '../modules/snapshots';
 import { requireFinanceRole, type FinanceEnv } from './auth';
-
-type ReconciliationRow = {
-  id: number;
-  snapshot_at: string;
-  snapshot_date: string;
-  holdings_value: number;
-  cash_value: number;
-  other_assets_value: number;
-  total_value: number;
-  source: string;
-  created_at: string;
-  created_by: string;
-};
 
 type CashFactRow = {
   fact_key: string;
@@ -36,14 +24,6 @@ export type RepoEventRow = {
   amount: number | null;
 };
 
-type CurrentHoldingRow = {
-  ticker: string;
-  quantity: number;
-  position_category: string | null;
-  price: number | null;
-  fetched_at: string | null;
-};
-
 type PositionLimitRow = {
   position_category: string;
   target_ratio: number;
@@ -57,7 +37,6 @@ type ContributionBasis = {
   cash_flow_count: number;
 };
 
-export const SYNTHETIC_RECONCILIATION_SOURCES = ['auto_close', 'historical_backfill', 'history_import'];
 const CASH_ACCOUNT_EVENT_TYPES = new Set(['dividend', 'dividend_tax', 'repo_start', 'repo_maturity', 'refund']);
 const CASH_TOLERANCE = 0.000001;
 const SHANGHAI_OFFSET_MS = 8 * 60 * 60 * 1000;
@@ -177,28 +156,10 @@ async function readPositionLimits(env: FinanceEnv) {
   }));
 }
 
-async function latestReconciliation(env: FinanceEnv) {
-  return env.DB.prepare(`SELECT id, snapshot_at, snapshot_date, holdings_value, cash_value, other_assets_value, total_value, source, created_at, created_by
-    FROM finance_asset_snapshots
-    WHERE deleted_at IS NULL AND is_complete = 1
-      AND lower(COALESCE(source, '')) NOT IN (${SYNTHETIC_RECONCILIATION_SOURCES.map(() => '?').join(', ')})
-    ORDER BY snapshot_date DESC, julianday(snapshot_at) DESC, id DESC LIMIT 1`)
-    .bind(...SYNTHETIC_RECONCILIATION_SOURCES).first<ReconciliationRow>();
-}
-
 async function currentHoldings(env: FinanceEnv, now: Date) {
-  const rows = await env.DB.prepare(`WITH latest AS (
-      SELECT ticker, MAX(snapshot_date || ':' || printf('%020d', id)) AS marker
-      FROM holdings_snapshots GROUP BY ticker
-    )
-    SELECT h.ticker, h.quantity, h.position_category,
-      (SELECT price FROM market_data m WHERE m.ticker = h.ticker ORDER BY fetched_at DESC, id DESC LIMIT 1) AS price,
-      (SELECT fetched_at FROM market_data m WHERE m.ticker = h.ticker ORDER BY fetched_at DESC, id DESC LIMIT 1) AS fetched_at
-    FROM holdings_snapshots h
-    JOIN latest l ON l.ticker = h.ticker AND l.marker = h.snapshot_date || ':' || printf('%020d', h.id)
-    WHERE h.quantity > 0 ORDER BY h.ticker`).all<CurrentHoldingRow>();
+  const rows = await latestSnapshotHoldings(env, { quotes: true });
 
-  const normalized = rows.results.map((row) => {
+  const normalized = rows.map((row) => {
     const numericPrice = row.price === null ? null : Number(row.price);
     const hasPrice = numericPrice !== null && Number.isFinite(numericPrice);
     const stale = hasPrice && !isPersistedMarketSnapshotUsable(row.fetched_at, now);

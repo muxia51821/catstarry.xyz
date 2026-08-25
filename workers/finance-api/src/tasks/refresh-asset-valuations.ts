@@ -1,3 +1,4 @@
+import { latestReconciliation, latestSnapshotHoldings } from '../modules/snapshots';
 import {
   previewForwardAssetValuations,
   valuationReplacementStatements,
@@ -146,21 +147,16 @@ export async function refreshAutomaticAssetValuations(
 }
 
 async function activeForwardTickers(env: FinanceEnv, endDate: string): Promise<string[]> {
-  const reconciliation = await env.DB.prepare(`SELECT snapshot_date FROM finance_asset_snapshots
-    WHERE deleted_at IS NULL AND is_complete = 1 AND lower(COALESCE(source, '')) NOT IN ('auto_close', 'historical_backfill', 'history_import')
-    ORDER BY snapshot_date DESC, julianday(snapshot_at) DESC, id DESC LIMIT 1`).first<{ snapshot_date: string }>();
+  const reconciliation = await latestReconciliation(env);
   if (!reconciliation) throw new Error('A complete manual or broker reconciliation is required before refreshing history');
-  const rows = await env.DB.prepare(`WITH latest AS (
-      SELECT ticker, MAX(snapshot_date || ':' || printf('%020d', id)) AS marker
-      FROM holdings_snapshots WHERE snapshot_date <= ? GROUP BY ticker
-    )
-    SELECT h.ticker AS ticker FROM holdings_snapshots h JOIN latest l
-      ON l.ticker = h.ticker AND l.marker = h.snapshot_date || ':' || printf('%020d', h.id)
-    WHERE h.quantity > 0
-    UNION
-    SELECT ticker FROM trades WHERE deleted_at IS NULL AND trade_date > ? AND trade_date <= ?
-    ORDER BY ticker`).bind(reconciliation.snapshot_date, reconciliation.snapshot_date, endDate).all<{ ticker: string }>();
-  return rows.results.map((row) => row.ticker).filter((ticker) => /^\d{6}$/.test(ticker));
+  const [holdings, trades] = await Promise.all([
+    latestSnapshotHoldings(env, { throughDate: reconciliation.snapshot_date }),
+    env.DB.prepare(`SELECT ticker FROM trades WHERE deleted_at IS NULL AND trade_date > ? AND trade_date <= ?`)
+      .bind(reconciliation.snapshot_date, endDate).all<{ ticker: string }>(),
+  ]);
+  return [...new Set([...holdings.map((row) => row.ticker), ...trades.results.map((row) => row.ticker)])]
+    .sort()
+    .filter((ticker) => /^\d{6}$/.test(ticker));
 }
 
 async function existingRawPrices(env: FinanceEnv, tickers: string[], startDate: string, endDate: string): Promise<ExistingPrice[]> {

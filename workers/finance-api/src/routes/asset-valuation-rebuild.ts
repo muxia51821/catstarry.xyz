@@ -1,9 +1,9 @@
 import { apiError, json, readJson } from '../lib/http';
+import { latestReconciliation, latestSnapshotHoldings, type ReconciliationAnchorRow } from '../modules/snapshots';
 import { requireFinanceRole, type FinanceEnv } from './auth';
 import {
   projectRepoAssets,
   selectCashFactsAfterReconciliation,
-  SYNTHETIC_RECONCILIATION_SOURCES,
   type RepoEventRow,
 } from './account-state';
 
@@ -13,7 +13,6 @@ const EPSILON = 0.000001;
 const CASH_EVENT_TYPES = new Set(['dividend', 'dividend_tax', 'repo_start', 'repo_maturity', 'refund']);
 
 type RebuildInput = { start_date?: unknown; end_date?: unknown };
-type ReconciliationRow = { id: number; snapshot_date: string; snapshot_at: string; cash_value: number; source: string };
 type HoldingRow = { ticker: string; quantity: number };
 type TradeRow = { id: number; trade_date: string; trade_time: string | null; ticker: string; direction: 'buy' | 'sell'; quantity: number; net_cash_amount: number | null };
 type CashFlowRow = { id: number; occurred_on: string; net_amount: number };
@@ -72,7 +71,7 @@ export async function handleAssetValuationRebuild(request: Request, env: Finance
 
 export async function rebuildAssetValuations(
   env: FinanceEnv,
-  options: { startDate: string; endDate: string; reconciliation?: ReconciliationRow; actor?: string },
+  options: { startDate: string; endDate: string; reconciliation?: ReconciliationAnchorRow; actor?: string },
 ) {
   if (!isCanonicalHistoricalDay(options.startDate) || options.startDate < HISTORICAL_RECONSTRUCTION_START) {
     return apiError(400, 'invalid_start_date', `Historical reconstruction starts at ${HISTORICAL_RECONSTRUCTION_START}`);
@@ -191,7 +190,7 @@ export async function rebuildAssetValuations(
 export async function previewForwardAssetValuations(
   env: FinanceEnv,
   options: { dates: string[]; prices: HistoricalPriceRow[]; calculatedAt?: string },
-): Promise<{ reconciliation: ReconciliationRow; valuations: ValuationRow[] }> {
+): Promise<{ reconciliation: ReconciliationAnchorRow; valuations: ValuationRow[] }> {
   const dates = [...new Set(options.dates)].sort();
   const reconciliation = await latestReconciliation(env);
   if (!reconciliation) throw new Error('A complete manual or broker reconciliation is required before refreshing history');
@@ -452,24 +451,9 @@ function positionReverseFacts(trades: TradeRow[], events: AccountEventRow[]) {
   return facts.sort((left, right) => right.date.localeCompare(left.date) || right.time.localeCompare(left.time) || right.key.localeCompare(left.key));
 }
 
-async function latestReconciliation(env: FinanceEnv) {
-  return env.DB.prepare(`SELECT id, snapshot_date, snapshot_at, cash_value, source
-    FROM finance_asset_snapshots
-    WHERE deleted_at IS NULL AND is_complete = 1
-      AND lower(COALESCE(source, '')) NOT IN (${SYNTHETIC_RECONCILIATION_SOURCES.map(() => '?').join(', ')})
-    ORDER BY snapshot_date DESC, julianday(snapshot_at) DESC, id DESC LIMIT 1`)
-    .bind(...SYNTHETIC_RECONCILIATION_SOURCES).first<ReconciliationRow>();
-}
-
 async function holdingsAt(env: FinanceEnv, throughDate: string) {
-  const rows = await env.DB.prepare(`WITH latest AS (
-      SELECT ticker, MAX(snapshot_date || ':' || printf('%020d', id)) AS marker
-      FROM holdings_snapshots WHERE snapshot_date <= ? GROUP BY ticker
-    )
-    SELECT h.ticker, h.quantity FROM holdings_snapshots h
-    JOIN latest l ON l.ticker = h.ticker AND l.marker = h.snapshot_date || ':' || printf('%020d', h.id)
-    WHERE h.quantity > 0 ORDER BY h.ticker`).bind(throughDate).all<HoldingRow>();
-  return rows.results.map((row) => ({ ticker: row.ticker, quantity: Number(row.quantity) }));
+  const rows = await latestSnapshotHoldings(env, { throughDate });
+  return rows.map((row) => ({ ticker: row.ticker, quantity: row.quantity }));
 }
 
 async function activeTradesThrough(env: FinanceEnv, throughDate: string) {

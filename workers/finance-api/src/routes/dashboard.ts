@@ -10,6 +10,7 @@ import {
 import { apiError, json, readJson } from '../lib/http';
 import { buildXlsx, type WorkbookCell } from '../modules/xlsx';
 import { isPersistedMarketSnapshotUsable } from '../modules/market-authority';
+import { latestSnapshotHoldings } from '../modules/snapshots';
 import { buildHistoricalPosition, type HistoricalValuationObservation } from '../modules/historical-valuation';
 import { financePeriodState } from '../modules/periods';
 import { requireFinanceRole, type FinanceEnv } from './auth';
@@ -81,22 +82,9 @@ export async function handleDashboard(
 async function holdings(request: Request, env: FinanceEnv, now: Date): Promise<Response> {
   const session = await requireFinanceRole(request, env);
   if (session instanceof Response) return session;
-  const rows = await env.DB.prepare(`WITH latest AS (
-      SELECT ticker, MAX(snapshot_date || ':' || printf('%020d', id)) AS marker
-      FROM holdings_snapshots GROUP BY ticker
-    )
-    SELECT h.ticker,
-      (SELECT t.ticker_name FROM trades t
-        WHERE t.ticker = h.ticker AND t.ticker_name IS NOT NULL AND t.ticker_name <> ''
-        ORDER BY t.trade_date DESC, t.id DESC LIMIT 1) AS ticker_name,
-      h.quantity, h.avg_cost, h.position_category,
-      (SELECT price FROM market_data m WHERE m.ticker = h.ticker ORDER BY fetched_at DESC, id DESC LIMIT 1) AS price,
-      (SELECT fetched_at FROM market_data m WHERE m.ticker = h.ticker ORDER BY fetched_at DESC, id DESC LIMIT 1) AS fetched_at
-    FROM holdings_snapshots h
-    JOIN latest l ON l.ticker = h.ticker AND l.marker = h.snapshot_date || ':' || printf('%020d', h.id)
-    WHERE h.quantity > 0 ORDER BY h.ticker`).all<HoldingRow>();
+  const rows = await latestSnapshotHoldings(env, { quotes: true, displayNames: true }) as HoldingRow[];
   const limits = await env.DB.prepare('SELECT * FROM position_limits ORDER BY position_category').all<PositionLimitRow>();
-  const values = rows.results.map((row) => {
+  const values = rows.map((row) => {
     const numericPrice = row.price === null ? null : Number(row.price);
     const hasPrice = numericPrice !== null && Number.isFinite(numericPrice);
     const stale = hasPrice && !isPersistedMarketSnapshotUsable(row.fetched_at, now);
@@ -221,15 +209,8 @@ async function pe(request: Request, env: FinanceEnv, now: Date): Promise<Respons
 
 async function riskSignals(request: Request, env: FinanceEnv, now: Date): Promise<Response> {
   const session = await requireFinanceRole(request, env); if (session instanceof Response) return session;
-  const rows = await env.DB.prepare(`WITH latest AS (
-      SELECT ticker, MAX(snapshot_date || ':' || printf('%020d', id)) AS marker FROM holdings_snapshots GROUP BY ticker
-    ) SELECT h.ticker, h.avg_cost,
-      (SELECT t.ticker_name FROM trades t WHERE t.ticker = h.ticker AND t.ticker_name IS NOT NULL AND t.ticker_name <> '' ORDER BY t.trade_date DESC, t.id DESC LIMIT 1) AS ticker_name,
-      (SELECT price FROM market_data m WHERE m.ticker = h.ticker ORDER BY fetched_at DESC, id DESC LIMIT 1) AS price,
-      (SELECT fetched_at FROM market_data m WHERE m.ticker = h.ticker ORDER BY fetched_at DESC, id DESC LIMIT 1) AS fetched_at
-    FROM holdings_snapshots h JOIN latest l ON l.ticker = h.ticker AND l.marker = h.snapshot_date || ':' || printf('%020d', h.id)
-    WHERE h.quantity > 0`).all<{ ticker: string; ticker_name: string | null; avg_cost: number; price: number | null; fetched_at: string | null }>();
-  const priced = rows.results.map((row) => ({ ...row, loss_ratio: row.price === null || Number(row.avg_cost) <= 0 ? null : (Number(row.price) - Number(row.avg_cost)) / Number(row.avg_cost) }));
+  const rows = await latestSnapshotHoldings(env, { quotes: true, displayNames: true });
+  const priced = rows.map((row) => ({ ...row, loss_ratio: row.price === null || Number(row.avg_cost) <= 0 ? null : (Number(row.price) - Number(row.avg_cost)) / Number(row.avg_cost) }));
   const usable = priced.filter((row) => row.loss_ratio !== null && isPersistedMarketSnapshotUsable(row.fetched_at, now));
   const worst = usable.sort((left, right) => Number(left.loss_ratio) - Number(right.loss_ratio))[0] ?? null;
   const snapshotCount = await env.DB.prepare(`SELECT COUNT(*) AS count FROM finance_asset_snapshots WHERE deleted_at IS NULL AND is_complete = 1`).first<{ count: number }>();

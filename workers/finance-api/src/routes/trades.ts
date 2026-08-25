@@ -1,6 +1,7 @@
 import { apiError, json, readJson } from '../lib/http';
 import { requireFinanceRole, type FinanceEnv } from './auth';
-import { selectCashFactsAfterReconciliation, SYNTHETIC_RECONCILIATION_SOURCES } from './account-state';
+import { latestReconciliation } from '../modules/snapshots';
+import { selectCashFactsAfterReconciliation } from './account-state';
 
 interface TradeInput {
   trade_date?: unknown;
@@ -362,13 +363,7 @@ async function editableTrade(env: FinanceEnv, id: number): Promise<TradeRow | Re
 }
 
 async function latestTradeReconciliation(env: FinanceEnv): Promise<TradeReconciliation | null> {
-  const rows = await env.DB.prepare(`SELECT snapshot_at, snapshot_date, holdings_value, source
-    FROM finance_asset_snapshots
-    WHERE deleted_at IS NULL AND is_complete = 1
-      AND lower(COALESCE(source, '')) NOT IN (${SYNTHETIC_RECONCILIATION_SOURCES.map(() => '?').join(', ')})
-    ORDER BY snapshot_date DESC, julianday(snapshot_at) DESC, id DESC LIMIT 1`)
-    .bind(...SYNTHETIC_RECONCILIATION_SOURCES).all<TradeReconciliation & { holdings_value: number; source: string }>();
-  return rows.results[0] ?? null;
+  return latestReconciliation(env);
 }
 
 export function tradeEditableAfterReconciliation(

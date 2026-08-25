@@ -221,6 +221,7 @@ class MemoryStatement {
       return holding && holding.snapshot_date < this.values[1] ? holding : null;
     }
     if (this.sql.includes('FROM holdings_snapshots') && this.sql.includes('WHERE ticker = ?')) return this.database.holdings.get(this.values[0]) ?? null;
+    if (this.sql.startsWith('SELECT id, snapshot_at, snapshot_date') && this.sql.includes('FROM finance_asset_snapshots')) return null;
     if (this.sql.includes('FROM circuit_breaker_log')) return this.database.activeBlackCircuit ? { id: 99, level: 'black' } : null;
     if (this.sql.includes('FROM monthly_confirmations')) return null;
     throw new Error(`Unhandled D1 first: ${this.sql}`);

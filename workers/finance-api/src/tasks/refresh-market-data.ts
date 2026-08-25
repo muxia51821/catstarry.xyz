@@ -1,5 +1,6 @@
 // 腾讯行情索引权威来源 = a-stock-data skill §1.2 腾讯字段速查表（simonlin1212/a-stock-data）。
 import { MARKET_FRESHNESS_SLA_MS, isAStockTradingWindow } from '../modules/market-authority';
+import { latestSnapshotHoldings } from '../modules/snapshots';
 import type { FinanceEnv } from '../routes/auth';
 import { logWorkerWarning } from '../../../../shared/worker-log';
 
@@ -57,10 +58,6 @@ interface SinaQuote extends QuoteSnapshot {}
 interface MissingItems {
   indexes: string[];
   holdings: string[];
-}
-
-interface HoldingTickerRow {
-  ticker: string;
 }
 
 export async function refreshMarketData(
@@ -236,14 +233,8 @@ async function fetchBuiltinMarketData(
 }
 
 async function activeHoldingTickers(env: FinanceEnv): Promise<string[]> {
-  const rows = await env.DB.prepare(`WITH latest AS (
-      SELECT ticker, MAX(snapshot_date || ':' || printf('%020d', id)) AS marker
-      FROM holdings_snapshots GROUP BY ticker
-    )
-    SELECT h.ticker FROM holdings_snapshots h
-    JOIN latest l ON l.ticker = h.ticker AND l.marker = h.snapshot_date || ':' || printf('%020d', h.id)
-    WHERE h.quantity > 0 ORDER BY h.ticker`).all<HoldingTickerRow>();
-  return rows.results.map((row) => row.ticker.trim().toUpperCase()).filter(Boolean);
+  const rows = await latestSnapshotHoldings(env);
+  return rows.map((row) => row.ticker.trim().toUpperCase()).filter(Boolean);
 }
 
 function toTencentTicker(ticker: string): string | null {
