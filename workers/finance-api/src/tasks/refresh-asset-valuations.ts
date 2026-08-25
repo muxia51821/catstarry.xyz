@@ -3,7 +3,7 @@ import {
   previewForwardAssetValuations,
   valuationReplacementStatements,
   type HistoricalPriceRow,
-} from '../routes/asset-valuation-rebuild';
+} from '../modules/valuation-engine';
 import type { FinanceEnv } from '../routes/auth';
 
 const MAX_CATCH_UP_DAYS = 20;
