@@ -1,9 +1,9 @@
 import { apiError, json } from '../lib/http';
 import { isCalendarIsoDay, isIsoDay } from '../lib/dates';
+import { decodeCursorPayload, encodeCursorPayload } from '../lib/cursor';
 import { requireFinanceRole, type FinanceEnv } from './auth';
 
 const KINDS = new Set(['trade', 'cash_flow', 'account_event', 'reconciliation']);
-const MAX_CURSOR_LENGTH = 2_048;
 
 type JsonObject = Record<string, unknown>;
 
@@ -119,18 +119,11 @@ export function buildActivityQuery(input: {
 }
 
 export function encodeActivityCursor(value: ActivityCursorPayload): string {
-  const bytes = new TextEncoder().encode(JSON.stringify(value));
-  let binary = '';
-  for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+  return encodeCursorPayload(value);
 }
 
 export function decodeActivityCursor(value: string, filter: ActivityFilterSignature): ActivityCursorPosition {
-  if (!value || value.length > MAX_CURSOR_LENGTH) throw new Error('invalid cursor');
-  const source = value.replace(/-/g, '+').replace(/_/g, '/');
-  const binary = atob(source + '='.repeat((4 - source.length % 4) % 4));
-  const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
-  const parsed = JSON.parse(new TextDecoder().decode(bytes)) as Partial<ActivityCursorPayload>;
+  const parsed = decodeCursorPayload<Partial<ActivityCursorPayload>>(value);
   if (typeof parsed.business_date !== 'string' || !isIsoDay(parsed.business_date)
     || typeof parsed.sort_time !== 'string' || parsed.sort_time.length > 16
     || typeof parsed.event_key !== 'string' || parsed.event_key.length < 1 || parsed.event_key.length > 256

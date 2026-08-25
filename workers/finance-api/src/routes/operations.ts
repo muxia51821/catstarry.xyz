@@ -1,5 +1,6 @@
 import { apiError, json } from '../lib/http';
-import { isCalendarIsoDay, ISO_DAY_PATTERN, isIsoDay } from '../lib/dates';
+import { isCalendarIsoDay } from '../lib/dates';
+import { decodeCursorPayload, encodeCursorPayload } from '../lib/cursor';
 import { requireFinanceRole, type FinanceEnv } from './auth';
 
 const ENTITY_TYPES = new Set([
@@ -8,7 +9,6 @@ const ENTITY_TYPES = new Set([
 ]);
 const ACTIONS = new Set(['created', 'updated', 'deleted', 'confirmed', 'resolved']);
 const SHANGHAI_OFFSET_MS = 8 * 60 * 60 * 1_000;
-const MAX_CURSOR_LENGTH = 2_048;
 
 type JsonObject = Record<string, unknown>;
 
@@ -123,18 +123,11 @@ export function buildChangeLogQuery(input: {
 }
 
 export function encodeChangeLogCursor(value: ChangeLogCursorPayload): string {
-  const bytes = new TextEncoder().encode(JSON.stringify(value));
-  let binary = '';
-  for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+  return encodeCursorPayload(value);
 }
 
 export function decodeChangeLogCursor(value: string, filter: ChangeLogFilterSignature): ChangeLogCursorPosition {
-  if (!value || value.length > MAX_CURSOR_LENGTH) throw new Error('invalid cursor');
-  const source = value.replace(/-/g, '+').replace(/_/g, '/');
-  const binary = atob(source + '='.repeat((4 - source.length % 4) % 4));
-  const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
-  const parsed = JSON.parse(new TextDecoder().decode(bytes)) as Partial<ChangeLogCursorPayload>;
+  const parsed = decodeCursorPayload<Partial<ChangeLogCursorPayload>>(value);
   if (typeof parsed.occurred_at !== 'string' || !Number.isFinite(Date.parse(parsed.occurred_at))
     || typeof parsed.change_key !== 'string' || parsed.change_key.length < 1 || parsed.change_key.length > 256
     || JSON.stringify(parsed.filter) !== JSON.stringify(filter)) throw new Error('invalid cursor');
