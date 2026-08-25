@@ -211,16 +211,16 @@ export function projectValuationRow(input: {
     pricedPositionCount += 1;
     priceSources.add(price.source);
   }
-  if (input.direction === 'backward') securitiesValue = normalizeMoney(securitiesValue);
+  const normalizedSecuritiesValue = normalizeMoney(securitiesValue);
   const uniqueProblems = [...new Set(problems)];
   const complete = uniqueProblems.length === 0 && pricedPositionCount === held.length;
 
   return {
     valuation_date: input.valuationDate,
-    securities_value: input.direction === 'forward' ? normalizeMoney(securitiesValue) : securitiesValue,
+    securities_value: normalizedSecuritiesValue,
     cash_value: cashValue,
     other_assets_value: otherAssetsValue,
-    total_value: normalizeMoney(securitiesValue + cashValue + otherAssetsValue),
+    total_value: normalizeMoney((input.direction === 'forward' ? securitiesValue : normalizedSecuritiesValue) + cashValue + otherAssetsValue),
     held_position_count: held.length,
     priced_position_count: pricedPositionCount,
     is_complete: complete ? 1 : 0,
