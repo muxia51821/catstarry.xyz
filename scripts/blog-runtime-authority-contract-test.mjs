@@ -1,5 +1,10 @@
 import assert from 'node:assert/strict';
+import { DatabaseSync } from 'node:sqlite';
+import { readFile, readdir } from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
+import { SqliteD1 } from './lib/sqlite-d1.mjs';
 import { handleBlog } from '../workers/feed-api/src/routes/blog.ts';
 import { handleFeed } from '../workers/feed-api/src/routes/feed.ts';
 import { refreshActivitySignals } from '../workers/feed-api/src/modules/activity-signals.ts';
@@ -30,46 +35,38 @@ class MemoryKv {
   }
 }
 
-class TimelineD1 {
-  constructor(rows = []) {
-    this.rows = rows;
-    this.learnPublications = ['learn-visible'];
-  }
+const feedMigrationDirectory = path.join(
+  path.dirname(path.resolve(fileURLToPath(import.meta.url))), '..', 'workers', 'feed-api', 'migrations');
+const feedMigrations = await Promise.all(
+  (await readdir(feedMigrationDirectory))
+    .filter((name) => name.endsWith('.sql')).sort()
+    .map(async (name) => readFile(path.join(feedMigrationDirectory, name), 'utf8')),
+);
 
-  prepare(sql) {
-    return new TimelineStatement(this, sql);
-  }
+function createDatabase() {
+  const database = new DatabaseSync(':memory:');
+  for (const sql of feedMigrations) database.exec(sql);
+  return database;
 }
 
-class TimelineStatement {
-  constructor(database, sql) {
-    this.database = database;
-    this.sql = sql.replace(/\s+/g, ' ').trim();
-    this.values = [];
-  }
-
-  bind(...values) {
-    this.values = values;
-    return this;
-  }
-
-  async all() {
-    if (this.sql.startsWith("SELECT slug FROM learn_publications WHERE visibility = 'public'")) {
-      return { results: this.database.learnPublications.map((slug) => ({ slug })) };
+function timelineDatabase(rows) {
+  const database = createDatabase();
+  database.prepare(`INSERT INTO learn_publications (slug, visibility, published_at, updated_at)
+    VALUES ('learn-visible', 'public', '2026-08-18T00:00:00.000Z', '2026-08-18T00:00:00.000Z')`).run();
+  const insertPost = database.prepare(`INSERT INTO feed_posts (id, type, content, visibility, created_at, updated_at)
+    VALUES (?, 'note', ?, 'public', ?, ?)`);
+  const insertFootprint = database.prepare(`INSERT INTO public_footprints
+    (id, source_module, source_ref, source_version, event_type, snapshot_json, occurred_at, visibility, idempotency_key, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, 'public', ?, ?)`);
+  for (const row of rows) {
+    if (row.kind === 'native_post') {
+      insertPost.run(row.id, row.content, row.occurred_at, row.updated_at);
+    } else {
+      insertFootprint.run(row.id, row.source_module, row.source_ref, row.source_version,
+        row.event_type, row.snapshot_json, row.occurred_at, `${row.id}:idempotency`, row.occurred_at);
     }
-    if (this.sql.startsWith('SELECT * FROM (')) {
-      const publishedBlogSlugs = new Set(JSON.parse(this.values[1]));
-      const publishedLearnSlugs = new Set(JSON.parse(this.values[2]));
-      const rows = this.database.rows.filter((row) => (
-        row.visibility === 'public'
-        && (row.kind !== 'system_footprint' || row.source_module !== 'blog' || publishedBlogSlugs.has(row.source_ref))
-        && (row.kind !== 'system_footprint' || row.source_module !== 'learn'
-          || row.event_type === 'learn_section_completed' || publishedLearnSlugs.has(row.source_ref))
-      ));
-      return { results: rows };
-    }
-    throw new Error(`Unhandled D1 query: ${this.sql}`);
   }
+  return new SqliteD1(database);
 }
 
 class ProjectionBucket {
@@ -196,7 +193,7 @@ tombstoneKv.values.set(`session:${tombstoneToken}`, {
   username: 'contract-owner',
   expires_at: new Date(Date.now() + 60_000).toISOString(),
 });
-const tombstoneEnv = { AUTH_KV: tombstoneKv, DB: new TimelineD1() };
+const tombstoneEnv = { AUTH_KV: tombstoneKv, DB: new SqliteD1(createDatabase()) };
 const tombstoneHeaders = { Cookie: `token=${tombstoneToken}`, 'Content-Type': 'application/json' };
 assert.deepEqual(await handleBlog(
   new Request('https://api.test/api/blog/admin/publications', { headers: tombstoneHeaders }),
@@ -242,7 +239,7 @@ let publicFeed;
 try {
   publicFeed = await handleFeed(
     new Request('https://api.test/api/feed?limit=20'),
-    { AUTH_KV: feedKv, DB: new TimelineD1(feedRows) },
+    { AUTH_KV: feedKv, DB: timelineDatabase(feedRows) },
     createContext(),
     '/api/feed',
   );

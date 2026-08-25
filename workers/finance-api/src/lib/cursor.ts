@@ -1,4 +1,4 @@
-export const MAX_CURSOR_LENGTH = 2_048;
+const MAX_CURSOR_LENGTH = 2_048;
 
 export function encodeCursorPayload(value: unknown): string {
   const bytes = new TextEncoder().encode(JSON.stringify(value));
