@@ -61,6 +61,32 @@ assert.equal(boundedCash.replayed_facts, 2);
 assert.equal(boundedCash.problems.length, 2);
 assert.ok(boundedCash.problems.every((problem) => /同一财务日/.test(problem)));
 
+const shanghaiMidnight = selectCashFactsAfterReconciliation(
+  { snapshot_at: '2026-08-17T15:59:59.000Z', snapshot_date: '2026-08-17' }, // 23:59:59 Asia/Shanghai
+  [
+    { fact_key: 'trade:before-rollover', business_date: '2026-08-17', business_time: '23:58', kind: 'trade', subtype: 'buy', amount: -1, repo_key: null },
+    { fact_key: 'trade:cutoff-minute', business_date: '2026-08-17', business_time: '23:59', kind: 'trade', subtype: 'buy', amount: -2, repo_key: null },
+    { fact_key: 'cash-flow:next-day', business_date: '2026-08-18', business_time: null, kind: 'cash_flow', subtype: 'adjustment', amount: 5, repo_key: null },
+  ],
+);
+assert.deepEqual(shanghaiMidnight.map((fact) => [fact.fact_key, fact.timing_status]), [
+  ['trade:cutoff-minute', 'ambiguous'],
+  ['cash-flow:next-day', 'after'],
+]);
+
+const rolloverDate = selectCashFactsAfterReconciliation(
+  { snapshot_at: '2026-08-17T16:00:00.000Z', snapshot_date: '2026-08-18' }, // Shanghai midnight of 2026-08-18
+  [
+    { fact_key: 'trade:prior-day', business_date: '2026-08-17', business_time: '23:59', kind: 'trade', subtype: 'buy', amount: -3, repo_key: null },
+    { fact_key: 'trade:new-day-midnight', business_date: '2026-08-18', business_time: '00:00', kind: 'trade', subtype: 'buy', amount: -4, repo_key: null },
+    { fact_key: 'trade:new-day-later', business_date: '2026-08-18', business_time: '09:30', kind: 'trade', subtype: 'sell', amount: 5, repo_key: null },
+  ],
+);
+assert.deepEqual(rolloverDate.map((fact) => [fact.fact_key, fact.timing_status]), [
+  ['trade:new-day-midnight', 'ambiguous'],
+  ['trade:new-day-later', 'after'],
+]);
+
 const closedRepo = projectRepoAssets([
   { id: 1, event_date: '2026-06-01', event_time: '14:32', event_type: 'repo_start', repo_key: 'R-001', reference_value: 8_000, amount: -8_000.01 },
   { id: 2, event_date: '2026-06-02', event_time: null, event_type: 'repo_maturity', repo_key: 'R-001', reference_value: 8_000, amount: 8_000.30 },

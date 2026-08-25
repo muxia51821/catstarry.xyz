@@ -1,4 +1,5 @@
 import { apiError, json, readJson } from '../lib/http';
+import { isCalendarIsoDay } from '../lib/dates';
 import { latestReconciliation, type ReconciliationAnchorRow } from '../modules/snapshots';
 import {
   activeAccountEventsThrough,
@@ -16,7 +17,6 @@ import { requireFinanceRole, type FinanceEnv } from './auth';
 import { selectCashFactsAfterReconciliation, type RepoEventRow } from './account-state';
 
 export const HISTORICAL_RECONSTRUCTION_START = '2026-06-03';
-const DAY = /^\d{4}-\d{2}-\d{2}$/;
 
 type RebuildInput = { start_date?: unknown; end_date?: unknown };
 
@@ -180,10 +180,7 @@ async function replaceValuationRange(env: FinanceEnv, startDate: string, endDate
 }
 
 export function isCanonicalHistoricalDay(value: unknown): value is string {
-  if (typeof value !== 'string' || !DAY.test(value)) return false;
-  const [year, month, day] = value.split('-').map(Number);
-  const parsed = new Date(Date.UTC(year, month - 1, day));
-  return parsed.getUTCFullYear() === year && parsed.getUTCMonth() === month - 1 && parsed.getUTCDate() === day;
+  return isCalendarIsoDay(value);
 }
 
 function normalizeDay(value: unknown, fallback: string) {

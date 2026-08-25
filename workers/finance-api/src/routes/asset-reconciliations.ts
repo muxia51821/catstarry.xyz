@@ -1,4 +1,6 @@
 import { apiError, json, readJson } from '../lib/http';
+import { isCalendarIsoDay, shanghaiDay } from '../lib/dates';
+import { roundMoney } from '../lib/money';
 import { requireFinanceRole, type FinanceEnv } from './auth';
 
 type ReconciliationInput = {
@@ -11,10 +13,8 @@ type ReconciliationInput = {
   incomplete_reason?: unknown;
 };
 
-const DAY = /^\d{4}-\d{2}-\d{2}$/;
 const LOCAL_DATETIME = /^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d{1,3})?)?$/;
 const OFFSET_DATETIME = /(?:Z|[+-]\d{2}:\d{2})$/i;
-const SHANGHAI_OFFSET_MS = 8 * 60 * 60 * 1000;
 
 export async function handleAssetReconciliations(request: Request, env: FinanceEnv): Promise<Response> {
   if (request.method === 'GET') return listReconciliations(request, env);
@@ -115,16 +115,13 @@ function normalizeObservedAt(value: unknown) {
   else return null;
   if (!Number.isFinite(parsed.getTime())) return null;
 
-  const snapshot_date = new Date(parsed.getTime() + SHANGHAI_OFFSET_MS).toISOString().slice(0, 10);
+  const snapshot_date = shanghaiDay(parsed);
   if (LOCAL_DATETIME.test(raw) && snapshot_date !== raw.slice(0, 10)) return null;
   return { snapshot_at: parsed.toISOString(), snapshot_date };
 }
 
 function validDay(value: string) {
-  if (!DAY.test(value)) return false;
-  const [year, month, day] = value.split('-').map(Number);
-  const date = new Date(Date.UTC(year, month - 1, day));
-  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+  return isCalendarIsoDay(value);
 }
 
 function finiteNonNegative(value: unknown) {
@@ -140,5 +137,5 @@ function nullableText(value: unknown, maximum: number): string | null | undefine
 }
 
 function money(value: number) {
-  return Math.round((value + Number.EPSILON) * 100) / 100;
+  return roundMoney(value);
 }

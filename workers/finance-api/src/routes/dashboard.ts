@@ -8,6 +8,7 @@ import {
   type PeTemperatureBoundaries,
 } from '../modules/calculations';
 import { apiError, json, readJson } from '../lib/http';
+import { decodeCursorPayload, encodeCursorPayload } from '../lib/cursor';
 import { buildXlsx, type WorkbookCell } from '../modules/xlsx';
 import { isPersistedMarketSnapshotUsable } from '../modules/market-authority';
 import { latestSnapshotHoldings } from '../modules/snapshots';
@@ -422,11 +423,14 @@ async function accessLog(request: Request, env: FinanceEnv): Promise<Response> {
 }
 
 function optionalAccessTime(value: string | null): string | null | undefined { return value === null || value === '' ? null : /^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z)?$/.test(value) ? value : undefined; }
-function encodeAccessCursor(value: { sort: string; id: number; filter: unknown }): string { return btoa(JSON.stringify(value)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, ''); }
+function encodeAccessCursor(value: { sort: string; id: number; filter: unknown }): string { return encodeCursorPayload(value); }
 function decodeAccessCursor(value: string | null, filter: unknown): { sort: string; id: number } | null | Response {
   if (!value) return null;
-  try { const source = value.replace(/-/g, '+').replace(/_/g, '/'); const parsed = JSON.parse(atob(source + '='.repeat((4 - source.length % 4) % 4))); if (typeof parsed.sort !== 'string' || !Number.isSafeInteger(parsed.id) || parsed.id < 1 || JSON.stringify(parsed.filter) !== JSON.stringify(filter)) throw new Error(); return { sort: parsed.sort, id: parsed.id }; }
-  catch { return apiError(400, 'invalid_cursor', 'Access cursor is invalid'); }
+  try {
+    const parsed = decodeCursorPayload<{ sort?: unknown; id?: unknown; filter?: unknown }>(value);
+    if (typeof parsed.sort !== 'string' || typeof parsed.id !== 'number' || !Number.isSafeInteger(parsed.id) || parsed.id < 1 || JSON.stringify(parsed.filter) !== JSON.stringify(filter)) throw new Error();
+    return { sort: parsed.sort, id: parsed.id };
+  } catch { return apiError(400, 'invalid_cursor', 'Access cursor is invalid'); }
 }
 
 async function listImportReview(request: Request, env: FinanceEnv): Promise<Response> {

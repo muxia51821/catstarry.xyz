@@ -1,4 +1,6 @@
 import { apiError, json, readJson } from '../lib/http';
+import { isCalendarIsoDay } from '../lib/dates';
+import { decodeCursorPayload, encodeCursorPayload } from '../lib/cursor';
 import { requireFinanceRole, type FinanceEnv } from './auth';
 import { latestReconciliation } from '../modules/snapshots';
 import { selectCashFactsAfterReconciliation } from './account-state';
@@ -50,7 +52,6 @@ interface TradeRow {
 type TradeReconciliation = { snapshot_at: string; snapshot_date: string };
 export type TradeDayFingerprint = { count: number; max_id: number; max_revision: string };
 
-const MAX_CURSOR_LENGTH = 2_048;
 const TRADE_DAY_COHORT_PREDICATE = `(SELECT COUNT(*) FROM trades WHERE ticker = ? AND trade_date = ? AND deleted_at IS NULL) = ?
   AND COALESCE((SELECT MAX(id) FROM trades WHERE ticker = ? AND trade_date = ? AND deleted_at IS NULL), 0) = ?
   AND COALESCE((SELECT MAX(COALESCE(updated_at, created_at, '')) FROM trades WHERE ticker = ? AND trade_date = ? AND deleted_at IS NULL), '') = ?`;
@@ -178,20 +179,15 @@ function optionalFilter(value: string | null, maximum: number): string | null | 
 }
 function likePattern(value: string) { return `%${value.replace(/[\\%_]/g, '\\$&')}%`; }
 function encodeCursor(value: { sort: string; id: number; filter: unknown }): string {
-  const bytes = new TextEncoder().encode(JSON.stringify(value));
-  let binary = '';
-  for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+  return encodeCursorPayload(value);
 }
 function decodeCursor(value: string | null, filter: unknown): { sort: string; id: number } | null | Response {
   if (!value) return null;
-  if (value.length > MAX_CURSOR_LENGTH) return apiError(400, 'invalid_cursor', 'Trade cursor is invalid');
   try {
-    const source = value.replace(/-/g, '+').replace(/_/g, '/');
-    const binary = atob(source + '='.repeat((4 - source.length % 4) % 4));
-    const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
-    const parsed = JSON.parse(new TextDecoder().decode(bytes));
-    if (!validDate(parsed.sort) || !Number.isSafeInteger(parsed.id) || parsed.id < 1 || JSON.stringify(parsed.filter) !== JSON.stringify(filter)) throw new Error();
+    const parsed = decodeCursorPayload<{ sort?: unknown; id?: unknown; filter?: unknown }>(value);
+    if (typeof parsed.sort !== 'string' || !isCalendarIsoDay(parsed.sort)
+      || typeof parsed.id !== 'number' || !Number.isSafeInteger(parsed.id) || parsed.id < 1
+      || JSON.stringify(parsed.filter) !== JSON.stringify(filter)) throw new Error();
     return { sort: parsed.sort, id: parsed.id };
   } catch {
     return apiError(400, 'invalid_cursor', 'Trade cursor is invalid');
@@ -478,10 +474,7 @@ function optionalFinite(value: unknown): number | null | undefined {
 }
 
 function validDate(value: string): boolean {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const [year, month, day] = value.split('-').map(Number);
-  const date = new Date(Date.UTC(year, month - 1, day));
-  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+  return isCalendarIsoDay(value);
 }
 
 async function hasActiveBlackCircuit(env: FinanceEnv) {

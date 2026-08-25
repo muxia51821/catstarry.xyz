@@ -3,6 +3,7 @@ import {
   latestSnapshotHoldings,
   type ReconciliationAnchorRow,
 } from './snapshots';
+import { roundMoney } from '../lib/money';
 import type { FinanceEnv } from '../routes/auth';
 import {
   projectRepoAssets,
@@ -192,10 +193,10 @@ export function projectValuationRow(input: {
   }
 
   if (cash < -EPSILON) problems.push(`${input.direction === 'forward' ? '正推' : '反推'} Broker Cash 为负数 ${cash.toFixed(2)}。`);
-  const cashValue = normalizeMoney(Math.max(0, cash));
+  const cashValue = roundMoney(Math.max(0, cash));
   const repoState = projectRepoAssets(input.repoEvents.filter((event) => event.event_date <= input.valuationDate));
   problems.push(...repoState.problems);
-  const otherAssetsValue = normalizeMoney(Math.max(0, Number(repoState.known_value ?? 0)));
+  const otherAssetsValue = roundMoney(Math.max(0, Number(repoState.known_value ?? 0)));
 
   let securitiesValue = 0;
   let pricedPositionCount = 0;
@@ -211,7 +212,7 @@ export function projectValuationRow(input: {
     pricedPositionCount += 1;
     priceSources.add(price.source);
   }
-  const normalizedSecuritiesValue = normalizeMoney(securitiesValue);
+  const normalizedSecuritiesValue = roundMoney(securitiesValue);
   const uniqueProblems = [...new Set(problems)];
   const complete = uniqueProblems.length === 0 && pricedPositionCount === held.length;
 
@@ -220,7 +221,7 @@ export function projectValuationRow(input: {
     securities_value: normalizedSecuritiesValue,
     cash_value: cashValue,
     other_assets_value: otherAssetsValue,
-    total_value: normalizeMoney((input.direction === 'forward' ? securitiesValue : normalizedSecuritiesValue) + cashValue + otherAssetsValue),
+    total_value: roundMoney((input.direction === 'forward' ? securitiesValue : normalizedSecuritiesValue) + cashValue + otherAssetsValue),
     held_position_count: held.length,
     priced_position_count: pricedPositionCount,
     is_complete: complete ? 1 : 0,
@@ -229,10 +230,6 @@ export function projectValuationRow(input: {
     source: 'derived',
     calculated_at: input.calculatedAt,
   };
-}
-
-function normalizeMoney(value: number) {
-  return Math.round((value + Number.EPSILON) * 100) / 100;
 }
 
 export async function previewForwardAssetValuations(
