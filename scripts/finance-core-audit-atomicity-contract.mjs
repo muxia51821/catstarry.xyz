@@ -2,9 +2,10 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { DatabaseSync } from 'node:sqlite';
 
-const [tradesSource, recordsSource, operationMigration] = await Promise.all([
+const [tradesSource, recordsSource, auditedWriteSource, operationMigration] = await Promise.all([
   readFile('workers/finance-api/src/routes/trades.ts', 'utf8'),
   readFile('workers/finance-api/src/routes/records.ts', 'utf8'),
+  readFile('workers/finance-api/src/lib/audited-write.ts', 'utf8'),
   readFile('workers/finance-api/migrations/0008_operation_history.sql', 'utf8'),
 ]);
 
@@ -19,15 +20,17 @@ assert.equal(count(tradesSource, /last_insert_rowid\(\)/g), 2, 'Both Trade creat
 assert.equal(count(tradesSource, /SELECT \?, 'updated', \?, \?, \?, \? WHERE changes\(\) = 1/g), 1, 'Trade update audit must depend on the immediately preceding update');
 assert.equal(count(tradesSource, /SELECT \?, 'deleted', \?, \?, \? WHERE changes\(\) = 1/g), 1, 'Trade delete audit must depend on the immediately preceding delete');
 assert.match(tradesSource, /stale_trade_day/, 'same-day replay creation must fail closed when its pre-read cohort becomes stale');
-assert.equal(count(recordsSource, /last_insert_rowid\(\)/g), 2, 'Cash Flow and Account Event create must bind audits to their inserted rows');
-assert.equal(count(recordsSource, /WHERE changes\(\) = 1/g), 6, 'Cash Flow and Account Event create/update/delete audits must depend on the immediately preceding mutation');
+// Cash Flow and Account Event mutations delegate to the shared audited-write module;
+// the route must not hand-write audit SQL, and the module must own the guarded protocol exactly once per action.
+assert.equal(count(auditedWriteSource, /last_insert_rowid\(\)/g), 1, 'audited create must bind its audit to the inserted row');
+assert.equal(count(auditedWriteSource, /WHERE changes\(\) = 1/g), 3, 'create/update/delete audits must depend on the immediately preceding mutation');
+assert.equal(count(auditedWriteSource, /updated_at IS \?/g), 2, 'audited update/delete must reject a stale pre-read');
 assert.equal(count(tradesSource, /updated_at IS \?/g), 2, 'Trade update/delete must reject a stale pre-read');
-assert.equal(count(recordsSource, /updated_at IS \?/g), 4, 'Cash Flow and Account Event update/delete must reject stale pre-reads');
+assert.doesNotMatch(recordsSource, /INSERT INTO finance_(?:cash_flow|account_event)_audit/, 'records route must delegate core auditing to the shared audited-write module');
 assert.match(tradesSource, /stale_trade/);
 assert.match(recordsSource, /stale_cash_flow/);
 assert.match(recordsSource, /stale_account_event/);
 assert.doesNotMatch(tradesSource, /await env\.DB\.prepare\(`INSERT INTO finance_trade_audit[\s\S]*?\)\.bind\([^\n]+\)\.run\(\)/, 'Trade audit writes must not be standalone writes');
-assert.doesNotMatch(recordsSource, /await env\.DB\.prepare\(`INSERT INTO finance_(?:cash_flow|account_event)_audit[\s\S]*?\)\.bind\([^\n]+\)\.run\(\)/, 'Cash Flow / Account Event audit writes must not be standalone writes');
 
 // Migration-first rollout must not install parallel core audit triggers while an old Worker may still hand-write these audits.
 assert.doesNotMatch(operationMigration, /CREATE TRIGGER[\s\S]*?\bON\s+trades\b/i, '0008 must not double-own Trade auditing');
