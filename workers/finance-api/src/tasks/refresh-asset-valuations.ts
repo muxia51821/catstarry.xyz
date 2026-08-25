@@ -1,4 +1,5 @@
 import { latestReconciliation, latestSnapshotHoldings } from '../modules/snapshots';
+import { shanghaiClockParts, shanghaiDay } from '../lib/dates';
 import {
   previewForwardAssetValuations,
   valuationReplacementStatements,
@@ -17,7 +18,7 @@ type ExistingPrice = { ticker: string; price_date: string; close: number; source
 export const ASSET_VALUATION_REFRESH_CRON = '0,20 8,9,12 * * 1-5';
 
 export function assetValuationRefreshAttempt(value: Date): 1 | 2 | 3 | null {
-  const { hour, minute } = shanghaiClock(value);
+  const { hour, minute } = shanghaiClockParts(value);
   if (hour === '16' && minute === '20') return 1;
   if (hour === '17' && minute === '00') return 2;
   if (hour === '20' && minute === '00') return 3;
@@ -201,18 +202,6 @@ async function readText(response: Response): Promise<string> {
 
 function toTencentTicker(ticker: string) {
   return /^(5|6|9|688)/.test(ticker) ? `sh${ticker}` : `sz${ticker}`;
-}
-
-function shanghaiDay(value: Date) {
-  const { year, month, day } = shanghaiClock(value);
-  return `${year}-${month}-${day}`;
-}
-
-function shanghaiClock(value: Date) {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
-  }).formatToParts(value);
-  return Object.fromEntries(parts.map((part) => [part.type, part.value])) as Record<'year' | 'month' | 'day' | 'hour' | 'minute', string>;
 }
 
 function daysBefore(day: string, count: number) {

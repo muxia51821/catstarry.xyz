@@ -1,6 +1,8 @@
 import { apiError, json } from '../lib/http';
 import { isPersistedMarketSnapshotUsable } from '../modules/market-authority';
 import { latestReconciliation, latestSnapshotHoldings } from '../modules/snapshots';
+import { roundMoney } from '../lib/money';
+import { shanghaiClockParts } from '../lib/dates';
 import { requireFinanceRole, type FinanceEnv } from './auth';
 
 type CashFactRow = {
@@ -39,7 +41,6 @@ type ContributionBasis = {
 
 const CASH_ACCOUNT_EVENT_TYPES = new Set(['dividend', 'dividend_tax', 'repo_start', 'repo_maturity', 'refund']);
 const CASH_TOLERANCE = 0.000001;
-const SHANGHAI_OFFSET_MS = 8 * 60 * 60 * 1000;
 
 export async function handleAccountState(request: Request, env: FinanceEnv): Promise<Response> {
   if (request.method !== 'GET') return apiError(405, 'method_not_allowed', 'Method is not allowed');
@@ -134,14 +135,14 @@ export function projectCumulativePnl(totalAssets: number | null, basis: Contribu
       pnl: null,
     };
   }
-  const totalContributions = normalizeMoney(basis.initial_capital + basis.net_cash_flows);
+  const totalContributions = roundMoney(basis.initial_capital + basis.net_cash_flows);
   return {
     status: 'available' as const,
     initial_capital: basis.initial_capital,
-    net_cash_flows: normalizeMoney(basis.net_cash_flows),
+    net_cash_flows: roundMoney(basis.net_cash_flows),
     cash_flow_count: basis.cash_flow_count,
     total_contributions: totalContributions,
-    pnl: normalizeMoney(totalAssets - totalContributions),
+    pnl: roundMoney(totalAssets - totalContributions),
   };
 }
 
@@ -376,10 +377,10 @@ export function projectCash(anchorCash: number, facts: CashFactRow[]) {
   }
 
   return {
-    value: problems.length ? null : normalizeMoney(value),
-    known_value: normalizeMoney(value),
+    value: problems.length ? null : roundMoney(value),
+    known_value: roundMoney(value),
     status: problems.length ? 'incomplete' : replayed ? 'projected' : 'reconciled',
-    projected_delta: normalizeMoney(projectedDelta),
+    projected_delta: roundMoney(projectedDelta),
     replayed_facts: replayed,
     problems,
   };
@@ -437,8 +438,8 @@ export function projectRepoAssets(events: RepoEventRow[]) {
 
   if (Math.abs(value) < CASH_TOLERANCE) value = 0;
   return {
-    value: problems.length ? null : normalizeMoney(value),
-    known_value: normalizeMoney(value),
+    value: problems.length ? null : roundMoney(value),
+    known_value: roundMoney(value),
     status: problems.length ? 'incomplete' : open.size ? 'open_repo' : 'clear',
     open_repo_count: [...open.values()].reduce((sum, queue) => sum + queue.length, 0),
     problems,
@@ -448,8 +449,8 @@ export function projectRepoAssets(events: RepoEventRow[]) {
 function shanghaiCutoff(snapshotAt: string) {
   const timestamp = new Date(snapshotAt).getTime();
   if (!Number.isFinite(timestamp)) return null;
-  const localIso = new Date(timestamp + SHANGHAI_OFFSET_MS).toISOString();
-  return { date: localIso.slice(0, 10), minute: localIso.slice(11, 16) };
+  const parts = shanghaiClockParts(new Date(timestamp));
+  return { date: `${parts.year}-${parts.month}-${parts.day}`, minute: `${parts.hour}:${parts.minute}` };
 }
 
 function normalizeMinute(value: string | null) {
@@ -458,6 +459,3 @@ function normalizeMinute(value: string | null) {
   return match ? `${match[1]}:${match[2]}` : null;
 }
 
-function normalizeMoney(value: number) {
-  return Math.round((value + Number.EPSILON) * 100) / 100;
-}

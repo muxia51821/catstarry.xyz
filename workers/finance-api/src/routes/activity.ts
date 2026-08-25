@@ -1,8 +1,8 @@
 import { apiError, json } from '../lib/http';
+import { isCalendarIsoDay, isIsoDay } from '../lib/dates';
 import { requireFinanceRole, type FinanceEnv } from './auth';
 
 const KINDS = new Set(['trade', 'cash_flow', 'account_event', 'reconciliation']);
-const isoDay = /^\d{4}-\d{2}-\d{2}$/;
 const MAX_CURSOR_LENGTH = 2_048;
 
 type JsonObject = Record<string, unknown>;
@@ -131,7 +131,7 @@ export function decodeActivityCursor(value: string, filter: ActivityFilterSignat
   const binary = atob(source + '='.repeat((4 - source.length % 4) % 4));
   const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
   const parsed = JSON.parse(new TextDecoder().decode(bytes)) as Partial<ActivityCursorPayload>;
-  if (typeof parsed.business_date !== 'string' || !isoDay.test(parsed.business_date)
+  if (typeof parsed.business_date !== 'string' || !isIsoDay(parsed.business_date)
     || typeof parsed.sort_time !== 'string' || parsed.sort_time.length > 16
     || typeof parsed.event_key !== 'string' || parsed.event_key.length < 1 || parsed.event_key.length > 256
     || JSON.stringify(parsed.filter) !== JSON.stringify(filter)) throw new Error('invalid cursor');
@@ -240,10 +240,7 @@ function parseJson(value: string): JsonObject {
 }
 function optionalDay(value: string | null): string | null | undefined {
   if (value === null || value === '') return null;
-  if (!isoDay.test(value)) return undefined;
-  const [year, month, day] = value.split('-').map(Number);
-  const candidate = new Date(Date.UTC(year, month - 1, day));
-  return candidate.getUTCFullYear() === year && candidate.getUTCMonth() === month - 1 && candidate.getUTCDate() === day ? value : undefined;
+  return isCalendarIsoDay(value) ? value : undefined;
 }
 function likePattern(value: string) { return `%${value.replace(/[\\%_]/g, '\\$&')}%`; }
 function moneyValue(value: unknown) { const number = Number(value); return Number.isFinite(number) ? `¥${number.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}` : '—'; }

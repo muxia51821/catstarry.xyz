@@ -1,4 +1,5 @@
 import { apiError, json } from '../lib/http';
+import { isCalendarIsoDay, ISO_DAY_PATTERN, isIsoDay } from '../lib/dates';
 import { requireFinanceRole, type FinanceEnv } from './auth';
 
 const ENTITY_TYPES = new Set([
@@ -6,7 +7,6 @@ const ENTITY_TYPES = new Set([
   'memo', 'monthly_record', 'annual_review', 'workbook_review',
 ]);
 const ACTIONS = new Set(['created', 'updated', 'deleted', 'confirmed', 'resolved']);
-const isoDay = /^\d{4}-\d{2}-\d{2}$/;
 const SHANGHAI_OFFSET_MS = 8 * 60 * 60 * 1_000;
 const MAX_CURSOR_LENGTH = 2_048;
 
@@ -313,10 +313,7 @@ function parseJson(value: string | null): JsonObject | null {
 function same(left: unknown, right: unknown) { return JSON.stringify(left ?? null) === JSON.stringify(right ?? null); }
 function optionalDay(value: string | null): string | null | undefined {
   if (value === null || value === '') return null;
-  if (!isoDay.test(value)) return undefined;
-  const [year, month, day] = value.split('-').map(Number);
-  const candidate = new Date(Date.UTC(year, month - 1, day));
-  return candidate.getUTCFullYear() === year && candidate.getUTCMonth() === month - 1 && candidate.getUTCDate() === day ? value : undefined;
+  return isCalendarIsoDay(value) ? value : undefined;
 }
 function shanghaiBoundary(day: string, dayOffset = 0) {
   const [year, month, date] = day.split('-').map(Number);

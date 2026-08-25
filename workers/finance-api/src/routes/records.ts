@@ -1,11 +1,11 @@
 import { apiError, json, readJson } from '../lib/http';
+import { isIsoDay } from '../lib/dates';
 import { requireFinanceRole, type FinanceEnv } from './auth';
 
 const PLAN_FIELDS = [
   'initial_capital', 'monthly_invest', 'months_year1', 'months_year2plus',
   'rate_low', 'rate_base', 'rate_high', 'bonus1', 'bonus2to4', 'start_year', 'end_year',
 ] as const;
-const isoDay = /^\d{4}-\d{2}-\d{2}$/;
 
 type PlanField = typeof PLAN_FIELDS[number];
 
@@ -253,7 +253,7 @@ export function normalizeAccountEvent(value: AccountEventInput) {
   const ticker = nullableString(value.ticker, 24); const ticker_name = nullableString(value.ticker_name, 100);
   const quantity = nullableNumber(value.quantity); const reference_value = nullableNumber(value.reference_value); const amount = nullableNumber(value.amount);
   const position_category = nullableString(value.position_category, 64); const note = nullableString(value.note, 2_000);
-  if (!isoDay.test(event_date) || (event_time !== null && !/^([01]\d|2[0-3]):[0-5]\d$/.test(event_time)) || !['dividend', 'dividend_tax', 'split', 'repo_start', 'repo_maturity', 'refund', 'other'].includes(event_type)
+  if (!isIsoDay(event_date) || (event_time !== null && !/^([01]\d|2[0-3]):[0-5]\d$/.test(event_time)) || !['dividend', 'dividend_tax', 'split', 'repo_start', 'repo_maturity', 'refund', 'other'].includes(event_type)
     || ticker === undefined || ticker_name === undefined || quantity === undefined || reference_value === undefined || amount === undefined || position_category === undefined || note === undefined) return null;
   if (event_type === 'repo_start' || event_type === 'repo_maturity') {
     if (reference_value === null || reference_value <= 0 || amount === null) return null;

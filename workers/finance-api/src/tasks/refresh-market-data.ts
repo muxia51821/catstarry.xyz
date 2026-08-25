@@ -1,6 +1,7 @@
 // 腾讯行情索引权威来源 = a-stock-data skill §1.2 腾讯字段速查表（simonlin1212/a-stock-data）。
 import { MARKET_FRESHNESS_SLA_MS, isAStockTradingWindow } from '../modules/market-authority';
 import { latestSnapshotHoldings } from '../modules/snapshots';
+import { shanghaiDay } from '../lib/dates';
 import type { FinanceEnv } from '../routes/auth';
 import { logWorkerWarning } from '../../../../shared/worker-log';
 
@@ -352,22 +353,11 @@ function tencentTimestamp(rawTime: string): Pick<TencentQuote, 'marketTime' | 't
 // 合法零成交平盘以及行情时间不可验证时，一律保留 Tencent 原报价。
 function isStaleQuote(quote: TencentQuote, now: Date): boolean {
   if (!isAStockTradingWindow(now)) return false;
-  if (!quote.tradingDate || quote.tradingDate !== todayInShanghai(now)) return false;
+  if (!quote.tradingDate || quote.tradingDate !== shanghaiDay(now)) return false;
   if (!quote.marketTime) return false;
   const marketTime = Date.parse(quote.marketTime);
   if (!Number.isFinite(marketTime)) return false;
   return now.getTime() - marketTime > MARKET_FRESHNESS_SLA_MS;
-}
-
-function todayInShanghai(now: Date): string {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Shanghai',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(now);
-  const value = Object.fromEntries(parts.map((part) => [part.type, part.value]));
-  return `${value.year}-${value.month}-${value.day}`;
 }
 
 async function fetchNasdaq100Quote(

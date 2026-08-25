@@ -1,7 +1,6 @@
 import { apiError, json, readJson } from '../lib/http';
+import { isIsoDay } from '../lib/dates';
 import { requireFinanceRole, type FinanceEnv } from './auth';
-
-const isoDay = /^\d{4}-\d{2}-\d{2}$/;
 
 export async function handleStewardship(request: Request, env: FinanceEnv, pathname: string): Promise<Response> {
   if (pathname === '/api/risk-rules' && request.method === 'GET') return rules(request, env);
@@ -91,7 +90,7 @@ async function saveRebalance(request: Request, env: FinanceEnv) {
   const session = await requireFinanceRole(request, env, ['admin']); if (session instanceof Response) return session;
   const body = await readJson<Record<string, unknown>>(request); if (body instanceof Response) return body;
   const year = Number(body.year); const executed = text(body.executed_on, 10); const adjustments = text(body.adjustments, 8_000); const reason = text(body.reason, 4_000);
-  if (!Number.isInteger(year) || year < 2000 || year > 2200 || !isoDay.test(executed) || !adjustments || !reason) return apiError(400, 'invalid_rebalance', 'Rebalance fields are invalid');
+  if (!Number.isInteger(year) || year < 2000 || year > 2200 || !isIsoDay(executed) || !adjustments || !reason) return apiError(400, 'invalid_rebalance', 'Rebalance fields are invalid');
   const now = new Date().toISOString(); const result = await env.DB.prepare('INSERT INTO finance_rebalance_records (year, executed_on, adjustments, reason, created_at, created_by) VALUES (?, ?, ?, ?, ?, ?)').bind(year, executed, adjustments, reason, now, session.username).run();
   return json({ rebalance: await env.DB.prepare('SELECT * FROM finance_rebalance_records WHERE id = ?').bind(result.meta.last_row_id).first() }, 201);
 }

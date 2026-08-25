@@ -1,4 +1,5 @@
 import { apiError, json, readJson } from '../lib/http';
+import { isCalendarIsoDay } from '../lib/dates';
 import { requireFinanceRole, type FinanceEnv } from './auth';
 import { latestReconciliation } from '../modules/snapshots';
 import { selectCashFactsAfterReconciliation } from './account-state';
@@ -478,10 +479,7 @@ function optionalFinite(value: unknown): number | null | undefined {
 }
 
 function validDate(value: string): boolean {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const [year, month, day] = value.split('-').map(Number);
-  const date = new Date(Date.UTC(year, month - 1, day));
-  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+  return isCalendarIsoDay(value);
 }
 
 async function hasActiveBlackCircuit(env: FinanceEnv) {
