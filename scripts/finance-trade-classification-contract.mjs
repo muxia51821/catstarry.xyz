@@ -3,33 +3,11 @@ import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 
+import { SqliteD1 } from './lib/sqlite-d1.mjs';
 import { handleTrades } from '../workers/finance-api/src/routes/trades.ts';
 
 const SESSION_TOKEN = '11111111-1111-4111-8111-111111111111';
 
-class SqliteD1Statement {
-  constructor(database, sql, values = []) { this.database = database; this.sql = sql; this.values = values; }
-  bind(...values) { return new SqliteD1Statement(this.database, this.sql, values); }
-  async first() { const row = this.database.prepare(this.sql).get(...this.values); return row ? { ...row } : null; }
-  async all() { return { results: this.database.prepare(this.sql).all(...this.values).map((row) => ({ ...row })) }; }
-  async run() { const result = this.database.prepare(this.sql).run(...this.values); return { success: true, meta: { changes: Number(result.changes), last_row_id: Number(result.lastInsertRowid ?? 0) } }; }
-}
-class SqliteD1 {
-  constructor(database) { this.database = database; }
-  prepare(sql) { return new SqliteD1Statement(this.database, sql); }
-  async batch(statements) {
-    this.database.exec('BEGIN');
-    try {
-      const rows = [];
-      for (const statement of statements) rows.push(await statement.run());
-      this.database.exec('COMMIT');
-      return rows;
-    } catch (error) {
-      this.database.exec('ROLLBACK');
-      throw error;
-    }
-  }
-}
 class SessionKv {
   async get(key, type) {
     if (key !== `session:${SESSION_TOKEN}`) return null;
