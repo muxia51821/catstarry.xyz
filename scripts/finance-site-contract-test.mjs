@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-const [html, css, script, headers, worker, portfolioUi, portfolioCss, operationsUi, operationsCss, accountStateRoute, activityRoute, operationsRoute, legacyReviewRoute, operationMigration] = await Promise.all([
+const [html, css, script, headers, worker, portfolioUi, portfolioCss, operationsUi, operationsCss, accountStateRoute, activityRoute, operationsRoute, legacyReviewRoute, operationMigration, snapshotsModule] = await Promise.all([
   readFile('finance-site/index.html', 'utf8'),
   readFile('finance-site/styles.css', 'utf8'),
   readFile('finance-site/app.js', 'utf8'),
@@ -16,6 +16,7 @@ const [html, css, script, headers, worker, portfolioUi, portfolioCss, operations
   readFile('workers/finance-api/src/routes/operations.ts', 'utf8'),
   readFile('workers/finance-api/src/routes/legacy-import-review.ts', 'utf8'),
   readFile('workers/finance-api/migrations/0008_operation_history.sql', 'utf8'),
+  readFile('workers/finance-api/src/modules/snapshots.ts', 'utf8'),
 ]);
 
 for (const marker of ['data-login-form', 'data-open-trade', 'data-holdings-body', 'data-position-list', 'data-pe-list', 'data-objection', 'data-open-review', 'data-export-archive', 'data-access-list', 'data-open-rules']) {
@@ -162,6 +163,8 @@ assert.doesNotMatch(legacyReviewRoute, /auditEnvelope|__finance_operation_histor
 assert.match(accountStateRoute, /export async function handleAccountState/);
 assert.match(accountStateRoute, /requireFinanceRole\(request, env\)/);
 assert.match(accountStateRoute, /latestReconciliation/);
+assert.match(snapshotsModule, /historical_backfill/);
+assert.match(snapshotsModule, /history_import/);
 assert.match(accountStateRoute, /cashFactsOnOrAfter/);
 assert.match(accountStateRoute, /selectCashFactsAfterReconciliation/);
 assert.match(accountStateRoute, /timing_status\?: 'after' \| 'ambiguous'/);
@@ -170,8 +173,6 @@ assert.match(accountStateRoute, /projectRepoAssets/);
 assert.match(accountStateRoute, /net_cash_amount/);
 assert.match(accountStateRoute, /finance_cash_flows/);
 assert.match(accountStateRoute, /finance_account_events/);
-assert.match(accountStateRoute, /historical_backfill/);
-assert.match(accountStateRoute, /history_import/);
 assert.match(accountStateRoute, /t\.trade_date >= \?/);
 assert.match(accountStateRoute, /f\.occurred_on >= \?/);
 assert.match(accountStateRoute, /e\.event_date >= \?/);

@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-const [refreshTask, automaticValuationTask, priceImporter, rebuildRoute, workerIndex, wranglerConfig] = await Promise.all([
+const [refreshTask, automaticValuationTask, priceImporter, rebuildRoute, valuationEngine, workerIndex, wranglerConfig] = await Promise.all([
   readFile('workers/finance-api/src/tasks/refresh-market-data.ts', 'utf8'),
   readFile('workers/finance-api/src/tasks/refresh-asset-valuations.ts', 'utf8'),
   readFile('scripts/finance-import-raw-prices.py', 'utf8'),
   readFile('workers/finance-api/src/routes/asset-valuation-rebuild.ts', 'utf8'),
+  readFile('workers/finance-api/src/modules/valuation-engine.ts', 'utf8'),
   readFile('workers/finance-api/src/index.ts', 'utf8'),
   readFile('workers/finance-api/wrangler.jsonc', 'utf8'),
 ]);
@@ -16,7 +17,7 @@ assert.match(priceImporter, /finance_security_prices/, 'canonical daily raw clos
 assert.match(priceImporter, /price_status/);
 assert.match(priceImporter, /carried_forward/);
 assert.match(rebuildRoute, /finance_security_prices/);
-assert.match(rebuildRoute, /finance_asset_valuations/);
+assert.match(valuationEngine, /finance_asset_valuations/);
 assert.match(rebuildRoute, /beyond_reconciliation/, 'derived history must not extend beyond the latest reconciliation anchor');
 assert.match(automaticValuationTask, /finance_security_prices/);
 assert.match(automaticValuationTask, /finance_asset_valuations/);

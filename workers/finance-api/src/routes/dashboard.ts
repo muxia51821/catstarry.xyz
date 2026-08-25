@@ -10,6 +10,7 @@ import {
 import { apiError, json, readJson } from '../lib/http';
 import { buildXlsx, type WorkbookCell } from '../modules/xlsx';
 import { isPersistedMarketSnapshotUsable } from '../modules/market-authority';
+import { latestSnapshotHoldings } from '../modules/snapshots';
 import { buildHistoricalPosition, type HistoricalValuationObservation } from '../modules/historical-valuation';
 import { financePeriodState } from '../modules/periods';
 import { requireFinanceRole, type FinanceEnv } from './auth';
@@ -68,12 +69,6 @@ export async function handleDashboard(
   if (pathname === '/api/notifications' && request.method === 'GET') return notifications(request, env);
   if (pathname === '/api/access-log' && request.method === 'GET') return accessLog(request, env);
   if (pathname === '/api/import-review' && request.method === 'GET') return listImportReview(request, env);
-  if (/^\/api\/import-review\/\d+$/.test(pathname) && request.method === 'PATCH') {
-    const id = Number(pathname.split('/')[3]);
-    return Number.isSafeInteger(id) && id > 0
-      ? resolveImportReview(request, env, id)
-      : apiError(400, 'invalid_id', 'Import review id is invalid');
-  }
   if (pathname === '/api/archive' && request.method === 'GET') return exportArchive(request, env);
   return apiError(404, 'not_found', 'Finance route not found');
 }
@@ -81,22 +76,9 @@ export async function handleDashboard(
 async function holdings(request: Request, env: FinanceEnv, now: Date): Promise<Response> {
   const session = await requireFinanceRole(request, env);
   if (session instanceof Response) return session;
-  const rows = await env.DB.prepare(`WITH latest AS (
-      SELECT ticker, MAX(snapshot_date || ':' || printf('%020d', id)) AS marker
-      FROM holdings_snapshots GROUP BY ticker
-    )
-    SELECT h.ticker,
-      (SELECT t.ticker_name FROM trades t
-        WHERE t.ticker = h.ticker AND t.ticker_name IS NOT NULL AND t.ticker_name <> ''
-        ORDER BY t.trade_date DESC, t.id DESC LIMIT 1) AS ticker_name,
-      h.quantity, h.avg_cost, h.position_category,
-      (SELECT price FROM market_data m WHERE m.ticker = h.ticker ORDER BY fetched_at DESC, id DESC LIMIT 1) AS price,
-      (SELECT fetched_at FROM market_data m WHERE m.ticker = h.ticker ORDER BY fetched_at DESC, id DESC LIMIT 1) AS fetched_at
-    FROM holdings_snapshots h
-    JOIN latest l ON l.ticker = h.ticker AND l.marker = h.snapshot_date || ':' || printf('%020d', h.id)
-    WHERE h.quantity > 0 ORDER BY h.ticker`).all<HoldingRow>();
+  const rows = await latestSnapshotHoldings(env, { quotes: true, displayNames: true }) as HoldingRow[];
   const limits = await env.DB.prepare('SELECT * FROM position_limits ORDER BY position_category').all<PositionLimitRow>();
-  const values = rows.results.map((row) => {
+  const values = rows.map((row) => {
     const numericPrice = row.price === null ? null : Number(row.price);
     const hasPrice = numericPrice !== null && Number.isFinite(numericPrice);
     const stale = hasPrice && !isPersistedMarketSnapshotUsable(row.fetched_at, now);
@@ -221,15 +203,8 @@ async function pe(request: Request, env: FinanceEnv, now: Date): Promise<Respons
 
 async function riskSignals(request: Request, env: FinanceEnv, now: Date): Promise<Response> {
   const session = await requireFinanceRole(request, env); if (session instanceof Response) return session;
-  const rows = await env.DB.prepare(`WITH latest AS (
-      SELECT ticker, MAX(snapshot_date || ':' || printf('%020d', id)) AS marker FROM holdings_snapshots GROUP BY ticker
-    ) SELECT h.ticker, h.avg_cost,
-      (SELECT t.ticker_name FROM trades t WHERE t.ticker = h.ticker AND t.ticker_name IS NOT NULL AND t.ticker_name <> '' ORDER BY t.trade_date DESC, t.id DESC LIMIT 1) AS ticker_name,
-      (SELECT price FROM market_data m WHERE m.ticker = h.ticker ORDER BY fetched_at DESC, id DESC LIMIT 1) AS price,
-      (SELECT fetched_at FROM market_data m WHERE m.ticker = h.ticker ORDER BY fetched_at DESC, id DESC LIMIT 1) AS fetched_at
-    FROM holdings_snapshots h JOIN latest l ON l.ticker = h.ticker AND l.marker = h.snapshot_date || ':' || printf('%020d', h.id)
-    WHERE h.quantity > 0`).all<{ ticker: string; ticker_name: string | null; avg_cost: number; price: number | null; fetched_at: string | null }>();
-  const priced = rows.results.map((row) => ({ ...row, loss_ratio: row.price === null || Number(row.avg_cost) <= 0 ? null : (Number(row.price) - Number(row.avg_cost)) / Number(row.avg_cost) }));
+  const rows = await latestSnapshotHoldings(env, { quotes: true, displayNames: true });
+  const priced = rows.map((row) => ({ ...row, loss_ratio: row.price === null || Number(row.avg_cost) <= 0 ? null : (Number(row.price) - Number(row.avg_cost)) / Number(row.avg_cost) }));
   const usable = priced.filter((row) => row.loss_ratio !== null && isPersistedMarketSnapshotUsable(row.fetched_at, now));
   const worst = usable.sort((left, right) => Number(left.loss_ratio) - Number(right.loss_ratio))[0] ?? null;
   const snapshotCount = await env.DB.prepare(`SELECT COUNT(*) AS count FROM finance_asset_snapshots WHERE deleted_at IS NULL AND is_complete = 1`).first<{ count: number }>();
@@ -481,25 +456,6 @@ async function listImportReview(request: Request, env: FinanceEnv): Promise<Resp
       raw_json: undefined,
     })),
   });
-}
-
-async function resolveImportReview(request: Request, env: FinanceEnv, id: number): Promise<Response> {
-  const session = await requireFinanceRole(request, env, ['admin']);
-  if (session instanceof Response) return session;
-  const body = await readJson<{ resolution_note?: unknown }>(request, 4_096);
-  if (body instanceof Response) return body;
-  const resolutionNote = typeof body.resolution_note === 'string' ? body.resolution_note.trim() : '';
-  if (!resolutionNote || resolutionNote.length > 2_000) {
-    return apiError(400, 'invalid_resolution_note', 'A bounded resolution note is required');
-  }
-  const resolvedAt = new Date().toISOString();
-  const result = await env.DB.prepare(`UPDATE finance_import_review
-    SET status = 'resolved', resolution_note = ?, resolved_at = ?
-    WHERE id = ? AND status = 'pending'`).bind(resolutionNote, resolvedAt, id).run();
-  if ((result.meta.changes ?? 0) === 0) {
-    return apiError(409, 'not_resolvable', 'Review item does not exist or was already resolved');
-  }
-  return json({ id, status: 'resolved', resolution_note: resolutionNote, resolved_at: resolvedAt });
 }
 
 async function exportArchive(request: Request, env: FinanceEnv): Promise<Response> {
