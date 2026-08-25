@@ -1,6 +1,7 @@
 import { defineCollection } from 'astro:content';
 import { glob } from 'astro/loaders';
 import { z } from 'astro/zod';
+import { SLUG_PATTERN } from '../shared/slug';
 
 const blog = defineCollection({
   loader: glob({
@@ -13,11 +14,11 @@ const blog = defineCollection({
     category: z.enum(['tech', 'life', 'opinion']),
     tags: z.array(z.string()).default([]),
     description: z.string(),
-    slug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).optional(),
+    slug: z.string().regex(SLUG_PATTERN).optional(),
     state: z.enum(['draft', 'published', 'withdrawn']),
     // Legacy metadata may remain readable, but state is mandatory for all Blog content.
     draft: z.boolean().optional(),
-    publication_id: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).optional(),
+    publication_id: z.string().regex(SLUG_PATTERN).optional(),
   }),
 });
 
@@ -27,9 +28,9 @@ const learn = defineCollection({
     base: './src/data/learn',
   }),
   schema: z.object({
-    slug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
+    slug: z.string().regex(SLUG_PATTERN),
     title: z.string(),
-    track: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
+    track: z.string().regex(SLUG_PATTERN),
     section: z.string().optional(),
     tags: z.array(z.string()).default([]),
     state: z.enum(['draft', 'published', 'superseded', 'withdrawn']).optional(),

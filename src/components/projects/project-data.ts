@@ -4,6 +4,7 @@ import {
   isIsoCalendarDate,
   selectVisibleProjects,
 } from '../../lib/project-selection.mjs';
+import { SLUG_PATTERN } from '../../../shared/slug';
 
 export interface ProjectIndexEntry {
   projectId: string;
@@ -31,7 +32,7 @@ function validateProjectIndex(entries: unknown): ProjectIndexEntry[] {
   return entries.map((value, index) => {
     if (!value || typeof value !== 'object') throw new Error(`Project ${index} must be an object`);
     const entry = value as Partial<ProjectIndexEntry>;
-    if (!entry.projectId || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(entry.projectId) || ids.has(entry.projectId)) {
+    if (!entry.projectId || !SLUG_PATTERN.test(entry.projectId) || ids.has(entry.projectId)) {
       throw new Error(`Project ${index} has an invalid or duplicate projectId`);
     }
     ids.add(entry.projectId);
@@ -53,7 +54,7 @@ function validateProjectIndex(entries: unknown): ProjectIndexEntry[] {
       throw new Error(`Project ${entry.projectId} has an invalid visibility`);
     }
     if (entry.updateId) {
-      if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(entry.updateId) || updates.has(entry.updateId)) {
+      if (!SLUG_PATTERN.test(entry.updateId) || updates.has(entry.updateId)) {
         throw new Error(`Project ${entry.projectId} has an invalid or duplicate updateId`);
       }
       updates.add(entry.updateId);

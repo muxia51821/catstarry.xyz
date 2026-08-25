@@ -1,5 +1,6 @@
 import type { BlogLifecycleEntry, BlogLifecycleState } from '../../../../shared/types';
 import { normalizePublicationReleaseIdentity } from '../../../../shared/publication-release';
+import { SLUG_PATTERN } from '../../../../shared/slug';
 import { logWorkerError } from '../../../../shared/worker-log';
 import { FeedStore } from '../adapters/feed-store';
 import { apiError, json, readJson } from '../lib/http';
@@ -107,7 +108,7 @@ async function updateLifecycle(request: Request, env: BlogEnv, ctx: ExecutionCon
   if (session instanceof Response) return session;
   const body = await readJson<{ slug?: unknown; state?: unknown }>(request, 4_096);
   if (body instanceof Response) return body;
-  if (typeof body.slug !== 'string' || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(body.slug)
+  if (typeof body.slug !== 'string' || !SLUG_PATTERN.test(body.slug)
     || (body.state !== 'published' && body.state !== 'withdrawn')) {
     return apiError(400, 'invalid_lifecycle', 'slug and a published or withdrawn state are required');
   }
@@ -168,7 +169,7 @@ function normalizeEntries(entries: PublicationEntry[]): BlogLifecycleEntry[] | n
     state: entry.state as BlogLifecycleState,
   })).sort((a, b) => a.slug.localeCompare(b.slug));
   if (normalized.some((entry) => (
-    !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(entry.slug)
+    !SLUG_PATTERN.test(entry.slug)
     || !entry.title
     || !['draft', 'published', 'withdrawn'].includes(entry.state)
     || entry.title.length > 200

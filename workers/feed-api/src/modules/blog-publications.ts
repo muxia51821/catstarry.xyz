@@ -1,4 +1,5 @@
 import type { BlogLifecycleEntry, BlogLifecycleState } from '../../../../shared/types';
+import { SLUG_PATTERN } from '../../../../shared/slug';
 import { logWorkerError } from '../../../../shared/worker-log';
 
 export interface StoredBlogLifecycleEntry extends BlogLifecycleEntry {
@@ -8,8 +9,6 @@ export interface StoredBlogLifecycleEntry extends BlogLifecycleEntry {
 
 export const BLOG_LIFECYCLE_KEY = 'blog:lifecycle-manifest:v1';
 export const BLOG_LEGACY_PUBLISHED_KEY = 'blog:published-manifest';
-
-const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 export async function readBlogLifecycle(
   env: Pick<Env, 'AUTH_KV'>,
