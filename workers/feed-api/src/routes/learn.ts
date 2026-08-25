@@ -14,6 +14,7 @@ import {
   type LearnRelationEntry,
 } from '../../../../shared/learn-relations';
 import { logWorkerError } from '../../../../shared/worker-log';
+import { footprintInsertStatement } from '../adapters/feed-store';
 import { apiError, json, readJson } from '../lib/http';
 import { refreshActivitySignals } from '../modules/activity-signals';
 import { parseFootprintCandidate } from '../modules/footprints';
@@ -138,7 +139,7 @@ async function updatePublication(request: Request, env: LearnEnv, ctx: Execution
         WHERE NOT EXISTS (
           SELECT 1 FROM publication_release_guards WHERE guard_key = 'learn-pending'
         )`).bind(slug, now, revisedAt, now),
-      firstPublicationFootprintInsert(env.DB, candidate, now),
+      footprintInsertStatement(env.DB, candidate, now, { pendingReleaseGuardKey: 'learn-pending' }),
     ]);
     const created = (publicationWrite.meta.changes ?? 0) > 0;
     if (!created && await readLearnPendingRelease(env.DB)) {
@@ -243,7 +244,7 @@ async function syncDeployedMetadata(request: Request, env: LearnEnv, ctx: Execut
     }
     const candidate = revisionCandidate(entry, deployedAt);
     const [footprintWrite] = await env.DB.batch([
-      footprintInsert(env.DB, candidate, deployedAt),
+      footprintInsertStatement(env.DB, candidate, deployedAt),
       env.DB.prepare(
         'UPDATE learn_publications SET last_revised_at = ?, updated_at = ? WHERE slug = ?',
       ).bind(entry.revised_at, deployedAt, entry.slug),
@@ -327,47 +328,6 @@ function revisionCandidate(entry: NormalizedDeployEntry, deployedAt: string): Pu
   });
   if (!candidate) throw new Error('Learn revision entry could not be normalized');
   return candidate;
-}
-
-function footprintInsert(database: D1Database, candidate: PublicFootprintCandidate, createdAt: string): D1PreparedStatement {
-  return database.prepare(`INSERT OR IGNORE INTO public_footprints (
-    id, source_module, source_ref, source_version, event_type, snapshot_json,
-    occurred_at, visibility, idempotency_key, created_at
-  ) VALUES (?, ?, ?, ?, ?, ?, ?, 'public', ?, ?)`).bind(
-    crypto.randomUUID(),
-    candidate.source_module,
-    candidate.source_ref,
-    candidate.source_version,
-    candidate.event_type,
-    candidate.snapshot_json,
-    candidate.occurred_at,
-    candidate.idempotency_key,
-    createdAt,
-  );
-}
-
-function firstPublicationFootprintInsert(
-  database: D1Database,
-  candidate: PublicFootprintCandidate,
-  createdAt: string,
-): D1PreparedStatement {
-  return database.prepare(`INSERT OR IGNORE INTO public_footprints (
-      id, source_module, source_ref, source_version, event_type, snapshot_json,
-      occurred_at, visibility, idempotency_key, created_at
-    ) SELECT ?, ?, ?, ?, ?, ?, ?, 'public', ?, ?
-    WHERE NOT EXISTS (
-      SELECT 1 FROM publication_release_guards WHERE guard_key = 'learn-pending'
-    )`).bind(
-    crypto.randomUUID(),
-    candidate.source_module,
-    candidate.source_ref,
-    candidate.source_version,
-    candidate.event_type,
-    candidate.snapshot_json,
-    candidate.occurred_at,
-    candidate.idempotency_key,
-    createdAt,
-  );
 }
 
 async function getPublication(database: D1Database, slug: string): Promise<LearnPublicationRecord | null> {
