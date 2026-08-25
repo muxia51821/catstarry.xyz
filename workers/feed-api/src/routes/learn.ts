@@ -9,7 +9,6 @@ import {
   normalizePublicationReleaseIdentity,
   samePublicationRelease,
 } from '../../../../shared/publication-release';
-import { timingSafeEqualText } from '../../../../shared/security';
 import {
   assertValidLearnPublicRelations,
   type LearnRelationEntry,
@@ -25,7 +24,7 @@ import {
   readLearnActiveRelease,
   readLearnPendingRelease,
 } from '../modules/publication-release-guards';
-import { requireMainSession } from './auth';
+import { requireIngestAuth, requireMainSession } from './auth';
 
 type LearnEnv = Env & { FOOTPRINT_INGEST_TOKEN?: string; LOCAL_PREVIEW_AUTH?: string };
 
@@ -175,7 +174,7 @@ async function updateReleaseBarrier(
   env: LearnEnv,
   action: 'prepare' | 'abort',
 ): Promise<Response> {
-  const authFailure = await requireInternalPublicationAuth(request, env, 'Learn production release barrier is not available');
+  const authFailure = await requireIngestAuth(request, env, 'Learn production release barrier is not available');
   if (authFailure) return authFailure;
   const body = await readJson<{ release?: unknown }>(request, 4_096);
   if (body instanceof Response) return body;
@@ -201,7 +200,7 @@ async function updateReleaseBarrier(
 }
 
 async function syncDeployedMetadata(request: Request, env: LearnEnv, ctx: ExecutionContext): Promise<Response> {
-  const authFailure = await requireInternalPublicationAuth(request, env, 'Publication metadata sync is not available');
+  const authFailure = await requireIngestAuth(request, env, 'Publication metadata sync is not available');
   if (authFailure) return authFailure;
   const body = await readJson<{
     schema_version?: unknown;
@@ -484,18 +483,6 @@ function normalizeRelationEntries(value: unknown[]): LearnRelationEntry[] | null
   if (entries.some((entry) => entry === null)) return null;
   const normalized = entries as LearnRelationEntry[];
   return new Set(normalized.map((entry) => entry.slug)).size === normalized.length ? normalized : null;
-}
-
-async function requireInternalPublicationAuth(
-  request: Request,
-  env: LearnEnv,
-  unavailableMessage: string,
-): Promise<Response | null> {
-  const authorization = request.headers.get('Authorization');
-  if (!env.FOOTPRINT_INGEST_TOKEN || !(await timingSafeEqualText(authorization, `Bearer ${env.FOOTPRINT_INGEST_TOKEN}`))) {
-    return apiError(env.FOOTPRINT_INGEST_TOKEN ? 401 : 503, 'unauthorized', unavailableMessage);
-  }
-  return null;
 }
 
 function normalizeTimestamp(value: unknown): string | null {

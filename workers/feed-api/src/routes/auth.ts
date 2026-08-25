@@ -1,4 +1,5 @@
 import { getMainSiteSession, getSessionToken } from '../../../../shared/auth';
+import { timingSafeEqualText } from '../../../../shared/security';
 import type { LoginRequest, LoginResponse, SessionStatus } from '../../../../shared/types';
 import { apiError, json, readJson, requestIp } from '../lib/http';
 import { comparePassword, hasValidBcryptPasswordLength } from '../modules/passwords';
@@ -19,6 +20,10 @@ interface MainAuthEnv {
   LOCAL_PREVIEW_AUTH?: string;
 }
 
+interface IngestAuthEnv {
+  FOOTPRINT_INGEST_TOKEN?: string;
+}
+
 export async function handleAuth(request: Request, env: MainAuthEnv, pathname: string): Promise<Response> {
   if (pathname === '/api/auth/session' && request.method === 'GET') {
     const session = await getMainSiteSession(request, { sessions: env.AUTH_KV, database: env.DB });
@@ -32,6 +37,15 @@ export async function handleAuth(request: Request, env: MainAuthEnv, pathname: s
 export async function requireMainSession(request: Request, env: MainAuthEnv): Promise<SessionStatus | Response> {
   const session = await getMainSiteSession(request, { sessions: env.AUTH_KV, database: env.DB });
   return session.authenticated ? session : apiError(401, 'unauthorized', 'Authentication is required');
+}
+
+export async function requireIngestAuth(request: Request, env: IngestAuthEnv, unavailableMessage: string): Promise<Response | null> {
+  const secret = env.FOOTPRINT_INGEST_TOKEN;
+  const authorization = request.headers.get('Authorization');
+  if (!secret || !(await timingSafeEqualText(authorization, `Bearer ${secret}`))) {
+    return apiError(secret ? 401 : 503, secret ? 'unauthorized' : 'not_configured', unavailableMessage);
+  }
+  return null;
 }
 
 async function handleLogin(request: Request, env: MainAuthEnv): Promise<Response> {
