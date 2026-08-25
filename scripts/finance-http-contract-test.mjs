@@ -108,6 +108,8 @@ assert.equal((await fetchWorker('/api/confirmations/monthly', {
 
 const adminCookie = await login('admin');
 assert.equal((await fetchWorker('/api/account-events', { headers: { Cookie: viewerCookie } })).status, 200, 'viewers can read account events');
+assert.equal((await fetchWorker('/api/activity?from=2026-02-30', { headers: { Cookie: viewerCookie } })).status, 400, 'calendar-invalid activity day filters are rejected');
+assert.equal((await fetchWorker('/api/change-log?to=2026-02-31', { headers: { Cookie: adminCookie } })).status, 400, 'calendar-invalid change-log day filters are rejected');
 assert.equal((await fetchWorker('/api/account-events', { method: 'POST', headers: { ...trusted, Cookie: viewerCookie }, body: '{}' })).status, 403, 'viewers cannot write account events');
 const accountEventCreated = await fetchWorker('/api/account-events', { method: 'POST', headers: { ...trusted, Cookie: adminCookie }, body: JSON.stringify({ event_date: '2026-07-25', event_time: '09:30', event_type: 'dividend', ticker: '510300', ticker_name: '沪深300ETF', amount: 10, note: 'contract' }) });
 assert.equal(accountEventCreated.status, 201, 'administrator can create an internal account event');

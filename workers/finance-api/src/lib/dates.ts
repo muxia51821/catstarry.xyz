@@ -1,4 +1,4 @@
-export const ISO_DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const ISO_DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 export function isIsoDay(value: string): boolean {
   return ISO_DAY_PATTERN.test(value);
