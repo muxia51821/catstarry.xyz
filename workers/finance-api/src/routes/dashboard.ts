@@ -69,12 +69,6 @@ export async function handleDashboard(
   if (pathname === '/api/notifications' && request.method === 'GET') return notifications(request, env);
   if (pathname === '/api/access-log' && request.method === 'GET') return accessLog(request, env);
   if (pathname === '/api/import-review' && request.method === 'GET') return listImportReview(request, env);
-  if (/^\/api\/import-review\/\d+$/.test(pathname) && request.method === 'PATCH') {
-    const id = Number(pathname.split('/')[3]);
-    return Number.isSafeInteger(id) && id > 0
-      ? resolveImportReview(request, env, id)
-      : apiError(400, 'invalid_id', 'Import review id is invalid');
-  }
   if (pathname === '/api/archive' && request.method === 'GET') return exportArchive(request, env);
   return apiError(404, 'not_found', 'Finance route not found');
 }
@@ -462,25 +456,6 @@ async function listImportReview(request: Request, env: FinanceEnv): Promise<Resp
       raw_json: undefined,
     })),
   });
-}
-
-async function resolveImportReview(request: Request, env: FinanceEnv, id: number): Promise<Response> {
-  const session = await requireFinanceRole(request, env, ['admin']);
-  if (session instanceof Response) return session;
-  const body = await readJson<{ resolution_note?: unknown }>(request, 4_096);
-  if (body instanceof Response) return body;
-  const resolutionNote = typeof body.resolution_note === 'string' ? body.resolution_note.trim() : '';
-  if (!resolutionNote || resolutionNote.length > 2_000) {
-    return apiError(400, 'invalid_resolution_note', 'A bounded resolution note is required');
-  }
-  const resolvedAt = new Date().toISOString();
-  const result = await env.DB.prepare(`UPDATE finance_import_review
-    SET status = 'resolved', resolution_note = ?, resolved_at = ?
-    WHERE id = ? AND status = 'pending'`).bind(resolutionNote, resolvedAt, id).run();
-  if ((result.meta.changes ?? 0) === 0) {
-    return apiError(409, 'not_resolvable', 'Review item does not exist or was already resolved');
-  }
-  return json({ id, status: 'resolved', resolution_note: resolutionNote, resolved_at: resolvedAt });
 }
 
 async function exportArchive(request: Request, env: FinanceEnv): Promise<Response> {
