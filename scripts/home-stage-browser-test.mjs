@@ -1,10 +1,9 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { once } from 'node:events';
-import net from 'node:net';
 import path from 'node:path';
 
 import { connectCdp, delay } from './lib/cdp-session.mjs';
+import { freePort, stopProcessTree, waitForHttp } from './lib/dev-server.mjs';
 import { launchIsolatedBrowser } from './lib/isolated-browser.mjs';
 
 const port = await freePort();
@@ -19,7 +18,7 @@ let browser;
 let cdp;
 
 try {
-  await waitForHttp(origin);
+  await waitForHttp(origin, { child: site, getOutput: () => output, timeoutMs: 60_000 });
   browser = await launchIsolatedBrowser();
   cdp = await connectCdp(browser.target);
   await cdp.send('Page.enable');
@@ -56,30 +55,3 @@ try {
   await stopProcessTree(site);
 }
 
-async function freePort() {
-  const server = net.createServer();
-  server.listen(0, '127.0.0.1');
-  await once(server, 'listening');
-  const address = server.address();
-  if (!address || typeof address === 'string') throw new Error('Could not reserve a port');
-  await new Promise((resolve) => server.close(resolve));
-  return address.port;
-}
-
-async function waitForHttp(url) {
-  const deadline = Date.now() + 60_000;
-  while (Date.now() < deadline) {
-    if (site.exitCode !== null) throw new Error(`Astro exited before ready: ${output}`);
-    try { if ((await fetch(url, { signal: AbortSignal.timeout(1_000) })).ok) return; } catch {}
-    await delay(250);
-  }
-  throw new Error(`Astro did not become ready: ${output}`);
-}
-
-async function stopProcessTree(child) {
-  if (child.exitCode !== null) return;
-  if (process.platform === 'win32') {
-    const killer = spawn('taskkill.exe', ['/PID', String(child.pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true });
-    await once(killer, 'exit');
-  } else child.kill('SIGTERM');
-}
