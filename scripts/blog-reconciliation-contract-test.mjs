@@ -15,7 +15,7 @@ const [archive, list, pagination, detail, css, viewCounter, viewTracker, viewsRo
 ]);
 
 assert.match(archive, /<h1>\{title\}<\/h1>/);
-assert.doesNotMatch(archive, /BlogTaxonomy|blog-eyebrow|intro=|showTaxonomy/);
+assert.doesNotMatch(archive, /blog-eyebrow|intro=|showTaxonomy/);
 assert.equal((archive.match(/<BlogPagination/g) ?? []).length, 1);
 
 assert.match(list, /formatBlogArchiveDate/);

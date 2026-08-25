@@ -58,7 +58,7 @@ function normalizePublicRecords(value: unknown): Pick<LearnPublicationRecord, 's
   const records = value.map((entry) => {
     if (!entry || typeof entry !== 'object') return null;
     const record = entry as Record<string, unknown>;
-    return validSlug(record.slug) && validTimestamp(record.published_at)
+    return isCanonicalSlug(record.slug) && validTimestamp(record.published_at)
       ? { slug: record.slug, published_at: new Date(record.published_at).toISOString() }
       : null;
   });
@@ -73,7 +73,7 @@ function normalizeOwnerRecords(value: unknown): LearnPublicationRecord[] | null 
     if (!entry || typeof entry !== 'object') return null;
     const record = entry as Record<string, unknown>;
     if (
-      !validSlug(record.slug)
+      !isCanonicalSlug(record.slug)
       || (record.visibility !== 'public' && record.visibility !== 'hidden')
       || !validTimestamp(record.published_at)
       || (record.last_revised_at !== null && !validTimestamp(record.last_revised_at))
@@ -90,10 +90,6 @@ function normalizeOwnerRecords(value: unknown): LearnPublicationRecord[] | null 
     } satisfies LearnPublicationRecord;
   });
   return records.every((record) => record !== null) ? records as LearnPublicationRecord[] : null;
-}
-
-function validSlug(value: unknown): value is string {
-  return isCanonicalSlug(value);
 }
 
 function validTimestamp(value: unknown): value is string {

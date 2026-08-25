@@ -39,7 +39,7 @@ async function saveReconciliation(request: Request, env: FinanceEnv) {
   const input = normalizeReconciliation(body);
   if (!input) return apiError(400, 'invalid_asset_reconciliation', 'Asset reconciliation fields are invalid');
 
-  const totalValue = money(input.holdings_value + input.cash_value + input.other_assets_value);
+  const totalValue = roundMoney(input.holdings_value + input.cash_value + input.other_assets_value);
   const now = new Date().toISOString();
   const result = await env.DB.prepare(`INSERT INTO finance_asset_snapshots (
       snapshot_at, snapshot_date, holdings_value, cash_value, other_assets_value,
@@ -136,6 +136,3 @@ function nullableText(value: unknown, maximum: number): string | null | undefine
   return text.length <= maximum ? text || null : undefined;
 }
 
-function money(value: number) {
-  return roundMoney(value);
-}

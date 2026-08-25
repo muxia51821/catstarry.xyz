@@ -1,6 +1,25 @@
 import assert from 'node:assert/strict';
+import { DatabaseSync } from 'node:sqlite';
+import { readFile, readdir } from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
+import { SqliteD1 } from './lib/sqlite-d1.mjs';
 import worker from '../workers/feed-api/src/index.ts';
+
+const feedMigrationDirectory = path.join(
+  path.dirname(path.resolve(fileURLToPath(import.meta.url))), '..', 'workers', 'feed-api', 'migrations');
+const feedMigrations = await Promise.all(
+  (await readdir(feedMigrationDirectory))
+    .filter((name) => name.endsWith('.sql')).sort()
+    .map(async (name) => readFile(path.join(feedMigrationDirectory, name), 'utf8')),
+);
+
+function createDatabase() {
+  const database = new DatabaseSync(':memory:');
+  for (const sql of feedMigrations) database.exec(sql);
+  return database;
+}
 
 class MemoryKv {
   values = new Map();
@@ -58,274 +77,17 @@ class MemoryMediaBucket {
   }
 }
 
-class MemoryD1 {
-  footprints = new Map();
-  learnPublications = new Map();
-  releaseGuards = new Map();
-  viewVisitors = new Set();
-  viewCounts = new Map();
-
-  prepare(sql) {
-    return new MemoryStatement(this, sql);
-  }
-
-  async batch(statements) {
-    const results = [];
-    for (const statement of statements) results.push(await statement.run());
-    return results;
-  }
+function footprintCount(env) {
+  return env.database.prepare('SELECT COUNT(*) AS count FROM public_footprints').get().count;
 }
 
-class MemoryStatement {
-  constructor(database, sql) {
-    this.database = database;
-    this.sql = sql.replace(/\s+/g, ' ').trim();
-    this.values = [];
-  }
-
-  bind(...values) {
-    this.values = values;
-    return this;
-  }
-
-  async run() {
-    if (this.sql.startsWith('INSERT INTO publication_release_guards') && this.sql.includes("VALUES ('blog-sync'")) {
-      const [releaseSha, releaseGeneration, updatedAt] = this.values;
-      const current = this.database.releaseGuards.get('blog-sync');
-      if (
-        current
-        && (
-          current.release_generation > releaseGeneration
-          || (current.release_generation === releaseGeneration && current.release_sha !== releaseSha)
-        )
-      ) return { meta: { changes: 0 } };
-      this.database.releaseGuards.set('blog-sync', {
-        release_sha: releaseSha,
-        release_generation: releaseGeneration,
-        updated_at: updatedAt,
-      });
-      return { meta: { changes: 1 } };
-    }
-    if (this.sql.startsWith('INSERT OR IGNORE INTO publication_release_guards')) {
-      const [releaseSha, releaseGeneration, updatedAt] = this.values;
-      const active = this.database.releaseGuards.get('learn-active');
-      const pending = this.database.releaseGuards.get('learn-pending');
-      if (
-        pending
-        || (active && (
-          active.release_generation > releaseGeneration
-          || (active.release_generation === releaseGeneration && active.release_sha !== releaseSha)
-        ))
-      ) return { meta: { changes: 0 } };
-      this.database.releaseGuards.set('learn-pending', {
-        release_sha: releaseSha,
-        release_generation: releaseGeneration,
-        updated_at: updatedAt,
-      });
-      return { meta: { changes: 1 } };
-    }
-    if (this.sql.startsWith("DELETE FROM publication_release_guards WHERE guard_key = 'learn-pending'")) {
-      const [releaseSha, releaseGeneration] = this.values;
-      const pending = this.database.releaseGuards.get('learn-pending');
-      if (!pending || pending.release_sha !== releaseSha || pending.release_generation !== releaseGeneration) {
-        return { meta: { changes: 0 } };
-      }
-      this.database.releaseGuards.delete('learn-pending');
-      return { meta: { changes: 1 } };
-    }
-    if (this.sql.startsWith("DELETE FROM publication_release_guards WHERE guard_key = 'learn-active'")) {
-      const [releaseGeneration, sameGeneration, releaseSha] = this.values;
-      const active = this.database.releaseGuards.get('learn-active');
-      if (!active) return { meta: { changes: 0 } };
-      if (
-        active.release_generation < releaseGeneration
-        || (active.release_generation === sameGeneration && active.release_sha === releaseSha)
-      ) {
-        this.database.releaseGuards.delete('learn-active');
-        return { meta: { changes: 1 } };
-      }
-      return { meta: { changes: 0 } };
-    }
-    if (this.sql.startsWith("UPDATE publication_release_guards SET guard_key = 'learn-active'")) {
-      const [updatedAt, releaseSha, releaseGeneration] = this.values;
-      const pending = this.database.releaseGuards.get('learn-pending');
-      if (
-        !pending
-        || this.database.releaseGuards.has('learn-active')
-        || pending.release_sha !== releaseSha
-        || pending.release_generation !== releaseGeneration
-      ) return { meta: { changes: 0 } };
-      this.database.releaseGuards.delete('learn-pending');
-      this.database.releaseGuards.set('learn-active', { ...pending, updated_at: updatedAt });
-      return { meta: { changes: 1 } };
-    }
-    if (this.sql.startsWith('INSERT OR IGNORE INTO learn_publications')) {
-      if (this.sql.includes('publication_release_guards') && this.database.releaseGuards.has('learn-pending')) {
-        return { meta: { changes: 0 } };
-      }
-      const [slug, publishedAt, lastRevisedAt, updatedAt] = this.values;
-      if (this.database.learnPublications.has(slug)) return { meta: { changes: 0 } };
-      this.database.learnPublications.set(slug, {
-        slug,
-        visibility: 'public',
-        published_at: publishedAt,
-        last_revised_at: lastRevisedAt,
-        updated_at: updatedAt,
-      });
-      return { meta: { changes: 1 } };
-    }
-    if (this.sql.startsWith('UPDATE learn_publications SET visibility = ?')) {
-      if (this.sql.includes('publication_release_guards') && this.database.releaseGuards.has('learn-pending')) {
-        return { meta: { changes: 0 } };
-      }
-      const [visibility, updatedAt, slug] = this.values;
-      const record = this.database.learnPublications.get(slug);
-      if (!record) return { meta: { changes: 0 } };
-      Object.assign(record, { visibility, updated_at: updatedAt });
-      return { meta: { changes: 1 } };
-    }
-    if (this.sql.startsWith('UPDATE learn_publications SET last_revised_at = ?')) {
-      const [lastRevisedAt, updatedAt, slug] = this.values;
-      const record = this.database.learnPublications.get(slug);
-      if (!record) return { meta: { changes: 0 } };
-      Object.assign(record, { last_revised_at: lastRevisedAt, updated_at: updatedAt });
-      return { meta: { changes: 1 } };
-    }
-    if (this.sql.startsWith('INSERT OR IGNORE INTO public_footprints')) {
-      if (this.sql.includes('publication_release_guards') && this.database.releaseGuards.has('learn-pending')) {
-        return { meta: { changes: 0 } };
-      }
-      const [id, sourceModule, sourceRef, sourceVersion, eventType, snapshotJson, occurredAt, idempotencyKey] = this.values;
-      if (this.database.footprints.has(idempotencyKey)) return { meta: { changes: 0 } };
-      this.database.footprints.set(idempotencyKey, {
-        id,
-        source_module: sourceModule,
-        source_ref: sourceRef,
-        source_version: sourceVersion,
-        event_type: eventType,
-        snapshot_json: snapshotJson,
-        occurred_at: occurredAt,
-        visibility: 'public',
-      });
-      return { meta: { changes: 1 } };
-    }
-    if (this.sql.startsWith('INSERT OR IGNORE INTO blog_view_visitors')) {
-      const key = this.values.join(':');
-      if (this.database.viewVisitors.has(key)) return { meta: { changes: 0 } };
-      this.database.viewVisitors.add(key);
-      const [slug, viewDate] = this.values;
-      const countKey = `${slug}:${viewDate}`;
-      this.database.viewCounts.set(countKey, (this.database.viewCounts.get(countKey) ?? 0) + 1);
-      return { meta: { changes: 1 } };
-    }
-    throw new Error(`Unhandled D1 run: ${this.sql}`);
-  }
-
-  async first() {
-    if (this.sql.includes('FROM publication_release_guards WHERE guard_key = ?')) {
-      return this.database.releaseGuards.get(this.values[0]) ?? null;
-    }
-    if (this.sql.includes('FROM learn_publications WHERE slug = ?')) {
-      return this.database.learnPublications.get(this.values[0]) ?? null;
-    }
-    if (this.sql.includes('FROM public_footprints WHERE idempotency_key = ?')) {
-      return this.database.footprints.get(this.values[0]) ?? null;
-    }
-    if (this.sql.includes('FROM feed_posts') || this.sql.includes('FROM public_footprints')) return null;
-    if (this.sql.includes('SUM(count)') && this.sql.includes('WHERE slug = ?')) {
-      return { count: totalForSlug(this.database.viewCounts, this.values[0]) };
-    }
-    throw new Error(`Unhandled D1 first: ${this.sql}`);
-  }
-
-  async all() {
-    if (this.sql.startsWith('SELECT slug, visibility, published_at, last_revised_at, updated_at FROM learn_publications WHERE visibility = ?')) {
-      return { results: [...this.database.learnPublications.values()]
-        .filter((entry) => entry.visibility === this.values[0])
-        .sort((a, b) => a.slug.localeCompare(b.slug)) };
-    }
-    if (this.sql.startsWith("SELECT slug FROM learn_publications WHERE visibility = 'public'")) {
-      return { results: [...this.database.learnPublications.values()]
-        .filter((entry) => entry.visibility === 'public')
-        .sort((a, b) => a.slug.localeCompare(b.slug))
-        .map(({ slug }) => ({ slug })) };
-    }
-    if (this.sql.startsWith('SELECT slug, visibility, published_at, last_revised_at, updated_at FROM learn_publications ORDER BY slug')) {
-      return { results: [...this.database.learnPublications.values()]
-        .sort((a, b) => a.slug.localeCompare(b.slug)) };
-    }
-    if (this.sql.startsWith('SELECT * FROM (')) {
-      let footprints = [...this.database.footprints.values()];
-      if (this.sql.includes('WHERE visibility = ?')) footprints = footprints.filter((entry) => entry.visibility === this.values[0]);
-      if (this.sql.includes("source_module != 'blog'")) {
-        const published = new Set(JSON.parse(this.values[1]));
-        footprints = footprints.filter((entry) => entry.source_module !== 'blog' || published.has(entry.source_ref));
-      }
-      if (this.sql.includes("source_module != 'learn'")) {
-        const published = new Set(JSON.parse(this.values[2]));
-        footprints = footprints.filter((entry) => entry.source_module !== 'learn'
-          || entry.event_type === 'learn_section_completed'
-          || published.has(entry.source_ref));
-      }
-      return { results: footprints.map((entry) => ({
-        kind: 'system_footprint',
-        ...entry,
-        type: null,
-        content: null,
-        media_json: null,
-        link_url: null,
-        link_title: null,
-        link_summary: null,
-        link_image: null,
-        updated_at: null,
-      })) };
-    }
-    if (this.sql.includes('MAX(created_at) AS latest_at') && this.sql.includes('FROM feed_posts')) {
-      return { results: [] };
-    }
-    if (this.sql.includes('MAX(occurred_at) AS latest_at') && this.sql.includes('FROM public_footprints')) {
-      const latest = new Map();
-      let footprints = [...this.database.footprints.values()]
-        .filter((footprint) => !this.sql.includes("visibility = 'public'") || footprint.visibility === 'public');
-      if (this.sql.includes("source_module != 'blog'")) {
-        const published = new Set(JSON.parse(this.values[0]));
-        footprints = footprints.filter((entry) => entry.source_module !== 'blog' || published.has(entry.source_ref));
-      }
-      if (this.sql.includes("source_module != 'learn'")) {
-        const published = new Set([...this.database.learnPublications.values()]
-          .filter((entry) => entry.visibility === 'public')
-          .map((entry) => entry.slug));
-        footprints = footprints.filter((entry) => entry.source_module !== 'learn'
-          || entry.event_type === 'learn_section_completed'
-          || published.has(entry.source_ref));
-      }
-      for (const footprint of footprints) {
-        const current = latest.get(footprint.source_module);
-        if (!current || footprint.occurred_at > current) latest.set(footprint.source_module, footprint.occurred_at);
-      }
-      return { results: [...latest].map(([source_module, latest_at]) => ({ source_module, latest_at })) };
-    }
-    if (this.sql.includes('SUM(count)') && this.sql.includes('slug IN')) {
-      return {
-        results: this.values.map((slug) => ({
-          slug,
-          count: totalForSlug(this.database.viewCounts, slug),
-        })).filter(({ count }) => count > 0),
-      };
-    }
-    if (this.sql.includes('json_each')) return { results: [] };
-    throw new Error(`Unhandled D1 all: ${this.sql}`);
-  }
+function footprintsAll(env) {
+  return env.database.prepare('SELECT * FROM public_footprints ORDER BY id').all();
 }
 
-function totalForSlug(counts, slug) {
-  let total = 0;
-  for (const [key, count] of counts) {
-    if (key.startsWith(`${slug}:`)) total += count;
-  }
-  return total;
+function learnPublicationRow(env, slug) {
+  return env.database.prepare('SELECT * FROM learn_publications WHERE slug = ?').get(slug) ?? null;
 }
-
 function createContext() {
   const background = [];
   return {
@@ -367,8 +129,10 @@ class MemoryProjectionBucket {
 }
 
 function createEnv() {
+  const database = createDatabase();
   return {
-    DB: new MemoryD1(),
+    database,
+    DB: new SqliteD1(database),
     VIEW_KV: new MemoryKv(),
     AUTH_KV: new MemoryKv(),
     MEDIA_BUCKET: new MemoryMediaBucket(),
@@ -479,7 +243,7 @@ try {
     body: JSON.stringify({ ...candidate, idempotency_key: 'blog:contract-post:projection-failure-v1' }),
   });
   assert.equal(response.status, 201, 'projection failure must not roll back the durable footprint');
-  assert.equal(projectionFailureEnv.DB.footprints.size, 1);
+  assert.equal(footprintCount(projectionFailureEnv), 1);
 } finally {
   console.error = originalConsoleError;
 }
@@ -519,7 +283,7 @@ assert.deepEqual(await fetchWorker(blogEnv, blogManifestUrl, {
   headers: blogHeaders,
   body: JSON.stringify(historicalManifest),
 }).then((response) => response.json()), { initialized: true, synced: 1, created: 0 });
-assert.equal(blogEnv.DB.footprints.size, 0, 'initial production manifest must not backfill history');
+assert.equal(footprintCount(blogEnv), 0, 'initial production manifest must not backfill history');
 assert.deepEqual(await fetchWorker(blogEnv, blogManifestUrl, {
   method: 'POST',
   headers: blogHeaders,
@@ -538,7 +302,7 @@ assert.deepEqual(await fetchWorker(blogEnv, blogManifestUrl, {
   headers: blogHeaders,
   body: JSON.stringify(nextManifest),
 }).then((response) => response.json()), { initialized: false, synced: 2, created: 0 });
-assert.equal(blogEnv.DB.footprints.size, 0, 'deploying a new Blog draft must not create a publication footprint');
+assert.equal(footprintCount(blogEnv), 0, 'deploying a new Blog draft must not create a publication footprint');
 assert.equal((await fetchWorker(blogEnv, blogManifestUrl, {
   method: 'POST',
   headers: blogHeaders,
@@ -557,7 +321,7 @@ assert.deepEqual(await fetchWorker(blogEnv, blogManifestUrl, {
     entries: [historicalManifest.entries[0], { ...nextManifest.entries[1], title: 'Ordinary edit' }],
   }),
 }).then((response) => response.json()), { initialized: false, synced: 2, created: 0 });
-assert.equal(blogEnv.DB.footprints.size, 0, 'deployment retry or ordinary edit must not publish a Blog draft');
+assert.equal(footprintCount(blogEnv), 0, 'deployment retry or ordinary edit must not publish a Blog draft');
 const lifecycleToken = crypto.randomUUID();
 blogEnv.AUTH_KV.values.set(`session:${lifecycleToken}`, {
   username: 'contract-owner',
@@ -567,9 +331,9 @@ const lifecycleHeaders = { Cookie: `token=${lifecycleToken}`, Origin: 'https://c
 assert.deepEqual(await fetchWorker(blogEnv, 'https://api.test/api/blog/admin/publications', {
   method: 'PATCH', headers: lifecycleHeaders, body: JSON.stringify({ slug: 'first-new-post', state: 'published' }),
 }).then((response) => response.json()).then(({ entry, created }) => ({ state: entry.state, created })), { state: 'published', created: true });
-assert.equal(blogEnv.DB.footprints.size, 1, 'owner Publish must create the first publication footprint exactly once');
-const firstFootprint = [...blogEnv.DB.footprints.values()][0];
-firstFootprint.visibility = 'private';
+assert.equal(footprintCount(blogEnv), 1, 'owner Publish must create the first publication footprint exactly once');
+await blogEnv.database.prepare(`UPDATE public_footprints SET visibility = 'private' WHERE id = ?`)
+  .run(footprintsAll(blogEnv)[0].id);
 assert.deepEqual(await fetchWorker(blogEnv, 'https://api.test/api/blog/admin/publications', {
   method: 'PATCH', headers: lifecycleHeaders, body: JSON.stringify({ slug: 'first-new-post', state: 'withdrawn' }),
 }).then((response) => response.json()).then(({ entry, created }) => ({ state: entry.state, created })), { state: 'withdrawn', created: false });
@@ -579,8 +343,8 @@ assert.deepEqual(await fetchWorker(blogEnv, 'https://api.test/api/blog/publicati
 assert.deepEqual(await fetchWorker(blogEnv, 'https://api.test/api/blog/admin/publications', {
   method: 'PATCH', headers: lifecycleHeaders, body: JSON.stringify({ slug: 'first-new-post', state: 'published' }),
 }).then((response) => response.json()).then(({ entry, created }) => ({ state: entry.state, created })), { state: 'published', created: false });
-assert.equal(firstFootprint.visibility, 'private', 'Blog restore must not overwrite a manually private footprint');
-assert.equal(blogEnv.DB.footprints.size, 1, 'withdraw and restore must preserve one historical footprint');
+assert.equal(footprintsAll(blogEnv)[0].visibility, 'private', 'Blog restore must not overwrite a manually private footprint');
+assert.equal(footprintCount(blogEnv), 1, 'withdraw and restore must preserve one historical footprint');
 
 const learnEnv = createEnv();
 const learnLifecycleUrl = 'https://api.test/api/learn/admin/publications';
@@ -622,13 +386,13 @@ const firstPublication = await fetchWorker(learnEnv, learnLifecycleUrl, {
 assert.equal(firstPublication.created, true);
 assert.ok(Date.parse(firstPublication.entry.published_at) >= firstPublishStarted, 'published_at must be generated by the server');
 const firstPublishedAt = firstPublication.entry.published_at;
-assert.equal(learnEnv.DB.footprints.size, 1, 'first Publish creates one learn_note_published footprint');
-assert.equal([...learnEnv.DB.footprints.values()][0].event_type, 'learn_note_published');
+assert.equal(footprintCount(learnEnv), 1, 'first Publish creates one learn_note_published footprint');
+assert.equal(footprintsAll(learnEnv)[0].event_type, 'learn_note_published');
 assert.equal(JSON.parse(learnEnv.HOME_PROJECTIONS.value).signals.learn.state, 'active');
 assert.equal((await fetchWorker(learnEnv, learnLifecycleUrl, {
   method: 'PATCH', headers: learnOwnerHeaders, body: JSON.stringify({ slug: 'runtime-note', visibility: 'public' }),
 }).then((response) => response.json())).created, false, 'repeated Publish is idempotent');
-assert.equal(learnEnv.DB.footprints.size, 1);
+assert.equal(footprintCount(learnEnv), 1);
 assert.deepEqual(await fetchWorker(learnEnv, 'https://api.test/api/learn/publications').then((response) => response.json()), {
   entries: [{ slug: 'runtime-note', published_at: firstPublishedAt }],
 });
@@ -649,7 +413,7 @@ const shownPublication = await fetchWorker(learnEnv, learnLifecycleUrl, {
   method: 'PATCH', headers: learnOwnerHeaders, body: JSON.stringify({ slug: 'runtime-note', visibility: 'public' }),
 }).then((response) => response.json());
 assert.equal(shownPublication.entry.published_at, firstPublishedAt, 'Show preserves first published_at');
-assert.equal(learnEnv.DB.footprints.size, 1, 'Show does not duplicate first-publication footprint');
+assert.equal(footprintCount(learnEnv), 1, 'Show does not duplicate first-publication footprint');
 assert.equal((await fetchWorker(learnEnv, 'https://api.test/api/feed?limit=20').then((response) => response.json())).items.length, 1);
 assert.equal(JSON.parse(learnEnv.HOME_PROJECTIONS.value).signals.learn.state, 'active', 'Show restores existing Learn source activity');
 
@@ -679,7 +443,7 @@ assert.deepEqual(await fetchWorker(learnEnv, learnDeployUrl, {
 assert.deepEqual(await fetchWorker(learnEnv, learnDeployUrl, {
   method: 'POST', headers: deploymentHeaders, body: JSON.stringify(revisionManifest('2026-08-02T00:00:00.000Z')),
 }).then((response) => response.json()), { synced: 2, created: 1 });
-assert.equal(learnEnv.DB.footprints.size, 2, 'public deployed revision creates one revision footprint');
+assert.equal(footprintCount(learnEnv), 2, 'public deployed revision creates one revision footprint');
 assert.deepEqual(await fetchWorker(learnEnv, learnDeployUrl, {
   method: 'POST', headers: deploymentHeaders, body: JSON.stringify(revisionManifest('2026-08-02T00:00:00.000Z')),
 }).then((response) => response.json()), { synced: 2, created: 0 }, 'revision sync is idempotent');
@@ -696,7 +460,7 @@ await fetchWorker(learnEnv, learnLifecycleUrl, {
 assert.deepEqual(await fetchWorker(learnEnv, learnDeployUrl, {
   method: 'POST', headers: deploymentHeaders, body: JSON.stringify(revisionManifest('2026-08-03T00:00:00.000Z')),
 }).then((response) => response.json()), { synced: 2, created: 0 }, 'Show must not release a historical hidden revision');
-assert.equal(learnEnv.DB.footprints.size, 2);
+assert.equal(footprintCount(learnEnv), 2);
 assert.equal((await fetchWorker(learnEnv, learnDeployUrl, {
   method: 'POST', headers: deploymentHeaders, body: JSON.stringify(revisionManifest('2026-08-02T00:00:00.000Z')),
 })).status, 409, 'revision metadata cannot regress');
@@ -730,10 +494,11 @@ assert.equal((await fetchWorker(relationEnv, learnLifecycleUrl, {
   method: 'PATCH', headers: relationHeaders,
   body: JSON.stringify({ slug: 'relation-target', visibility: 'hidden' }),
 })).status, 409, 'Hide must reject removal of a public wikilink target');
-assert.equal(relationEnv.DB.learnPublications.get('relation-target').visibility, 'public');
+assert.equal(learnPublicationRow(relationEnv, 'relation-target').visibility, 'public');
 
-const publicationFootprint = [...learnEnv.DB.footprints.values()].find((entry) => entry.event_type === 'learn_note_published');
-publicationFootprint.visibility = 'private';
+const publicationFootprint = footprintsAll(learnEnv).find((entry) => entry.event_type === 'learn_note_published');
+await learnEnv.database.prepare('UPDATE public_footprints SET visibility = ? WHERE id = ?')
+  .run('private', publicationFootprint.id);
 await fetchWorker(learnEnv, learnLifecycleUrl, {
   method: 'PATCH', headers: learnOwnerHeaders, body: JSON.stringify({ slug: 'runtime-note', visibility: 'hidden' }),
 });
