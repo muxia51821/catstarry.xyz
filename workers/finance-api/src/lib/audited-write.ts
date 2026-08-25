@@ -16,7 +16,7 @@ export async function auditedCreate(
   columns: string[],
   values: unknown[],
   afterJson: unknown,
-  actor: string,
+  actor: string | null,
   now: string,
 ): Promise<number | null> {
   const results = await env.DB.batch([
@@ -35,7 +35,7 @@ export async function auditedUpdate(
   values: unknown[],
   id: number,
   before: Record<string, unknown>,
-  actor: string,
+  actor: string | null,
   now: string,
 ): Promise<boolean> {
   const after = {
@@ -59,7 +59,7 @@ export async function auditedSoftDelete(
   target: AuditedWriteTarget,
   id: number,
   before: Record<string, unknown>,
-  actor: string,
+  actor: string | null,
   now: string,
 ): Promise<boolean> {
   const results = await env.DB.batch([

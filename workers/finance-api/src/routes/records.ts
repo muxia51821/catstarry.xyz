@@ -208,7 +208,7 @@ async function saveCashFlow(request: Request, env: FinanceEnv) {
   const body = await readJson<CashFlowInput>(request); if (body instanceof Response) return body;
   const input = normalizeCashFlow(body); if (!input) return apiError(400, 'invalid_cash_flow', 'Cash flow fields are invalid');
   const now = new Date().toISOString();
-  const id = await auditedCreate(env, CASH_FLOW_TARGET, CASH_FLOW_COLUMNS, CASH_FLOW_COLUMNS.map((column) => input[column]), input, session.username, now);
+  const id = await auditedCreate(env, CASH_FLOW_TARGET, CASH_FLOW_COLUMNS, CASH_FLOW_COLUMNS.map((column) => (input as Record<string, unknown>)[column]), input, session.username, now);
   const row = await env.DB.prepare('SELECT * FROM finance_cash_flows WHERE id = ?').bind(id).first();
   return json({ cash_flow: row }, 201);
 }
@@ -218,7 +218,7 @@ async function updateCashFlow(request: Request, env: FinanceEnv, id: number) {
   const input = normalizeCashFlow(body); if (!input || !Number.isSafeInteger(id) || id < 1) return apiError(400, 'invalid_cash_flow', 'Cash flow fields are invalid');
   const before = await env.DB.prepare('SELECT * FROM finance_cash_flows WHERE id = ? AND deleted_at IS NULL').bind(id).first<Record<string, unknown>>(); if (!before) return apiError(404, 'not_found', 'Cash flow not found');
   const now = new Date().toISOString();
-  const updated = await auditedUpdate(env, CASH_FLOW_TARGET, CASH_FLOW_COLUMNS, CASH_FLOW_COLUMNS.map((column) => input[column]), id, before, session.username, now);
+  const updated = await auditedUpdate(env, CASH_FLOW_TARGET, CASH_FLOW_COLUMNS, CASH_FLOW_COLUMNS.map((column) => (input as Record<string, unknown>)[column]), id, before, session.username, now);
   if (!updated) return apiError(409, 'stale_cash_flow', 'Cash flow changed before this edit could be committed; reload and retry');
   const after = await env.DB.prepare('SELECT * FROM finance_cash_flows WHERE id = ?').bind(id).first();
   return json({ cash_flow: after, updated: true });
@@ -265,7 +265,7 @@ async function saveAccountEvent(request: Request, env: FinanceEnv) {
   const body = await readJson<AccountEventInput>(request); if (body instanceof Response) return body;
   const input = normalizeAccountEvent(body); if (!input) return apiError(400, 'invalid_account_event', 'Account event fields are invalid');
   const now = new Date().toISOString();
-  const id = await auditedCreate(env, ACCOUNT_EVENT_TARGET, ACCOUNT_EVENT_COLUMNS, ACCOUNT_EVENT_COLUMNS.map((column) => input[column]), input, session.username, now);
+  const id = await auditedCreate(env, ACCOUNT_EVENT_TARGET, ACCOUNT_EVENT_COLUMNS, ACCOUNT_EVENT_COLUMNS.map((column) => (input as Record<string, unknown>)[column]), input, session.username, now);
   const row = await env.DB.prepare('SELECT * FROM finance_account_events WHERE id = ?').bind(id).first();
   return json({ account_event: row }, 201);
 }
@@ -276,7 +276,7 @@ async function updateAccountEvent(request: Request, env: FinanceEnv, id: number)
   const input = normalizeAccountEvent(body); if (!input || !Number.isSafeInteger(id) || id < 1) return apiError(400, 'invalid_account_event', 'Account event fields are invalid');
   const before = await env.DB.prepare('SELECT * FROM finance_account_events WHERE id = ? AND deleted_at IS NULL').bind(id).first<Record<string, unknown>>(); if (!before) return apiError(404, 'not_found', 'Account event not found');
   const now = new Date().toISOString();
-  const updated = await auditedUpdate(env, ACCOUNT_EVENT_TARGET, ACCOUNT_EVENT_COLUMNS, ACCOUNT_EVENT_COLUMNS.map((column) => input[column]), id, before, session.username, now);
+  const updated = await auditedUpdate(env, ACCOUNT_EVENT_TARGET, ACCOUNT_EVENT_COLUMNS, ACCOUNT_EVENT_COLUMNS.map((column) => (input as Record<string, unknown>)[column]), id, before, session.username, now);
   if (!updated) return apiError(409, 'stale_account_event', 'Account event changed before this edit could be committed; reload and retry');
   const after = await env.DB.prepare('SELECT * FROM finance_account_events WHERE id = ?').bind(id).first();
   return json({ account_event: after });
