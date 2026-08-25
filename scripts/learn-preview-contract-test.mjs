@@ -1,11 +1,10 @@
 import assert from 'node:assert/strict';
-import { once } from 'node:events';
 import { readFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
-import net from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
+import { closeServer, freePorts, listen, stopProcessTree, waitForHttp } from './lib/dev-server.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const astro = path.join(root, 'node_modules', 'astro', 'bin', 'astro.mjs');
@@ -84,7 +83,7 @@ try {
   let output = '';
   site.stdout.on('data', (chunk) => { output += chunk; });
   site.stderr.on('data', (chunk) => { output += chunk; });
-  await waitForHttp(`${siteOrigin}/`, site, () => output);
+  await waitForHttp(`${siteOrigin}/`, { child: site, getOutput: () => output });
 
   for (const adminPath of ['/feed/admin/', '/learn/admin/']) {
     const unauthenticatedAdmin = await fetch(`${siteOrigin}${adminPath}`, { redirect: 'manual' });
@@ -221,64 +220,8 @@ try {
   await closeServer(sessionServer);
 }
 
-async function freePorts(count) {
-  const ports = [];
-  while (ports.length < count) {
-    const server = net.createServer();
-    server.listen(0, '127.0.0.1');
-    await once(server, 'listening');
-    const address = server.address();
-    if (!address || typeof address === 'string') throw new Error('Could not reserve a local port');
-    await new Promise((resolve) => server.close(resolve));
-    if (!ports.includes(address.port)) ports.push(address.port);
-  }
-  return ports;
-}
-
-function listen(server, port) {
-  return new Promise((resolve, reject) => {
-    server.once('error', reject);
-    server.listen(port, '127.0.0.1', resolve);
-  });
-}
-
-async function waitForHttp(url, child, getOutput) {
-  const deadline = Date.now() + 90_000;
-  let lastError;
-  while (Date.now() < deadline) {
-    if (child.exitCode !== null) throw new Error(`Astro dev exited before ready:\n${getOutput()}`);
-    try {
-      const response = await fetch(url, { signal: AbortSignal.timeout(1_000) });
-      if (response.ok) return;
-      lastError = new Error(`HTTP ${response.status}`);
-    } catch (error) {
-      lastError = error;
-    }
-    await new Promise((resolve) => setTimeout(resolve, 250));
-  }
-  throw new Error(`Astro dev did not become ready: ${lastError?.message ?? 'unknown error'}\n${getOutput()}`);
-}
-
 function siteOutput(child) {
   return child.stdout ? 'Astro dev process output captured.' : 'Astro dev process output unavailable.';
-}
-
-async function stopProcessTree(child) {
-  if (!child || child.exitCode !== null) return;
-  if (process.platform === 'win32') {
-    const killer = spawn('taskkill.exe', ['/PID', String(child.pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true });
-    await once(killer, 'exit');
-  } else {
-    child.kill('SIGTERM');
-  }
-  await Promise.race([once(child, 'exit'), new Promise((resolve) => setTimeout(resolve, 5_000))]);
-}
-
-function closeServer(server) {
-  return new Promise((resolve) => {
-    if (!server.listening) return resolve();
-    server.close(() => resolve());
-  });
 }
 
 function requestBody(request) {

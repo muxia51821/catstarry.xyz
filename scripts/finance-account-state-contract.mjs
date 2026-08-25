@@ -3,6 +3,7 @@ import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 
+import { SqliteD1 } from './lib/sqlite-d1.mjs';
 import { projectCash, projectRepoAssets, readAccountState, selectCashFactsAfterReconciliation } from '../workers/finance-api/src/routes/account-state.ts';
 
 const cash = projectCash(20_725.50, [
@@ -88,17 +89,6 @@ assert.match(brokenRepo.problems[0], /找不到对应/);
 const database = new DatabaseSync(':memory:');
 for (const file of (await readdir('workers/finance-api/migrations')).filter((name) => name.endsWith('.sql')).sort()) {
   database.exec(await readFile(path.join('workers/finance-api/migrations', file), 'utf8'));
-}
-
-class SqliteD1Prepared {
-  constructor(db, sql, values = []) { this.db = db; this.sql = sql; this.values = values; }
-  bind(...values) { return new SqliteD1Prepared(this.db, this.sql, values); }
-  async first() { return this.db.prepare(this.sql).get(...this.values) ?? null; }
-  async all() { return { results: this.db.prepare(this.sql).all(...this.values) }; }
-}
-class SqliteD1 {
-  constructor(db) { this.db = db; }
-  prepare(sql) { return new SqliteD1Prepared(this.db, sql); }
 }
 
 database.prepare(`INSERT INTO finance_asset_snapshots (

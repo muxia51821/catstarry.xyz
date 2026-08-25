@@ -3,6 +3,7 @@ import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 
+import { SqliteD1 } from './lib/sqlite-d1.mjs';
 import {
   HISTORICAL_RECONSTRUCTION_START,
   isCanonicalHistoricalDay,
@@ -10,34 +11,6 @@ import {
   rebuildAssetValuations,
 } from '../workers/finance-api/src/routes/asset-valuation-rebuild.ts';
 
-class SqliteD1Statement {
-  constructor(database, sql, values = []) { this.database = database; this.sql = sql; this.values = values; }
-  bind(...values) { return new SqliteD1Statement(this.database, this.sql, values); }
-  async first() { return plain(this.database.prepare(this.sql).get(...this.values)) ?? null; }
-  async all() { return { results: this.database.prepare(this.sql).all(...this.values).map(plain) }; }
-  async run() { return this.execute(); }
-  execute() {
-    assert.ok(this.values.length <= 100, `D1 permits at most 100 bound parameters per statement; received ${this.values.length}`);
-    const result = this.database.prepare(this.sql).run(...this.values);
-    return { success: true, meta: { changes: Number(result.changes), last_row_id: Number(result.lastInsertRowid ?? 0) } };
-  }
-}
-
-class SqliteD1 {
-  constructor(database) { this.database = database; }
-  prepare(sql) { return new SqliteD1Statement(this.database, sql); }
-  async batch(statements) {
-    this.database.exec('BEGIN');
-    try {
-      const results = statements.map((statement) => statement.execute());
-      this.database.exec('COMMIT');
-      return results;
-    } catch (error) {
-      this.database.exec('ROLLBACK');
-      throw error;
-    }
-  }
-}
 function plain(row) { return row ? { ...row } : row; }
 
 async function freshDatabase() {

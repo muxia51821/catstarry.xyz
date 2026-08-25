@@ -35,6 +35,7 @@ jobs:
       - run: npm run test:home-copy
       - run: npm run test:home-css
       - run: npm run test:blog:reconciliation
+      - run: npm run test:planets
       - run: npm run test:finance:historical-valuation
       - run: npm run test:finance:portfolio-role
       - run: npm run test:finance:preview
@@ -43,4 +44,5 @@ jobs:
       - run: npm run test:feed:worker
       - run: npm run worker:migrate:local:repeat
       - run: npm run worker:dry-run
+      - run: npm run test:ci
       - run: git diff --check

@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { once } from 'node:events';
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import { connectCdp, delay } from './lib/cdp-session.mjs';
 import { launchIsolatedBrowser } from './lib/isolated-browser.mjs';
+import { freePort, stopProcessTree, waitForHttp } from './lib/dev-server.mjs';
 
 const server = createServer(async (request, response) => {
   const url = new URL(request.url, 'http://local.test');
@@ -46,7 +46,7 @@ const site = spawn(process.execPath, [path.join('node_modules', 'astro', 'bin', 
 let siteOutput = '';
 site.stdout.on('data', (chunk) => { siteOutput += chunk; });
 site.stderr.on('data', (chunk) => { siteOutput += chunk; });
-await waitForHttp(baseUrl, site, () => siteOutput);
+await waitForHttp(baseUrl, { child: site, getOutput: () => siteOutput, timeoutMs: 60_000 });
 
 let browser;
 let cdp;
@@ -165,30 +165,3 @@ try {
   await new Promise((resolve) => server.close(resolve));
 }
 
-async function freePort() {
-  const probe = createServer();
-  probe.listen(0, '127.0.0.1');
-  await once(probe, 'listening');
-  const address = probe.address();
-  if (!address || typeof address === 'string') throw new Error('Could not reserve an Astro port');
-  await new Promise((resolve) => probe.close(resolve));
-  return address.port;
-}
-
-async function waitForHttp(url, child, getOutput) {
-  const deadline = Date.now() + 60_000;
-  while (Date.now() < deadline) {
-    if (child.exitCode !== null) throw new Error(`Astro exited before ready:\n${getOutput()}`);
-    try { if ((await fetch(url, { signal: AbortSignal.timeout(1_000) })).ok) return; } catch {}
-    await delay(250);
-  }
-  throw new Error(`Astro did not become ready:\n${getOutput()}`);
-}
-
-async function stopProcessTree(child) {
-  if (!child || child.exitCode !== null) return;
-  if (process.platform === 'win32') {
-    const killer = spawn('taskkill.exe', ['/PID', String(child.pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true });
-    await once(killer, 'exit');
-  } else child.kill('SIGTERM');
-}

@@ -5,6 +5,7 @@ import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 
 import { MARKET_FRESHNESS_SLA_MS, isAStockTradingWindow, isPersistedMarketSnapshotUsable } from '../workers/finance-api/src/modules/market-authority.ts';
+import { SqliteD1 } from './lib/sqlite-d1.mjs';
 import { readAccountState } from '../workers/finance-api/src/routes/account-state.ts';
 import { handleDashboard } from '../workers/finance-api/src/routes/dashboard.ts';
 
@@ -26,17 +27,6 @@ assert.equal(isPersistedMarketSnapshotUsable(FRESH_FETCH, TRADING_NOW), true);
 assert.equal(isPersistedMarketSnapshotUsable(STALE_FETCH, TRADING_NOW), false);
 assert.equal(isPersistedMarketSnapshotUsable(STALE_FETCH, AFTER_CLOSE), true);
 assert.equal(isPersistedMarketSnapshotUsable(STALE_FETCH, WEEKEND), true);
-
-class SqliteD1Prepared {
-  constructor(db, sql, values = []) { this.db = db; this.sql = sql; this.values = values; }
-  bind(...values) { return new SqliteD1Prepared(this.db, this.sql, values); }
-  async first() { return this.db.prepare(this.sql).get(...this.values) ?? null; }
-  async all() { return { results: this.db.prepare(this.sql).all(...this.values) }; }
-}
-class SqliteD1 {
-  constructor(db) { this.db = db; }
-  prepare(sql) { return new SqliteD1Prepared(this.db, sql); }
-}
 
 async function accountStateWithQuote(fetchedAt, now) {
   const database = new DatabaseSync(':memory:');
