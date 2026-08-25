@@ -17,6 +17,37 @@ for (const [path, source] of [
   }
 }
 
+const MANUAL_TEST_SCRIPTS = new Map([
+  ['test:feed:ui', 'manual operator regression that requires FEED_UI_URL and real admin credentials against a deployed environment'],
+  ['test:preview:local', 'manual smoke variant of local-preview.mjs; CI runs test:preview:lifecycle instead'],
+]);
+
+const referencedScripts = new Set();
+for (const match of validate.matchAll(/\bnpm run ([a-z0-9:-]+)/gi)) referencedScripts.add(match[1]);
+let grew = true;
+while (grew) {
+  grew = false;
+  for (const name of [...referencedScripts]) {
+    for (const match of (packageJson.scripts[name] ?? '').matchAll(/\bnpm run ([a-z0-9:-]+)/g)) {
+      if (!referencedScripts.has(match[1])) {
+        referencedScripts.add(match[1]);
+        grew = true;
+      }
+    }
+  }
+}
+const orphanedTestScripts = Object.keys(packageJson.scripts)
+  .filter((name) => name.startsWith('test:') && !referencedScripts.has(name) && !MANUAL_TEST_SCRIPTS.has(name));
+assert.deepEqual(
+  orphanedTestScripts,
+  [],
+  `every test:* script must be reachable from validate.yml or be exempted as manual with a reason; orphans: ${orphanedTestScripts.join(', ')}`,
+);
+for (const [name, reason] of MANUAL_TEST_SCRIPTS) {
+  assert.ok(packageJson.scripts[name], `manual exemption references missing script ${name}`);
+  assert.ok(reason.length > 20, `manual exemption for ${name} must carry a real reason`);
+}
+
 for (const command of [
   'npm ci',
   'npm run test:contracts',
