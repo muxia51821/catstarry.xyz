@@ -3,6 +3,7 @@ import {
   assertValidLearnPublicRelations,
   extractLearnWikilinkSlugs,
 } from '../../../shared/learn-relations';
+import { formatShanghaiLongDate, formatShanghaiShortDate } from '../../../shared/shanghai-time';
 
 export interface TrackDefinition {
   slug: string;
@@ -129,20 +130,11 @@ export function getRecentKnowledge(notes: LearnNote[], limit = 5) {
 }
 
 export function formatLearnDate(value: string) {
-  return new Date(value).toLocaleDateString('zh-CN', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    timeZone: 'Asia/Shanghai',
-  });
+  return formatShanghaiLongDate(value);
 }
 
 export function formatLearnShortDate(value: string) {
-  return new Date(value).toLocaleDateString('zh-CN', {
-    month: '2-digit',
-    day: '2-digit',
-    timeZone: 'Asia/Shanghai',
-  }).replaceAll('/', '.');
+  return formatShanghaiShortDate(value);
 }
 
 export function lifecycleLabel(state: LearnLifecycleState) {

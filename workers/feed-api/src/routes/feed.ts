@@ -2,10 +2,12 @@ import type { FeedPostInput, PublicFootprint, PublicFootprintCandidate, Timeline
 import { FeedStore, decodeCursor } from '../adapters/feed-store';
 import { apiError, json, parseBoundedLimit, readJson } from '../lib/http';
 import { readPublishedBlogSlugs } from '../modules/blog-publications';
+import { listPublicLearnSlugs } from '../modules/learn-publications';
 import { recordPublicFootprint, parseFootprintCandidate } from '../modules/footprints';
 import { refreshActivitySignals } from '../modules/activity-signals';
 import { requireIngestAuth, requireMainSession } from './auth';
 import { logWorkerError } from '../../../../shared/worker-log';
+import { shanghaiUtcBoundary } from '../../../../shared/shanghai-time';
 
 const MAX_MEDIA_KEYS = 6;
 const MEDIA_KEY_PATTERN = /^feed\/\d{4}-\d{2}\/[0-9a-f-]{36}\.(?:jpg|jpeg|png|webp|heic|mp4|webm|mov)$/;
@@ -57,7 +59,7 @@ async function listPublic(request: Request, env: FeedEnv, store: FeedStore): Pro
       logWorkerError('public_feed_blog_publication_read_failed', {}, error);
       return [];
     }),
-    loadPublishedLearnSlugs(env.DB),
+    listPublicLearnSlugs(env.DB),
   ]);
   return json(await store.listPublic(cursor, limit, publishedBlogSlugs, publishedLearnSlugs));
 }
@@ -91,20 +93,13 @@ async function listAdmin(request: Request, env: FeedEnv, store: FeedStore): Prom
     to: to ?? undefined,
     cursor,
     limit,
-  }), readPublishedBlogSlugs(env), loadPublishedLearnSlugs(env.DB)]);
+  }), readPublishedBlogSlugs(env), listPublicLearnSlugs(env.DB)]);
   const publishedBlogSlugSet = new Set(publishedBlogSlugs);
   const publishedLearnSlugSet = new Set(publishedLearnSlugs);
   return json({
     ...page,
     items: page.items.map((entry) => withProjectionState(entry, publishedBlogSlugSet, publishedLearnSlugSet)),
   });
-}
-
-async function loadPublishedLearnSlugs(database: D1Database): Promise<string[]> {
-  const result = await database.prepare(
-    "SELECT slug FROM learn_publications WHERE visibility = 'public' ORDER BY slug",
-  ).all<{ slug: string }>();
-  return result.results.map((entry) => entry.slug);
 }
 
 function withProjectionState(
@@ -327,12 +322,7 @@ function normalizePost(input: FeedPostInput): FeedPostInput {
 
 function parseAdminDate(value: string | null, exclusiveEnd: boolean): string | undefined | null {
   if (value === null || value === '') return undefined;
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
-  const [year, month, day] = value.split('-').map(Number);
-  const date = new Date(Date.UTC(year, month - 1, day));
-  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return null;
-  if (exclusiveEnd) date.setUTCDate(date.getUTCDate() + 1);
-  return date.toISOString();
+  return shanghaiUtcBoundary(value, exclusiveEnd ? 1 : 0);
 }
 
 async function limitPreview(env: FeedEnv, username: string): Promise<boolean> {

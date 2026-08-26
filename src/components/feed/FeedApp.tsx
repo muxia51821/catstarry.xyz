@@ -9,6 +9,7 @@ import {
 import { createPortal } from 'react-dom';
 import type { FeedPost, PaginatedResponse, SessionStatus, TimelineEntry } from '../../../shared/types';
 import { loadPublicTimeline, normalizeApiBase, previewCandidateUrl } from '../../lib/feed-api';
+import { appendDedupedById, parseFootprintSnapshot } from '../../lib/feed-entries';
 import { groupTimelineByShanghai } from '../../lib/feed-chronology';
 
 interface FeedAppProps {
@@ -31,8 +32,7 @@ const isVideoKey = (key: string) => /\.(?:mp4|webm|mov)$/i.test(key);
 
 function footprintCopy(entry: TimelineEntry): { label: string; title: string; summary: string | null; link: string | null; destination: string } {
   const data = entry.payload as unknown as Record<string, unknown>;
-  let snapshot: Record<string, unknown> = {};
-  try { snapshot = JSON.parse(String(data.snapshot_json ?? '{}')) as Record<string, unknown>; } catch { /* legacy snapshot */ }
+  const snapshot = parseFootprintSnapshot(entry) ?? {};
   const labels: Record<string, string> = {
     blog_published: 'BLOG · 发布',
     learn_section_completed: 'LEARN · 更新',
@@ -149,7 +149,7 @@ export default function FeedApp({ apiBase, initial = EMPTY_TIMELINE }: FeedAppPr
       const next = await loadPublicTimeline(apiBase, timeline.cursor);
       setTimeline((current) => ({
         ...next,
-        items: [...current.items, ...next.items.filter((item) => !current.items.some((known) => known.id === item.id))],
+        items: appendDedupedById(current.items, next.items),
       }));
     } catch (cause) {
       setPaginationError(cause instanceof Error ? cause.message : '无法加载更早的内容');

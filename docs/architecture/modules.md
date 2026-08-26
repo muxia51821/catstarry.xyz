@@ -196,7 +196,7 @@ Owner Feed UI
   → React timeline
 ```
 
-D1 / Public Timeline 的 canonical ordering 使用 `(occurred_at, id)`；浏览器的 chronology presentation 由 `src/lib/feed-chronology.ts` 固定按 `Asia/Shanghai` 分组并生成 `YYYY / MM.DD / HH:mm` 语义。这个 timezone 是当前实现合同，不是仍待打开的 Product / Architecture Revalidate。
+D1 / Public Timeline 的 canonical ordering 使用 `(occurred_at, id)`；浏览器的 chronology presentation 由 `src/lib/feed-chronology.ts` 按共享模块 `shared/shanghai-time.ts` 提供的 `Asia/Shanghai` 语义分组并生成 `YYYY / MM.DD / HH:mm`。这个 timezone 是当前实现合同，不是仍待打开的 Product / Architecture Revalidate。
 
 ### Feed media upload seam
 

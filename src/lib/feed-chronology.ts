@@ -1,4 +1,5 @@
 import type { TimelineEntry } from '../../shared/types';
+import { shanghaiParts } from '../../shared/shanghai-time';
 
 export interface ChronologyActivity {
   time: string;
@@ -15,22 +16,10 @@ export interface ChronologyYear {
   days: ChronologyDay[];
 }
 
-const SHANGHAI_PARTS = new Intl.DateTimeFormat('en-CA', {
-  timeZone: 'Asia/Shanghai',
-  year: 'numeric',
-  month: '2-digit',
-  day: '2-digit',
-  hour: '2-digit',
-  minute: '2-digit',
-  hourCycle: 'h23',
-});
-
 export function groupTimelineByShanghai(entries: TimelineEntry[]): ChronologyYear[] {
   const years: ChronologyYear[] = [];
   for (const entry of entries) {
-    const parts = Object.fromEntries(
-      SHANGHAI_PARTS.formatToParts(new Date(entry.occurred_at)).map(({ type, value }) => [type, value]),
-    );
+    const parts = shanghaiParts(new Date(entry.occurred_at));
     const year = parts.year;
     const date = `${parts.month}.${parts.day}`;
     const time = `${parts.hour}:${parts.minute}`;

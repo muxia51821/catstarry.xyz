@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 import { SqliteD1 } from './lib/sqlite-d1.mjs';
 import worker from '../workers/feed-api/src/index.ts';
+import { refreshActivitySignals } from '../workers/feed-api/src/modules/activity-signals.ts';
 
 const feedMigrationDirectory = path.join(
   path.dirname(path.resolve(fileURLToPath(import.meta.url))), '..', 'workers', 'feed-api', 'migrations');
@@ -764,5 +765,42 @@ assert.deepEqual(await batch.json(), {
     { slug: 'missing-post', count: 0 },
   ],
 });
+
+function insertFootprintRow(env, row) {
+  env.database.prepare(`INSERT INTO public_footprints (
+      id, source_module, source_ref, source_version, event_type, snapshot_json,
+      occurred_at, visibility, idempotency_key, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+    row.id, row.source_module, row.source_ref, row.source_version, row.event_type,
+    row.snapshot_json ?? '{}', row.occurred_at, row.visibility ?? 'public',
+    row.idempotency_key ?? `${row.source_module}:${row.source_ref}:${row.id}`, new Date().toISOString(),
+  );
+}
+
+const legacySignalEnv = createEnv();
+insertFootprintRow(legacySignalEnv, {
+  id: 'legacy-signal-row',
+  source_module: 'learn',
+  source_ref: 'legacy-reader',
+  source_version: 'first-production-v1',
+  event_type: 'learn_section_completed',
+  occurred_at: new Date(Date.now() - 60_000).toISOString(),
+});
+await refreshActivitySignals(legacySignalEnv);
+assert.equal(JSON.parse(legacySignalEnv.HOME_PROJECTIONS.value).signals.learn.state, 'active',
+  'legacy learn_section_completed stays signal-eligible without a learn_publications row');
+
+const unpublishedLearnSignalEnv = createEnv();
+insertFootprintRow(unpublishedLearnSignalEnv, {
+  id: 'unpublished-signal-row',
+  source_module: 'learn',
+  source_ref: 'never-published-note',
+  source_version: 'first-production-v1',
+  event_type: 'learn_note_published',
+  occurred_at: new Date(Date.now() - 60_000).toISOString(),
+});
+await refreshActivitySignals(unpublishedLearnSignalEnv);
+assert.equal(JSON.parse(unpublishedLearnSignalEnv.HOME_PROJECTIONS.value).signals.learn.state, 'dormant',
+  'unpublished learn_note_published must stay behind the projection gate');
 
 console.log('Feed HTTP contract passed.');

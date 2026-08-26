@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { hash } from 'bcryptjs';
 
-import { applyFinanceMigrations, SqliteD1 } from './lib/sqlite-d1.mjs';
+import { applyMigrations, SqliteD1 } from './lib/sqlite-d1.mjs';
 import worker from '../workers/finance-api/src/index.ts';
 
 const fixtureNow = new Date();
@@ -27,7 +27,7 @@ class MemoryKv {
 }
 
 const database = new DatabaseSync(':memory:');
-await applyFinanceMigrations(database);
+await applyMigrations(database);
 const env = { FINANCE_AUTH_KV: new MemoryKv(), DB: new SqliteD1(database) };
 
 database.prepare(`INSERT INTO finance_import_review (batch_id, row_number, record_kind, raw_json)

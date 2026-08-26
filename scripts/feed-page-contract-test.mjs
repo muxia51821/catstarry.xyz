@@ -15,7 +15,7 @@ assert.match(page, /<FeedApp client:load apiBase=\{publicFeedApiBase\(\)\} \/>/,
 assert.match(page, /href=\{STAR_MAP_DESTINATION\}[^>]+aria-label="返回星图"/, 'Feed page must provide the canonical return-to-star-map link');
 assert.match(page, /碎碎念、剪藏，以及一路积累下来的创作足迹。/, 'Feed opening copy must match the closed product contract');
 assert.doesNotMatch(page, /PUBLIC FOOTPRINTS/, 'Feed opening must not expose product jargon');
-assert.match(await readFile('src/lib/feed-chronology.ts', 'utf8'), /timeZone: 'Asia\/Shanghai'/, 'Feed chronology must use Asia/Shanghai');
+assert.match(await readFile('shared/shanghai-time.ts', 'utf8'), /timeZone: 'Asia\/Shanghai'/, 'Feed chronology must use Asia/Shanghai');
 assert.match(app, /更早的内容/);
 assert.match(app, /止步于此。/);
 assert.match(app, /访问来源 ↗/);

@@ -1,6 +1,7 @@
 import { apiError, json, readJson } from '../lib/http';
 import { requireMainSession } from './auth';
 import { SLUG_PATTERN } from '../../../../shared/slug';
+import { shanghaiDayKey } from '../../../../shared/shanghai-time';
 import { logWorkerError } from '../../../../shared/worker-log';
 
 const MAX_SLUGS = 50;
@@ -49,7 +50,7 @@ async function recordView(request: Request, env: Env): Promise<Response> {
   const slug = parseSlug(body.slug);
   if (!slug) return apiError(400, 'invalid_slug', 'slug must be a lowercase ASCII slug');
 
-  const viewDate = shanghaiDate(new Date());
+  const viewDate = shanghaiDayKey(new Date());
   const visitorHash = await hashVisitor(request);
   if (!await allowViewRecord(env.VIEW_KV, visitorHash)) {
     return apiError(429, 'rate_limited', 'Too many view records; try again later');
@@ -91,15 +92,6 @@ function parseSlug(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   const slug = value.trim();
   return slug.length <= 128 && SLUG_PATTERN.test(slug) ? slug : null;
-}
-
-function shanghaiDate(date: Date): string {
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Shanghai',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(date);
 }
 
 async function hashVisitor(request: Request): Promise<string> {

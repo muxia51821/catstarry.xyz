@@ -3,6 +3,8 @@ import { comparePublicationRelease, samePublicationRelease } from '../../../../s
 
 export type ReleaseGuardKey = 'blog-sync' | 'learn-active' | 'learn-pending';
 
+export const LEARN_PENDING_RELEASE_KEY: ReleaseGuardKey = 'learn-pending';
+
 type ReleaseGuardResult =
   | { ok: true }
   | { ok: false; state: 'stale' | 'conflict' | 'pending'; current: PublicationReleaseIdentity | null };

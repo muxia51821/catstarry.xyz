@@ -1,6 +1,7 @@
 import type { ActivitySignalsManifest, ActivityState } from '../../../../shared/types';
 import { ActivitySignalStore } from '../adapters/activity-signal-store';
 import { readPublishedBlogSlugs } from './blog-publications';
+import { listPublicLearnSlugs } from './learn-publications';
 
 const ACTIVE_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 const RECENT_WINDOW_MS = 60 * 24 * 60 * 60 * 1000;
@@ -20,7 +21,8 @@ export async function refreshActivitySignals(
 ): Promise<void> {
   const store = new ActivitySignalStore(env.DB, env.HOME_PROJECTIONS);
   const publishedBlogSlugs = await readPublishedBlogSlugs(env);
-  const latest = await store.readLatestActivity(publishedBlogSlugs);
+  const publishedLearnSlugs = await listPublicLearnSlugs(env.DB);
+  const latest = await store.readLatestActivity(publishedBlogSlugs, publishedLearnSlugs);
   const now = Date.now();
 
   const manifest: ActivitySignalsManifest = {
