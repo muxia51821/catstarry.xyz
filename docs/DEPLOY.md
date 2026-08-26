@@ -188,6 +188,22 @@ Learn 的首次正式 Publish 由 Owner Admin lifecycle mutation 完成：produc
 
 失败/preview 部署不得发送 production-success dispatch。该 SHA 必须是 40 位 commit ID 且属于 `origin/main` 历史；workflow 使用 `npm ci --ignore-scripts`，publication scripts 只允许把 bearer token 发送到精确的 `https://catstarry.xyz`。不满足任一条件时任务必须失败。
 
+## Production Worker 发布（code-only）
+
+生产 Worker 无入库配置，staging 骨架不可用于生产。每次发布遵守以下不变式，具体命令以当次 wrangler 版本实测为准：
+
+1. **code-only**：上传只含代码与既定绑定；`routes`、`triggers.crons`、vars/secrets 不出现在配置中
+2. **资源身份现查**：绑定用的 D1/KV/R2 标识在上传前经只读命令从账户取得，禁止沿用 staging 占位符或历史文档数值
+3. **上传后复核**：deployments 状态确认新版本 100% 流量、绑定无意外，并在首个计划刻度后实证 Cron 存活（例：finance 查 `market_data` 最新写入越过 `*/15`）
+4. **冒烟最小面**：只覆盖本次变更路径
+
+最近一次完整实证（临时配置形态、逐条输出、Cron 存活证据，wrangler 4.113.0）：
+`.scratch/deployment-feed-finance-refactor/deployment-evidence-20260825.md` —— 该记录是示例，不是规程。
+
+### D1 导出备份
+
+Time Travel 是恢复锚点，不替代导出备份。finance-db 建议周期性导出归档于仓库外目录；迁移前的手动备份规则维持不变。
+
 ## 回滚
 
 1. Worker：在 Cloudflare Versions 选中上一验证版本并回滚；不要回退 D1 migration。
