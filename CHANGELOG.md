@@ -9,6 +9,7 @@
 - FeedApp/FeedAdmin 提取共享工具（分页去重、snapshot 摘要解析）；`applyFinanceMigrations` 更名为通用 `applyMigrations`。
 - Finance workspace 表单预填时钟修复（`finance-site/app.js`，7 处调用点）：资产快照时间预填此前用 UTC 墙钟而服务端按上海解释（落库时间差 8 小时、日期可错一天）；月度记录月份、交易/现金流/账户事件日期此前分别跟随 UTC 月或访问者设备时区；年度复盘与档案导出的默认年份跟随设备本地年。现全部统一由新增的 `shanghaiWallClockInput()`（Intl 上海墙钟）派生；契约测试双向锁死（必须含 `Asia/Shanghai`，禁止 `getTimezoneOffset` / `toISOString` / 本地年份取值回归）。
 - 文档收尾：DEPLOY.md 补记手动浏览器回归工具 `test:feed:ui` 的用途；GLOSSARY canonical naming 增加「上海时钟」词条，指向 `shared/shanghai-time.ts` 为全站唯一时钟原语来源。
+- 前端缝隙收敛（PR #65）：Learn 搜索索引内联 JSON 改用 `serializeJsonForInlineScript` 安全序列化，全仓最后一个裸内联 JSON 点清零；finance-site 新增共享助手模块 `finance-shared.js` 收编三处重复的 apiBase/货币/百分比格式化，并补上首个 401 会话过期浏览器回归。
 
 ## 2026-08-25 — 架构收敛与测试瘦身（已合并 main，同日已发布生产）
 
