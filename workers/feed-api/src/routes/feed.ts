@@ -2,6 +2,7 @@ import type { FeedPostInput, PublicFootprint, PublicFootprintCandidate, Timeline
 import { FeedStore, decodeCursor } from '../adapters/feed-store';
 import { apiError, json, parseBoundedLimit, readJson } from '../lib/http';
 import { readPublishedBlogSlugs } from '../modules/blog-publications';
+import { listPublicLearnSlugs } from '../modules/learn-publications';
 import { recordPublicFootprint, parseFootprintCandidate } from '../modules/footprints';
 import { refreshActivitySignals } from '../modules/activity-signals';
 import { requireIngestAuth, requireMainSession } from './auth';
@@ -58,7 +59,7 @@ async function listPublic(request: Request, env: FeedEnv, store: FeedStore): Pro
       logWorkerError('public_feed_blog_publication_read_failed', {}, error);
       return [];
     }),
-    loadPublishedLearnSlugs(env.DB),
+    listPublicLearnSlugs(env.DB),
   ]);
   return json(await store.listPublic(cursor, limit, publishedBlogSlugs, publishedLearnSlugs));
 }
@@ -92,20 +93,13 @@ async function listAdmin(request: Request, env: FeedEnv, store: FeedStore): Prom
     to: to ?? undefined,
     cursor,
     limit,
-  }), readPublishedBlogSlugs(env), loadPublishedLearnSlugs(env.DB)]);
+  }), readPublishedBlogSlugs(env), listPublicLearnSlugs(env.DB)]);
   const publishedBlogSlugSet = new Set(publishedBlogSlugs);
   const publishedLearnSlugSet = new Set(publishedLearnSlugs);
   return json({
     ...page,
     items: page.items.map((entry) => withProjectionState(entry, publishedBlogSlugSet, publishedLearnSlugSet)),
   });
-}
-
-async function loadPublishedLearnSlugs(database: D1Database): Promise<string[]> {
-  const result = await database.prepare(
-    "SELECT slug FROM learn_publications WHERE visibility = 'public' ORDER BY slug",
-  ).all<{ slug: string }>();
-  return result.results.map((entry) => entry.slug);
 }
 
 function withProjectionState(

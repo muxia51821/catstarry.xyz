@@ -1,5 +1,4 @@
 import type {
-  LearnPublicationRecord,
   LearnPublicationVisibility,
   PublicFootprintCandidate,
 } from '../../../../shared/types';
@@ -18,8 +17,17 @@ import { logWorkerError } from '../../../../shared/worker-log';
 import { footprintInsertStatement } from '../adapters/feed-store';
 import { apiError, json, readJson } from '../lib/http';
 import { refreshActivitySignals } from '../modules/activity-signals';
+import {
+  getLearnPublication,
+  insertLearnPublicationStatement,
+  interpretGuardedLearnWrite,
+  listLearnPublications,
+  updateLearnPublicationVisibilityStatement,
+  updateLearnRevisionStatement,
+} from '../modules/learn-publications';
 import { parseFootprintCandidate } from '../modules/footprints';
 import {
+  LEARN_PENDING_RELEASE_KEY,
   abortLearnRelease,
   activateLearnRelease,
   prepareLearnRelease,
@@ -60,13 +68,13 @@ export async function handleLearn(
   pathname: string,
 ): Promise<Response> {
   if (pathname === '/api/learn/publications' && request.method === 'GET') {
-    const entries = await listPublications(env.DB, 'public');
+    const entries = await listLearnPublications(env.DB, 'public');
     return json({ entries: entries.map(({ slug, published_at }) => ({ slug, published_at })) });
   }
   if (pathname === '/api/learn/admin/publications' && request.method === 'GET') {
     const session = await requireMainSession(request, env);
     if (session instanceof Response) return session;
-    return json({ entries: await listPublications(env.DB) });
+    return json({ entries: await listLearnPublications(env.DB) });
   }
   if (pathname === '/api/learn/admin/publications' && request.method === 'PATCH') {
     if (env.LOCAL_PREVIEW_AUTH === '1') {
@@ -120,7 +128,7 @@ async function updatePublication(request: Request, env: LearnEnv, ctx: Execution
     return apiError(400, 'invalid_publication', 'Learn publication request is invalid');
   }
 
-  const existing = await getPublication(env.DB, slug);
+  const existing = await getLearnPublication(env.DB, slug);
   if (existing?.visibility === visibility) return json({ entry: existing, created: false });
   if (await readLearnPendingRelease(env.DB)) {
     return apiError(503, 'publication_release_pending', 'Learn publication lifecycle is temporarily unavailable during production release activation');
@@ -134,41 +142,37 @@ async function updatePublication(request: Request, env: LearnEnv, ctx: Execution
     const now = new Date().toISOString();
     const candidate = firstPublicationCandidate(slug, title, excerpt, now);
     const [publicationWrite, footprintWrite] = await env.DB.batch([
-      env.DB.prepare(`INSERT OR IGNORE INTO learn_publications (
-          slug, visibility, published_at, last_revised_at, updated_at
-        ) SELECT ?, 'public', ?, ?, ?
-        WHERE NOT EXISTS (
-          SELECT 1 FROM publication_release_guards WHERE guard_key = 'learn-pending'
-        )`).bind(slug, now, revisedAt, now),
-      footprintInsertStatement(env.DB, candidate, now, { pendingReleaseGuardKey: 'learn-pending' }),
+      insertLearnPublicationStatement(env.DB, { slug, publishedAt: now, revisedAt }),
+      footprintInsertStatement(env.DB, candidate, now, { pendingReleaseGuardKey: LEARN_PENDING_RELEASE_KEY }),
     ]);
-    const created = (publicationWrite.meta.changes ?? 0) > 0;
-    if (!created && await readLearnPendingRelease(env.DB)) {
+    const creation = await interpretGuardedLearnWrite(env.DB, publicationWrite.meta.changes ?? 0);
+    if (!creation.written && creation.blockedByPendingRelease) {
       return apiError(503, 'publication_release_pending', 'Learn publication lifecycle is temporarily unavailable during production release activation');
     }
-    const entry = await getPublication(env.DB, slug);
+    const entry = await getLearnPublication(env.DB, slug);
     if (!entry) throw new Error('Learn publication write was not persisted');
-    if (created && (footprintWrite.meta.changes ?? 0) === 0) {
+    if (creation.written && (footprintWrite.meta.changes ?? 0) === 0) {
       throw new Error('Learn first-publication footprint was not persisted');
     }
-    if (created) refreshAfterMutation(env, ctx);
-    return json({ entry, created });
+    if (creation.written) refreshAfterMutation(env, ctx);
+    return json({ entry, created: creation.written });
   }
 
   const updatedAt = new Date().toISOString();
-  const result = await env.DB.prepare(`UPDATE learn_publications
-    SET visibility = ?, updated_at = ?
-    WHERE slug = ? AND NOT EXISTS (
-      SELECT 1 FROM publication_release_guards WHERE guard_key = 'learn-pending'
-    )`).bind(visibility, updatedAt, slug).run();
-  if ((result.meta.changes ?? 0) === 0) {
-    if (await readLearnPendingRelease(env.DB)) {
+  const result = await updateLearnPublicationVisibilityStatement(env.DB, {
+    slug,
+    visibility,
+    updatedAt,
+  }).run();
+  const outcome = await interpretGuardedLearnWrite(env.DB, result.meta.changes ?? 0);
+  if (!outcome.written) {
+    if (outcome.blockedByPendingRelease) {
       return apiError(503, 'publication_release_pending', 'Learn publication lifecycle is temporarily unavailable during production release activation');
     }
     return apiError(409, 'publication_changed', 'Learn publication changed while the lifecycle request was being applied');
   }
   refreshAfterMutation(env, ctx);
-  return json({ entry: await getPublication(env.DB, slug), created: false });
+  return json({ entry: await getLearnPublication(env.DB, slug), created: false });
 }
 
 async function updateReleaseBarrier(
@@ -222,7 +226,7 @@ async function syncDeployedMetadata(request: Request, env: LearnEnv, ctx: Execut
   const releaseMode = await validateLearnSyncRelease(env.DB, release);
   if (releaseMode instanceof Response) return releaseMode;
 
-  const publications = await listPublications(env.DB);
+  const publications = await listLearnPublications(env.DB);
   const publicationBySlug = new Map(publications.map((entry) => [entry.slug, entry]));
   for (const entry of entries) {
     const publication = publicationBySlug.get(entry.slug);
@@ -238,17 +242,13 @@ async function syncDeployedMetadata(request: Request, env: LearnEnv, ctx: Execut
     if (!publication || entry.revised_at === publication.last_revised_at) continue;
     if (!entry.revised_at) continue;
     if (publication.visibility === 'hidden') {
-      await env.DB.prepare(
-        'UPDATE learn_publications SET last_revised_at = ?, updated_at = ? WHERE slug = ?',
-      ).bind(entry.revised_at, deployedAt, entry.slug).run();
+      await updateLearnRevisionStatement(env.DB, entry.slug, entry.revised_at, deployedAt).run();
       continue;
     }
     const candidate = revisionCandidate(entry, deployedAt);
     const [footprintWrite] = await env.DB.batch([
       footprintInsertStatement(env.DB, candidate, deployedAt),
-      env.DB.prepare(
-        'UPDATE learn_publications SET last_revised_at = ?, updated_at = ? WHERE slug = ?',
-      ).bind(entry.revised_at, deployedAt, entry.slug),
+      updateLearnRevisionStatement(env.DB, entry.slug, entry.revised_at, deployedAt),
     ]);
     if ((footprintWrite.meta.changes ?? 0) > 0) created += 1;
   }
@@ -331,23 +331,6 @@ function revisionCandidate(entry: NormalizedDeployEntry, deployedAt: string): Pu
   return candidate;
 }
 
-async function getPublication(database: D1Database, slug: string): Promise<LearnPublicationRecord | null> {
-  return database.prepare(`SELECT slug, visibility, published_at, last_revised_at, updated_at
-    FROM learn_publications WHERE slug = ?`).bind(slug).first<LearnPublicationRecord>();
-}
-
-async function listPublications(
-  database: D1Database,
-  visibility?: LearnPublicationVisibility,
-): Promise<LearnPublicationRecord[]> {
-  const statement = visibility
-    ? database.prepare(`SELECT slug, visibility, published_at, last_revised_at, updated_at
-      FROM learn_publications WHERE visibility = ? ORDER BY slug`).bind(visibility)
-    : database.prepare(`SELECT slug, visibility, published_at, last_revised_at, updated_at
-      FROM learn_publications ORDER BY slug`);
-  return (await statement.all<LearnPublicationRecord>()).results;
-}
-
 function normalizeDeployEntries(entries: LearnDeployEntry[]): NormalizedDeployEntry[] | null {
   const normalized = entries.map((entry) => ({
     slug: typeof entry.slug === 'string' ? entry.slug.trim() : '',
@@ -399,7 +382,7 @@ async function validateProposedPublicRelations(
     return apiError(503, 'relation_manifest_unavailable', 'Learn relation metadata does not match the active Site release');
   }
 
-  const publicSlugs = new Set((await listPublications(env.DB, 'public')).map((entry) => entry.slug));
+  const publicSlugs = new Set((await listLearnPublications(env.DB, 'public')).map((entry) => entry.slug));
   if (visibility === 'public') publicSlugs.add(slug);
   else publicSlugs.delete(slug);
   const bySlug = new Map(authority.entries.map((entry) => [entry.slug, entry]));
