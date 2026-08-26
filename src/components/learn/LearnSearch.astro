@@ -1,10 +1,12 @@
 ---
 import type { LearnNote } from './learn-data';
 import { getTrackDefinition } from './learn-data';
+import { serializeJsonForInlineScript } from '../../lib/safe-json.mjs';
 
 interface Props { notes: LearnNote[]; }
 const { notes } = Astro.props;
 const searchNotes = notes.map((note) => ({ ...note, trackName: getTrackDefinition(note.track).name }));
+const searchJson = serializeJsonForInlineScript(searchNotes);
 ---
 
 <form class="learn-search" role="search" data-learn-search onsubmit="return false">
@@ -23,7 +25,7 @@ const searchNotes = notes.map((note) => ({ ...note, trackName: getTrackDefinitio
     <span aria-hidden="true">⌕</span>
   </div>
   <div id="learn-search-suggestions" class="learn-search__suggestions" role="listbox" hidden></div>
-  <script type="application/json" data-search-index set:html={JSON.stringify(searchNotes)}></script>
+  <script type="application/json" data-search-index set:html={searchJson}></script>
 </form>
 
 <script>
