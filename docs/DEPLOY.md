@@ -50,6 +50,8 @@ git diff --check
 
 GitHub `validate.yml` 负责 PR / main validation；它不是 production deploy workflow。Production Site deploy 由显式 release runner 执行，部署成功后的 Blog/Learn publication sync 才由独立 GitHub Action 接手。
 
+`test:feed:ui`（`scripts/feed-ui-regression.mjs`）是手动运营级浏览器回归工具：需要先本地启动站点（默认 `127.0.0.1:4322`）并提供真实管理员账号（`FEED_UI_USERNAME` / `FEED_UI_PASSWORD`），因此不进 CI 与上述验证门；Feed 大型改动后建议手动跑一次。
+
 ## Staging 资源
 
 部署前在 staging 账号内创建并把实际 ID 写入 Cloudflare 配置层：

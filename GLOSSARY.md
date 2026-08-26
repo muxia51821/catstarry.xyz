@@ -95,5 +95,6 @@ GLOSSARY 只记录跨模块、跨 Phase、容易被误解或存在命名漂移�
 | Content Click Feedback | Content 点击反馈 | Content cursor meteor |
 | Planet Focus | Focus | 星球详情页 |
 | Entry Display | — | Hero Display |
+| 上海时钟（`shared/shanghai-time.ts`） | Finance 域 `lib/dates.ts` 的 `shanghaiDay` 等 | 各处自建日期/时区实现 |
 
 术语语义发生变化时，由对应 Product / Architecture / Design authority 先形成新的事实，再同步 canonical naming；GLOSSARY 不自行创造新的产品、架构、设计或实现规则。
