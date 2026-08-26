@@ -157,17 +157,20 @@ Production Site 的正式 runner 是 `scripts/deploy-site-production.ps1`。它�
 
 ## Production deployment 后 publication sync
 
-只有生产部署系统确认成功后，才发送 GitHub `repository_dispatch`：
+只有生产部署系统确认成功后，才发送 GitHub `repository_dispatch`。Canonical 发送方式是：
 
-```json
-{
-  "event_type": "catstarry-production-deployment-succeeded",
-  "client_payload": {
-    "environment": "production",
-    "status": "success",
-    "sha": "<exact deployed commit SHA>"
-  }
-}
+```powershell
+npm run release:dispatch-sync
+```
+
+该脚本只执行本节既有规则，不引入新规则：要求 clean tracked worktree 且 HEAD 等于 `origin/main`（untracked 仅允许 `.scratch/`），对生产入口执行 HTTP 200 冒烟，然后打印完整 payload 并经交互确认后才通过已认证的 `gh` CLI 发送；任何前置失败即停，不自动重试。非交互环境必须显式传 `--yes`。事件合同保持不变：
+
+```text
+event_type:     catstarry-production-deployment-succeeded
+client_payload:
+  environment: production
+  status:      success
+  sha:         <exact deployed commit SHA>
 ```
 
 `.github/workflows/sync-production-publications.yml` 会验证并 checkout 精确 deployed SHA，并使用完整 Git history 计算同一 release 的 `{sha, generation}` identity。该 workflow 使用固定 concurrency group 串行化 production publication writers；D1 monotonic guard 继续负责拒绝已落后的 release，不能用 workflow 执行先后代替 release identity。Blog 与 Learn 两个 sync step 都会被尝试，最终任一失败都会让 workflow 保持失败状态。

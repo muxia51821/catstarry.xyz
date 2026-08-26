@@ -35,6 +35,8 @@
     "learn:slug": "node scripts/learn-slug.mjs",
     "learn:import": "node scripts/learn-import.mjs",
     "learn:sync-publications": "node scripts/learn-publication-manifest.mjs",
+    "release:dispatch-sync": "node scripts/dispatch-production-publication-sync.mjs",
+    "release:status": "node scripts/production-status.mjs",
     "test:learn:authoring": "node --experimental-transform-types --import ./scripts/register-typescript-loader.mjs scripts/learn-authoring-contract-test.mjs",
     "test:learn:preview": "node scripts/learn-preview-contract-test.mjs",
     "test:finance:calculations": "node --experimental-transform-types --import ./scripts/register-typescript-loader.mjs scripts/finance-calculations-contract-test.mjs",

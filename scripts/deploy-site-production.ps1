@@ -135,4 +135,4 @@ Assert-Http200 'https://catstarry.xyz/activity-signals.json'
 Assert-Http200 'https://catstarry.xyz/api/feed?limit=1'
 Remove-WranglerDeployRedirect -RepoRoot $repoRoot
 Write-Host "Deployed commit SHA: $head"
-Write-Host "Dispatch the exact SHA for production publication sync; the Learn pending barrier remains until that sync activates this release."
+Write-Host "Run 'npm run release:dispatch-sync' to dispatch SHA $head for production publication sync; the Learn pending barrier remains until that sync activates this release."
