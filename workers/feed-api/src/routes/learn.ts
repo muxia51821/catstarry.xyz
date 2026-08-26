@@ -99,6 +99,10 @@ export async function handleLearn(
   return apiError(404, 'not_found', 'Learn route not found');
 }
 
+function releasePendingResponse(): Response {
+  return apiError(503, 'publication_release_pending', 'Learn publication lifecycle is temporarily unavailable during production release activation');
+}
+
 async function updatePublication(request: Request, env: LearnEnv, ctx: ExecutionContext): Promise<Response> {
   const session = await requireMainSession(request, env);
   if (session instanceof Response) return session;
@@ -131,7 +135,7 @@ async function updatePublication(request: Request, env: LearnEnv, ctx: Execution
   const existing = await getLearnPublication(env.DB, slug);
   if (existing?.visibility === visibility) return json({ entry: existing, created: false });
   if (await readLearnPendingRelease(env.DB)) {
-    return apiError(503, 'publication_release_pending', 'Learn publication lifecycle is temporarily unavailable during production release activation');
+    return releasePendingResponse();
   }
   const relationFailure = await validateProposedPublicRelations(env, slug, visibility);
   if (relationFailure) return relationFailure;
@@ -147,7 +151,7 @@ async function updatePublication(request: Request, env: LearnEnv, ctx: Execution
     ]);
     const creation = await interpretGuardedLearnWrite(env.DB, publicationWrite.meta.changes ?? 0);
     if (!creation.written && creation.blockedByPendingRelease) {
-      return apiError(503, 'publication_release_pending', 'Learn publication lifecycle is temporarily unavailable during production release activation');
+      return releasePendingResponse();
     }
     const entry = await getLearnPublication(env.DB, slug);
     if (!entry) throw new Error('Learn publication write was not persisted');
@@ -167,7 +171,7 @@ async function updatePublication(request: Request, env: LearnEnv, ctx: Execution
   const outcome = await interpretGuardedLearnWrite(env.DB, result.meta.changes ?? 0);
   if (!outcome.written) {
     if (outcome.blockedByPendingRelease) {
-      return apiError(503, 'publication_release_pending', 'Learn publication lifecycle is temporarily unavailable during production release activation');
+      return releasePendingResponse();
     }
     return apiError(409, 'publication_changed', 'Learn publication changed while the lifecycle request was being applied');
   }

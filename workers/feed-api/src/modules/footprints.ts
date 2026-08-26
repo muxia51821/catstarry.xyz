@@ -28,7 +28,7 @@ export function buildSourceFootprintCandidate(input: SourceFootprintInput): Publ
     occurred_at: input.occurredAt,
     idempotency_key: `${input.sourceModule}:${input.sourceRef}:${input.sourceVersion}`,
   });
-  if (!candidate) throw new Error('Source footprint entry could not be normalized');
+  if (!candidate) throw new Error(`${input.sourceModule} footprint entry could not be normalized`);
   return candidate;
 }
 

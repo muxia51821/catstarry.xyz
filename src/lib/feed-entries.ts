@@ -2,6 +2,7 @@ import type { TimelineEntry } from '../../shared/types';
 
 export interface FootprintSnapshot {
   title?: unknown;
+  label?: unknown;
   summary?: unknown;
   link?: unknown;
 }
