@@ -1,5 +1,13 @@
 # 更新记录
 
+## 2026-08-26 — Feed 板块全面梳理（task/feed-review，未合并未部署）
+
+- 共享上海时钟模块落地（`shared/shanghai-time.ts`）：feed 侧六处时间实现（浏览去重键、时间线分组、RSS、Blog/Learn 显示格式）统一走单一 Intl 原语；新增 `test:shared:time` 契约锁跨年/日界行为。顺带修正四处隐性口径问题：Feed 管理列表时间显示与按天过滤改用上海时区/上海日界、上传月份前缀、博客 `<time datetime>` 机器属性对齐上海日历日。
+- Learn 发布生命周期收敛：新增 `modules/learn-publications.ts` 作为 `learn_publications` 表唯一 D1 出口（读 + 受守卫写入 + `{written, blocked}` 结果解释），`'learn-pending'` 屏障字面量归一为单一常量；Feed 路由不再手写该表 SQL。
+- 足迹工厂去重：blog 首发布 / learn 首发布 / learn 修订三处近克隆合并为 `buildSourceFootprintCandidate`，版本串与幂等键形状单点定义。
+- ADR-005 公开投影门收敛为「调用方注入 published 集合」单一形态：activity-signal-store 的 learn 子查询改为与 blog 对称的 json_each 绑定，learn 集合读取失败沿用"中止刷新并保留旧投影"语义；动手前先在 feed HTTP 契约补齐 legacy carve-out 信号覆盖测试。
+- FeedApp/FeedAdmin 提取共享工具（分页去重、snapshot 摘要解析）；`applyFinanceMigrations` 更名为通用 `applyMigrations`。
+
 ## 2026-08-25 — 架构收敛与测试瘦身（已合并 main，未部署生产）
 
 - Finance API 域核心模块化（PR #55）：「最新持仓快照 / 最新有效对账」查询与估值引擎分别收敛为 `modules/snapshots.ts`、`modules/valuation-engine.ts`，cron 不再反向依赖路由文件；dashboard 死代码删除。行为等价。
