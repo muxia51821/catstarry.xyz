@@ -19,9 +19,6 @@ function svgEl(tag, { className, text, attrs } = {}, ...children) {
   return node;
 }
 function replace(node, children) { node.replaceChildren(...children); }
-const apiBase = document.querySelector('meta[name="finance-api-base"]')?.content.replace(/\/$/, '') ?? '';
-const money = new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY', maximumFractionDigits: 2 });
-const number = new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 2 });
 const CATEGORY_PRESENTATION = [
   { key: '主动操作仓（A股）', label: '主动操作仓', color: '#6685ff' },
   { key: 'A股宽基指数底仓', label: 'A股宽基指数', color: '#d4c94e' },
@@ -83,7 +80,6 @@ function setStatus(node, message, tone = '') {
 
 function isAdmin() { return state.session?.role === 'admin'; }
 function valueOrDash(value, formatter = number) { return value === null || value === undefined ? '—' : formatter.format(Number(value)); }
-function formatPercent(value) { return value === null || value === undefined ? '—' : `${(Number(value) * 100).toFixed(1)}%`; }
 function formatPnl(row) {
   if (row.pnl === null || row.pnl === undefined) return '—';
   const ratioValue = Number(row.pnl_ratio);

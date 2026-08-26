@@ -42,6 +42,7 @@ const html = `<!doctype html><html lang="zh-CN"><head>
   <label>不完整原因<textarea name="incomplete_reason"></textarea></label>
   <button type="submit">保存资产快照</button>
 </form></dialog>
+<script src="/finance-shared.js" defer></script>
 <script src="/portfolio-ui.js" defer></script>
 </body></html>`;
 
@@ -52,6 +53,9 @@ const server = createServer(async (request, response) => {
   }
   if (path === '/portfolio.css') {
     response.setHeader('Content-Type', 'text/css; charset=utf-8'); response.end(await readFile('finance-site/portfolio.css')); return;
+  }
+  if (path === '/finance-shared.js') {
+    response.setHeader('Content-Type', 'text/javascript; charset=utf-8'); response.end(await readFile('finance-site/finance-shared.js')); return;
   }
   if (path === '/portfolio-ui.js') {
     response.setHeader('Content-Type', 'text/javascript; charset=utf-8'); response.end(await readFile('finance-site/portfolio-ui.js')); return;

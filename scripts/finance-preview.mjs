@@ -90,6 +90,7 @@ const files = {
   '/index.html': ['finance-site/index.html', 'text/html; charset=utf-8'],
   '/styles.css': ['finance-site/styles.css', 'text/css; charset=utf-8'],
   '/portfolio.css': ['finance-site/portfolio.css', 'text/css; charset=utf-8'],
+  '/finance-shared.js': ['finance-site/finance-shared.js', 'text/javascript; charset=utf-8'],
   '/app.js': ['finance-site/app.js', 'text/javascript; charset=utf-8'],
   '/portfolio-ui.js': ['finance-site/portfolio-ui.js', 'text/javascript; charset=utf-8'],
   '/fonts/Geist-Variable.ttf': ['finance-site/fonts/Geist-Variable.ttf', 'font/ttf'],

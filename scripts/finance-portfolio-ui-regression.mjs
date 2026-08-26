@@ -49,6 +49,7 @@ window.__fetchBeforePortfolio = window.fetch;
 window.__tradeFilterSubmission = '';
 document.querySelector('[data-trade-filters]').addEventListener('submit', (event) => { event.preventDefault(); window.__tradeFilterSubmission = new URLSearchParams(new FormData(event.currentTarget)).toString(); });
 </script>
+<script src="/finance-shared.js" defer></script>
 <script src="/portfolio-ui.js" defer></script>
 </body></html>`;
 
@@ -62,6 +63,7 @@ const server = createServer(async (request, response) => {
     return;
   }
   if (url.pathname === '/portfolio.css') return file(response, 'finance-site/portfolio.css', 'text/css; charset=utf-8');
+  if (url.pathname === '/finance-shared.js') return file(response, 'finance-site/finance-shared.js', 'text/javascript; charset=utf-8');
   if (url.pathname === '/portfolio-ui.js') return file(response, 'finance-site/portfolio-ui.js', 'text/javascript; charset=utf-8');
   if (url.pathname === '/api/account-state') {
     if (mode === 'fail') return json(response, 503, { message: 'account unavailable' });

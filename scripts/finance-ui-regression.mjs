@@ -10,6 +10,7 @@ let currentRole = null;
 let viewerConfirmed = false;
 let initialSessionRequest = true;
 let riskSignalsFailure = false;
+let sessionExpired = false;
 const historicalMemos = Array.from({ length: 13 }, (_, index) => {
   const id = 13 - index;
   return {
@@ -66,6 +67,9 @@ const server = createServer(async (request, response) => {
   if (url.pathname === '/api/auth/session' && initialSessionRequest) {
     initialSessionRequest = false;
     await delay(350);
+  }
+  if (sessionExpired && url.pathname.startsWith('/api/') && !url.pathname.startsWith('/api/auth/')) {
+    return json(response, 401, { message: 'session expired fixture' });
   }
   if (url.pathname === '/api/auth/login' && request.method === 'POST') {
     const body = JSON.parse(await readBody(request));
@@ -143,6 +147,7 @@ const server = createServer(async (request, response) => {
     '/styles.css': ['finance-site/styles.css', 'text/css; charset=utf-8'],
     '/portfolio.css': ['finance-site/portfolio.css', 'text/css; charset=utf-8'],
     '/operations.css': ['finance-site/operations.css', 'text/css; charset=utf-8'],
+    '/finance-shared.js': ['finance-site/finance-shared.js', 'text/javascript; charset=utf-8'],
     '/app.js': ['finance-site/app.js', 'text/javascript; charset=utf-8'],
     '/portfolio-ui.js': ['finance-site/portfolio-ui.js', 'text/javascript; charset=utf-8'],
     '/operations-ui.js': ['finance-site/operations-ui.js', 'text/javascript; charset=utf-8'],
@@ -618,6 +623,16 @@ try {
   await waitFor(`!document.querySelector('[data-confirm-rebalance]')`, 'viewer rebalance confirmation');
   diagnostics.checks.viewerConfirmations = true;
 
+  sessionExpired = true;
+  await evaluate(`document.querySelector('[data-refresh]').click()`);
+  await waitFor(`document.querySelector('[data-app]').hidden === true && !document.querySelector('[data-login]').hidden`, 'expired session returns the app to the login layer');
+  diagnostics.checks.sessionExpiry = await evaluate(`({
+    appHidden: document.querySelector('[data-app]').hidden,
+    loginVisible: !document.querySelector('[data-login]').hidden,
+    message: document.querySelector('[data-dashboard-status]').textContent,
+  })`);
+  sessionExpired = false;
+
   console.log(JSON.stringify(diagnostics, null, 2));
   assert.deepEqual(diagnostics.checks.rendered, {
     role: 'ADMIN · READ / WRITE',
@@ -731,6 +746,7 @@ try {
   assert.equal(diagnostics.checks.viewerHoldingsFirst, true);
   assert.equal(diagnostics.checks.viewerPromptAfterHoldings, true);
   assert.equal(diagnostics.checks.viewerConfirmations, true);
+  assert.deepEqual(diagnostics.checks.sessionExpiry, { appHidden: true, loginVisible: true, message: '登录已过期，请重新登录。' }, 'a 401 from any protected endpoint must clear the session and surface the login layer');
   assert.equal(requests.filter((item) => item.method === 'POST' && item.pathname === '/api/auth/login').length, 2);
   assert.equal(requests.filter((item) => item.method === 'POST' && item.pathname === '/api/trades').length, 1);
   assert.equal(requests.filter((item) => item.method === 'PATCH' && item.pathname === '/api/trades/1').length, 1);
