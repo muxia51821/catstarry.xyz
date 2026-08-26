@@ -67,7 +67,7 @@ These rules apply to coding, implementation, testing, and repository tasks.
 
 ## Git 约束
 
-- 功能开发、Bug 修复和其他可能影响生产行为的任务，默认从最新 `main` 创建独立任务分支（例如 `task/finance-reliability`）；不要直接在 `main` 上进行此类开发。CHANGELOG 更新等纯文档性改动不受此限：可直接在 `main` 提交并推送，无需开分支或 PR；PR 保留给影响生产行为的代码改动。
+- 功能开发、Bug 修复和其他可能影响生产行为的任务，默认从最新 `main` 创建独立任务分支（例如 `task/finance-reliability`）；不要直接在 `main` 上进行此类开发。纯文档或极小的非生产性维护可以按任务需要例外处理。
 - 同一任务分支同时只允许一台电脑主动修改。任务完成并提交后 push 该任务分支；合并回 `main` 后，其他电脑必须先同步最新 `main`，再创建新的任务分支。不要让两台电脑同时推进同一个分支。
 - 同步远端 `main` 使用 `git pull --ff-only`：本机 `main` 与远端分叉时直接停下报错，不自动生成 merge commit。
 - 默认情况下 commit / push 由木下执行。对于明确授权的复杂 implementation task，Codex 可以在独立 `task/*` 或 `codex/*` 分支上 commit 和 push。Codex 不得直接 push `main`，不得自行 merge PR，也不得因此取得 deployment 或 production mutation authority。是否授权 Codex commit/push 由任务 handoff 明确说明；未明确授权时按木下执行。
