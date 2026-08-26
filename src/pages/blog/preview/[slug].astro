@@ -5,6 +5,7 @@ import { getCollection, render } from 'astro:content';
 import Base from '../../../layouts/Base.astro';
 import '../../../styles/blog.css';
 import { formatBlogDate, getPostSlug } from '../../../lib/blog';
+import { shanghaiDayKey } from '../../../../../shared/shanghai-time';
 import { getCategoryLabel } from '../../../lib/category';
 import { readOwnerSession } from '../../../lib/server/owner-auth';
 
@@ -41,7 +42,7 @@ const rendered = post ? await render(post) : null;
             <span class="blog-article__category">PRIVATE PREVIEW · {getCategoryLabel(post.data.category)}</span>
             <h1>{post.data.title}</h1>
             <p class="blog-article__deck">{post.data.description}</p>
-            <div class="blog-article__meta" aria-label="文章信息"><time datetime={post.data.date.toISOString().slice(0, 10)}>{formatBlogDate(post.data.date)}</time></div>
+            <div class="blog-article__meta" aria-label="文章信息"><time datetime={shanghaiDayKey(post.data.date)}>{formatBlogDate(post.data.date)}</time></div>
           </header>
           <div class="blog-prose"><rendered.Content /></div>
           {post.data.tags.length > 0 && <footer class="blog-article__tags" aria-label="文章标签">{post.data.tags.map((tag) => <span>#{tag}</span>)}</footer>}

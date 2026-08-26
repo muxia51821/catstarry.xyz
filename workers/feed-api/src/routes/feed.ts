@@ -6,6 +6,7 @@ import { recordPublicFootprint, parseFootprintCandidate } from '../modules/footp
 import { refreshActivitySignals } from '../modules/activity-signals';
 import { requireIngestAuth, requireMainSession } from './auth';
 import { logWorkerError } from '../../../../shared/worker-log';
+import { shanghaiUtcBoundary } from '../../../../shared/shanghai-time';
 
 const MAX_MEDIA_KEYS = 6;
 const MEDIA_KEY_PATTERN = /^feed\/\d{4}-\d{2}\/[0-9a-f-]{36}\.(?:jpg|jpeg|png|webp|heic|mp4|webm|mov)$/;
@@ -327,12 +328,7 @@ function normalizePost(input: FeedPostInput): FeedPostInput {
 
 function parseAdminDate(value: string | null, exclusiveEnd: boolean): string | undefined | null {
   if (value === null || value === '') return undefined;
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
-  const [year, month, day] = value.split('-').map(Number);
-  const date = new Date(Date.UTC(year, month - 1, day));
-  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return null;
-  if (exclusiveEnd) date.setUTCDate(date.getUTCDate() + 1);
-  return date.toISOString();
+  return shanghaiUtcBoundary(value, exclusiveEnd ? 1 : 0);
 }
 
 async function limitPreview(env: FeedEnv, username: string): Promise<boolean> {

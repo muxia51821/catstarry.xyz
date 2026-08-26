@@ -1,6 +1,7 @@
 import type { FeedMediaUploadResponse } from '../../../../shared/types';
 import { apiError, json } from '../lib/http';
 import { requireMainSession } from './auth';
+import { shanghaiMonthKey } from '../../../../shared/shanghai-time';
 
 const IMAGE_TYPES = new Map([
   ['image/jpeg', 'jpg'],
@@ -46,7 +47,7 @@ export async function handleUpload(request: Request, env: Env): Promise<Response
   if (!normalizedMime || !hasMatchingSignature(header, normalizedMime, extension)) {
     return apiError(415, 'media_signature_mismatch', 'The media signature does not match its declared type');
   }
-  const month = new Date().toISOString().slice(0, 7);
+  const month = shanghaiMonthKey(new Date());
   const key = `feed/${month}/${crypto.randomUUID()}.${extension}`;
   try {
     await env.MEDIA_BUCKET.put(key, file.stream(), {

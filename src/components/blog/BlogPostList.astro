@@ -1,5 +1,6 @@
 ---
 import { formatBlogArchiveDate, getPostUrl, type BlogPost } from '../../lib/blog';
+import { shanghaiDayKey } from '../../../shared/shanghai-time';
 import { getCategoryLabel } from '../../lib/category';
 
 interface Props {
@@ -16,10 +17,10 @@ const { posts, emptyMessage } = Astro.props;
   <div class="blog-post-list">
     {posts.map((post) => (
       <article class="blog-post-entry">
-        <time class="blog-post-entry__date" datetime={post.data.date.toISOString().slice(0, 10)}>{formatBlogArchiveDate(post.data.date)}</time>
+        <time class="blog-post-entry__date" datetime={shanghaiDayKey(post.data.date)}>{formatBlogArchiveDate(post.data.date)}</time>
         <div class="blog-post-entry__content">
           <div class="blog-post-entry__mobile-meta">
-            <time datetime={post.data.date.toISOString().slice(0, 10)}>{formatBlogArchiveDate(post.data.date)}</time>
+            <time datetime={shanghaiDayKey(post.data.date)}>{formatBlogArchiveDate(post.data.date)}</time>
             <a href={`/blog/category/${post.data.category}/`}>{getCategoryLabel(post.data.category)}</a>
           </div>
           <h2><a href={getPostUrl(post)}>{post.data.title}</a></h2>

@@ -160,7 +160,7 @@ export default function FeedAdmin({ apiBase, initial, initialError = '' }: Props
           return next;
         })} /><span className="feed-eyebrow">{label(entry)} · {projectionLabel(entry)}</span></label>
         <p>{summary(entry).slice(0, 50)}</p>
-        <time dateTime={entry.occurred_at}>{new Date(entry.occurred_at).toLocaleString('zh-CN')}</time>
+        <time dateTime={entry.occurred_at}>{new Date(entry.occurred_at).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })}</time>
         <div><button type="button" onClick={() => void update([entry], entry.visibility === 'public' ? 'private' : 'public')}>{entry.visibility === 'public' ? '隐藏' : '恢复'}</button>{entry.kind === 'native_post' && <button type="button" onClick={() => void remove(entry)}>删除</button>}</div>
       </article>)}
     </div>

@@ -1,5 +1,7 @@
 import type { CollectionEntry } from 'astro:content';
 
+import { formatShanghaiLongDate, formatShanghaiShortDate } from '../../shared/shanghai-time';
+
 export const POSTS_PER_PAGE = 10;
 
 export type BlogPost = CollectionEntry<'blog'>;
@@ -35,22 +37,11 @@ export function getPagePosts(posts: BlogPost[], page: number): BlogPost[] {
 }
 
 export function formatBlogDate(date: Date): string {
-  return date.toLocaleDateString('zh-CN', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    timeZone: 'Asia/Shanghai',
-  });
+  return formatShanghaiLongDate(date);
 }
 
 export function formatBlogArchiveDate(date: Date): string {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    month: '2-digit',
-    day: '2-digit',
-    timeZone: 'Asia/Shanghai',
-  }).formatToParts(date);
-  const value = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
-  return `${value.month}.${value.day}`;
+  return formatShanghaiShortDate(date);
 }
 
 export function getPageUrl(basePath: string, page: number): string {

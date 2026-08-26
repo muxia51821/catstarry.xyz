@@ -1,6 +1,7 @@
 ﻿import type { APIRoute } from 'astro';
 import { getCollection } from 'astro:content';
 import { getPostSlug } from '../../lib/blog';
+import { shanghaiParts } from '../../../shared/shanghai-time';
 import { filterPublishedBlogPosts } from '../../lib/server/blog-lifecycle';
 import { loadPublicLearnNotes } from '../../lib/server/learn-publications';
 
@@ -19,13 +20,13 @@ function escapeXml(s: string): string {
     .replace(/'/g, '&apos;');
 }
 
+const RFC822_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const RFC822_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
 function toRFC822(date: Date): string {
-  const tz = '+0800';
-  const inChina = new Date(date.getTime() + 8 * 60 * 60 * 1000);
-  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return days[inChina.getUTCDay()] + ', ' + pad(inChina.getUTCDate()) + ' ' + months[inChina.getUTCMonth()] + ' ' + inChina.getUTCFullYear() + ' ' + pad(inChina.getUTCHours()) + ':' + pad(inChina.getUTCMinutes()) + ':' + pad(inChina.getUTCSeconds()) + ' ' + tz;
+  const parts = shanghaiParts(date);
+  const weekday = new Date(Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day))).getUTCDay();
+  return `${RFC822_DAYS[weekday]}, ${parts.day} ${RFC822_MONTHS[Number(parts.month) - 1]} ${parts.year} ${parts.hour}:${parts.minute}:${parts.second} +0800`;
 }
 
 function truncateMd(text: string, maxLen: number): string {
