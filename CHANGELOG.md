@@ -8,7 +8,7 @@
 - ADR-005 公开投影门收敛为「调用方注入 published 集合」单一形态：activity-signal-store 的 learn 子查询改为与 blog 对称的 json_each 绑定，learn 集合读取失败沿用"中止刷新并保留旧投影"语义；动手前先在 feed HTTP 契约补齐 legacy carve-out 信号覆盖测试。
 - FeedApp/FeedAdmin 提取共享工具（分页去重、snapshot 摘要解析）；`applyFinanceMigrations` 更名为通用 `applyMigrations`。
 
-## 2026-08-25 — 架构收敛与测试瘦身（已合并 main，未部署生产）
+## 2026-08-25 — 架构收敛与测试瘦身（已合并 main，同日已发布生产）
 
 - Finance API 域核心模块化（PR #55）：「最新持仓快照 / 最新有效对账」查询与估值引擎分别收敛为 `modules/snapshots.ts`、`modules/valuation-engine.ts`，cron 不再反向依赖路由文件；dashboard 死代码删除。行为等价。
 - Feed API 共享缝清理（PR #56）：三处 Bearer 令牌校验统一为 `requireIngestAuth`（漏配令牌路径错误码统一为 `not_configured`）；足迹插入 SQL 收敛为单一构造器；slug 校验正则收进 `shared/slug.ts`。
