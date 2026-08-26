@@ -2,6 +2,7 @@
 
 - **Type**: Local markdown
 - **Location**: `.scratch/<feature-slug>/` — each feature request and bug gets its own directory
+- **Lifecycle**: every directory carries a lifecycle label in its `spec.md` — see the Lifecycle section below
 
 ## Conventions
 
@@ -38,3 +39,18 @@ Used by `/wayfinder`. The **map** is a file with one **child** file per ticket.
 - **Frontier**: scan `.scratch/<effort>/issues/` for files that are open, unblocked, and unclaimed; first by number wins.
 - **Claim**: set `Status: claimed` and save before any work.
 - **Resolve**: append the answer under an `## Answer` heading, set `Status: resolved`, then append a context pointer (gist + link) to the map's Decisions-so-far in `map.md`.
+
+## Lifecycle（目录生命周期）
+
+每个 `.scratch/<feature>/` 目录在其 `spec.md` 头部维护一行 `Lifecycle:` 字段，取值：
+
+- `active` — 工作未结束或待裁决
+- `closed-keep-evidence` — 已完结，且含生产操作证据、备份等需长期留存的工件
+- `closed-safe-to-archive` — 已完结，PR 描述即完整记录，磁盘清理时可随目录移除
+
+规则：
+
+- 实施方在对应 PR 合并收尾时自标本目录的 Lifecycle；跨会话清点时对无法定性的目录保守标 `active`
+- 合并后的清点是只读动作：扫描各 spec.md 的 Lifecycle 汇总即可，**永不自动删除**任何目录；是否清理由木下逐项决定
+- 本字段是目录级生命周期，与单个 issue 的 `Status:`（triage 流转）互不影响
+- 缺少 spec.md 的历史目录在清点时补最小 spec（标题 + Lifecycle + 一句话来源）

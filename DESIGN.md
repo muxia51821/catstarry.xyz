@@ -233,6 +233,8 @@ Finance 不使用 Cursor Meteor、Paw Trail 或 Content Click Feedback。
 | Data / Mono | JetBrains Mono | Finance 数值、时间戳、结构 metadata |
 | CJK Fallback | HarmonyOS Sans SC、PingFang SC、Microsoft YaHei | 中文兜底 |
 
+> 现实注记（2026-08-26）：当前构建未自托管任何字体（仓库无 @font-face，`public/` 无字体文件）。上表字体族以 CSS font-family 名称声明，实际渲染依赖访客系统已安装的同名字体，缺失时按栈回退到 PingFang SC / Microsoft YaHei / system-ui。`docs/design/font/` 为选型素材库（含许可证），未接入构建；若未来要兑现品牌渲染，需自托管精简子集（可变字体 + OFL）并补 @font-face。
+
 ### 7.2 字号层级
 
 | 角色 | EN | CN | 字重 | 行高原则 |
