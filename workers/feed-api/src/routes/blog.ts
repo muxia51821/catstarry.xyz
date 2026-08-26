@@ -12,7 +12,7 @@ import {
   type StoredBlogLifecycleEntry,
   writeBlogLifecycle,
 } from '../modules/blog-publications';
-import { parseFootprintCandidate } from '../modules/footprints';
+import { buildSourceFootprintCandidate, FIRST_PRODUCTION_VERSION } from '../modules/footprints';
 import { claimBlogSyncRelease } from '../modules/publication-release-guards';
 import { requireIngestAuth, requireMainSession } from './auth';
 
@@ -143,20 +143,16 @@ async function recordFirstPublication(
   entry: Pick<StoredBlogLifecycleEntry, 'slug' | 'title' | 'summary'>,
   occurredAt: string,
 ): Promise<number> {
-  const candidate = parseFootprintCandidate({
-    source_module: 'blog',
-    source_ref: entry.slug,
-    source_version: 'first-production-v1',
-    event_type: 'blog_published',
-    snapshot_json: JSON.stringify({
-      title: entry.title,
-      ...(entry.summary ? { summary: entry.summary } : {}),
-      link: `/blog/${entry.slug}/`,
-    }),
-    occurred_at: occurredAt,
-    idempotency_key: `blog:${entry.slug}:first-production-v1`,
+  const candidate = buildSourceFootprintCandidate({
+    sourceModule: 'blog',
+    sourceRef: entry.slug,
+    sourceVersion: FIRST_PRODUCTION_VERSION,
+    eventType: 'blog_published',
+    title: entry.title,
+    ...(entry.summary ? { summary: entry.summary } : {}),
+    link: `/blog/${entry.slug}/`,
+    occurredAt,
   });
-  if (!candidate) throw new Error('Blog publication entry could not be normalized');
   const result = await new FeedStore(env.DB).recordFootprint(candidate, new Date().toISOString());
   return result.created ? 1 : 0;
 }

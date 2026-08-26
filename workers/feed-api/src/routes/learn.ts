@@ -25,7 +25,7 @@ import {
   updateLearnPublicationVisibilityStatement,
   updateLearnRevisionStatement,
 } from '../modules/learn-publications';
-import { parseFootprintCandidate } from '../modules/footprints';
+import { buildSourceFootprintCandidate, FIRST_PRODUCTION_VERSION } from '../modules/footprints';
 import {
   LEARN_PENDING_RELEASE_KEY,
   abortLearnRelease,
@@ -295,40 +295,30 @@ async function validateLearnSyncRelease(
 }
 
 function firstPublicationCandidate(slug: string, title: string, excerpt: string, occurredAt: string): PublicFootprintCandidate {
-  const candidate = parseFootprintCandidate({
-    source_module: 'learn',
-    source_ref: slug,
-    source_version: 'first-production-v1',
-    event_type: 'learn_note_published',
-    snapshot_json: JSON.stringify({
-      title,
-      ...(excerpt ? { summary: excerpt } : {}),
-      link: `/learn/notes/${slug}/`,
-    }),
-    occurred_at: occurredAt,
-    idempotency_key: `learn:${slug}:first-production-v1`,
+  return buildSourceFootprintCandidate({
+    sourceModule: 'learn',
+    sourceRef: slug,
+    sourceVersion: FIRST_PRODUCTION_VERSION,
+    eventType: 'learn_note_published',
+    title,
+    ...(excerpt ? { summary: excerpt } : {}),
+    link: `/learn/notes/${slug}/`,
+    occurredAt,
   });
-  if (!candidate) throw new Error('Learn publication entry could not be normalized');
-  return candidate;
 }
 
 function revisionCandidate(entry: NormalizedDeployEntry, deployedAt: string): PublicFootprintCandidate {
   const sourceVersion = `r:${Math.floor(Date.parse(entry.revised_at ?? '') / 1_000)}`;
-  const candidate = parseFootprintCandidate({
-    source_module: 'learn',
-    source_ref: entry.slug,
-    source_version: sourceVersion,
-    event_type: 'learn_note_revised',
-    snapshot_json: JSON.stringify({
-      title: entry.title,
-      ...(entry.excerpt ? { summary: entry.excerpt } : {}),
-      link: `/learn/notes/${entry.slug}/`,
-    }),
-    occurred_at: deployedAt,
-    idempotency_key: `learn:${entry.slug}:${sourceVersion}`,
+  return buildSourceFootprintCandidate({
+    sourceModule: 'learn',
+    sourceRef: entry.slug,
+    sourceVersion,
+    eventType: 'learn_note_revised',
+    title: entry.title,
+    ...(entry.excerpt ? { summary: entry.excerpt } : {}),
+    link: `/learn/notes/${entry.slug}/`,
+    occurredAt: deployedAt,
   });
-  if (!candidate) throw new Error('Learn revision entry could not be normalized');
-  return candidate;
 }
 
 function normalizeDeployEntries(entries: LearnDeployEntry[]): NormalizedDeployEntry[] | null {

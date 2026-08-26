@@ -1,5 +1,36 @@
-import type { PublicFootprint, PublicFootprintCandidate } from '../../../../shared/types';
+import type { FootprintEventType, FootprintSource, PublicFootprint, PublicFootprintCandidate } from '../../../../shared/types';
 import { FeedStore } from '../adapters/feed-store';
+
+export const FIRST_PRODUCTION_VERSION = 'first-production-v1';
+
+export interface SourceFootprintInput {
+  sourceModule: FootprintSource;
+  sourceRef: string;
+  sourceVersion: string;
+  eventType: FootprintEventType;
+  title: string;
+  summary?: string;
+  link: string;
+  occurredAt: string;
+}
+
+export function buildSourceFootprintCandidate(input: SourceFootprintInput): PublicFootprintCandidate {
+  const candidate = parseFootprintCandidate({
+    source_module: input.sourceModule,
+    source_ref: input.sourceRef,
+    source_version: input.sourceVersion,
+    event_type: input.eventType,
+    snapshot_json: JSON.stringify({
+      title: input.title,
+      ...(input.summary ? { summary: input.summary } : {}),
+      link: input.link,
+    }),
+    occurred_at: input.occurredAt,
+    idempotency_key: `${input.sourceModule}:${input.sourceRef}:${input.sourceVersion}`,
+  });
+  if (!candidate) throw new Error('Source footprint entry could not be normalized');
+  return candidate;
+}
 
 export interface FootprintWrite {
   created: boolean;
