@@ -45,6 +45,7 @@ for (const button of document.querySelectorAll('[data-tab]')) button.addEventLis
   for (const pane of document.querySelectorAll('[data-pane]')) pane.hidden = pane.dataset.pane !== button.dataset.tab;
 });
 </script>
+<script src="/finance-shared.js" defer></script>
 <script src="/operations-ui.js" defer></script>
 </body></html>`;
 
@@ -58,6 +59,7 @@ const server = createServer(async (request, response) => {
     return;
   }
   if (url.pathname === '/operations.css') return file(response, 'finance-site/operations.css', 'text/css; charset=utf-8');
+  if (url.pathname === '/finance-shared.js') return file(response, 'finance-site/finance-shared.js', 'text/javascript; charset=utf-8');
   if (url.pathname === '/operations-ui.js') return file(response, 'finance-site/operations-ui.js', 'text/javascript; charset=utf-8');
   if (url.pathname === '/api/activity') {
     if (mode === 'fail') return json(response, 503, { message: 'activity unavailable' });

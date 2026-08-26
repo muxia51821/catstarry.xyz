@@ -1,5 +1,4 @@
 (() => {
-  const apiBase = document.querySelector('meta[name="finance-api-base"]')?.content.replace(/\/$/, '') ?? '';
   const app = document.querySelector('[data-app]');
   const grid = document.querySelector('.dashboard-grid');
   const oldImportPanel = document.querySelector('[data-import-review-panel]');

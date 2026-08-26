@@ -21,7 +21,7 @@ assert.match(script, /\/api\/trades\?limit=50/);
 assert.match(script, /\/api\/assets\/snapshots/);
 assert.match(script, /data-account-breakdown/);
 assert.match(script, /Broker Cash/);
-assert.match(script, /portfolioNumber\.format\(Number\(row\.quantity\)\).*portfolioMoney\.format\(Number\(row\.price\)\)/s);
+assert.match(script, /number\.format\(Number\(row\.quantity\)\).*money\.format\(Number\(row\.price\)\)/s);
 assert.match(script, /PORTFOLIO_ROLES/);
 assert.match(script, /position_category/);
 assert.match(script, /security_attribute/);

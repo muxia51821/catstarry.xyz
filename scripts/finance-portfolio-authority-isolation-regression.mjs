@@ -25,6 +25,7 @@ const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="finan
     <section class="panel"><form data-trade-filters><label>开始<input name="start"></label><label>结束<input name="end"></label><label>标的<input name="ticker"></label><label>方向<select name="direction"><option value="">全部</option></select></label><button type="submit">筛选</button></form><div class="table-scroll"><table><thead><tr><th>日期</th><th>标的</th><th>方向</th><th>数量</th><th>价格</th><th>类别</th><th>理由</th><th>操作</th></tr></thead><tbody data-trades-body></tbody></table></div></section>
   </main>
 </div>
+<script src="/finance-shared.js" defer></script>
 <script src="/portfolio-ui.js" defer></script>
 </body></html>`;
 
@@ -38,6 +39,7 @@ const server = createServer(async (request, response) => {
     return;
   }
   const files = {
+    '/finance-shared.js': ['finance-site/finance-shared.js', 'text/javascript; charset=utf-8'],
     '/app.js': ['finance-site/app.js', 'text/javascript; charset=utf-8'],
     '/portfolio-ui.js': ['finance-site/portfolio-ui.js', 'text/javascript; charset=utf-8'],
     '/operations-ui.js': ['finance-site/operations-ui.js', 'text/javascript; charset=utf-8'],

@@ -1,6 +1,3 @@
-const portfolioApiBase = document.querySelector('meta[name="finance-api-base"]')?.content.replace(/\/$/, '') ?? '';
-const portfolioMoney = new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY', maximumFractionDigits: 2 });
-const portfolioNumber = new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 2 });
 const PORTFOLIO_ROLES = [
   ['主动操作仓（A股）', '主动操作仓', '#6685ff'],
   ['A股宽基指数底仓', 'A股宽基指数', '#d4c94e'],
@@ -45,7 +42,7 @@ function portfolioElement(tag, className, text) {
 }
 
 async function portfolioRequest(path) {
-  const response = await fetch(`${portfolioApiBase}${path}`, { credentials: 'include' });
+  const response = await fetch(`${apiBase}${path}`, { credentials: 'include' });
   const body = await response.json().catch(() => null);
   if (!response.ok) throw new Error(body?.message ?? `请求失败（${response.status}）`);
   return body;
@@ -126,7 +123,7 @@ async function refreshPortfolioAuxiliary(epoch) {
 function renderPortfolioAccountState(accountState) {
   if (!portfolioTotal || !portfolioStatus) return;
   const total = finiteNumber(accountState?.total_assets);
-  portfolioTotal.textContent = total === null ? '待核验' : portfolioMoney.format(total);
+  portfolioTotal.textContent = total === null ? '待核验' : money.format(total);
   portfolioTotal.dataset.numeric = String(total !== null);
   portfolioStatus.textContent = accountStateStatus(accountState);
   portfolioAccountState = accountState;
@@ -138,22 +135,22 @@ function renderPortfolioAccountState(accountState) {
   breakdown.dataset.accountBreakdown = '';
 
   const holdings = finiteNumber(accountState?.holdings?.market_value);
-  breakdown.append(accountBreakdownRow('证券市值', holdings === null ? '行情不完整' : portfolioMoney.format(holdings)));
+  breakdown.append(accountBreakdownRow('证券市值', holdings === null ? '行情不完整' : money.format(holdings)));
 
   const cash = finiteNumber(accountState?.cash?.value);
   const knownCash = finiteNumber(accountState?.cash?.known_value);
-  breakdown.append(accountBreakdownRow('Broker Cash', cash !== null ? portfolioMoney.format(cash) : knownCash !== null ? `${portfolioMoney.format(knownCash)} · 待核验` : '待对账'));
+  breakdown.append(accountBreakdownRow('Broker Cash', cash !== null ? money.format(cash) : knownCash !== null ? `${money.format(knownCash)} · 待核验` : '待对账'));
 
   const other = finiteNumber(accountState?.other_assets?.value);
   const knownOther = finiteNumber(accountState?.other_assets?.known_value);
   if ((other ?? knownOther ?? 0) > 0 || accountState?.other_assets?.status === 'incomplete') {
-    breakdown.append(accountBreakdownRow('其他账户资产', other !== null ? portfolioMoney.format(other) : knownOther !== null ? `${portfolioMoney.format(knownOther)} · 待核验` : '待核验'));
+    breakdown.append(accountBreakdownRow('其他账户资产', other !== null ? money.format(other) : knownOther !== null ? `${money.format(knownOther)} · 待核验` : '待核验'));
   }
   const performance = accountState?.performance;
   if (performance?.status === 'available') {
-    breakdown.append(accountBreakdownRow('累计投入', portfolioMoney.format(performance.total_contributions)));
+    breakdown.append(accountBreakdownRow('累计投入', money.format(performance.total_contributions)));
     const pnl = finiteNumber(performance.pnl);
-    breakdown.append(accountBreakdownRow('累计盈亏', pnl === null ? '—' : `${pnl >= 0 ? '+' : ''}${portfolioMoney.format(pnl)}`, pnl === null ? '' : pnl >= 0 ? 'value-up' : 'value-down'));
+    breakdown.append(accountBreakdownRow('累计盈亏', pnl === null ? '—' : `${pnl >= 0 ? '+' : ''}${money.format(pnl)}`, pnl === null ? '' : pnl >= 0 ? 'value-up' : 'value-down'));
   } else if (performance) {
     breakdown.append(accountBreakdownRow('累计盈亏', '待核验'));
   }
@@ -180,7 +177,7 @@ function renderPortfolioAllocation(accountState) {
   const available = projection?.percentage_available === true && total !== null && total > 0 && roles.length > 0;
   portfolioAllocationBody.hidden = !available;
   portfolioAllocationUnavailable.hidden = available;
-  portfolioAllocationTotal.textContent = available ? `Total Assets · ${portfolioMoney.format(total)}` : 'Allocation unavailable';
+  portfolioAllocationTotal.textContent = available ? `Total Assets · ${money.format(total)}` : 'Allocation unavailable';
   if (!available) {
     portfolioAllocationPlot.replaceChildren();
     portfolioAllocationDetail.replaceChildren();
@@ -242,8 +239,8 @@ function renderPortfolioRoleComposition(projection) {
     return holdingRow([
       portfolioElement('th', '', role),
       dataCell(maybeMoney(row.value)),
-      dataCell(percentage === null ? '—' : formatPortfolioPercent(percentage)),
-      dataCell(finiteNumber(row.target_ratio) === null ? '—' : formatPortfolioPercent(Number(row.target_ratio))),
+      dataCell(percentage === null ? '—' : formatPercent(percentage)),
+      dataCell(finiteNumber(row.target_ratio) === null ? '—' : formatPercent(Number(row.target_ratio))),
       dataCell(deviation === null ? '—' : formatPortfolioDeviation(deviation), deviationClass),
     ]);
   }));
@@ -269,7 +266,7 @@ function renderPortfolioAllocationMap(roles, total) {
     group.setAttribute('tabindex', '0');
     group.setAttribute('role', 'button');
     group.setAttribute('aria-pressed', String(role.key === selected));
-    group.setAttribute('aria-label', `${role.label}，${portfolioMoney.format(role.value)}，${formatPortfolioPercent(percentage)}`);
+    group.setAttribute('aria-label', `${role.label}，${money.format(role.value)}，${formatPercent(percentage)}`);
     const activate = () => {
       portfolioAllocationSelected = role.key;
       renderPortfolioAllocationMap(roles, total);
@@ -278,7 +275,7 @@ function renderPortfolioAllocationMap(roles, total) {
     group.addEventListener('click', activate);
     group.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); activate(); } });
     const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
-    title.textContent = `${role.label} · ${portfolioMoney.format(role.value)} · ${formatPortfolioPercent(percentage)}`;
+    title.textContent = `${role.label} · ${money.format(role.value)} · ${formatPercent(percentage)}`;
     const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
     rect.setAttribute('x', String(cell.x)); rect.setAttribute('y', String(cell.y)); rect.setAttribute('width', String(cell.width)); rect.setAttribute('height', String(cell.height)); rect.setAttribute('rx', '3'); rect.dataset.share = (percentage * 100).toFixed(4);
     group.append(title, rect);
@@ -286,7 +283,7 @@ function renderPortfolioAllocationMap(roles, total) {
       const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
       label.classList.add('portfolio-allocation__label'); label.setAttribute('x', String(cell.x + 16)); label.setAttribute('y', String(cell.y + 28)); label.textContent = role.label;
       const value = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-      value.classList.add('portfolio-allocation__value'); value.setAttribute('x', String(cell.x + 16)); value.setAttribute('y', String(cell.y + 48)); value.textContent = `${portfolioMoney.format(role.value)} · ${formatPortfolioPercent(percentage)}`;
+      value.classList.add('portfolio-allocation__value'); value.setAttribute('x', String(cell.x + 16)); value.setAttribute('y', String(cell.y + 48)); value.textContent = `${money.format(role.value)} · ${formatPercent(percentage)}`;
       group.append(label, value);
     }
     svg.append(group);
@@ -321,7 +318,7 @@ function renderPortfolioAllocationDetail(roles, accountState) {
   portfolioAllocationDetailTitle.textContent = selected.label;
   const total = finiteNumber(accountState?.portfolio_roles?.total_assets);
   const summary = portfolioElement('p', 'portfolio-allocation__summary');
-  summary.append(portfolioElement('strong', '', portfolioMoney.format(selected.value)), portfolioElement('span', '', total === null ? '—' : formatPortfolioPercent(selected.value / total)));
+  summary.append(portfolioElement('strong', '', money.format(selected.value)), portfolioElement('span', '', total === null ? '—' : formatPercent(selected.value / total)));
   const table = portfolioElement('table', 'portfolio-allocation__table');
   const head = document.createElement('thead');
   const headings = document.createElement('tr');
@@ -332,8 +329,8 @@ function renderPortfolioAllocationDetail(roles, accountState) {
     const row = document.createElement('tr');
     row.append(
       portfolioElement('th', '', item.label),
-      portfolioElement('td', '', item.value === null ? '—' : portfolioMoney.format(item.value)),
-      portfolioElement('td', item.pnl === null ? '' : item.pnl >= 0 ? 'value-up' : 'value-down', item.pnl === null ? '—' : portfolioMoney.format(item.pnl)),
+      portfolioElement('td', '', item.value === null ? '—' : money.format(item.value)),
+      portfolioElement('td', item.pnl === null ? '' : item.pnl >= 0 ? 'value-up' : 'value-down', item.pnl === null ? '—' : money.format(item.pnl)),
     );
     body.append(row);
   }
@@ -367,7 +364,6 @@ function allocationComposition(role, accountState) {
   return rows.length ? rows : [{ label: '当前角色资产', value: role.value, pnl: null }];
 }
 
-function formatPortfolioPercent(value) { return `${(value * 100).toFixed(1)}%`; }
 function formatPortfolioDeviation(value) { return `${value > 0 ? '+' : ''}${(value * 100).toFixed(1)}pp`; }
 
 function accountBreakdownRow(label, value, valueClass = '') {
@@ -396,7 +392,7 @@ function renderPortfolioRecentTrades(rows) {
     const card = portfolioElement('article', 'overview-trade portfolio-overview-trade');
     const heading = portfolioElement('span', '', `${row.trade_date} · ${row.ticker_name || row.ticker}`);
     const detail = portfolioElement('strong', row.direction === 'sell' ? 'trade-sell' : 'trade-buy');
-    detail.textContent = `${row.direction === 'sell' ? '卖出' : '买入'} · ${portfolioNumber.format(Number(row.quantity))} 股 × ${portfolioMoney.format(Number(row.price))}`;
+    detail.textContent = `${row.direction === 'sell' ? '卖出' : '买入'} · ${number.format(Number(row.quantity))} 股 × ${money.format(Number(row.price))}`;
     card.append(heading, detail);
     return card;
   }));
@@ -486,13 +482,13 @@ function renderPortfolioHoldings() {
       title,
       roleCell(row.position_category),
       securityAttributeCell(security?.security_attribute),
-      dataCell(portfolioNumber.format(Number(row.quantity))),
+      dataCell(number.format(Number(row.quantity))),
       dataCell(maybeMoney(row.avg_cost)),
       dataCell(maybeMoney(row.price)),
       dataCell(maybeMoney(row.market_value)),
-      dataCell(allocation === null ? '—' : formatPortfolioPercent(allocation)),
+      dataCell(allocation === null ? '—' : formatPercent(allocation)),
       dataCell(maybeMoney(row.pnl), pnl === null ? '' : pnl >= 0 ? 'value-up' : 'value-down'),
-      dataCell(pnlRatio === null ? '—' : formatPortfolioPercent(pnlRatio), pnlRatio === null ? '' : pnlRatio >= 0 ? 'value-up' : 'value-down'),
+      dataCell(pnlRatio === null ? '—' : formatPercent(pnlRatio), pnlRatio === null ? '' : pnlRatio >= 0 ? 'value-up' : 'value-down'),
     ]);
   }));
 
@@ -530,7 +526,7 @@ function dataCell(text, extraClass = '') {
 
 function maybeMoney(value) {
   const number = finiteNumber(value);
-  return number === null ? '—' : portfolioMoney.format(number);
+  return number === null ? '—' : money.format(number);
 }
 
 function decoratePortfolioTradeTable() {

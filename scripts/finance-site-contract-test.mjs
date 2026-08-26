@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-const [html, css, script, headers, worker, portfolioUi, portfolioCss, operationsUi, operationsCss, accountStateRoute, activityRoute, operationsRoute, legacyReviewRoute, operationMigration, snapshotsModule] = await Promise.all([
+const [html, css, script, headers, worker, portfolioUi, portfolioCss, operationsUi, operationsCss, accountStateRoute, activityRoute, operationsRoute, legacyReviewRoute, operationMigration, snapshotsModule, financeShared] = await Promise.all([
   readFile('finance-site/index.html', 'utf8'),
   readFile('finance-site/styles.css', 'utf8'),
   readFile('finance-site/app.js', 'utf8'),
@@ -17,6 +17,7 @@ const [html, css, script, headers, worker, portfolioUi, portfolioCss, operations
   readFile('workers/finance-api/src/routes/legacy-import-review.ts', 'utf8'),
   readFile('workers/finance-api/migrations/0008_operation_history.sql', 'utf8'),
   readFile('workers/finance-api/src/modules/snapshots.ts', 'utf8'),
+  readFile('finance-site/finance-shared.js', 'utf8'),
 ]);
 
 for (const marker of ['data-login-form', 'data-open-trade', 'data-holdings-body', 'data-position-list', 'data-pe-list', 'data-objection', 'data-open-review', 'data-export-archive', 'data-access-list', 'data-open-rules']) {
@@ -33,7 +34,10 @@ assert.match(script, /state\.notifications\?\.monthly_confirmation\?\.period/);
 assert.doesNotMatch(script, /setMonth\(/, 'confirmation periods must come from the Shanghai-time server contract');
 assert.match(script, /timeZone: 'Asia\/Shanghai'/, 'form prefills must derive from the Shanghai wall clock');
 assert.doesNotMatch(script, /getTimezoneOffset|toLocaleDateString|getFullYear\(|toISOString/, 'date inputs must not depend on UTC or the visitor-local timezone');
-assert.doesNotMatch(`${script}\n${operationsUi}`, /innerHTML|insertAdjacentHTML|scrollIntoView/);
+assert.doesNotMatch(`${script}\n${portfolioUi}\n${operationsUi}\n${financeShared}`, /innerHTML|insertAdjacentHTML|scrollIntoView/);
+assert.match(html, /<script src="\/finance-shared\.js" defer><\/script>\s*<script src="\/app\.js" defer><\/script>/, 'shared finance helpers must load before app.js');
+assert.match(financeShared, /finance-api-base/);
+assert.match(financeShared, /formatPercent/);
 assert.doesNotMatch(`${html}\n${script}\n${worker}`, /password\s*[:=]\s*["'][^"']+["']/i);
 assert.doesNotMatch(`${html}\n${script}`, /feed-api\.catstarry\.workers\.dev/);
 assert.doesNotMatch(`${html}\n${script}\n${operationsUi}\n${accountStateRoute}`, /data-open-account(?!-event)|data-account-list|\/api\/accounts/, 'Finance must not reintroduce a generic account-management product');
