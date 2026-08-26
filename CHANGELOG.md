@@ -2,7 +2,7 @@
 
 ## 2026-08-26 — Finance workspace 表单预填时钟修复（task/finance-site-shanghai-prefill，未合并未部署）
 
-- 修复 Finance workspace 六个表单的默认值时钟错误（`finance-site/app.js`）：资产快照时间预填此前用 UTC 墙钟而服务端按上海解释（落库时间差 8 小时、日期可错一天）；月度记录月份、交易/现金流/账户事件日期此前分别跟随 UTC 月或访问者设备时区；年度复盘与档案导出的默认年份跟随设备本地年。现全部统一由新增的 `shanghaiWallClockInput()`（Intl 上海墙钟）派生。
+- 修复 Finance workspace 表单与档案导出默认值的时钟错误（`finance-site/app.js`，7 处调用点）：资产快照时间预填此前用 UTC 墙钟而服务端按上海解释（落库时间差 8 小时、日期可错一天）；月度记录月份、交易/现金流/账户事件日期此前分别跟随 UTC 月或访问者设备时区；年度复盘与档案导出的默认年份跟随设备本地年。现全部统一由新增的 `shanghaiWallClockInput()`（Intl 上海墙钟）派生。
 - `finance-site-contract-test` 新增双向断言：表单预填必须含 `Asia/Shanghai` 语义，且不得再出现 `getTimezoneOffset` / 本地年份取值。
 - 文档收尾：DEPLOY.md 补记手动浏览器回归工具 `test:feed:ui` 的用途与前置条件；GLOSSARY canonical naming 增加「上海时钟」词条，指向 `shared/shanghai-time.ts` 为全站唯一时钟原语来源。
 
