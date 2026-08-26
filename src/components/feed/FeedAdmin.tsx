@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { PaginatedResponse, TimelineEntry } from '../../../shared/types';
+import { appendDedupedById, parseFootprintSnapshot } from '../../lib/feed-entries';
 import { summarizeBatchResults } from '../../lib/batch-results';
 
 interface Props {
@@ -18,11 +19,7 @@ function summary(entry: TimelineEntry): string {
     const payload = entry.payload as { content?: string | null; link_title?: string | null };
     return String(payload.content ?? payload.link_title ?? '无文字');
   }
-  try {
-    return String((JSON.parse(String((entry.payload as { snapshot_json: string }).snapshot_json)) as { title?: string }).title ?? '公开足迹');
-  } catch {
-    return '公开足迹';
-  }
+  return String(parseFootprintSnapshot(entry)?.title ?? '公开足迹');
 }
 
 function projectionLabel(entry: TimelineEntry): string {
@@ -70,7 +67,7 @@ export default function FeedAdmin({ apiBase, initial, initialError = '' }: Props
       const next = await fetchPage(page.cursor);
       setPage((current) => ({
         ...next,
-        items: [...current.items, ...next.items.filter((item) => !current.items.some((known) => known.id === item.id))],
+        items: appendDedupedById(current.items, next.items),
       }));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : '无法加载更多记录');
