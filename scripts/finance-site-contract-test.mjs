@@ -31,6 +31,8 @@ assert.match(css, /prefers-reduced-motion/);
 assert.match(script, /\.inert = true/);
 assert.match(script, /state\.notifications\?\.monthly_confirmation\?\.period/);
 assert.doesNotMatch(script, /setMonth\(/, 'confirmation periods must come from the Shanghai-time server contract');
+assert.match(script, /timeZone: 'Asia\/Shanghai'/, 'form prefills must derive from the Shanghai wall clock');
+assert.doesNotMatch(script, /getTimezoneOffset|toLocaleDateString|getFullYear\(|toISOString/, 'date inputs must not depend on UTC or the visitor-local timezone');
 assert.doesNotMatch(`${script}\n${operationsUi}`, /innerHTML|insertAdjacentHTML|scrollIntoView/);
 assert.doesNotMatch(`${html}\n${script}\n${worker}`, /password\s*[:=]\s*["'][^"']+["']/i);
 assert.doesNotMatch(`${html}\n${script}`, /feed-api\.catstarry\.workers\.dev/);

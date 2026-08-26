@@ -1,12 +1,14 @@
 # 更新记录
 
-## 2026-08-26 — Feed 板块全面梳理（task/feed-review，未合并未部署）
+## 2026-08-26 — Feed 板块全面梳理 + Finance 表单预填修复（feed-review 已合并 main；prefill 待合并；均未部署生产）
 
 - 共享上海时钟模块落地（`shared/shanghai-time.ts`）：feed 侧六处时间实现（浏览去重键、时间线分组、RSS、Blog/Learn 显示格式）统一走单一 Intl 原语；新增 `test:shared:time` 契约锁跨年/日界行为。顺带修正四处隐性口径问题：Feed 管理列表时间显示与按天过滤改用上海时区/上海日界、上传月份前缀、博客 `<time datetime>` 机器属性对齐上海日历日。
 - Learn 发布生命周期收敛：新增 `modules/learn-publications.ts` 作为 `learn_publications` 表唯一 D1 出口（读 + 受守卫写入 + `{written, blocked}` 结果解释），`'learn-pending'` 屏障字面量归一为单一常量；Feed 路由不再手写该表 SQL。
 - 足迹工厂去重：blog 首发布 / learn 首发布 / learn 修订三处近克隆合并为 `buildSourceFootprintCandidate`，版本串与幂等键形状单点定义。
 - ADR-005 公开投影门收敛为「调用方注入 published 集合」单一形态：activity-signal-store 的 learn 子查询改为与 blog 对称的 json_each 绑定，learn 集合读取失败沿用"中止刷新并保留旧投影"语义；动手前先在 feed HTTP 契约补齐 legacy carve-out 信号覆盖测试。
 - FeedApp/FeedAdmin 提取共享工具（分页去重、snapshot 摘要解析）；`applyFinanceMigrations` 更名为通用 `applyMigrations`。
+- Finance workspace 表单预填时钟修复（`finance-site/app.js`，7 处调用点）：资产快照时间预填此前用 UTC 墙钟而服务端按上海解释（落库时间差 8 小时、日期可错一天）；月度记录月份、交易/现金流/账户事件日期此前分别跟随 UTC 月或访问者设备时区；年度复盘与档案导出的默认年份跟随设备本地年。现全部统一由新增的 `shanghaiWallClockInput()`（Intl 上海墙钟）派生；契约测试双向锁死（必须含 `Asia/Shanghai`，禁止 `getTimezoneOffset` / `toISOString` / 本地年份取值回归）。
+- 文档收尾：DEPLOY.md 补记手动浏览器回归工具 `test:feed:ui` 的用途；GLOSSARY canonical naming 增加「上海时钟」词条，指向 `shared/shanghai-time.ts` 为全站唯一时钟原语来源。
 
 ## 2026-08-25 — 架构收敛与测试瘦身（已合并 main，同日已发布生产）
 
