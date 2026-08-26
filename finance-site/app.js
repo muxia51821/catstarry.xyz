@@ -42,10 +42,22 @@ const state = {
 const viewerGuidance = { hasVisitedHoldings: false, monthlyPromptShown: false };
 let authStateVersion = 0;
 
-function localDateForInput() {
-  const now = new Date();
-  const offset = now.getTimezoneOffset() * 60_000;
-  return new Date(now.getTime() - offset).toISOString().slice(0, 10);
+function shanghaiWallClockInput(date = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(date);
+  const value = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
+  return `${value.year}-${value.month}-${value.day}T${value.hour}:${value.minute}`;
+}
+
+function shanghaiDateForInput() {
+  return shanghaiWallClockInput().slice(0, 10);
 }
 
 async function request(path, options = {}) {
@@ -543,7 +555,7 @@ function setTradeCategoryIndicator() {
   $('[data-trade-category-control]').style.setProperty('--category-color', item.color);
 }
 function openTradeNew(trigger) {
-  state.editingTrade = null; tradeForm.reset(); tradeForm.elements.trade_date.value = localDateForInput(); $('[data-trade-dialog-title]').textContent = '录入交易'; $('[data-trade-dialog-copy]').textContent = '先填写标的，再确认本次买卖。保存后会保留日期和仓位类别，方便连续录入。'; $('[data-trade-submit]').textContent = '保存并继续录入'; setStatus($('[data-trade-status]'), ''); setTradeTotal(); setTradeCategoryIndicator(); openDialog(tradeDialog, trigger); tradeForm.elements.ticker.focus();
+  state.editingTrade = null; tradeForm.reset(); tradeForm.elements.trade_date.value = shanghaiDateForInput(); $('[data-trade-dialog-title]').textContent = '录入交易'; $('[data-trade-dialog-copy]').textContent = '先填写标的，再确认本次买卖。保存后会保留日期和仓位类别，方便连续录入。'; $('[data-trade-submit]').textContent = '保存并继续录入'; setStatus($('[data-trade-status]'), ''); setTradeTotal(); setTradeCategoryIndicator(); openDialog(tradeDialog, trigger); tradeForm.elements.ticker.focus();
 }
 function openTradeEdit(id) {
   const trade = state.trades.find((item) => Number(item.id) === id); if (!trade) return; state.editingTrade = trade; for (const [key, value] of Object.entries(trade)) if (tradeForm.elements[key]) tradeForm.elements[key].value = value ?? ''; $('[data-trade-dialog-title]').textContent = '修改最新交易'; $('[data-trade-dialog-copy]').textContent = '只允许修改最新且独立的线上交易，以避免重写导入历史或后续持仓。'; $('[data-trade-submit]').textContent = '保存修改'; setTradeTotal(Number(trade.quantity) * Number(trade.price)); setTradeCategoryIndicator(); openDialog(tradeDialog, document.querySelector(`[data-edit-trade="${id}"]`)); tradeForm.elements.ticker.focus();
@@ -566,7 +578,7 @@ function connectSimpleDialog(selector, triggerSelector, fill, submitPath, afterS
   const dialog = $(selector); const form = $('form', dialog); for (const trigger of $$(triggerSelector)) trigger.addEventListener('click', () => { form.reset(); fill(form); openDialog(dialog, trigger); });
   form.addEventListener('submit', async (event) => { event.preventDefault(); const status = $('[data-' + selector.slice(6, -7) + '-status]', dialog) ?? $('.form-status', dialog); const submit = $('button[type="submit"]', form); submit.disabled = true; try { const data = Object.fromEntries(new FormData(form)); await request(typeof submitPath === 'function' ? submitPath(data) : submitPath, { method: 'PUT', body: JSON.stringify(data) }); setDialogOpen(dialog, false); await loadDashboard(); afterSave?.(); } catch (error) { setStatus(status, error.message, 'error'); } finally { submit.disabled = false; } }); return dialog;
 }
-connectSimpleDialog('[data-monthly-dialog]', '[data-open-monthly]', (form) => { form.elements.year_month.value = new Date().toISOString().slice(0, 7); }, '/api/monthly');
+connectSimpleDialog('[data-monthly-dialog]', '[data-open-monthly]', (form) => { form.elements.year_month.value = shanghaiWallClockInput().slice(0, 7); }, '/api/monthly');
 connectSimpleDialog('[data-plan-dialog]', '[data-open-plan]', (form) => { if (state.plan) for (const [key, value] of Object.entries(state.plan)) if (form.elements[key]) form.elements[key].value = value; }, '/api/plan');
 function connectPostDialog(selector, triggerSelector, fill, path, normalize) {
   const dialog = $(selector); const form = $('form', dialog);
@@ -575,7 +587,7 @@ function connectPostDialog(selector, triggerSelector, fill, path, normalize) {
 }
 const cashFlowDialog = $('[data-cash-flow-dialog]'); const cashFlowForm = $('[data-cash-flow-form]');
 function openCashFlowNew(trigger) {
-  state.editingCashFlow = null; cashFlowForm.reset(); cashFlowForm.elements.occurred_on.value = localDateForInput(); cashFlowForm.elements.manager_share_offset.value = '0';
+  state.editingCashFlow = null; cashFlowForm.reset(); cashFlowForm.elements.occurred_on.value = shanghaiDateForInput(); cashFlowForm.elements.manager_share_offset.value = '0';
   $('h2', cashFlowDialog).textContent = '记录真实现金流'; $('button[type="submit"]', cashFlowForm).textContent = '保存现金流'; setStatus($('.form-status', cashFlowDialog), ''); openDialog(cashFlowDialog, trigger);
 }
 function openCashFlowEdit(id, trigger) {
@@ -595,12 +607,12 @@ async function deleteCashFlow(id) {
   catch (error) { setStatus($('[data-dashboard-status]'), error.message, 'error'); }
 }
 const accountEventDialog = $('[data-account-event-dialog]'); const accountEventForm = $('[data-account-event-form]');
-function openAccountEventNew(trigger) { state.editingAccountEvent = null; accountEventForm.reset(); accountEventForm.elements.event_date.value = localDateForInput(); $('h2', accountEventDialog).textContent = '记录账户事件'; $('button[type="submit"]', accountEventForm).textContent = '保存账户事件'; setStatus($('[data-account-event-status]'), ''); openDialog(accountEventDialog, trigger); }
+function openAccountEventNew(trigger) { state.editingAccountEvent = null; accountEventForm.reset(); accountEventForm.elements.event_date.value = shanghaiDateForInput(); $('h2', accountEventDialog).textContent = '记录账户事件'; $('button[type="submit"]', accountEventForm).textContent = '保存账户事件'; setStatus($('[data-account-event-status]'), ''); openDialog(accountEventDialog, trigger); }
 function openAccountEventEdit(id, trigger) { const event = state.accountEvents.find((row) => Number(row.id) === id); if (!event) return; state.editingAccountEvent = event; accountEventForm.reset(); for (const [key, value] of Object.entries(event)) if (accountEventForm.elements[key]) accountEventForm.elements[key].value = value ?? ''; $('h2', accountEventDialog).textContent = '编辑账户事件'; $('button[type="submit"]', accountEventForm).textContent = '保存修改'; setStatus($('[data-account-event-status]'), ''); openDialog(accountEventDialog, trigger); }
 for (const trigger of $$('[data-open-account-event]')) trigger.addEventListener('click', (event) => openAccountEventNew(event.currentTarget));
 accountEventForm.addEventListener('submit', async (event) => { event.preventDefault(); const submit = $('button[type="submit"]', accountEventForm); submit.disabled = true; try { const editing = state.editingAccountEvent; await request(editing ? `/api/account-events/${editing.id}` : '/api/account-events', { method: editing ? 'PATCH' : 'POST', body: JSON.stringify(Object.fromEntries(new FormData(accountEventForm))) }); setDialogOpen(accountEventDialog, false); await loadDashboard(); } catch (error) { setStatus($('[data-account-event-status]'), error.message, 'error'); } finally { submit.disabled = false; } });
 async function deleteAccountEvent(id) { if (!window.confirm('删除后会保留审计记录，是否继续？')) return; try { await request(`/api/account-events/${id}`, { method: 'DELETE', body: '{}' }); await loadDashboard(); setStatus($('[data-dashboard-status]'), '账户事件已删除。', 'success'); } catch (error) { setStatus($('[data-dashboard-status]'), error.message, 'error'); } }
-connectPostDialog('[data-asset-snapshot-dialog]', '[data-open-asset-snapshot]', (form) => { form.elements.snapshot_at.value = new Date().toISOString().slice(0, 16); form.elements.is_complete.checked = true; }, '/api/assets/snapshots', (data, form) => ({ ...data, is_complete: form.elements.is_complete.checked }));
+connectPostDialog('[data-asset-snapshot-dialog]', '[data-open-asset-snapshot]', (form) => { form.elements.snapshot_at.value = shanghaiWallClockInput(); form.elements.is_complete.checked = true; }, '/api/assets/snapshots', (data, form) => ({ ...data, is_complete: form.elements.is_complete.checked }));
 const memoDialog = $('[data-memo-dialog]'); const memoForm = $('[data-memo-form]');
 $('[data-open-memo]').addEventListener('click', (event) => openMemoNew(event.currentTarget));
 function tradeLabel(trade) { return trade.ticker_name ? `${trade.ticker} · ${trade.ticker_name}` : trade.ticker; }
@@ -652,7 +664,7 @@ const objectionDialog = $('[data-objection-dialog]'); const objectionForm = $('[
 $('[data-objection]').addEventListener('click', (event) => openDialog(objectionDialog, event.currentTarget)); objectionForm.addEventListener('submit', async (event) => { event.preventDefault(); try { await request('/api/circuit/objection', { method: 'POST', body: JSON.stringify({ reason: new FormData(objectionForm).get('reason') }) }); objectionForm.reset(); setDialogOpen(objectionDialog, false); await loadDashboard(); } catch (error) { setStatus($('[data-objection-status]'), error.message, 'error'); } });
 
 const reviewDialog = $('[data-review-dialog]'); const reviewForm = $('[data-review-form]');
-$('[data-open-review]').addEventListener('click', (event) => { reviewForm.elements.year.value = String(new Date().getFullYear()); setStatus($('[data-review-status]'), ''); openDialog(reviewDialog, event.currentTarget); reviewForm.elements.year.focus(); });
+$('[data-open-review]').addEventListener('click', (event) => { reviewForm.elements.year.value = shanghaiWallClockInput().slice(0, 4); setStatus($('[data-review-status]'), ''); openDialog(reviewDialog, event.currentTarget); reviewForm.elements.year.focus(); });
 reviewForm.addEventListener('submit', async (event) => { event.preventDefault(); const submit = $('button[type="submit"]', reviewForm); submit.disabled = true; try { const data = new FormData(reviewForm); await request('/api/review/calculate', { method: 'POST', body: JSON.stringify({ year: Number(data.get('year')), summary: data.get('summary') }) }); setDialogOpen(reviewDialog, false); await loadDashboard(); } catch (error) { setStatus($('[data-review-status]'), error.message, 'error'); } finally { submit.disabled = false; } });
 
 const riskDialog = $('[data-risk-dialog]'); const riskForm = $('[data-risk-form]');
@@ -676,7 +688,7 @@ function setTab(tab) {
 $('[data-trade-filters]').addEventListener('submit', (event) => { event.preventDefault(); loadPage('trade', null, true).catch((error) => setStatus($('[data-dashboard-status]'), error.message, 'error')); });
 $('[data-access-filters]').addEventListener('submit', (event) => { event.preventDefault(); loadPage('access', null, true).catch((error) => setStatus($('[data-dashboard-status]'), error.message, 'error')); });
 for (const kind of ['trade', 'access']) { $(`[data-${kind}-filters]`).addEventListener('reset', () => setTimeout(() => loadPage(kind, null, true).catch((error) => setStatus($('[data-dashboard-status]'), error.message, 'error')))); $(`[data-${kind}-next]`).addEventListener('click', () => { const paging = kind === 'trade' ? state.tradePaging : state.accessPaging; if (paging.nextCursor) loadPage(kind, paging.nextCursor).catch((error) => setStatus($('[data-dashboard-status]'), error.message, 'error')); }); $(`[data-${kind}-prev]`).addEventListener('click', () => { const paging = kind === 'trade' ? state.tradePaging : state.accessPaging; if (!paging.page) return; paging.cursors.pop(); paging.page -= 1; loadPage(kind, paging.cursors.at(-1), false, -1).catch((error) => setStatus($('[data-dashboard-status]'), error.message, 'error')); }); }
-$('[data-export-archive]').addEventListener('click', () => { const year = state.reviews[0]?.year ?? new Date().getFullYear(); window.location.assign(`${apiBase}/api/archive?year=${encodeURIComponent(year)}`); });
+$('[data-export-archive]').addEventListener('click', () => { const year = state.reviews[0]?.year ?? Number(shanghaiWallClockInput().slice(0, 4)); window.location.assign(`${apiBase}/api/archive?year=${encodeURIComponent(year)}`); });
 const notificationDialog = $('[data-notification-dialog]');
 $('[data-confirm-notification]').addEventListener('click', async (event) => { const period = state.notifications?.monthly_confirmation?.period; if (!period) return; await confirmMonth(period, event.currentTarget, $('[data-notification-status]')); setDialogOpen(notificationDialog, false); await loadDashboard(); });
 $('[data-confirm-month]').addEventListener('click', (event) => { const period = state.notifications?.monthly_confirmation?.period; if (period) confirmMonth(period, event.currentTarget, $('[data-dashboard-status]')); });
