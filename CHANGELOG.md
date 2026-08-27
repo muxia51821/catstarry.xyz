@@ -1,5 +1,10 @@
 # 更新记录
 
+## 2026-08-27 — Learn 图谱交互与本地全站验收
+
+- Learn Knowledge Map 现在支持缩放、拖拽与页面内展开；默认视图增大节点间距、关系角度与标签留白，Programming 目录入口更明确。节点始终直接进入对应文章。
+- `npm run preview:local` 统一准备临时的 Home、Blog、Feed、Learn、Projects 与 Finance 代表性状态，便于一次启动完成视觉验收；该环境不执行 Learn Publish，也不代表 production 数据。
+
 ## 2026-08-26 — Feed 板块全面梳理 + Finance 表单预填修复（已合并 main；本次发布范围为 Feed Worker、Site Worker、Finance Pages）
 
 - 共享上海时钟模块落地（`shared/shanghai-time.ts`）：feed 侧六处时间实现（浏览去重键、时间线分组、RSS、Blog/Learn 显示格式）统一走单一 Intl 原语；新增 `test:shared:time` 契约锁跨年/日界行为。顺带修正四处隐性口径问题：Feed 管理列表时间显示与按天过滤改用上海时区/上海日界、上传月份前缀、博客 `<time datetime>` 机器属性对齐上海日历日。
