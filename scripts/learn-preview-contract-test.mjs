@@ -69,7 +69,7 @@ let site;
 
 try {
   await listen(sessionServer, sessionPort);
-  site = spawn(process.execPath, [astro, 'dev', '--host', '127.0.0.1', '--port', String(sitePort)], {
+  site = spawn(process.execPath, [astro, 'dev', '--host', '127.0.0.1', '--port', String(sitePort), '--ignore-lock'], {
     cwd: root,
     env: {
       ...process.env,

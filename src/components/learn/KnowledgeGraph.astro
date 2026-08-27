@@ -1,6 +1,7 @@
 ---
 import type { TrackDefinition, LearnNote } from './learn-data';
-import { getNormalizedRelations, getTrackNotes } from './learn-data';
+import { getNormalizedRelations } from './learn-data';
+import { layoutLearnGraph } from '../../lib/learn-graph-layout';
 
 interface Props {
   tracks: TrackDefinition[];
@@ -10,66 +11,134 @@ interface Props {
 const { tracks, notes } = Astro.props;
 const graphNotes = notes.slice(0, 200);
 const relations = getNormalizedRelations(graphNotes);
+const fallbackLayout = layoutLearnGraph(
+  graphNotes.map((note) => ({ slug: note.slug, track: note.track, width: 190, height: 54 })),
+  relations,
+  { width: 1000, height: 600, portrait: false },
+);
 const trackCount = Math.max(tracks.length, 1);
-const positions = new Map<string, { dx: number; dy: number; mx: number; my: number }>();
-
-for (const [trackIndex, track] of tracks.entries()) {
-  const trackNotes = getTrackNotes(graphNotes, track.slug);
-  for (const [noteIndex, note] of trackNotes.entries()) {
-    const column = noteIndex % 2;
-    const row = Math.floor(noteIndex / 2);
-    positions.set(note.slug, {
-      dx: 12 + ((trackIndex + 0.5) / trackCount) * 76 + (column ? 5 : -5),
-      dy: 28 + row * 24 + column * 10,
-      mx: 22 + column * 47,
-      my: 13 + ((trackIndex + 0.5) / trackCount) * 72 + row * 10 + column * 4,
-    });
-  }
-}
 ---
 
-<div class="learn-graph" data-learn-graph data-relations={JSON.stringify(relations)}>
-  <svg class="learn-graph__edges" aria-hidden="true"></svg>
-  {tracks.map((track, index) => (
-    <span
-      class="learn-graph__region-label"
-      data-graph-region={track.slug}
-      style={`--desktop-x:${12 + ((index + 0.5) / trackCount) * 76}%;--mobile-y:${8 + ((index + 0.5) / trackCount) * 78}%;`}
-    >
-      {track.name}
-    </span>
-  ))}
-  {graphNotes.map((note) => {
-    const position = positions.get(note.slug) ?? { dx: 50, dy: 50, mx: 50, my: 50 };
-    return (
-      <a
-        class="learn-graph__node"
-        data-graph-node={note.slug}
-        data-track={note.track}
-        href={`/learn/notes/${note.slug}/`}
-        style={`--desktop-x:${position.dx}%;--desktop-y:${position.dy}%;--mobile-x:${position.mx}%;--mobile-y:${position.my}%;`}
-      >
-        <span class="learn-graph__hit" aria-hidden="true"><span class="learn-graph__dot"></span></span>
-        <span class="learn-graph__label">{note.title}</span>
-      </a>
-    );
-  })}
+<div
+  class="learn-graph"
+  data-learn-graph
+  data-relations={JSON.stringify(relations)}
+  tabindex="0"
+  aria-label="知识图谱。点击空白区域展开，滚轮缩放，拖动平移。"
+>
+  <div class="learn-graph__controls" aria-label="知识图谱控制">
+    <button type="button" data-graph-zoom-out aria-label="缩小知识图谱">−</button>
+    <button type="button" data-graph-fit aria-label="适配知识图谱">·</button>
+    <button type="button" data-graph-zoom-in aria-label="放大知识图谱">+</button>
+    <button type="button" data-graph-expand aria-label="展开知识图谱">⤢</button>
+    <button type="button" data-graph-collapse aria-label="收起知识图谱">⤡</button>
+  </div>
+  <p class="visually-hidden" data-graph-status aria-live="polite"></p>
+  <div class="learn-graph__viewport" data-graph-viewport>
+    <div class="learn-graph__world" data-graph-world>
+      <svg class="learn-graph__edges" aria-hidden="true"></svg>
+      {tracks.map((track, index) => (
+        <span
+          class="learn-graph__region-label"
+          data-graph-region={track.slug}
+          style={`--desktop-x:${12 + ((index + 0.5) / trackCount) * 76}%;--mobile-y:${8 + ((index + 0.5) / trackCount) * 78}%;`}
+        >
+          {track.name}
+        </span>
+      ))}
+      {graphNotes.map((note) => {
+        const position = fallbackLayout.get(note.slug) ?? { x: 500, y: 240 };
+        return (
+          <a
+            class="learn-graph__node"
+            data-graph-node={note.slug}
+            data-track={note.track}
+            href={`/learn/notes/${note.slug}/`}
+            style={`--graph-x:${position.x / 10}%;--graph-y:${position.y / 6}%;`}
+          >
+            <span class="learn-graph__hit" aria-hidden="true"><span class="learn-graph__dot"></span></span>
+            <span class="learn-graph__label">{note.title}</span>
+          </a>
+        );
+      })}
+    </div>
+  </div>
 </div>
 
 <script>
+  import { layoutLearnGraph } from '../../lib/learn-graph-layout';
+
   for (const graph of document.querySelectorAll('[data-learn-graph]')) {
     if (!(graph instanceof HTMLElement)) continue;
+    const viewport = graph.querySelector('[data-graph-viewport]');
+    const world = graph.querySelector('[data-graph-world]');
     const edgeLayer = graph.querySelector('.learn-graph__edges');
-    if (!(edgeLayer instanceof SVGSVGElement)) continue;
+    const status = graph.querySelector('[data-graph-status]');
+    if (!(viewport instanceof HTMLElement) || !(world instanceof HTMLElement) || !(edgeLayer instanceof SVGSVGElement)) continue;
+
     const relations = JSON.parse(graph.dataset.relations ?? '[]');
     const nodes = new Map([...graph.querySelectorAll('[data-graph-node]')]
       .filter((node) => node instanceof HTMLAnchorElement)
       .map((node) => [node.dataset.graphNode, node]));
+    const controls = {
+      zoomOut: graph.querySelector('[data-graph-zoom-out]'),
+      fit: graph.querySelector('[data-graph-fit]'),
+      zoomIn: graph.querySelector('[data-graph-zoom-in]'),
+      expand: graph.querySelector('[data-graph-expand]'),
+      collapse: graph.querySelector('[data-graph-collapse]'),
+    };
+    let scale = 1;
+    let panX = 0;
+    let panY = 0;
+    let expanded = false;
+    let pointer = null;
+    let resizeFrame = 0;
 
+    const isButton = (value) => value instanceof HTMLButtonElement;
+    const announce = (message) => {
+      if (status instanceof HTMLElement) status.textContent = message;
+    };
+    const viewportBox = () => viewport.getBoundingClientRect();
+    const clampPan = () => {
+      const box = viewportBox();
+      if (scale <= 1) {
+        panX = (box.width - box.width * scale) / 2;
+        panY = (box.height - box.height * scale) / 2;
+        return;
+      }
+      panX = Math.max(box.width - box.width * scale, Math.min(0, panX));
+      panY = Math.max(box.height - box.height * scale, Math.min(0, panY));
+    };
+    const renderTransform = () => {
+      clampPan();
+      world.style.transform = `translate3d(${panX}px, ${panY}px, 0) scale(${scale})`;
+      graph.dataset.zoom = String(Math.round(scale * 100));
+    };
+    const setFit = (shouldAnnounce = true) => {
+      scale = 1;
+      panX = 0;
+      panY = 0;
+      renderTransform();
+      if (shouldAnnounce) announce('知识图谱已适配当前视图。');
+    };
+    const setScale = (nextScale, point) => {
+      const box = viewportBox();
+      const targetScale = Math.max(0.75, Math.min(1.75, nextScale));
+      const focusX = point?.x ?? box.width / 2;
+      const focusY = point?.y ?? box.height / 2;
+      const worldX = (focusX - panX) / scale;
+      const worldY = (focusY - panY) / scale;
+      scale = targetScale;
+      panX = focusX - worldX * scale;
+      panY = focusY - worldY * scale;
+      renderTransform();
+      announce(`知识图谱缩放至 ${Math.round(scale * 100)}%。`);
+    };
     const drawEdges = () => {
       edgeLayer.replaceChildren();
-      const graphBox = graph.getBoundingClientRect();
-      edgeLayer.setAttribute('viewBox', `0 0 ${graphBox.width} ${graphBox.height}`);
+      const worldBox = world.getBoundingClientRect();
+      const box = viewportBox();
+      edgeLayer.setAttribute('viewBox', `0 0 ${box.width} ${box.height}`);
       for (const relation of relations) {
         const source = nodes.get(relation.source);
         const target = nodes.get(relation.target);
@@ -80,21 +149,78 @@ for (const [trackIndex, track] of tracks.entries()) {
         const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
         line.dataset.source = relation.source;
         line.dataset.target = relation.target;
-        line.setAttribute('x1', String(sourceDot.left + sourceDot.width / 2 - graphBox.left));
-        line.setAttribute('y1', String(sourceDot.top + sourceDot.height / 2 - graphBox.top));
-        line.setAttribute('x2', String(targetDot.left + targetDot.width / 2 - graphBox.left));
-        line.setAttribute('y2', String(targetDot.top + targetDot.height / 2 - graphBox.top));
+        line.setAttribute('x1', String((sourceDot.left + sourceDot.width / 2 - worldBox.left) / scale));
+        line.setAttribute('y1', String((sourceDot.top + sourceDot.height / 2 - worldBox.top) / scale));
+        line.setAttribute('x2', String((targetDot.left + targetDot.width / 2 - worldBox.left) / scale));
+        line.setAttribute('y2', String((targetDot.top + targetDot.height / 2 - worldBox.top) / scale));
         edgeLayer.append(line);
       }
     };
-
+    const layout = () => {
+      const box = viewportBox();
+      if (box.width === 0 || box.height === 0) return;
+      const portrait = window.matchMedia('(max-width: 640px)').matches;
+      const layoutNodes = [...nodes].flatMap(([slug, node]) => {
+        if (!(node instanceof HTMLAnchorElement) || !node.dataset.track) return [];
+        return [{
+          slug,
+          track: node.dataset.track,
+          width: node.offsetWidth,
+          height: node.offsetHeight,
+        }];
+      });
+      const positions = layoutLearnGraph(layoutNodes, relations, {
+        width: box.width,
+        height: box.height,
+        portrait,
+      });
+      for (const [slug, node] of nodes) {
+        const position = positions.get(slug);
+        if (!position || !(node instanceof HTMLElement)) continue;
+        node.style.setProperty('--graph-x', `${position.x}px`);
+        node.style.setProperty('--graph-y', `${position.y}px`);
+      }
+      const regions = new Map();
+      for (const [slug, node] of nodes) {
+        if (!(node instanceof HTMLElement) || !node.dataset.track) continue;
+        const position = positions.get(slug);
+        if (!position) continue;
+        const values = regions.get(node.dataset.track) ?? [];
+        values.push(position);
+        regions.set(node.dataset.track, values);
+      }
+      for (const label of graph.querySelectorAll('[data-graph-region]')) {
+        if (!(label instanceof HTMLElement)) continue;
+        const values = regions.get(label.dataset.graphRegion) ?? [];
+        if (!values.length) continue;
+        label.style.setProperty('--graph-region-x', `${values.reduce((total, value) => total + value.x, 0) / values.length}px`);
+        label.style.setProperty('--graph-region-y', `${Math.max(12, Math.min(...values.map((value) => value.y - 72)))}px`);
+      }
+      setFit(false);
+      requestAnimationFrame(drawEdges);
+    };
+    const scheduleLayout = () => {
+      window.cancelAnimationFrame(resizeFrame);
+      resizeFrame = window.requestAnimationFrame(layout);
+    };
+    const setExpanded = (nextExpanded, focusControl = false) => {
+      if (expanded === nextExpanded) return;
+      expanded = nextExpanded;
+      graph.dataset.expanded = String(expanded);
+      if (isButton(controls.expand)) controls.expand.setAttribute('aria-expanded', String(expanded));
+      announce(expanded ? '知识图谱已展开。' : '知识图谱已收起。');
+      window.setTimeout(scheduleLayout, 220);
+      if (expanded && focusControl && isButton(controls.collapse)) controls.collapse.focus();
+    };
     const setNodeActive = (slug, active) => {
       graph.dataset.activeNode = active ? slug : '';
       for (const line of edgeLayer.querySelectorAll('line')) {
         line.classList.toggle('is-active', active && (line.dataset.source === slug || line.dataset.target === slug));
       }
     };
+
     for (const [slug, node] of nodes) {
+      if (!(node instanceof HTMLAnchorElement)) continue;
       node.addEventListener('mouseenter', () => setNodeActive(slug, true));
       node.addEventListener('mouseleave', () => setNodeActive(slug, false));
       node.addEventListener('focus', () => setNodeActive(slug, true));
@@ -108,7 +234,66 @@ for (const [trackIndex, track] of tracks.entries()) {
       trackLink.addEventListener('focus', () => setTrack(true));
       trackLink.addEventListener('blur', () => setTrack(false));
     }
-    new ResizeObserver(drawEdges).observe(graph);
-    requestAnimationFrame(drawEdges);
+    if (isButton(controls.zoomOut)) controls.zoomOut.addEventListener('click', () => setScale(scale - 0.15));
+    if (isButton(controls.fit)) controls.fit.addEventListener('click', () => setFit());
+    if (isButton(controls.zoomIn)) controls.zoomIn.addEventListener('click', () => setScale(scale + 0.15));
+    if (isButton(controls.expand)) controls.expand.addEventListener('click', () => setExpanded(true, true));
+    if (isButton(controls.collapse)) controls.collapse.addEventListener('click', () => setExpanded(false));
+
+    graph.addEventListener('wheel', (event) => {
+      event.preventDefault();
+      const box = viewportBox();
+      setScale(scale + (event.deltaY < 0 ? 0.1 : -0.1), { x: event.clientX - box.left, y: event.clientY - box.top });
+    }, { passive: false });
+    graph.addEventListener('pointerdown', (event) => {
+      if (event.target instanceof Element && event.target.closest('a, button')) return;
+      pointer = { id: event.pointerId, x: event.clientX, y: event.clientY, panX, panY, moved: false };
+      graph.setPointerCapture(event.pointerId);
+    });
+    graph.addEventListener('pointermove', (event) => {
+      if (!pointer || pointer.id !== event.pointerId) return;
+      const deltaX = event.clientX - pointer.x;
+      const deltaY = event.clientY - pointer.y;
+      if (Math.hypot(deltaX, deltaY) > 5) pointer.moved = true;
+      if (!pointer.moved) return;
+      panX = pointer.panX + deltaX;
+      panY = pointer.panY + deltaY;
+      graph.dataset.dragging = 'true';
+      renderTransform();
+    });
+    const endPointer = (event) => {
+      if (!pointer || pointer.id !== event.pointerId) return;
+      const shouldExpand = !pointer.moved && !expanded;
+      pointer = null;
+      delete graph.dataset.dragging;
+      if (graph.hasPointerCapture(event.pointerId)) graph.releasePointerCapture(event.pointerId);
+      if (shouldExpand) setExpanded(true, true);
+    };
+    graph.addEventListener('pointerup', endPointer);
+    graph.addEventListener('pointercancel', endPointer);
+    graph.addEventListener('keydown', (event) => {
+      if (event.target !== graph) return;
+      if ((event.key === 'Enter' || event.key === ' ' || event.code === 'Space') && !expanded) {
+        event.preventDefault();
+        setExpanded(true, true);
+      } else if (event.key === 'Escape' && expanded) {
+        event.preventDefault();
+        setExpanded(false);
+      } else if (event.key === '+' || event.key === '=') {
+        event.preventDefault();
+        setScale(scale + 0.15);
+      } else if (event.key === '-') {
+        event.preventDefault();
+        setScale(scale - 0.15);
+      } else if (event.key === '0') {
+        event.preventDefault();
+        setFit();
+      }
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && expanded) setExpanded(false);
+    });
+    new ResizeObserver(scheduleLayout).observe(viewport);
+    scheduleLayout();
   }
 </script>

@@ -84,6 +84,8 @@ PUBLIC_ACTIVITY_SIGNALS_URL=/activity-signals.json  # 已有同值默认，可�
 
 `FEED_API_URL` 当前主要用于 **Local Preview 的 server-side localhost transport override**。`scripts/local-preview.mjs` 会把它和 `PUBLIC_FEED_API_URL` 注入为本地 Feed Worker origin；不要把这个本地机制误写成 staging/production Site SSR 的公网调用方式。
 
+`npm run preview:local` 是唯一的本地视觉验收入口。它在每次启动时于临时 D1 / R2 中准备固定的 Blog、Feed、Learn、Home 代表性状态，同时保留 Projects 的静态数据与 Finance 的代表性 preview；停止后删除临时状态。该 fixture 不调用 Learn lifecycle，也不代表 production 数据或发布结果。
+
 Feed Worker 环境配置：
 
 ```text

@@ -16,6 +16,18 @@ if (!existsSync(path.join(distRoot, 'index.html'))) {
 
 const localFailures = [];
 const viewFixture = { records: 0, ownerReads: 0 };
+const learnPublicationFixture = [
+  'domain-dns-http',
+  'git-recovery-reflog-reset',
+  'git-commit-graph-branch-ref-head',
+  'git-rebase-conflicts-and-force-with-lease',
+  'git-remotes-fetch-and-divergence',
+  'astro-react-and-hydration',
+  'javascript-runtimes-browser-node-workers',
+].map((slug, index) => ({
+  slug,
+  published_at: `2026-08-2${index}T08:00:00.000Z`,
+}));
 const server = createServer(async (request, response) => {
   const url = new URL(request.url, 'http://local.test');
   response.setHeader('access-control-allow-origin', request.headers.origin ?? '*');
@@ -56,7 +68,7 @@ const server = createServer(async (request, response) => {
   }
   if (url.pathname === '/api/learn/publications') {
     response.setHeader('content-type', 'application/json; charset=utf-8');
-    response.end(JSON.stringify({ entries: [] }));
+    response.end(JSON.stringify({ entries: learnPublicationFixture }));
     return;
   }
   if (url.pathname === '/api/feed') {
@@ -136,9 +148,10 @@ if (!address || typeof address === 'string') throw new Error('Site fixture serve
 const fixtureUrl = `http://127.0.0.1:${address.port}`;
 const sitePort = await freePort();
 const baseUrl = `http://127.0.0.1:${sitePort}`;
-const site = spawn(process.execPath, [path.join('node_modules', 'astro', 'bin', 'astro.mjs'), 'dev', '--host', '127.0.0.1', '--port', String(sitePort)], {
+const site = spawn(process.execPath, [path.join('node_modules', 'astro', 'bin', 'astro.mjs'), 'dev', '--host', '127.0.0.1', '--port', String(sitePort), '--ignore-lock'], {
   env: {
     ...process.env,
+    CI: 'true',
     ASTRO_DEV_BACKGROUND: '0',
     FEED_API_URL: fixtureUrl,
     PUBLIC_FEED_API_URL: fixtureUrl,
@@ -191,6 +204,10 @@ try {
     }
   });
   const { send, evaluate, waitFor } = cdp;
+  const pressKey = async (key, code, keyCode) => {
+    await send('Input.dispatchKeyEvent', { type: 'keyDown', key, code, windowsVirtualKeyCode: keyCode, nativeVirtualKeyCode: keyCode });
+    await send('Input.dispatchKeyEvent', { type: 'keyUp', key, code, windowsVirtualKeyCode: keyCode, nativeVirtualKeyCode: keyCode });
+  };
   await send('Runtime.enable');
   await send('Page.enable');
   await send('Network.enable');
@@ -202,6 +219,153 @@ try {
     deviceScaleFactor: 1,
     mobile: false,
   });
+  await send('Page.navigate', { url: `${baseUrl}/learn/` });
+  await waitFor(`document.readyState === 'complete' && document.querySelectorAll('[data-graph-node]').length === 7`, 'Learn graph load');
+  assert.equal(await evaluate(`!document.querySelector('astro-dev-toolbar')`), true, 'Browser regression must disable the Astro dev toolbar');
+  await waitFor(`document.querySelectorAll('.learn-graph__edges line').length === 6`, 'Learn graph relation edges');
+  const learnGraphDefault = await evaluate(`(() => {
+    const graph = document.querySelector('[data-learn-graph]');
+    const viewport = document.querySelector('[data-graph-viewport]');
+    const directory = document.querySelector('[data-track-link="programming"]');
+    const viewportBox = viewport.getBoundingClientRect();
+    const nodes = [...document.querySelectorAll('[data-graph-node]')];
+    return {
+      nodeCount: nodes.length,
+      edgeCount: document.querySelectorAll('.learn-graph__edges line').length,
+      directoryHref: directory?.getAttribute('href'),
+      directoryAction: directory?.querySelector('.learn-track-directory__action')?.textContent?.trim(),
+      allNodesInView: nodes.every((node) => {
+        const box = node.getBoundingClientRect();
+        return box.left >= viewportBox.left && box.right <= viewportBox.right
+          && box.top >= viewportBox.top && box.bottom <= viewportBox.bottom;
+      }),
+      noHorizontalOverflow: document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+      horizontalSpread: Math.max(...nodes.map((node) => node.getBoundingClientRect().left))
+        - Math.min(...nodes.map((node) => node.getBoundingClientRect().left)),
+      verticalSpread: Math.max(...nodes.map((node) => node.getBoundingClientRect().top))
+        - Math.min(...nodes.map((node) => node.getBoundingClientRect().top)),
+      labelsDoNotOverlap: nodes.every((node, index) => {
+        const box = node.getBoundingClientRect();
+        return nodes.slice(index + 1).every((other) => {
+          const otherBox = other.getBoundingClientRect();
+          return box.right <= otherBox.left + 2 || otherBox.right <= box.left + 2
+            || box.bottom <= otherBox.top + 2 || otherBox.bottom <= box.top + 2;
+        });
+      }),
+      angledRelationCount: [...document.querySelectorAll('.learn-graph__edges line')].filter((line) => {
+        const horizontal = Math.abs(Number(line.getAttribute('x2')) - Number(line.getAttribute('x1')));
+        const vertical = Math.abs(Number(line.getAttribute('y2')) - Number(line.getAttribute('y1')));
+        return horizontal >= 44 && vertical >= 28;
+      }).length,
+      mapHeight: graph.getBoundingClientRect().height,
+    };
+  })()`);
+  assert.deepEqual(
+    learnGraphDefault,
+    {
+      nodeCount: 7,
+      edgeCount: 6,
+      directoryHref: '/learn/track/programming/',
+      directoryAction: '→',
+      allNodesInView: true,
+      noHorizontalOverflow: true,
+      horizontalSpread: learnGraphDefault.horizontalSpread,
+      verticalSpread: learnGraphDefault.verticalSpread,
+      labelsDoNotOverlap: true,
+      angledRelationCount: learnGraphDefault.angledRelationCount,
+      mapHeight: learnGraphDefault.mapHeight,
+    },
+  );
+  assert.ok(learnGraphDefault.horizontalSpread >= 300, `Learn graph must distribute nodes across a visibly wide field (actual ${learnGraphDefault.horizontalSpread}px)`);
+  assert.ok(learnGraphDefault.verticalSpread >= 260, `Learn graph must distribute nodes across a visibly tall field (actual ${learnGraphDefault.verticalSpread}px)`);
+  assert.ok(learnGraphDefault.angledRelationCount >= 3, `Learn graph must expose several non-axial relations (actual ${learnGraphDefault.angledRelationCount})`);
+  await evaluate(`document.querySelector('.learn-page__back').focus()`);
+  for (let press = 0; press < 3; press += 1) {
+    await pressKey('Tab', 'Tab', 9);
+  }
+  await waitFor(`document.activeElement === document.querySelector('[data-learn-graph]')`, 'Learn graph keyboard focus');
+  const graphFocus = await evaluate(`(() => {
+    const graph = document.querySelector('[data-learn-graph]');
+    const style = getComputedStyle(graph);
+    return document.activeElement === graph && style.outlineStyle !== 'none' && style.outlineWidth !== '0px';
+  })()`);
+  assert.equal(graphFocus, true, 'Learn graph keyboard entry must expose a visible focus indicator');
+  await pressKey('+', 'Equal', 187);
+  await waitFor(`Number(document.querySelector('[data-learn-graph]').dataset.zoom) > 100`, 'Learn graph keyboard zoom');
+  await pressKey('0', 'Digit0', 48);
+  await waitFor(`document.querySelector('[data-learn-graph]').dataset.zoom === '100'`, 'Learn graph keyboard fit');
+  await pressKey('Enter', 'Enter', 13);
+  await waitFor(`document.querySelector('[data-learn-graph]').dataset.expanded === 'true'`, 'Learn graph keyboard Explore view');
+  await pressKey('Escape', 'Escape', 27);
+  await waitFor(`document.querySelector('[data-learn-graph]').dataset.expanded === 'false'`, 'Learn graph keyboard Explore close');
+  await evaluate(`document.querySelector('[data-learn-graph]').dispatchEvent(new KeyboardEvent('keydown', { key: ' ', code: 'Space', bubbles: true }))`);
+  await waitFor(`document.querySelector('[data-learn-graph]').dataset.expanded === 'true'`, 'Learn graph Space Explore view');
+  await pressKey('Escape', 'Escape', 27);
+  await waitFor(`document.querySelector('[data-learn-graph]').dataset.expanded === 'false'`, 'Learn graph Space Explore close');
+  await delay(260);
+  const graphPoint = await evaluate(`(() => {
+    const viewport = document.querySelector('[data-graph-viewport]');
+    const box = viewport.getBoundingClientRect();
+    for (let y = box.top + 24; y < box.bottom - 24; y += 28) {
+      for (let x = box.left + 24; x < box.right - 24; x += 28) {
+        const target = document.elementFromPoint(x, y);
+        if (!target?.closest('a, button')) return { x, y };
+      }
+    }
+    return null;
+  })()`);
+  assert.ok(graphPoint, 'Learn graph must expose a blank interactive field');
+  await send('Input.dispatchMouseEvent', { type: 'mouseWheel', x: graphPoint.x, y: graphPoint.y, deltaX: 0, deltaY: -100, pointerType: 'mouse' });
+  await waitFor(`Number(document.querySelector('[data-learn-graph]').dataset.zoom) > 100`, 'Learn graph wheel zoom');
+  const transformBeforeDrag = await evaluate(`document.querySelector('[data-graph-world]').style.transform`);
+  await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: graphPoint.x, y: graphPoint.y, button: 'left', buttons: 1, clickCount: 1, pointerType: 'mouse' });
+  await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: graphPoint.x + 72, y: graphPoint.y + 48, button: 'left', buttons: 1, pointerType: 'mouse' });
+  await waitFor(`document.querySelector('[data-learn-graph]').dataset.dragging === 'true'`, 'Learn graph drag state');
+  await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: graphPoint.x + 72, y: graphPoint.y + 48, button: 'left', buttons: 0, clickCount: 1, pointerType: 'mouse' });
+  assert.notEqual(await evaluate(`document.querySelector('[data-graph-world]').style.transform`), transformBeforeDrag, 'Learn graph drag must pan the world');
+  await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: graphPoint.x, y: graphPoint.y, button: 'left', buttons: 1, clickCount: 1, pointerType: 'mouse' });
+  await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: graphPoint.x, y: graphPoint.y, button: 'left', buttons: 0, clickCount: 1, pointerType: 'mouse' });
+  await waitFor(`document.querySelector('[data-learn-graph]').dataset.expanded === 'true'`, 'Learn graph Explore view');
+  await delay(260);
+  const learnGraphExplore = await evaluate(`(() => {
+    const graph = document.querySelector('[data-learn-graph]');
+    return {
+      expanded: graph.dataset.expanded === 'true',
+      tallerThanDefault: graph.getBoundingClientRect().height > ${learnGraphDefault.mapHeight},
+      collapseVisible: getComputedStyle(graph.querySelector('[data-graph-collapse]')).display !== 'none',
+    };
+  })()`);
+  assert.deepEqual(learnGraphExplore, { expanded: true, tallerThanDefault: true, collapseVisible: true });
+  await pressKey('Escape', 'Escape', 27);
+  await waitFor(`document.querySelector('[data-learn-graph]').dataset.expanded === 'false'`, 'Learn graph Explore close');
+  await send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: graphPoint.x, y: graphPoint.y, id: 1 }] });
+  await send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await waitFor(`document.querySelector('[data-learn-graph]').dataset.expanded === 'true'`, 'Learn graph touch Explore view');
+  await pressKey('Escape', 'Escape', 27);
+  await waitFor(`document.querySelector('[data-learn-graph]').dataset.expanded === 'false'`, 'Learn graph touch Explore close');
+  const touchGraphPoint = await evaluate(`(() => {
+    const viewport = document.querySelector('[data-graph-viewport]');
+    const box = viewport.getBoundingClientRect();
+    for (let y = box.top + 24; y < box.bottom - 24; y += 28) {
+      for (let x = box.left + 24; x < box.right - 24; x += 28) {
+        const target = document.elementFromPoint(x, y);
+        if (!target?.closest('a, button')) return { x, y };
+      }
+    }
+    return null;
+  })()`);
+  assert.ok(touchGraphPoint, 'Learn graph must expose a blank touch field after panning');
+  await send('Input.dispatchMouseEvent', { type: 'mouseWheel', x: touchGraphPoint.x, y: touchGraphPoint.y, deltaX: 0, deltaY: -100, pointerType: 'mouse' });
+  await waitFor(`Number(document.querySelector('[data-learn-graph]').dataset.zoom) > 100`, 'Learn graph touch drag zoom precondition');
+  const transformBeforeTouchDrag = await evaluate(`document.querySelector('[data-graph-world]').style.transform`);
+  await send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: touchGraphPoint.x, y: touchGraphPoint.y, id: 1 }] });
+  await send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: touchGraphPoint.x - 56, y: touchGraphPoint.y + 42, id: 1 }] });
+  await waitFor(`document.querySelector('[data-learn-graph]').dataset.dragging === 'true'`, 'Learn graph touch drag state');
+  await send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  assert.notEqual(await evaluate(`document.querySelector('[data-graph-world]').style.transform`), transformBeforeTouchDrag, 'Learn graph touch drag must pan the world');
+  await evaluate(`document.querySelector('[data-graph-node="git-commit-graph-branch-ref-head"]').click()`);
+  await waitFor(`location.pathname === '/learn/notes/git-commit-graph-branch-ref-head/'`, 'Learn graph node destination');
+
   await send('Page.navigate', { url: `${baseUrl}/blog/` });
   await waitFor(`document.readyState === 'complete'`, 'Blog archive load');
   await waitFor(`!document.fonts || document.fonts.status === 'loaded'`, 'Blog archive fonts', 10_000);

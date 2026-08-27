@@ -10,6 +10,20 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const node = process.execPath;
 const ownerFile = '.catstarry-local-preview-owner.json';
+const nativeFetch = globalThis.fetch;
+
+async function fetch(input, init) {
+  let lastError;
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      return await nativeFetch(input, init);
+    } catch (error) {
+      lastError = error;
+      if (attempt < 3) await new Promise((resolve) => setTimeout(resolve, 150 * attempt));
+    }
+  }
+  throw lastError;
+}
 
 async function portIsAvailable(port) {
   const server = net.createServer();
@@ -202,7 +216,45 @@ async function verifyLocalAuthoringWorkflow({ sitePort, feedPort, output }) {
     body: JSON.stringify({ slug: 'domain-dns-http', visibility: 'public', title: 'Runtime note' }),
   }, 'Reject local Learn lifecycle mutation');
   assert.equal(localMutation.status, 403);
-  assert.equal((await fetch(`${siteOrigin}/learn/notes/domain-dns-http/`)).status, 404);
+  const localPublications = await fetch(`${feedOrigin}/api/learn/publications`);
+  assert.equal(localPublications.status, 200);
+  const localPublicationPayload = await localPublications.json();
+  assert.equal(localPublicationPayload.entries.length, 7);
+  assert.deepEqual(
+    localPublicationPayload.entries.map((entry) => entry.slug),
+    [
+      'domain-dns-http',
+      'git-recovery-reflog-reset',
+      'git-commit-graph-branch-ref-head',
+      'git-rebase-conflicts-and-force-with-lease',
+      'git-remotes-fetch-and-divergence',
+      'astro-react-and-hydration',
+      'javascript-runtimes-browser-node-workers',
+    ].sort(),
+  );
+  const learnIndex = await fetch(`${siteOrigin}/learn/`);
+  assert.equal(learnIndex.status, 200);
+  const learnIndexBody = await learnIndex.text();
+  assert.match(learnIndexBody, /Knowledge Map/);
+  assert.match(learnIndexBody, /两台电脑为何会看到不同的 Git 状态/);
+  assert.equal((await fetch(`${siteOrigin}/learn/track/programming/`)).status, 200);
+  const publicLearnNote = await fetch(`${siteOrigin}/learn/notes/domain-dns-http/`);
+  assert.equal(publicLearnNote.status, 200);
+  assert.match(await publicLearnNote.text(), /域名、DNS 与 HTTP/);
+  const localFeed = await fetch(`${feedOrigin}/api/feed?limit=20`);
+  assert.equal(localFeed.status, 200);
+  assert.ok((await localFeed.json()).items.length >= 5);
+  const localSignals = await fetch(`${feedOrigin}/activity-signals.json`);
+  assert.equal(localSignals.status, 200);
+  assert.deepEqual(await localSignals.json(), {
+    schema_version: 1,
+    signals: {
+      blog: { state: 'active' },
+      feed: { state: 'active' },
+      learn: { state: 'active' },
+      projects: { state: 'dormant' },
+    },
+  });
   const localAdmin = await fetch(`${siteOrigin}/learn/admin/`, { headers: { Cookie: cookie } });
   assert.equal(localAdmin.status, 200);
   const localAdminBody = await localAdmin.text();
@@ -306,8 +358,6 @@ await writeFile(path.join(staleDirectory, ownerFile), JSON.stringify({ pid: 2147
 let preview;
 let externallyStoppedPreview;
 let legacyStoppedPreview;
-const publishedSource = path.join(root, 'src', 'data', 'learn', 'programming', 'domain-dns-http.md');
-const originalPublishedSource = await readFile(publishedSource, 'utf8');
 try {
   preview = spawnPreview(['--check-only']);
   const checkOnly = await waitForExit(preview);
@@ -406,5 +456,4 @@ try {
   if (externallyStoppedPreview) await stopProcessTree(externallyStoppedPreview.child);
   if (legacyStoppedPreview) await stopProcessTree(legacyStoppedPreview.child);
   await rm(staleDirectory, { recursive: true, force: true });
-  await writeFile(publishedSource, originalPublishedSource, 'utf8');
 }

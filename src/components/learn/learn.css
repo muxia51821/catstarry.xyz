@@ -178,7 +178,8 @@
 .learn-track-directory a {
   position: relative;
   display: inline-grid;
-  grid-template-columns: auto 3ch;
+  grid-template-columns: auto auto 3ch;
+  gap: 8px;
   min-block-size: var(--interaction-hit-size);
   align-items: center;
   color: var(--content-text-primary);
@@ -187,6 +188,11 @@
   text-decoration: none;
 }
 .learn-track-directory a:is(:hover, :focus-visible) { color: var(--klein-500); }
+.learn-track-directory__action {
+  color: var(--content-text-secondary);
+  transition: color var(--duration-fast) var(--ease-hover), transform var(--duration-fast) var(--ease-hover);
+}
+.learn-track-directory a:is(:hover, :focus-visible) .learn-track-directory__action { color: currentcolor; transform: translateX(3px); }
 .learn-track-directory__count {
   justify-self: end;
   color: var(--content-text-secondary);
@@ -198,10 +204,17 @@
 
 .learn-graph {
   position: relative;
-  height: clamp(320px, 24vw, 350px);
+  height: clamp(520px, 42vw, 620px);
   overflow: clip;
+  isolation: isolate;
   background: var(--learn-field-deep);
   border-block: 1px solid color-mix(in srgb, var(--content-hairline) 82%, transparent);
+  transition: height 200ms var(--ease-hover);
+}
+.learn-graph[data-expanded="true"] { height: min(80svh, 760px); }
+.learn-graph:focus-visible {
+  outline: 2px solid var(--klein-500);
+  outline-offset: 4px;
 }
 .learn-graph::before {
   position: absolute;
@@ -214,7 +227,49 @@
   -webkit-mask-image: linear-gradient(to bottom, #000 0 5%, transparent 16% 84%, #000 95% 100%);
   mask-image: linear-gradient(to bottom, #000 0 5%, transparent 16% 84%, #000 95% 100%);
 }
-.learn-graph__edges { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.learn-graph__controls {
+  position: absolute;
+  z-index: 4;
+  inset: 12px 12px auto auto;
+  display: flex;
+  gap: 0;
+  padding: 2px;
+  background: color-mix(in srgb, var(--learn-field) 86%, transparent);
+  border: 1px solid color-mix(in srgb, var(--content-hairline) 82%, transparent);
+}
+.learn-graph__controls button {
+  min-inline-size: var(--interaction-hit-size);
+  min-block-size: var(--interaction-hit-size);
+  padding: 0;
+  color: var(--content-text-secondary);
+  font: 500 11px/1 var(--font-sans-display);
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+}
+.learn-graph__controls button + button { border-inline-start: 1px solid color-mix(in srgb, var(--content-hairline) 72%, transparent); }
+.learn-graph__controls button:is(:hover, :focus-visible) { color: var(--klein-500); background: color-mix(in srgb, var(--klein-500) 7%, transparent); }
+.learn-graph__controls [data-graph-collapse] { display: none; }
+.learn-graph[data-expanded="true"] .learn-graph__controls [data-graph-expand] { display: none; }
+.learn-graph[data-expanded="true"] .learn-graph__controls [data-graph-collapse] { display: inline-flex; align-items: center; }
+.learn-graph__viewport {
+  position: absolute;
+  inset: 0;
+  overflow: clip;
+  cursor: grab;
+  touch-action: none;
+}
+.learn-graph[data-dragging="true"] .learn-graph__viewport { cursor: grabbing; }
+.learn-graph__world {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform-origin: 0 0;
+  transition: transform 160ms var(--ease-hover);
+}
+.learn-graph[data-dragging="true"] .learn-graph__world { transition: none; }
+.learn-graph__edges { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
 .learn-graph__edges line {
   stroke: var(--content-hairline);
   stroke-width: 1;
@@ -224,23 +279,27 @@
 .learn-graph__edges line.is-active { stroke: var(--klein-500); stroke-width: 1.5; }
 .learn-graph__region-label {
   position: absolute;
-  inset: 4px auto auto var(--desktop-x);
+  z-index: 1;
+  inset: var(--graph-region-y, 4px) auto auto var(--graph-region-x, var(--desktop-x));
   color: var(--content-text-secondary);
   font-size: 12px;
   font-weight: 500;
+  pointer-events: none;
   transform: translateX(-50%);
 }
 .learn-graph__node {
   position: absolute;
-  inset: var(--desktop-y) auto auto var(--desktop-x);
+  z-index: 2;
+  inset: var(--graph-y) auto auto var(--graph-x);
   display: grid;
-  grid-template-columns: 16px minmax(72px, 180px);
-  gap: 5px;
+  grid-template-columns: 16px minmax(104px, 210px);
+  gap: 8px;
   min-block-size: 44px;
   align-items: start;
   color: var(--content-text-primary);
+  cursor: pointer;
   text-decoration: none;
-  transform: translate(-8px, -8px);
+  transform: translate(-50%, -50%);
   transition: opacity var(--duration-fast) var(--ease-hover), color var(--duration-fast) var(--ease-hover);
 }
 .learn-graph__hit { display: grid; width: 16px; height: 32px; place-items: start center; padding-block-start: 7px; }
@@ -252,7 +311,7 @@
   border-radius: 50%;
   transition: width var(--duration-fast) var(--ease-hover), height var(--duration-fast) var(--ease-hover);
 }
-.learn-graph__label { font-size: 14px; line-height: 1.35; text-wrap: pretty; }
+.learn-graph__label { font-size: 15px; line-height: 1.45; text-wrap: pretty; }
 .learn-graph__node:is(:hover, :focus-visible) { z-index: 2; color: var(--klein-500); }
 .learn-graph__node:is(:hover, :focus-visible) .learn-graph__dot { width: 6px; height: 6px; }
 .learn-graph[data-active-node]:not([data-active-node=""]) .learn-graph__node:not(:hover):not(:focus-visible) { opacity: .52; }
@@ -502,11 +561,14 @@
   .learn-knowledge-map__header { display: grid; gap: 18px; }
   .learn-search { width: 100%; }
   .learn-track-directory { gap: 4px 22px; padding-block: 10px 4px; }
-  .learn-track-directory a { grid-template-columns: auto; font-size: 16px; }
+  .learn-track-directory a { grid-template-columns: auto auto; font-size: 16px; }
   .learn-track-directory__count { display: none; }
-  .learn-graph { height: clamp(600px, 95svh, 820px); }
-  .learn-graph__region-label { inset: var(--mobile-y) auto auto 0; transform: none; }
-  .learn-graph__node { inset: var(--mobile-y) auto auto var(--mobile-x); grid-template-columns: 16px minmax(90px, 160px); transform: translate(-8px, -8px); }
+  .learn-graph { height: clamp(520px, 72svh, 680px); }
+  .learn-graph[data-expanded="true"] { height: min(80svh, 820px); }
+  .learn-graph__controls { inset: 10px 10px auto auto; }
+  .learn-graph__controls button { min-block-size: var(--interaction-hit-size); padding-inline: 9px; }
+  .learn-graph__region-label { inset: var(--graph-region-y, var(--mobile-y)) auto auto var(--graph-region-x, 0); transform: translateX(-50%); }
+  .learn-graph__node { grid-template-columns: 16px minmax(90px, 160px); }
   .learn-graph__label { font-size: 13px; }
   .learn-recent { padding-block: 44px 80px; }
   .learn-note-row--recent { grid-template-columns: 1fr; gap: 8px; }
