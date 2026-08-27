@@ -3,6 +3,7 @@ import { createInterface } from 'node:readline/promises';
 import { promisify } from 'node:util';
 
 import { gitPublicationReleaseIdentity } from './lib/publication-release.mjs';
+import { runProductionSmoke } from './lib/production-smoke.mjs';
 
 const run = promisify(execFile);
 
@@ -14,6 +15,9 @@ const SMOKE_URLS = [
   'https://catstarry.xyz/activity-signals.json',
   'https://catstarry.xyz/api/feed?limit=1',
 ];
+const SMOKE_TIMEOUT_MS = 30000;
+const SMOKE_MAX_ATTEMPTS = 3;
+const SMOKE_RETRY_DELAY_MS = 3000;
 
 function git(...args) {
   return execFileSync('git', args, { encoding: 'utf8' }).trim();
@@ -42,13 +46,11 @@ function assertWorktreeReadyForRelease() {
 }
 
 async function assertProductionSmoke() {
-  for (const url of SMOKE_URLS) {
-    const response = await fetch(url, { signal: AbortSignal.timeout(15000) });
-    if (response.status !== 200) {
-      throw new Error(`production smoke failed with HTTP ${response.status}: ${url}`);
-    }
-    console.log(`HTTP 200: ${url}`);
-  }
+  await runProductionSmoke(SMOKE_URLS, {
+    timeoutMs: SMOKE_TIMEOUT_MS,
+    maxAttempts: SMOKE_MAX_ATTEMPTS,
+    retryDelayMs: SMOKE_RETRY_DELAY_MS,
+  });
 }
 
 async function confirmSend() {
