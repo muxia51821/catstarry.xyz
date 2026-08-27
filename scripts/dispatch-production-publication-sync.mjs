@@ -3,6 +3,7 @@ import { createInterface } from 'node:readline/promises';
 import { promisify } from 'node:util';
 
 import { gitPublicationReleaseIdentity } from './lib/publication-release.mjs';
+import { resolvePublicationReleaseScope } from './lib/publication-release-scope.mjs';
 import { runProductionSmoke } from './lib/production-smoke.mjs';
 
 const run = promisify(execFile);
@@ -70,31 +71,46 @@ async function confirmSend() {
 }
 
 try {
-  assertWorktreeReadyForRelease();
-  const release = gitPublicationReleaseIdentity('HEAD');
+  const scope = resolvePublicationReleaseScope();
 
-  console.log(`Repository: ${REPOSITORY}`);
-  console.log(`Event type: ${EVENT_TYPE}`);
-  console.log(`Payload: environment=production status=success sha=${release.sha} (generation ${release.generation})`);
+  if (!scope.dispatchRequired) {
+    console.log(`Publication sync not required: no Blog or Learn source changed since ${scope.baselineSha}.`);
+    console.log(`Current HEAD ${scope.deploySha} does not create a Learn lifecycle barrier.`);
+    process.exitCode = 0;
+  } else {
+    assertWorktreeReadyForRelease();
+    const release = gitPublicationReleaseIdentity('HEAD');
+    if (release.sha !== scope.deploySha) {
+      throw new Error(`Release scope changed while preparing dispatch: expected ${scope.deploySha}, got ${release.sha}`);
+    }
+    console.log(`Repository: ${REPOSITORY}`);
+    console.log(`Event type: ${EVENT_TYPE}`);
+    console.log(`Payload: environment=production status=success sha=${release.sha} (generation ${release.generation})`);
+    console.log(`Scope: blog=${scope.blogPublicationSyncRequired} learn=${scope.learnPublicationSyncRequired}`);
 
-  await assertProductionSmoke();
+    await assertProductionSmoke();
 
-  console.log('');
-  console.log('Send only after the deploy runner completed successfully AND you have verified production serves this release.');
-  await confirmSend();
+    console.log('');
+    console.log('Send only after the deploy runner completed successfully AND you have verified production serves this release.');
+    await confirmSend();
 
-  await run('gh', [
-    'api',
-    `repos/${REPOSITORY}/dispatches`,
-    '-f', `event_type=${EVENT_TYPE}`,
-    '-f', 'client_payload[environment]=production',
-    '-f', 'client_payload[status]=success',
-    '-f', `client_payload[sha]=${release.sha}`,
-  ]);
+    await run('gh', [
+      'api',
+      `repos/${REPOSITORY}/dispatches`,
+      '-f', `event_type=${EVENT_TYPE}`,
+      '-f', 'client_payload[environment]=production',
+      '-f', 'client_payload[status]=success',
+      '-f', `client_payload[sha]=${release.sha}`,
+      '-f', `client_payload[blog_sync]=${scope.blogPublicationSyncRequired}`,
+      '-f', `client_payload[learn_sync]=${scope.learnPublicationSyncRequired}`,
+    ]);
 
-  console.log('Dispatch sent.');
-  console.log(`Watch the publication sync: ${WORKFLOW_URL}`);
-  console.log('The Learn pending barrier remains until that sync activates this release.');
+    console.log('Dispatch sent.');
+    console.log(`Watch the publication sync: ${WORKFLOW_URL}`);
+    if (scope.learnBarrierRequired) {
+      console.log('The Learn pending barrier remains until the requested Learn sync activates this release.');
+    }
+  }
 } catch (error) {
   console.error(error instanceof Error ? error.message : String(error));
   process.exitCode = 1;

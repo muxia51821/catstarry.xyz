@@ -16,6 +16,18 @@ function Invoke-RequiredCommand {
   }
 }
 
+function Get-PublicationReleaseScope {
+  $rawScope = @(& node 'scripts/publication-release-scope.mjs' --json)
+  if ($LASTEXITCODE -ne 0) {
+    throw "Unable to determine the publication release scope."
+  }
+  try {
+    return ($rawScope -join "`n" | ConvertFrom-Json)
+  } catch {
+    throw "Publication release scope returned invalid JSON: $($_.Exception.Message)"
+  }
+}
+
 function Assert-ProductionWorktree {
   $statusEntries = @(git status --porcelain=v1 -z) -split "`0" | Where-Object { $_ }
   $trackedChanges = @($statusEntries | Where-Object { -not $_.StartsWith('?? ') })
@@ -117,8 +129,10 @@ $originMain = (git rev-parse origin/main).Trim()
 if ($head -ne $originMain) {
   throw "HEAD ($head) must exactly match origin/main ($originMain) before production deployment."
 }
-if ([string]::IsNullOrWhiteSpace($env:FOOTPRINT_INGEST_TOKEN)) {
-  throw "FOOTPRINT_INGEST_TOKEN must be present in the process environment for the production publication release barrier."
+$publicationScope = Get-PublicationReleaseScope
+Write-Host "Publication scope: Blog sync=$($publicationScope.blogPublicationSyncRequired); Learn sync=$($publicationScope.learnPublicationSyncRequired); Learn barrier=$($publicationScope.learnBarrierRequired)."
+if ($publicationScope.learnBarrierRequired -and [string]::IsNullOrWhiteSpace($env:FOOTPRINT_INGEST_TOKEN)) {
+  throw "FOOTPRINT_INGEST_TOKEN must be present only when this release changes Learn publication source."
 }
 
 Invoke-RequiredCommand npm ci
@@ -136,20 +150,23 @@ if (-not (Test-Path -LiteralPath $workerConfig -PathType Leaf)) {
 Assert-SiteWorkerConfig -Path $workerConfig
 
 Invoke-RequiredCommand npx wrangler deploy --dry-run --config $workerConfig --name catstarry-site-production --keep-vars
-Invoke-RequiredCommand node 'scripts/blog-production-transition-check.mjs'
-Invoke-RequiredCommand node 'scripts/learn-publication-release-barrier.mjs' prepare
-try {
-  Invoke-RequiredCommand node 'scripts/learn-production-transition-check.mjs'
-} catch {
-  try {
-    Invoke-RequiredCommand node 'scripts/learn-publication-release-barrier.mjs' abort
-  } catch {
-    Write-Warning "Learn release preflight failed and the exact pending barrier could not be aborted automatically. Inspect production before any lifecycle mutation."
-  }
-  throw
+if ($publicationScope.blogPublicationSyncRequired) {
+  Invoke-RequiredCommand node 'scripts/blog-production-transition-check.mjs'
 }
-
-Write-Host "Learn publication lifecycle is now locked to pending release $head until exact post-deploy sync succeeds."
+if ($publicationScope.learnBarrierRequired) {
+  Invoke-RequiredCommand node 'scripts/learn-publication-release-barrier.mjs' prepare
+  try {
+    Invoke-RequiredCommand node 'scripts/learn-production-transition-check.mjs'
+  } catch {
+    try {
+      Invoke-RequiredCommand node 'scripts/learn-publication-release-barrier.mjs' abort
+    } catch {
+      Write-Warning "Learn release preflight failed and the exact pending barrier could not be aborted automatically. Inspect production before any lifecycle mutation."
+    }
+    throw
+  }
+  Write-Host "Learn publication lifecycle is now locked to pending release $head until exact post-deploy sync succeeds."
+}
 try {
   Invoke-RequiredCommand npx wrangler deploy --config $workerConfig --name catstarry-site-production --keep-vars
 } catch {
@@ -162,4 +179,8 @@ Assert-Http200 'https://catstarry.xyz/activity-signals.json'
 Assert-Http200 'https://catstarry.xyz/api/feed?limit=1'
 Remove-WranglerDeployRedirect -RepoRoot $repoRoot
 Write-Host "Deployed commit SHA: $head"
-Write-Host "Run 'npm run release:dispatch-sync' to dispatch SHA $head for production publication sync; the Learn pending barrier remains until that sync activates this release."
+if ($publicationScope.dispatchRequired) {
+  Write-Host "Run 'npm run release:dispatch-sync' to dispatch SHA $head for the requested publication sync."
+} else {
+  Write-Host "Publication sync is not required for this release; no Learn lifecycle barrier was created."
+}

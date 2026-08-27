@@ -25,6 +25,8 @@ jobs:
       DEPLOYMENT_ENVIRONMENT: production
       DEPLOYMENT_STATUS: success
       DEPLOYED_SHA: ${{ github.event.client_payload.sha }}
+      SYNC_BLOG: ${{ github.event.client_payload.blog_sync }}
+      SYNC_LEARN: ${{ github.event.client_payload.learn_sync }}
       FEED_API_URL: ${{ vars.FEED_API_URL }}
       FOOTPRINT_INGEST_TOKEN: ${{ secrets.FOOTPRINT_INGEST_TOKEN }}
     steps:
@@ -44,17 +46,25 @@ jobs:
           node-version-file: .node-version
           cache: npm
       - run: npm ci --ignore-scripts
+      - name: Verify publication sync scope
+        shell: bash
+        run: |
+          [[ "$SYNC_BLOG" == "true" || "$SYNC_BLOG" == "false" ]]
+          [[ "$SYNC_LEARN" == "true" || "$SYNC_LEARN" == "false" ]]
+          [[ "$SYNC_BLOG" == "true" || "$SYNC_LEARN" == "true" ]]
       - name: Sync Blog publications
         id: blog-sync
+        if: env.SYNC_BLOG == 'true'
         continue-on-error: true
         run: npm run blog:sync-publications
       - name: Sync Learn publications
         id: learn-sync
+        if: env.SYNC_LEARN == 'true'
         continue-on-error: true
         run: npm run learn:sync-publications
-      - name: Require both publication syncs
+      - name: Require requested publication syncs
         if: always()
         shell: bash
         run: |
-          [[ "${{ steps.blog-sync.outcome }}" == "success" ]]
-          [[ "${{ steps.learn-sync.outcome }}" == "success" ]]
+          [[ "$SYNC_BLOG" != "true" || "${{ steps.blog-sync.outcome }}" == "success" ]]
+          [[ "$SYNC_LEARN" != "true" || "${{ steps.learn-sync.outcome }}" == "success" ]]

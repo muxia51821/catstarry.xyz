@@ -19,7 +19,7 @@ Feed 与 Finance browser API 均使用同源 `/api/*` 路由。Production-like S
 
 | Worker | Route | 预期 binding / resource | 预期 Cron | 外部 vars / secret 名称 | Repository 可证明的边界 |
 | --- | --- | --- | --- | --- | --- |
-| Production Site Worker | `catstarry.xyz/*` | generated `SESSION` KV + `FEED_API` → `catstarry-feed-api-production` | — | build/runtime 所需的 Site vars（如有）；release runner 进程另需 `FOOTPRINT_INGEST_TOKEN` | `scripts/deploy-site-production.ps1` 以 `catstarry-site-production` 部署，并在 deploy 前校验 generated `SESSION` + `FEED_API` bindings 与 publication transition guardrails |
+| Production Site Worker | `catstarry.xyz/*` | generated `SESSION` KV + `FEED_API` → `catstarry-feed-api-production` | — | build/runtime 所需的 Site vars（如有）；仅 Learn publication source release 的 runner 进程另需 `FOOTPRINT_INGEST_TOKEN` | `scripts/deploy-site-production.ps1` 以 `catstarry-site-production` 部署，并在 deploy 前校验 generated `SESSION` + `FEED_API` bindings 与 scoped publication transition guardrails |
 | Production Feed Worker | `catstarry.xyz/api/*`、`/activity-signals.json`；Site `FEED_API` Service Binding target | `DB` → `catstarry-db`；`VIEW_KV`、`AUTH_KV`；`MEDIA_BUCKET` → `catstarry-media`；`HOME_PROJECTIONS` → `home-projections` | repository contract 为 `0 * * * *` | `SITE_ORIGIN`、`CLIP_PREVIEW_ALLOWED_HOSTS`、`FOOTPRINT_INGEST_TOKEN` | Site production runner 会把 generated binding target 改为 `catstarry-feed-api-production`；实际 account IDs/routes/secrets 现场核验 |
 | Production Finance Worker | `f.catstarry.xyz/api/*` | `DB` → `finance-db`；`FINANCE_AUTH_KV` | repository contract 为 `*/15 * * * *`、`30 7 * * 1-5` | `FINANCE_SITE_ORIGIN`、可选 `MARKET_PROVIDER_URL`、`MARKET_PROVIDER_TOKEN` | Worker 名称、实际 IDs、Cron、observability 和 routes 需账户核验 |
 
@@ -105,7 +105,7 @@ MARKET_PROVIDER_URL=<approved HTTPS adapter endpoint; omit until selected>
 ## Secrets 与用户记录
 
 - Feed Worker secret：`FOOTPRINT_INGEST_TOKEN`
-- Production Site release runner 进程：`FOOTPRINT_INGEST_TOKEN`（仅用于 authenticated publication release prepare / abort；不是 Site Worker binding）
+- Learn publication source release 的 Site runner 进程：`FOOTPRINT_INGEST_TOKEN`（仅用于 authenticated publication release prepare / abort；不是 Site Worker binding）
 - 可选 Finance 行情：`MARKET_PROVIDER_TOKEN`
 - GitHub production environment secret：`FOOTPRINT_INGEST_TOKEN`
 - GitHub production environment variable：`FEED_API_URL=https://catstarry.xyz`
@@ -157,17 +157,17 @@ npx wrangler deploy --config dist/server/wrangler.json
 
 域名 routes / custom domains 属于 Cloudflare 环境 wiring；执行 staging release 时应现场核验 `staging.catstarry.xyz`、`f-staging.catstarry.xyz` 与对应 Site/API deployment 的实际映射，不把本文件当作账户 inventory。
 
-Production Site 的正式 runner 是 `scripts/deploy-site-production.ps1`。它要求 clean tracked worktree、`HEAD == origin/main` 和进程环境中的 `FOOTPRINT_INGEST_TOKEN`。完成 build / scoped validation 后，它检查 generated `SESSION` + `FEED_API` bindings，把 Feed target 切到 production Worker，并先完成 Wrangler dry-run。随后按顺序执行 Blog published-source survival preflight、建立 exact Learn pending release、在 lifecycle 已冻结的状态下执行 Learn production transition preflight，最后才执行真实 Site deploy。若 Learn preflight 在真实 deploy 开始前失败，runner 可以精确 abort 自己刚建立的 pending release；若真实 Wrangler deploy 返回失败或结果不明确，不得自动 abort，必须先确认 production Site 是否已经切换到该 SHA。
+Production Site 的正式 runner 是 `scripts/deploy-site-production.ps1`。它要求 clean tracked worktree 与 `HEAD == origin/main`，并从最新成功的 publication sync 到 exact deploy SHA 的完整 diff 计算 release scope。所有 Site release 都完成 build / scoped validation、generated `SESSION` + `FEED_API` binding 检查和 Wrangler dry-run；只有 Blog source scope 才执行 Blog published-source survival preflight，只有 Learn source scope 才要求进程环境中的 `FOOTPRINT_INGEST_TOKEN`、建立 exact Learn pending release，并在 lifecycle 已冻结时执行 Learn production transition preflight。没有 publication source scope 的 Site release 不建立 Learn barrier。若 Learn preflight 在真实 deploy 开始前失败，runner 可以精确 abort 自己刚建立的 pending release；若真实 Wrangler deploy 返回失败或结果不明确，不得自动 abort，必须先确认 production Site 是否已经切换到该 SHA。
 
 ## Production deployment 后 publication sync
 
-只有生产部署系统确认成功后，才发送 GitHub `repository_dispatch`。Canonical 发送方式是：
+只有 release scope 含 Blog 或 Learn publication source，且生产部署系统确认成功后，才发送 GitHub `repository_dispatch`。Canonical 发送方式是：
 
 ```powershell
 npm run release:dispatch-sync
 ```
 
-该脚本只执行本节既有规则，不引入新规则：要求 clean tracked worktree 且 HEAD 等于 `origin/main`（untracked 仅允许 `.scratch/`），对生产入口执行 HTTP 200 冒烟，然后打印完整 payload 并经交互确认后才通过已认证的 `gh` CLI 发送。冒烟是只读 GET：仅网络层失败（连接/超时）会做有限次自动重试，收到 HTTP 非 200 则立即失败；dispatch 发送本身绝不自动重试——发送结果不确定时先用 `npm run release:status` 核验，再决定是否重发。非交互环境必须显式传 `--yes`。事件合同保持不变：
+该脚本先计算与 runner 相同的 release scope。若没有 Blog/Learn source 变化，它明确报告 no-op，不做冒烟或 dispatch；若需要 sync，才要求 clean tracked worktree 与 `HEAD == origin/main`（untracked 仅允许 `.scratch/`），对生产入口执行 HTTP 200 冒烟，然后打印完整 payload 并经交互确认后才通过已认证的 `gh` CLI 发送。冒烟是只读 GET：仅网络层失败（连接/超时）会做有限次自动重试，收到 HTTP 非 200 则立即失败；dispatch 发送本身绝不自动重试——发送结果不确定时先用 `npm run release:status` 核验，再决定是否重发。非交互环境必须显式传 `--yes`。
 
 ```text
 event_type:     catstarry-production-deployment-succeeded
@@ -175,18 +175,20 @@ client_payload:
   environment: production
   status:      success
   sha:         <exact deployed commit SHA>
+  blog_sync:   true | false
+  learn_sync:  true | false
 ```
 
-`.github/workflows/sync-production-publications.yml` 会验证并 checkout 精确 deployed SHA，并使用完整 Git history 计算同一 release 的 `{sha, generation}` identity。该 workflow 使用固定 concurrency group 串行化 production publication writers；D1 monotonic guard 继续负责拒绝已落后的 release，不能用 workflow 执行先后代替 release identity。Blog 与 Learn 两个 sync step 都会被尝试，最终任一失败都会让 workflow 保持失败状态。
+`.github/workflows/sync-production-publications.yml` 会验证并 checkout 精确 deployed SHA，并使用完整 Git history 计算同一 release 的 `{sha, generation}` identity。该 workflow 使用固定 concurrency group 串行化 production publication writers；D1 monotonic guard 继续负责拒绝已落后的 release，不能用 workflow 执行先后代替 release identity。它只执行 payload 请求的 Blog 或 Learn sync；被请求的任一步失败都会让 workflow 保持失败状态。
 
 - **Blog**：第一次 lifecycle manifest 初始化只建立 baseline、不回填历史；之后 deploy sync 保留已有 owner state，并可为 never-published、首次处于 `published` 的新 source 创建幂等 `first-production-v1` footprint。Owner lifecycle PATCH 也可能完成同一首次 publication。每次 production sync 携带 exact release identity；旧 generation 或同 generation不同 SHA 会在 lifecycle mutation 前被拒绝。Site deploy preflight 另外保证当前 runtime-published slug 仍存在于 candidate source；source frontmatter state 不替代 runtime lifecycle authority。
 - **Learn**：发送 schema v3 manifest 与 exact release identity。它**不执行首次 Publish，不创建新的 `learn_publications` record，也不回填首次发布**；只为已经存在的 runtime publication 同步 revision metadata，public revision 可创建 `learn_note_revised` footprint，hidden revision 只更新 metadata。relation manifest 同步后带 active release identity；exact pending release 激活后 Owner lifecycle mutation 才重新开放。旧、冲突或未经 prepare 的 release sync 在 revision/relation mutation 前被拒绝。
 
-Production content release 从 Blog preflight 开始，到 publication sync workflow 全部成功结束前，不执行 Owner Blog Publish / Withdraw / Restore。Blog 没有额外的 pending runtime state；这是单操作者的 release serialization 规则，用来避免 preflight 与 post-deploy sync 之间改变 runtime published set。不要为了这一操作边界给 Blog 增加新的 lifecycle state。
+当 release scope 含 Blog publication source 时，从 Blog preflight 开始到其请求的 publication sync workflow 成功结束前，不执行 Owner Blog Publish / Withdraw / Restore。Blog 没有额外的 pending runtime state；这是单操作者的 release serialization 规则，用来避免 preflight 与 post-deploy sync 之间改变 runtime published set。不要为了这一操作边界给 Blog 增加新的 lifecycle state。
 
 Learn 的首次正式 Publish 由 Owner Admin lifecycle mutation 完成：production runtime 是正式 publication authority；创建 D1 `learn_publications` public record，并与 `learn_note_published` first footprint 在同一 D1 batch 中写入。Hide / Show 保留首次 `published_at`，不产生 duplicate first-publication footprint。Local Preview 明确禁止 lifecycle mutation。Production Site release pending 时，这些 lifecycle mutations fail closed 为暂时不可用，而 public reading 保持现有 runtime projection。
 
-如果 Site 已成功切换但 publication sync 失败，不要立即 rollback Site 或手工修改 KV/D1。Blog 的 preflight 保证部署前已经公开的 source 仍存在于 candidate Site；Learn pending barrier 保持 lifecycle mutation 锁定，直到 exact release sync 成功激活。修复失败原因后重试同一 exact release 的 publication sync。若 Site deploy 结果本身不明确，先核验实际 production Site release identity，再决定是否对 exact pending release 执行 abort。
+如果 Site 已成功切换但 publication sync 失败，不要立即 rollback Site 或手工修改 KV/D1。Blog source scope 的 preflight 保证部署前已经公开的 source 仍存在于 candidate Site；只有 Learn source scope 建立的 pending barrier 才会持续锁定 lifecycle mutation，直到 exact release sync 成功激活。Blog-only scope 不创建 Learn barrier。修复失败原因后重试同一 exact release 的 publication sync。若 Site deploy 结果本身不明确，先核验实际 production Site release identity，再决定是否对 exact pending release 执行 abort。
 
 失败/preview 部署不得发送 production-success dispatch。该 SHA 必须是 40 位 commit ID 且属于 `origin/main` 历史；workflow 使用 `npm ci --ignore-scripts`，publication scripts 只允许把 bearer token 发送到精确的 `https://catstarry.xyz`。不满足任一条件时任务必须失败。
 

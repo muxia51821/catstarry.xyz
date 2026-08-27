@@ -1,6 +1,8 @@
 import { execFile, execFileSync } from 'node:child_process';
 import { promisify } from 'node:util';
 
+import { resolvePublicationReleaseScope } from './lib/publication-release-scope.mjs';
+
 const run = promisify(execFile);
 
 const REPOSITORY = 'muxia51821/catstarry.xyz';
@@ -44,6 +46,17 @@ await section('Local repository', async () => {
   }
 });
 
+await section('Current HEAD publication scope', async () => {
+  const scope = resolvePublicationReleaseScope();
+  console.log(`Publication baseline: ${scope.baselineSha.slice(0, 12)} (${scope.baselineSource})`);
+  console.log(`Current HEAD: ${scope.deploySha.slice(0, 12)}`);
+  console.log(`Blog manifest sync: ${scope.blogPublicationSyncRequired ? 'required' : 'not required'}`);
+  console.log(`Learn manifest sync: ${scope.learnPublicationSyncRequired ? 'required' : 'not required'}`);
+  console.log(`Learn lifecycle barrier: ${scope.learnBarrierRequired ? 'required' : 'not required'}`);
+  console.log(`Publication dispatch: ${scope.dispatchRequired ? 'required' : 'not required'}`);
+  console.log('Scope is descriptive; deployment still requires a clean exact main worktree.');
+});
+
 await section('Latest production publication syncs', async () => {
   const { stdout } = await run('gh', [
     'run', 'list',
@@ -63,9 +76,9 @@ await section('Latest production publication syncs', async () => {
   }
   const latest = runs[0];
   if (latest.status === 'completed' && latest.conclusion === 'success') {
-    console.log('=> Latest sync succeeded (that release is activated; no known freeze).');
+    console.log('=> Latest dispatched publication sync succeeded. A later, undispatched Learn pending barrier cannot be inferred from this history.');
   } else if (latest.status === 'completed') {
-    console.log('=> Latest sync FAILED: a Learn pending barrier may still be active. See docs/DEPLOY.md failure handling before retrying anything.');
+    console.log('=> Latest sync FAILED: if its Learn scope was requested, the exact pending barrier may still be active. See docs/DEPLOY.md failure handling before retrying anything.');
   } else {
     console.log('=> Sync still running; owner lifecycle mutations stay frozen until it succeeds.');
   }
@@ -82,4 +95,4 @@ await section('Production probes', async () => {
   }
 });
 
-console.log('\nFreeze authority: if /learn/admin fails closed, a pending release is active.');
+console.log('\nLearn barrier state is runtime authority; do not use owner lifecycle mutations as a diagnostic probe.');
