@@ -41,7 +41,7 @@ wrangler.toml
 # Temporary / scratch files
 _archive/
 /.blog-workbench/
-.scratch/feed-production-migrations-*/
+.scratch/
 
 # Local-only visual reference material
 docs/design/reference-design/深水/
