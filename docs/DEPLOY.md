@@ -165,7 +165,7 @@ Production Site 的正式 runner 是 `scripts/deploy-site-production.ps1`。它�
 npm run release:dispatch-sync
 ```
 
-该脚本只执行本节既有规则，不引入新规则：要求 clean tracked worktree 且 HEAD 等于 `origin/main`（untracked 仅允许 `.scratch/`），对生产入口执行 HTTP 200 冒烟，然后打印完整 payload 并经交互确认后才通过已认证的 `gh` CLI 发送；任何前置失败即停，不自动重试。非交互环境必须显式传 `--yes`。事件合同保持不变：
+该脚本只执行本节既有规则，不引入新规则：要求 clean tracked worktree 且 HEAD 等于 `origin/main`（untracked 仅允许 `.scratch/`），对生产入口执行 HTTP 200 冒烟，然后打印完整 payload 并经交互确认后才通过已认证的 `gh` CLI 发送。冒烟是只读 GET：仅网络层失败（连接/超时）会做有限次自动重试，收到 HTTP 非 200 则立即失败；dispatch 发送本身绝不自动重试——发送结果不确定时先用 `npm run release:status` 核验，再决定是否重发。非交互环境必须显式传 `--yes`。事件合同保持不变：
 
 ```text
 event_type:     catstarry-production-deployment-succeeded
