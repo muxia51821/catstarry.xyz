@@ -79,7 +79,7 @@ git log -1 --oneline
 ```
 
 - 不得修改或暂存与当前任务无关的 tracked 或 untracked 文件。
-- 未经明确授权，不得使用 `git add .` 或 `git add -A`。
+- 未经明确授权，不得使用 `git add .` 或 `git add -A`；路径限定的 `-A` 同样会暂存 untracked 文件，批量删除 tracked 文件用 `git add -u <path>`。
 - 未授权 commit / push 时，完成后列出实际改动文件，并提供按路径限定的 `git add`、`git commit` 和必要的 `git push` 命令。
 - 如需快照，提供精确命令并等待木下执行后再继续。
 
