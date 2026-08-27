@@ -36,6 +36,10 @@
 
 `Confirmed`、`Revalidate`、`Superseded`、`Parked` 是 Product decision states；不要从它们推断当前 deployment 或 implementation status。
 
+## Operational workflow
+
+- [Learn Public Note 发布流程](learn-publication-workflow.md)：从 private validated learning 选择性重写、验证、release 与 Owner 首次 Publish 的稳定操作顺序。
+
 ## Reading routes
 
 | 工作范围 | 先读 | 再读 |
