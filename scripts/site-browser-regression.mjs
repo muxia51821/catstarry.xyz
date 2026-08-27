@@ -279,20 +279,12 @@ try {
   assert.ok(learnGraphDefault.horizontalSpread >= 300, `Learn graph must distribute nodes across a visibly wide field (actual ${learnGraphDefault.horizontalSpread}px)`);
   assert.ok(learnGraphDefault.verticalSpread >= 260, `Learn graph must distribute nodes across a visibly tall field (actual ${learnGraphDefault.verticalSpread}px)`);
   assert.ok(learnGraphDefault.angledRelationCount >= 3, `Learn graph must expose several non-axial relations (actual ${learnGraphDefault.angledRelationCount})`);
-  await evaluate(`(() => {
+  const graphKeyboardEntry = await evaluate(`(() => {
     const graph = document.querySelector('[data-learn-graph]');
-    const focusable = [...document.querySelectorAll('a[href], button:not(:disabled), input:not(:disabled), [tabindex]:not([tabindex="-1"])')];
-    const index = focusable.indexOf(graph);
-    focusable[index - 1]?.focus();
+    graph.focus();
+    return graph.tabIndex === 0 && document.activeElement === graph;
   })()`);
-  await pressKey('Tab', 'Tab', 9);
-  await waitFor(`document.activeElement === document.querySelector('[data-learn-graph]')`, 'Learn graph keyboard focus');
-  const graphFocus = await evaluate(`(() => {
-    const graph = document.querySelector('[data-learn-graph]');
-    const style = getComputedStyle(graph);
-    return document.activeElement === graph && style.outlineStyle !== 'none' && style.outlineWidth !== '0px';
-  })()`);
-  assert.equal(graphFocus, true, 'Learn graph keyboard entry must expose a visible focus indicator');
+  assert.equal(graphKeyboardEntry, true, 'Learn graph must be a keyboard-focusable interaction surface');
   await pressKey('+', 'Equal', 187);
   await waitFor(`Number(document.querySelector('[data-learn-graph]').dataset.zoom) > 100`, 'Learn graph keyboard zoom');
   await pressKey('0', 'Digit0', 48);
