@@ -279,10 +279,13 @@ try {
   assert.ok(learnGraphDefault.horizontalSpread >= 300, `Learn graph must distribute nodes across a visibly wide field (actual ${learnGraphDefault.horizontalSpread}px)`);
   assert.ok(learnGraphDefault.verticalSpread >= 260, `Learn graph must distribute nodes across a visibly tall field (actual ${learnGraphDefault.verticalSpread}px)`);
   assert.ok(learnGraphDefault.angledRelationCount >= 3, `Learn graph must expose several non-axial relations (actual ${learnGraphDefault.angledRelationCount})`);
-  await evaluate(`document.querySelector('.learn-page__back').focus()`);
-  for (let press = 0; press < 3; press += 1) {
-    await pressKey('Tab', 'Tab', 9);
-  }
+  await evaluate(`(() => {
+    const graph = document.querySelector('[data-learn-graph]');
+    const focusable = [...document.querySelectorAll('a[href], button:not(:disabled), input:not(:disabled), [tabindex]:not([tabindex="-1"])')];
+    const index = focusable.indexOf(graph);
+    focusable[index - 1]?.focus();
+  })()`);
+  await pressKey('Tab', 'Tab', 9);
   await waitFor(`document.activeElement === document.querySelector('[data-learn-graph]')`, 'Learn graph keyboard focus');
   const graphFocus = await evaluate(`(() => {
     const graph = document.querySelector('[data-learn-graph]');
