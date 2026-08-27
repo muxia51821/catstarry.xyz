@@ -223,6 +223,8 @@ try {
   await waitFor(`document.readyState === 'complete' && document.querySelectorAll('[data-graph-node]').length === 7`, 'Learn graph load');
   assert.equal(await evaluate(`!document.querySelector('astro-dev-toolbar')`), true, 'Browser regression must disable the Astro dev toolbar');
   await waitFor(`document.querySelectorAll('.learn-graph__edges line').length === 6`, 'Learn graph relation edges');
+  await delay(250);
+  await waitFor(`document.querySelectorAll('.learn-graph__edges line').length === 6`, 'stable Learn graph relation edges');
   const learnGraphDefault = await evaluate(`(() => {
     const graph = document.querySelector('[data-learn-graph]');
     const viewport = document.querySelector('[data-graph-viewport]');
