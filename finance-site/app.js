@@ -92,7 +92,6 @@ function securityDisplay(row) {
   const name = typeof row?.ticker_name === 'string' ? row.ticker_name.trim() : '';
   return ticker && name ? `${ticker} · ${name}` : name || ticker || '—';
 }
-function escapeHtml(value) { return String(value ?? '').replace(/[&<>'"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char]); }
 
 async function boot() {
   const version = ++authStateVersion;
