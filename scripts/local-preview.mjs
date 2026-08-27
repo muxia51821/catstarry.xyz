@@ -7,6 +7,11 @@ import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath } from 'node:url';
 import { readBlogPublicationEntries } from './lib/blog-publications.mjs';
+import {
+  localPreviewFixtureSummary,
+  localPreviewFixtureSql,
+  readLocalPreviewFixture,
+} from './lib/local-preview-fixtures.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const node = process.execPath;
@@ -358,35 +363,34 @@ function isRetryableLocalD1InspectionError(error) {
   return /database is locked|disk i\/o error|no such table: d1_migrations/i.test(error.message);
 }
 
-async function localFeedMigrationsApplied(persist) {
-  const migrationEntries = await readdir(feedMigrationsDir, { withFileTypes: true });
-  const expected = migrationEntries
-    .filter((entry) => entry.isFile() && entry.name.endsWith('.sql'))
-    .map((entry) => entry.name);
+async function localFeedDatabasePaths(persist) {
   const d1Root = path.join(persist, 'v3', 'd1', 'miniflare-D1DatabaseObject');
-  let d1Entries;
-  try {
-    d1Entries = await readdir(d1Root, { withFileTypes: true });
-  } catch (error) {
-    if (isRetryableLocalD1InspectionError(error)) return false;
-    throw error;
-  }
+  const d1Entries = await readdir(d1Root, { withFileTypes: true });
   const databasePaths = d1Entries
     .filter((entry) => entry.isFile() && entry.name.endsWith('.sqlite') && entry.name !== 'metadata.sqlite')
     .map((entry) => path.join(d1Root, entry.name));
   for (const directory of d1Entries) {
     if (!directory.isDirectory()) continue;
     const directoryPath = path.join(d1Root, directory.name);
-    let files;
-    try {
-      files = await readdir(directoryPath, { withFileTypes: true });
-    } catch (error) {
-      if (isRetryableLocalD1InspectionError(error)) continue;
-      throw error;
-    }
+    const files = await readdir(directoryPath, { withFileTypes: true });
     databasePaths.push(...files
       .filter((file) => file.isFile() && file.name.endsWith('.sqlite') && file.name !== 'metadata.sqlite')
       .map((file) => path.join(directoryPath, file.name)));
+  }
+  return databasePaths;
+}
+
+async function localFeedMigrationsApplied(persist) {
+  const migrationEntries = await readdir(feedMigrationsDir, { withFileTypes: true });
+  const expected = migrationEntries
+    .filter((entry) => entry.isFile() && entry.name.endsWith('.sql'))
+    .map((entry) => entry.name);
+  let databasePaths;
+  try {
+    databasePaths = await localFeedDatabasePaths(persist);
+  } catch (error) {
+    if (isRetryableLocalD1InspectionError(error)) return false;
+    throw error;
   }
   for (const databasePath of databasePaths) {
     let connection;
@@ -404,35 +408,78 @@ async function localFeedMigrationsApplied(persist) {
   return false;
 }
 
-async function prepareLocalFeedDatabase(persist, env) {
-  console.log('[local-preview] Prepare temporary local Feed database');
-  const migration = startService('Local Feed database preparation', node, [
+async function seedLocalPreviewFixtures(persist, fixture, env) {
+  const sqlPath = path.join(persist, 'local-preview-visual-fixture.sql');
+  const signalsPath = path.join(persist, 'local-preview-activity-signals.json');
+  await writeFile(sqlPath, localPreviewFixtureSql(fixture), 'utf8');
+  await writeFile(signalsPath, JSON.stringify(fixture.activitySignals), 'utf8');
+  await runCommand(node, [
     wrangler,
     'd1',
-    'migrations',
-    'apply',
+    'execute',
     'catstarry-db',
     '--local',
-    '--persist-to',
-    persist,
-    '--config',
-    feedConfig,
-  ], env, { interactive: true });
-  const deadline = Date.now() + migrationCompletionTimeoutMs;
-  while (Date.now() < deadline) {
-    const outcome = await Promise.race([migration.exit, sleep(migrationPollMs).then(() => null)]);
-    if (outcome) {
-      if (outcome.code === 0) return;
-      throw new Error(`Prepare temporary local Feed database failed${outcome.signal ? ` (${outcome.signal})` : ` with exit code ${outcome.code}`}`);
+    '--persist-to', persist,
+    '--config', feedConfig,
+    '--file', sqlPath,
+  ], 'Seed temporary local visual database', env);
+  await runCommand(node, [
+    wrangler,
+    'r2',
+    'object',
+    'put',
+    'home-projections/activity-signals.json',
+    '--local',
+    '--persist-to', persist,
+    '--file', signalsPath,
+    '--content-type', 'application/json',
+    '--cache-control', 'public, max-age=60, stale-while-revalidate=300',
+  ], 'Seed temporary local Home signals', env);
+}
+
+async function prepareLocalFeedDatabase(persist, env) {
+  console.log('[local-preview] Prepare temporary local Feed database');
+  const attempts = 3;
+  let lastFailure;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    let attemptFailure;
+    const migration = startService('Local Feed database preparation', node, [
+      wrangler,
+      'd1',
+      'migrations',
+      'apply',
+      'catstarry-db',
+      '--local',
+      '--persist-to',
+      persist,
+      '--config',
+      feedConfig,
+    ], env, { interactive: true });
+    const deadline = Date.now() + migrationCompletionTimeoutMs;
+    while (Date.now() < deadline) {
+      const outcome = await Promise.race([migration.exit, sleep(migrationPollMs).then(() => null)]);
+      if (outcome) {
+        if (outcome.code === 0) return;
+        attemptFailure = `exit code ${outcome.code ?? 'unknown'}${outcome.signal ? ` (${outcome.signal})` : ''}`;
+        break;
+      }
+      if (await localFeedMigrationsApplied(persist)) {
+        await stopService(migration);
+        console.log('[local-preview] Local Feed database is ready.');
+        return;
+      }
     }
-    if (await localFeedMigrationsApplied(persist)) {
+    if (!attemptFailure) {
       await stopService(migration);
-      console.log('[local-preview] Local Feed database is ready.');
-      return;
+      attemptFailure = `did not complete within ${migrationCompletionTimeoutMs / 1_000} seconds`;
+    }
+    lastFailure = attemptFailure;
+    if (attempt < attempts) {
+      console.warn(`[local-preview] Temporary local Feed database attempt ${attempt} failed (${lastFailure}); retrying.`);
+      await sleep(1_000 * attempt);
     }
   }
-  await stopService(migration);
-  throw new Error(`[local-preview] Local Feed database did not complete within ${migrationCompletionTimeoutMs / 1_000} seconds.`);
+  throw new Error(`[local-preview] Prepare temporary local Feed database failed after ${attempts} attempts (${lastFailure}).`);
 }
 
 function localPreviewCredentials() {
@@ -534,11 +581,14 @@ async function main() {
     await writeOwnerState();
     const feedEnv = {
       ...process.env,
+      CI: '1',
       WRANGLER_HIDE_BANNER: 'true',
       WRANGLER_SEND_METRICS: 'false',
       XDG_CONFIG_HOME: path.join(persist, 'xdg'),
     };
     await prepareLocalFeedDatabase(persist, feedEnv);
+    const localFixture = await readLocalPreviewFixture();
+    await seedLocalPreviewFixtures(persist, localFixture, feedEnv);
     const localAuth = await prepareLocalPreviewAuth(persist, feedEnv);
     await releasePort(reservations[0]);
     const site = startService('Astro site preview', node, [
@@ -548,11 +598,13 @@ async function main() {
       '127.0.0.1',
       '--port',
       String(sitePort),
+      '--ignore-lock',
     ], {
       ...process.env,
       ASTRO_DEV_BACKGROUND: '0',
       FEED_API_URL: feedOrigin,
       PUBLIC_FEED_API_URL: feedOrigin,
+      PUBLIC_ACTIVITY_SIGNALS_URL: `${feedOrigin}/activity-signals.json`,
     }, { captureOutput: true });
     services.push(site);
     const actualSitePort = await waitForAstroPort(site, () => stopRequested);
@@ -603,17 +655,18 @@ async function main() {
     console.log(`  Feed API       ${feedOrigin}/api/feed`);
     console.log(`  Source checkout: ${root}`);
     console.log(`  Git branch / HEAD: ${sourceIdentity}`);
+    const fixtureSummary = localPreviewFixtureSummary(localFixture);
+    console.log(`  Local visual fixture: ${fixtureSummary.learn} Learn Notes, ${fixtureSummary.feed} Feed entries, ${fixtureSummary.footprints} Footprints`);
     console.log('');
     console.log('Local preview login (LOCAL PREVIEW ONLY):');
     console.log(`  username: ${localAuth.username}`);
     console.log(`  password: ${localAuth.password}`);
     console.log('');
     console.log('Next steps:');
-    console.log(`  1. Open ${siteOrigin}/feed/`);
-    console.log('  2. Login with the LOCAL PREVIEW ONLY credentials above');
-    console.log('  3. Open /learn/admin');
-    console.log('  4. Click Preview on a deployed Learn Note');
-    console.log('This account exists only in the temporary local preview state. Press Ctrl+C to stop all previews and clean temporary state.');
+    console.log(`  1. Open ${siteOrigin}/, /blog/, /feed/, /learn/, or /projects/`);
+    console.log(`  2. Open ${financeOrigin}/ for the Finance representative preview`);
+    console.log('  3. Login with the LOCAL PREVIEW ONLY credentials above for owner previews');
+    console.log('The visual fixture is temporary and read-only: it never performs Learn Publish or a production release. Press Ctrl+C to stop all previews and clean temporary state.');
 
     if (process.env.LOCAL_PREVIEW_TEST_STOP_AFTER_READY === 'SIGINT') onSignal('SIGINT');
 

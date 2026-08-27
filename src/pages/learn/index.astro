@@ -48,8 +48,13 @@ const recentNotes = getRecentKnowledge(notes);
             </header>
             <nav class="learn-track-directory" aria-label="Learn Tracks">
               {tracks.map((track) => (
-                <a href={`/learn/track/${track.slug}/`} data-track-link={track.slug}>
+                <a
+                  href={`/learn/track/${track.slug}/`}
+                  data-track-link={track.slug}
+                  aria-label={`浏览 ${track.name} 的全部 ${getTrackNotes(notes, track.slug).length} 篇笔记`}
+                >
                   <span>{track.name}</span>
+                  <span class="learn-track-directory__action" aria-hidden="true">→</span>
                   <span class="learn-track-directory__count" aria-label={`${getTrackNotes(notes, track.slug).length} 篇笔记`}>
                     {getTrackNotes(notes, track.slug).length}
                   </span>
