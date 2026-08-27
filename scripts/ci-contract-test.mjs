@@ -5,6 +5,8 @@ const packageJson = JSON.parse(await readFile('package.json', 'utf8'));
 const validate = await readFile('.github/workflows/validate.yml', 'utf8');
 const publication = await readFile('.github/workflows/sync-production-publications.yml', 'utf8');
 const siteProductionDeploy = await readFile('scripts/deploy-site-production.ps1', 'utf8');
+const dispatchProductionSync = await readFile('scripts/dispatch-production-publication-sync.mjs', 'utf8');
+const publicationReleaseScope = await readFile('scripts/lib/publication-release-scope.mjs', 'utf8');
 const nodeVersion = (await readFile('.node-version', 'utf8')).trim();
 
 assert.match(nodeVersion, /^\d+\.\d+\.\d+$/, '.node-version must pin an exact runtime');
@@ -72,9 +74,12 @@ assert.match(publication, /git merge-base --is-ancestor "\$DEPLOYED_SHA" origin\
 assert.match(publication, /npm ci --ignore-scripts/);
 assert.match(publication, /permissions:\s*\n\s+contents: read/);
 assert.match(publication, /concurrency:\s*\n\s+group:\s*production-publication-sync\s*\n\s+cancel-in-progress:\s*false/);
-assert.match(publication, /id:\s*blog-sync[\s\S]*?continue-on-error:\s*true[\s\S]*?npm run blog:sync-publications/);
-assert.match(publication, /id:\s*learn-sync[\s\S]*?continue-on-error:\s*true[\s\S]*?npm run learn:sync-publications/);
-assert.match(publication, /if:\s*always\(\)[\s\S]*?steps\.blog-sync\.outcome[\s\S]*?steps\.learn-sync\.outcome/);
+assert.match(publication, /SYNC_BLOG:\s*\$\{\{ github\.event\.client_payload\.blog_sync \}\}/);
+assert.match(publication, /SYNC_LEARN:\s*\$\{\{ github\.event\.client_payload\.learn_sync \}\}/);
+assert.match(publication, /name:\s*Verify publication sync scope[\s\S]*?\[\[ "\$SYNC_BLOG" == "true" \|\| "\$SYNC_LEARN" == "true" \]\]/);
+assert.match(publication, /id:\s*blog-sync[\s\S]*?if:\s*env\.SYNC_BLOG == 'true'[\s\S]*?continue-on-error:\s*true[\s\S]*?npm run blog:sync-publications/);
+assert.match(publication, /id:\s*learn-sync[\s\S]*?if:\s*env\.SYNC_LEARN == 'true'[\s\S]*?continue-on-error:\s*true[\s\S]*?npm run learn:sync-publications/);
+assert.match(publication, /name:\s*Require requested publication syncs[\s\S]*?\$SYNC_BLOG[\s\S]*?steps\.blog-sync\.outcome[\s\S]*?\$SYNC_LEARN[\s\S]*?steps\.learn-sync\.outcome/);
 
 const realSiteDeploy = siteProductionDeploy.indexOf(
   'Invoke-RequiredCommand npx wrangler deploy --config $workerConfig --name catstarry-site-production --keep-vars',
@@ -100,5 +105,15 @@ assert.doesNotMatch(
   /Remove-Item[^\n]*dist[\\/]server[\\/]wrangler\.json/i,
   'cleanup must preserve the generated Site Worker config for diagnostics and exact-build reuse',
 );
+assert.match(siteProductionDeploy, /function Get-PublicationReleaseScope/);
+assert.match(siteProductionDeploy, /\$publicationScope\.learnBarrierRequired -and \[string\]::IsNullOrWhiteSpace\(\$env:FOOTPRINT_INGEST_TOKEN\)/);
+assert.match(siteProductionDeploy, /if \(\$publicationScope\.learnBarrierRequired\) \{[\s\S]*?learn-publication-release-barrier\.mjs' prepare/);
+assert.match(siteProductionDeploy, /if \(\$publicationScope\.dispatchRequired\) \{[\s\S]*?release:dispatch-sync/);
+assert.match(dispatchProductionSync, /resolvePublicationReleaseScope\(\)/);
+assert.match(dispatchProductionSync, /if \(!scope\.dispatchRequired\) \{[\s\S]*?Publication sync not required/);
+assert.match(dispatchProductionSync, /client_payload\[blog_sync\]/);
+assert.match(dispatchProductionSync, /client_payload\[learn_sync\]/);
+assert.match(publicationReleaseScope, /\['diff', '--name-only', '--no-renames', `\$\{baseline\}\.\.\$\{deploySha\}`\]/);
+assert.doesNotMatch(publicationReleaseScope, /PUBLICATION_BASELINE_SHA/);
 
-console.log('CI command, production publication convergence, and Site deploy cleanup contracts passed.');
+console.log('CI command, scoped production publication convergence, and Site deploy cleanup contracts passed.');
