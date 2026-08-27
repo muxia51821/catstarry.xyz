@@ -37,11 +37,38 @@ function Assert-ProductionWorktree {
 function Assert-Http200 {
   param([Parameter(Mandatory)][string]$Uri)
 
-  $response = Invoke-WebRequest -Uri $Uri -MaximumRedirection 3
-  if ($response.StatusCode -ne 200) {
-    throw "Expected HTTP 200 from $Uri; received $($response.StatusCode)."
+  $maxAttempts = 2
+  for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+    $httpStatus = $null
+    $probeError = $null
+    try {
+      $response = Invoke-WebRequest -Uri $Uri -MaximumRedirection 3 -TimeoutSec 30 -UseBasicParsing
+      $httpStatus = $response.StatusCode
+    } catch {
+      $probeError = $_.Exception.Message
+      $exceptionType = $_.Exception.GetType().FullName
+      if ($exceptionType -eq 'System.Net.WebException' -or $exceptionType -eq 'Microsoft.PowerShell.Commands.HttpResponseException') {
+        $errorResponse = $_.Exception.Response
+        if ($null -ne $errorResponse) {
+          $httpStatus = [int]$errorResponse.StatusCode
+        }
+      }
+    }
+
+    if ($httpStatus -eq 200) {
+      Write-Host "HTTP 200: $Uri"
+      return
+    }
+    if ($null -ne $httpStatus) {
+      throw "Expected HTTP 200 from $Uri; received $httpStatus."
+    }
+
+    if ($attempt -ge $maxAttempts) {
+      throw "Expected HTTP 200 from $Uri; network failure after $maxAttempts attempts: $probeError"
+    }
+    Write-Host "HTTP probe attempt $attempt/$maxAttempts failed: $Uri ($probeError); retrying"
+    Start-Sleep -Seconds 3
   }
-  Write-Host "HTTP 200: $Uri"
 }
 
 function Assert-SiteWorkerConfig {
