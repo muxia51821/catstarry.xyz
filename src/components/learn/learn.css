@@ -230,17 +230,20 @@
 .learn-graph__controls {
   position: absolute;
   z-index: 4;
-  inset: 12px 12px auto auto;
+  inset: 6px 6px auto auto;
   display: flex;
   gap: 0;
-  padding: 2px;
+  padding: 1px;
   background: color-mix(in srgb, var(--learn-field) 86%, transparent);
   border: 1px solid color-mix(in srgb, var(--content-hairline) 82%, transparent);
 }
 .learn-graph__controls button {
-  min-inline-size: var(--interaction-hit-size);
-  min-block-size: var(--interaction-hit-size);
+  display: inline-flex;
+  min-inline-size: 22px;
+  min-block-size: 22px;
   padding: 0;
+  align-items: center;
+  justify-content: center;
   color: var(--content-text-secondary);
   font: 500 11px/1 var(--font-sans-display);
   cursor: pointer;
@@ -251,7 +254,7 @@
 .learn-graph__controls button:is(:hover, :focus-visible) { color: var(--klein-500); background: color-mix(in srgb, var(--klein-500) 7%, transparent); }
 .learn-graph__controls [data-graph-collapse] { display: none; }
 .learn-graph[data-expanded="true"] .learn-graph__controls [data-graph-expand] { display: none; }
-.learn-graph[data-expanded="true"] .learn-graph__controls [data-graph-collapse] { display: inline-flex; align-items: center; }
+.learn-graph[data-expanded="true"] .learn-graph__controls [data-graph-collapse] { display: inline-flex; }
 .learn-graph__viewport {
   position: absolute;
   inset: 0;
@@ -565,8 +568,8 @@
   .learn-track-directory__count { display: none; }
   .learn-graph { height: clamp(520px, 72svh, 680px); }
   .learn-graph[data-expanded="true"] { height: min(80svh, 820px); }
-  .learn-graph__controls { inset: 10px 10px auto auto; }
-  .learn-graph__controls button { min-block-size: var(--interaction-hit-size); padding-inline: 9px; }
+  .learn-graph__controls { inset: 5px 5px auto auto; }
+  .learn-graph__controls button { min-inline-size: 22px; min-block-size: 22px; padding: 0; }
   .learn-graph__region-label { inset: var(--graph-region-y, var(--mobile-y)) auto auto var(--graph-region-x, 0); transform: translateX(-50%); }
   .learn-graph__node { grid-template-columns: 16px minmax(90px, 160px); }
   .learn-graph__label { font-size: 13px; }
