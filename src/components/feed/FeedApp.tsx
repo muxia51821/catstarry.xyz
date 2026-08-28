@@ -412,8 +412,12 @@ function PublishDialog({ apiBase, onClose, onAuthExpired }: { apiBase: string; o
 
 function ImageViewer({ image, onClose }: { image: string; onClose: () => void }) {
   const panelRef = useModalDialog<HTMLDivElement>(onClose);
-  return <div className="feed-dialog feed-viewer" role="dialog" aria-modal="true" aria-label="查看 Feed 图片">
-    <div ref={panelRef} className="feed-viewer-panel"><button type="button" className="feed-viewer-close" onClick={onClose} aria-label="关闭图片">关闭</button><img src={image} alt="Feed 附图大图" /></div>
+  return <div className="feed-dialog feed-viewer" role="dialog" aria-modal="true" aria-label="查看 Feed 图片" onClick={(event) => {
+    if (event.target === event.currentTarget) onClose();
+  }}>
+    <div ref={panelRef} className="feed-viewer-panel" onClick={(event) => {
+      if (event.target === event.currentTarget) onClose();
+    }}><img src={image} alt="Feed 附图大图" /></div>
   </div>;
 }
 
