@@ -415,7 +415,9 @@ function ImageViewer({ image, onClose }: { image: string; onClose: () => void })
   return <div className="feed-dialog feed-viewer" role="dialog" aria-modal="true" aria-label="查看 Feed 图片" onClick={(event) => {
     if (event.target === event.currentTarget) onClose();
   }}>
-    <div ref={panelRef} className="feed-viewer-panel"><img src={image} alt="Feed 附图大图" /></div>
+    <div ref={panelRef} className="feed-viewer-panel" onClick={(event) => {
+      if (event.target === event.currentTarget) onClose();
+    }}><img src={image} alt="Feed 附图大图" /></div>
   </div>;
 }
 
