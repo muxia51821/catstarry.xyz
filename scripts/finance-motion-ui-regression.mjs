@@ -14,6 +14,13 @@ const baseUrl = `http://127.0.0.1:${address.port}`;
 const screenshotDir = process.env.FINANCE_MOTION_SCREENSHOT_DIR;
 const diagnostics = { consoleProblems: [], exceptions: [], desktop: null, workspaces: [], responsive: [], mobile: null };
 
+function parseCssRgb(value) {
+  const match = /^rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:\s*[,/]\s*([\d.]+%?))?\s*\)$/u.exec(value);
+  if (!match) throw new Error('Unsupported tab background color format: ' + value);
+  const alpha = match[4]?.endsWith('%') ? Number(match[4].slice(0, -1)) / 100 : Number(match[4] ?? 1);
+  return { rgb: match.slice(1, 4).map(Number).map(Math.round), alpha };
+}
+
 let browser;
 try {
   browser = await launchIsolatedBrowser();
@@ -100,7 +107,14 @@ try {
 
   for (const tab of ['entry', 'holdings', 'review', 'planning', 'records', 'overview']) {
     await evaluate(`document.querySelector('[data-tab="${tab}"]').click()`);
-    await delay(280);
+    await evaluate(
+      '(async () => {'
+      + 'const button = document.querySelector(\'[data-tab="' + tab + '"]\');'
+      + 'const animations = button?.getAnimations() ?? [];'
+      + 'await Promise.all(animations.map((animation) => animation.finished.catch(() => undefined)));'
+      + 'await new Promise((resolve) => requestAnimationFrame(resolve));'
+      + '})()',
+    );
     diagnostics.workspaces.push(await evaluate(`(() => {
       const active = document.querySelector('[data-tab].is-active')?.dataset.tab;
       const panes = [...document.querySelectorAll('[data-pane="${tab}"]')].filter((node) => !node.hidden);
@@ -274,13 +288,18 @@ try {
     && workspace.paneCount > 0
     && workspace.panelsInsideViewport
     && workspace.noHorizontalOverflow), true, 'every Finance workspace must remain reachable without horizontal overflow');
-  assert.deepEqual(diagnostics.workspaces.map(({ tab, activeBackground }) => ({ tab, activeBackground })), [
-    { tab: 'entry', activeBackground: 'rgb(94, 175, 158)' },
-    { tab: 'holdings', activeBackground: 'rgb(212, 201, 78)' },
-    { tab: 'review', activeBackground: 'rgb(255, 184, 41)' },
-    { tab: 'planning', activeBackground: 'rgb(183, 130, 242)' },
-    { tab: 'records', activeBackground: 'rgb(90, 104, 120)' },
-    { tab: 'overview', activeBackground: 'rgb(53, 86, 253)' },
+  const workspaceColors = diagnostics.workspaces.map(({ tab, activeBackground }) => {
+    const color = parseCssRgb(activeBackground);
+    assert.ok(color.alpha >= 0.99, 'Finance tab ' + tab + ' must be sampled after its background transition');
+    return { tab, activeRgb: color.rgb };
+  });
+  assert.deepEqual(workspaceColors, [
+    { tab: 'entry', activeRgb: [94, 175, 158] },
+    { tab: 'holdings', activeRgb: [212, 201, 78] },
+    { tab: 'review', activeRgb: [255, 184, 41] },
+    { tab: 'planning', activeRgb: [183, 130, 242] },
+    { tab: 'records', activeRgb: [90, 104, 120] },
+    { tab: 'overview', activeRgb: [53, 86, 253] },
   ], 'Finance tabs must preserve their original workspace colors');
   assert.deepEqual(diagnostics.desktop.chart, { gradients: 1, gridLines: 3, usesCurve: true, linecap: 'round' }, 'the total-assets chart must keep its polished visual structure');
   assert.equal(diagnostics.responsive.every((viewport) => viewport.noHorizontalOverflow
