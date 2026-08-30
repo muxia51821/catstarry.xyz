@@ -68,20 +68,39 @@
 }
 
 .portfolio-allocation__cell rect {
-  fill: color-mix(in srgb, var(--text) 7%, transparent);
-  stroke: color-mix(in srgb, var(--text) 30%, var(--line));
+  fill: color-mix(in srgb, var(--portfolio-allocation-color, #848e9c) 14%, rgba(33, 42, 55, .86));
+  stroke: color-mix(in srgb, var(--portfolio-allocation-color, #848e9c) 42%, var(--line));
   stroke-width: 1;
+  vector-effect: non-scaling-stroke;
   transition: fill 140ms ease, stroke 140ms ease, stroke-width 140ms ease;
 }
 
-.portfolio-allocation__cell[data-rank="1"] rect { fill: color-mix(in srgb, var(--text) 12%, transparent); }
-.portfolio-allocation__cell[data-rank="2"] rect { fill: color-mix(in srgb, var(--text) 9%, transparent); }
-.portfolio-allocation__cell[data-rank="3"] rect { fill: color-mix(in srgb, var(--text) 6%, transparent); }
-.portfolio-allocation__cell.is-selected rect { fill: color-mix(in srgb, var(--tab-overview) 21%, transparent); stroke: var(--tab-overview); stroke-width: 2; }
-.portfolio-allocation__cell:hover rect, .portfolio-allocation__cell:focus-visible rect { fill: color-mix(in srgb, var(--tab-overview) 15%, transparent); stroke: var(--tab-overview); }
+.portfolio-allocation__cell.is-selected rect,
+.portfolio-allocation__cell:hover rect,
+.portfolio-allocation__cell:focus-visible rect {
+  fill: color-mix(in srgb, var(--portfolio-allocation-color, #848e9c) 24%, rgba(33, 42, 55, .82));
+  stroke: color-mix(in srgb, var(--portfolio-allocation-color, #848e9c) 78%, white 8%);
+  stroke-width: 2;
+}
 .portfolio-allocation__cell:focus-visible { outline: none; }
-.portfolio-allocation__label { fill: var(--text); font: 600 15px Geist, "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif; pointer-events: none; }
-.portfolio-allocation__value { fill: var(--muted); font: 11px "JetBrains Mono", ui-monospace, monospace; pointer-events: none; }
+.portfolio-allocation__label {
+  fill: var(--text);
+  font-family: Geist, "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: clamp(16px, .85vw, 17px);
+  font-weight: 500;
+  line-height: 1.35;
+  pointer-events: none;
+}
+.portfolio-allocation__value {
+  fill: var(--muted);
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: clamp(12px, .65vw, 13px);
+  font-weight: 500;
+  line-height: 1.5;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums lining-nums;
+  pointer-events: none;
+}
 
 .portfolio-allocation__figure figcaption {
   margin-top: 10px;
@@ -300,7 +319,7 @@
   .portfolio-allocation__detail { padding: 14px 0 0; border-top: 1px solid var(--line); border-left: 0; }
   .portfolio-role-composition { margin-top: 2px; }
   .portfolio-allocation__label { font-size: 13px; }
-  .portfolio-allocation__value { font-size: 10px; }
+  .portfolio-allocation__value { font-size: 11px; }
 
   .portfolio-overview-trade {
     align-items: flex-start;

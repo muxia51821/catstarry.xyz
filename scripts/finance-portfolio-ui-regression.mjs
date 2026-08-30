@@ -173,8 +173,21 @@ try {
     allocationTotal: document.querySelector('[data-portfolio-allocation-total]')?.textContent,
     allocationCells: [...document.querySelectorAll('.portfolio-allocation__cell')].map((cell) => {
       const rect = cell.querySelector('rect');
-      return { key: cell.dataset.key, share: rect?.dataset.share, x: rect?.getAttribute('x'), y: rect?.getAttribute('y') };
+      return {
+        key: cell.dataset.key,
+        share: rect?.dataset.share,
+        x: rect?.getAttribute('x'),
+        y: rect?.getAttribute('y'),
+        radius: rect?.getAttribute('rx'),
+        color: getComputedStyle(cell).getPropertyValue('--portfolio-allocation-color').trim(),
+      };
     }),
+    allocationTypography: {
+      labelSize: getComputedStyle(document.querySelector('.portfolio-allocation__label')).fontSize,
+      labelWeight: getComputedStyle(document.querySelector('.portfolio-allocation__label')).fontWeight,
+      valueSize: getComputedStyle(document.querySelector('.portfolio-allocation__value')).fontSize,
+      valueWeight: getComputedStyle(document.querySelector('.portfolio-allocation__value')).fontWeight,
+    },
     allocationDetail: document.querySelector('[data-portfolio-allocation-detail]')?.textContent,
     composition: document.querySelector('[data-portfolio-role-composition-body]')?.textContent,
   })`);
@@ -183,26 +196,29 @@ try {
   assert.match(overview.breakdown ?? '', /证券市值.*109,698\.70.*Broker Cash.*20,725\.50.*累计投入.*125,000\.00.*累计盈亏.*5,424\.20/s);
   assert.match(overview.firstTrade ?? '', /买入.*100.*40\.23/);
   assert.equal(overview.historyState, '3 个完整月末历史估值');
-  assert.match(overview.historyEmpty ?? '', /canonical raw close/);
+  assert.equal(overview.historyEmpty, '还没有可用于曲线的历史估值。');
   assert.match(overview.holdingHeaders ?? '', /标的组合角色证券属性数量成本现价市值总资产占比盈亏盈亏%/);
   assert.match(overview.holdingFirst ?? '', /深科技.*主动操作仓.*消费电子.*3\.1%.*¥26\.00.*0\.7%/s);
   assert.match(overview.tradeHeaders ?? '', /类别|组合角色/);
   assert.match(overview.tradeHeaders ?? '', /证券属性/);
   assert.match(overview.tradeFirst ?? '', /消费电子/);
-  assert.equal(overview.roleColor, '#6685ff', 'Portfolio Role must retain its stable category color');
+  assert.equal(overview.roleColor, '#7e92ff', 'Portfolio Role must retain the approved active-position color');
   assert.ok(overview.securityStyle, 'Security Attribute is rendered as a neutral badge, not a second taxonomy color system');
   assert.match(overview.allocationTotal ?? '', /130,424\.20/);
   assert.equal(overview.allocationCells.length, 3, `Allocation Map cells: ${JSON.stringify(overview.allocationCells)}`);
   assert.deepEqual(overview.allocationCells.map((cell) => cell.key), ['unclassified', '主动操作仓', '机动仓']);
+  assert.deepEqual(overview.allocationCells.map((cell) => cell.color), ['#848e9c', '#7e92ff', '#7f8da3']);
+  assert.ok(overview.allocationCells.every((cell) => cell.radius === '10'), `Allocation cells use the approved rounded geometry: ${JSON.stringify(overview.allocationCells)}`);
+  assert.deepEqual(overview.allocationTypography, { labelSize: '16px', labelWeight: '500', valueSize: '12px', valueWeight: '500' });
   assert.ok(Math.abs(overview.allocationCells.reduce((sum, cell) => sum + Number(cell.share), 0) - 100) < .01, 'Treemap cells must account for the authoritative total, including unclassified assets');
   assert.equal(overview.allocationCells[1].x, overview.allocationCells[2].x, 'Secondary treemap cells share a column instead of forming visual stripes');
   assert.notEqual(overview.allocationCells[1].y, overview.allocationCells[2].y, 'Secondary treemap cells must stack within that column');
   assert.match(overview.allocationDetail ?? '', /未投影账户资产/);
   assert.match(overview.composition ?? '', /未投影账户资产.*66,282\.70.*50\.8%/s);
-  assert.match(overview.composition ?? '', /A股主动仓.*43,416\.00.*33\.3%.*40\.0%.*-6\.7pp/s);
+  assert.match(overview.composition ?? '', /主动操作仓.*43,416\.00.*33\.3%.*40\.0%.*-6\.7pp/s);
 
   await evaluate(`document.querySelector('.portfolio-allocation__cell[data-key="主动操作仓"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))`);
-  await waitFor(`document.querySelector('[data-portfolio-allocation-detail-title]')?.textContent === 'A股主动仓'`, 'Portfolio security composition selection');
+  await waitFor(`document.querySelector('[data-portfolio-allocation-detail-title]')?.textContent === '主动操作仓'`, 'Portfolio security composition selection');
   assert.match(await evaluate(`document.querySelector('[data-portfolio-allocation-detail]')?.textContent ?? ''`), /深科技.*000021.*宁德时代.*300750/s);
 
   await evaluate(`document.querySelector('.portfolio-allocation__cell[data-key="机动仓"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))`);
