@@ -170,7 +170,7 @@ try {
   await evaluate(`document.querySelector('[data-app]').hidden=false`);
   await waitFor(`document.querySelector('[data-total-value]')?.textContent === '待核验'`, 'account authority failure state');
   await waitFor(`document.querySelector('[data-holdings-body]')?.textContent.includes('深科技')`, 'auxiliary holdings continue independently');
-  assert.match(await evaluate(`document.querySelector('[data-market-freshness]')?.textContent ?? ''`), /account unavailable/);
+  assert.equal(await evaluate(`document.querySelector('[data-market-freshness]')?.textContent ?? ''`), '账户状态暂时无法读取，请稍后刷新。');
 
   // The real Finance page composes app.js, Portfolio UI and Operations UI. Legacy holdings may
   // render first, but securities-only market value must never occupy the Total Assets surface.

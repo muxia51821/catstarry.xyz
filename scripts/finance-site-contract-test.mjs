@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-const [html, css, script, headers, worker, portfolioUi, portfolioCss, operationsUi, operationsCss, accountStateRoute, activityRoute, operationsRoute, legacyReviewRoute, operationMigration, snapshotsModule, financeShared] = await Promise.all([
+const [html, css, script, headers, worker, portfolioUi, portfolioCss, operationsUi, operationsCss, accountStateRoute, activityRoute, operationsRoute, legacyReviewRoute, operationMigration, snapshotsModule, financeShared, motionUi, motionCss, packageJson, gsapVendor, scrollTriggerVendor] = await Promise.all([
   readFile('finance-site/index.html', 'utf8'),
   readFile('finance-site/styles.css', 'utf8'),
   readFile('finance-site/app.js', 'utf8'),
@@ -18,6 +18,11 @@ const [html, css, script, headers, worker, portfolioUi, portfolioCss, operations
   readFile('workers/finance-api/migrations/0008_operation_history.sql', 'utf8'),
   readFile('workers/finance-api/src/modules/snapshots.ts', 'utf8'),
   readFile('finance-site/finance-shared.js', 'utf8'),
+  readFile('finance-site/motion-ui.js', 'utf8'),
+  readFile('finance-site/motion.css', 'utf8'),
+  readFile('package.json', 'utf8'),
+  readFile('finance-site/vendor/gsap.min.js'),
+  readFile('finance-site/vendor/ScrollTrigger.min.js'),
 ]);
 
 for (const marker of ['data-login-form', 'data-open-trade', 'data-holdings-body', 'data-position-list', 'data-pe-list', 'data-objection', 'data-open-review', 'data-export-archive', 'data-access-list', 'data-open-rules']) {
@@ -34,7 +39,7 @@ assert.match(script, /state\.notifications\?\.monthly_confirmation\?\.period/);
 assert.doesNotMatch(script, /setMonth\(/, 'confirmation periods must come from the Shanghai-time server contract');
 assert.match(script, /timeZone: 'Asia\/Shanghai'/, 'form prefills must derive from the Shanghai wall clock');
 assert.doesNotMatch(script, /getTimezoneOffset|toLocaleDateString|getFullYear\(|toISOString/, 'date inputs must not depend on UTC or the visitor-local timezone');
-assert.doesNotMatch(`${script}\n${portfolioUi}\n${operationsUi}\n${financeShared}`, /innerHTML|insertAdjacentHTML|scrollIntoView/);
+assert.doesNotMatch(`${script}\n${portfolioUi}\n${operationsUi}\n${financeShared}\n${motionUi}`, /innerHTML|insertAdjacentHTML|scrollIntoView/);
 assert.match(html, /<script src="\/finance-shared\.js" defer><\/script>\s*<script src="\/app\.js" defer><\/script>/, 'shared finance helpers must load before app.js');
 assert.match(financeShared, /finance-api-base/);
 assert.match(financeShared, /formatPercent/);
@@ -62,7 +67,8 @@ assert.match(html, /机动仓（货币ETF）/);
 assert.match(html, /风险与自评/);
 assert.match(html, /年终奖金额仅用于基准情景预测/);
 assert.match(html, /data-holdings-summary/);
-assert.match(html, /PE 与温度由行情接入写入/);
+assert.match(html, /填写本月总结，保存后可在月度记录中查看/);
+assert.doesNotMatch(html, /canonical raw close|authoritative Total Assets|reconciliation anchor|历史兼容月末字段/);
 assert.match(html, /data-cash-flows-body/);
 assert.match(html, /data-asset-snapshots-body/);
 assert.match(html, /data-risk-signals-list/);
@@ -70,6 +76,15 @@ assert.match(html, /data-portfolio-allocation/);
 assert.match(html, /data-portfolio-allocation-plot/);
 assert.match(html, /data-portfolio-allocation-detail/);
 assert.match(html, /data-portfolio-role-composition-body/);
+for (const color of ['#7e92ff', '#a48ac7', '#69a99d', '#d4af37', '#7f8da3']) {
+  assert.match(script, new RegExp(color), `Main Finance category presentation must include ${color}`);
+  assert.match(portfolioUi, new RegExp(color), `Portfolio UI category presentation must include ${color}`);
+}
+assert.match(portfolioCss, /--portfolio-allocation-color/);
+assert.match(portfolioCss, /--portfolio-allocation-color, #848e9c\) 14%/);
+assert.match(portfolioCss, /--portfolio-allocation-color, #848e9c\) 42%/);
+assert.match(portfolioCss, /font-size: clamp\(12px, \.65vw, 13px\)/);
+assert.match(portfolioCss, /font-variant-numeric: tabular-nums lining-nums/);
 assert.match(script, /\/api\/cash-flows/);
 assert.match(script, /\/api\/account-events/);
 assert.match(script, /\/api\/assets\/snapshots/);
@@ -126,6 +141,20 @@ assert.match(portfolioCss, /\.portfolio-legacy-position/);
 
 assert.match(html, /<link rel="stylesheet" href="\/operations\.css">/);
 assert.match(html, /<script src="\/operations-ui\.js" defer><\/script>/);
+assert.match(html, /<link rel="stylesheet" href="\/motion\.css">/);
+assert.match(html, /<script src="\/vendor\/gsap\.min\.js" defer><\/script>/);
+assert.match(html, /<script src="\/vendor\/ScrollTrigger\.min\.js" defer><\/script>/);
+assert.match(html, /<script src="\/motion-ui\.js" defer><\/script>/);
+assert.match(html, /data-cash-value/);
+assert.match(html, /data-pnl-value/);
+assert.match(motionCss, /grid-template-columns: repeat\(12, minmax\(0, 1fr\)\)/);
+assert.match(motionCss, /grid-auto-flow: dense/);
+assert.match(motionCss, /prefers-reduced-motion: reduce/);
+assert.match(motionCss, /"Geist", "HarmonyOS Sans SC"/);
+assert.match(motionUi, /gsap\.registerPlugin\(ScrollTrigger\)/);
+assert.match(motionUi, /ScrollTrigger\.create/);
+assert.equal(JSON.parse(packageJson).dependencies.gsap, '3.13.0');
+assert.ok(gsapVendor.length > 70_000 && scrollTriggerVendor.length > 40_000, 'local GSAP runtime files must be present');
 assert.match(operationsUi, /recordsTab\.textContent = '账户动态'/);
 assert.match(operationsUi, /账户动态/);
 assert.match(operationsUi, /\/api\/activity/);

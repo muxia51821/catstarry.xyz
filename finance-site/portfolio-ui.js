@@ -1,9 +1,9 @@
 const PORTFOLIO_ROLES = [
-  ['主动操作仓（A股）', '主动操作仓', '#6685ff'],
-  ['A股宽基指数底仓', 'A股宽基指数', '#d4c94e'],
-  ['美股ETF（A股跨境ETF）', '美股 ETF', '#b782f2'],
-  ['黄金ETF', '黄金 ETF', '#d9a441'],
-  ['机动仓（货币ETF）', '机动仓', '#5eaf9e'],
+  ['主动操作仓（A股）', '主动操作仓', '#7e92ff'],
+  ['A股宽基指数底仓', 'A股宽基指数', '#a48ac7'],
+  ['美股ETF（A股跨境ETF）', '美股 ETF', '#69a99d'],
+  ['黄金ETF', '黄金 ETF', '#d4af37'],
+  ['机动仓（货币ETF）', '机动仓', '#7f8da3'],
   ['其他', '其他', '#848e9c'],
 ];
 const PORTFOLIO_ROLE_MAP = new Map(PORTFOLIO_ROLES.map(([key, label, color]) => [key, { label, color }]));
@@ -12,6 +12,10 @@ const portfolioApp = document.querySelector('[data-app]');
 const portfolioDashboard = document.querySelector('[data-dashboard]');
 const portfolioTotal = document.querySelector('[data-total-value]');
 const portfolioStatus = document.querySelector('[data-market-freshness]');
+const portfolioCashValue = document.querySelector('[data-cash-value]');
+const portfolioCashState = document.querySelector('[data-cash-state]');
+const portfolioPnlValue = document.querySelector('[data-pnl-value]');
+const portfolioPnlState = document.querySelector('[data-pnl-state]');
 const portfolioRecent = document.querySelector('[data-overview-trades]');
 const portfolioRecentEmpty = document.querySelector('[data-overview-trades-empty]');
 const portfolioHistoryState = document.querySelector('[data-net-worth-state]');
@@ -139,7 +143,15 @@ function renderPortfolioAccountState(accountState) {
 
   const cash = finiteNumber(accountState?.cash?.value);
   const knownCash = finiteNumber(accountState?.cash?.known_value);
-  breakdown.append(accountBreakdownRow('Broker Cash', cash !== null ? money.format(cash) : knownCash !== null ? `${money.format(knownCash)} · 待核验` : '待对账'));
+  const cashCopy = cash !== null ? money.format(cash) : knownCash !== null ? `${money.format(knownCash)} · 待核验` : '待对账';
+  if (portfolioCashValue && portfolioCashState) {
+    portfolioCashValue.textContent = cashCopy;
+    portfolioCashState.textContent = accountState?.cash?.status === 'projected'
+      ? `${accountState.cash.replayed_facts} 笔后续资金变化`
+      : accountState?.cash?.status === 'reconciled' ? '当前无后续资金变化' : '账户现金信息不完整';
+  } else {
+    breakdown.append(accountBreakdownRow('Broker Cash', cashCopy));
+  }
 
   const other = finiteNumber(accountState?.other_assets?.value);
   const knownOther = finiteNumber(accountState?.other_assets?.known_value);
@@ -150,9 +162,23 @@ function renderPortfolioAccountState(accountState) {
   if (performance?.status === 'available') {
     breakdown.append(accountBreakdownRow('累计投入', money.format(performance.total_contributions)));
     const pnl = finiteNumber(performance.pnl);
-    breakdown.append(accountBreakdownRow('累计盈亏', pnl === null ? '—' : `${pnl >= 0 ? '+' : ''}${money.format(pnl)}`, pnl === null ? '' : pnl >= 0 ? 'value-up' : 'value-down'));
+    const pnlCopy = pnl === null ? '—' : `${pnl >= 0 ? '+' : ''}${money.format(pnl)}`;
+    const pnlTone = pnl === null ? '' : pnl >= 0 ? 'value-up' : 'value-down';
+    if (portfolioPnlValue && portfolioPnlState) {
+      portfolioPnlValue.textContent = pnlCopy;
+      portfolioPnlValue.className = pnlTone;
+      portfolioPnlState.textContent = `累计投入 ${money.format(performance.total_contributions)}`;
+    } else {
+      breakdown.append(accountBreakdownRow('累计盈亏', pnlCopy, pnlTone));
+    }
   } else if (performance) {
-    breakdown.append(accountBreakdownRow('累计盈亏', '待核验'));
+    if (portfolioPnlValue && portfolioPnlState) {
+      portfolioPnlValue.textContent = '待核验';
+      portfolioPnlValue.className = '';
+      portfolioPnlState.textContent = '累计投入信息不完整';
+    } else {
+      breakdown.append(accountBreakdownRow('累计盈亏', '待核验'));
+    }
   }
   portfolioStatus.before(breakdown);
   renderPortfolioAllocation(accountState);
@@ -160,13 +186,22 @@ function renderPortfolioAccountState(accountState) {
 }
 
 const PORTFOLIO_ALLOCATION_LABELS = new Map([
-  ['主动操作仓', 'A股主动仓'],
-  ['A股宽基指数', 'A股宽基'],
+  ['主动操作仓', '主动操作仓'],
+  ['A股宽基指数', 'A股宽基指数'],
   ['美股 ETF', '美股 ETF'],
-  ['黄金ETF', '黄金'],
+  ['黄金ETF', '黄金 ETF'],
   ['机动仓', '机动仓'],
   ['其他', '其他'],
   ['unclassified', '未分类'],
+]);
+const PORTFOLIO_ALLOCATION_COLORS = new Map([
+  ['主动操作仓', '#7e92ff'],
+  ['A股宽基指数', '#a48ac7'],
+  ['美股 ETF', '#69a99d'],
+  ['黄金ETF', '#d4af37'],
+  ['机动仓', '#7f8da3'],
+  ['其他', '#848e9c'],
+  ['unclassified', '#848e9c'],
 ]);
 
 function renderPortfolioAllocation(accountState) {
@@ -250,7 +285,8 @@ function renderPortfolioAllocationMap(roles, total) {
   const width = 960;
   const height = 400;
   const selected = portfolioAllocationSelected;
-  const layout = allocationTreemapLayout(roles, 0, 0, width, height);
+  const inset = 5;
+  const layout = allocationTreemapLayout(roles, inset, inset, width - inset * 2, height - inset * 2);
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
   svg.setAttribute('role', 'img');
@@ -262,6 +298,7 @@ function renderPortfolioAllocationMap(roles, total) {
     group.classList.add('portfolio-allocation__cell');
     group.dataset.key = role.key;
     group.dataset.rank = String(index);
+    group.style.setProperty('--portfolio-allocation-color', PORTFOLIO_ALLOCATION_COLORS.get(role.key) ?? '#848e9c');
     group.classList.toggle('is-selected', role.key === selected);
     group.setAttribute('tabindex', '0');
     group.setAttribute('role', 'button');
@@ -277,13 +314,13 @@ function renderPortfolioAllocationMap(roles, total) {
     const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
     title.textContent = `${role.label} · ${money.format(role.value)} · ${formatPercent(percentage)}`;
     const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-    rect.setAttribute('x', String(cell.x)); rect.setAttribute('y', String(cell.y)); rect.setAttribute('width', String(cell.width)); rect.setAttribute('height', String(cell.height)); rect.setAttribute('rx', '3'); rect.dataset.share = (percentage * 100).toFixed(4);
+    rect.setAttribute('x', String(cell.x)); rect.setAttribute('y', String(cell.y)); rect.setAttribute('width', String(cell.width)); rect.setAttribute('height', String(cell.height)); rect.setAttribute('rx', '10'); rect.setAttribute('ry', '10'); rect.dataset.share = (percentage * 100).toFixed(4);
     group.append(title, rect);
     if (cell.width >= 145 && cell.height >= 72) {
       const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-      label.classList.add('portfolio-allocation__label'); label.setAttribute('x', String(cell.x + 16)); label.setAttribute('y', String(cell.y + 28)); label.textContent = role.label;
+      label.classList.add('portfolio-allocation__label'); label.setAttribute('x', String(cell.x + 17)); label.setAttribute('y', String(cell.y + 31)); label.textContent = role.label;
       const value = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-      value.classList.add('portfolio-allocation__value'); value.setAttribute('x', String(cell.x + 16)); value.setAttribute('y', String(cell.y + 48)); value.textContent = `${money.format(role.value)} · ${formatPercent(percentage)}`;
+      value.classList.add('portfolio-allocation__value'); value.setAttribute('x', String(cell.x + 17)); value.setAttribute('y', String(cell.y + 55)); value.textContent = `${money.format(role.value)} · ${formatPercent(percentage)}`;
       group.append(label, value);
     }
     svg.append(group);
@@ -297,7 +334,7 @@ function allocationTreemapLayout(roles, x, y, width, height, splitVertically = w
   let split = 1;
   let running = roles[0].value;
   while (split < roles.length - 1 && Math.abs(total / 2 - (running + roles[split].value)) <= Math.abs(total / 2 - running)) running += roles[split++].value;
-  const gutter = 4;
+  const gutter = 5;
   if (splitVertically) {
     const firstWidth = Math.max(0, Math.round((width - gutter) * running / total));
     return [
@@ -598,15 +635,8 @@ function renderPortfolioReconciliations(rows) {
 }
 
 function normalizeWorkspaceIa() {
-  const memoPanel = document.querySelector('[data-pane="review"][aria-labelledby="memo-title"]');
-  if (memoPanel && !memoPanel.querySelector('[data-memo-workspace-note]')) {
-    const note = portfolioElement('p', 'portfolio-workspace-note', '投资备忘录是独立的判断记录；共同确认与熔断属于治理动作，不是备忘录的上级流程。');
-    note.dataset.memoWorkspaceNote = '';
-    memoPanel.querySelector('.panel-header')?.after(note);
-  }
-
   const monthlyPanel = document.querySelector('[data-pane="planning"][aria-labelledby="monthly-title"] .panel-copy');
-  if (monthlyPanel) monthlyPanel.textContent = '月度总结保留叙事与复盘；真实现金流、账户对账与历史估值分别由各自的事实记录提供。';
+  if (monthlyPanel) monthlyPanel.textContent = '按月记录投资总结与复盘。';
 
   const accountPanel = document.querySelector('[data-pane="planning"][aria-labelledby="account-events-title"]');
   const accountHeader = accountPanel?.querySelector('thead th:first-child');
@@ -622,13 +652,13 @@ function normalizeWorkspaceIa() {
     if (eyebrow) eyebrow.textContent = 'ASSET RECONCILIATION';
     if (title) title.textContent = '资产对账';
     if (button) button.textContent = '记录资产对账';
-    if (empty) empty.textContent = '还没有人工或券商账户对账。';
+    if (empty) empty.textContent = '还没有账户对账记录。';
     if (error) error.textContent = '资产对账暂时无法读取';
   }
 
   const monthlyDialog = document.querySelector('[data-monthly-dialog]');
   const monthlyIntro = monthlyDialog?.querySelector('.dialog-intro');
-  if (monthlyIntro) monthlyIntro.textContent = 'PE 与温度由行情接入写入；月度记录只保存总结与历史兼容字段。总资产曲线由事实记录与 canonical raw close 派生，不由月度表或人工对账直接生成。';
+  if (monthlyIntro) monthlyIntro.textContent = '填写本月总结，保存后可在月度记录中查看。';
 
   const accountDialog = document.querySelector('[data-account-event-dialog]');
   const accountForm = accountDialog?.querySelector('[data-account-event-form]');
@@ -636,7 +666,7 @@ function normalizeWorkspaceIa() {
     replaceDirectLabelText(accountForm.elements.event_date?.closest('label'), '财务生效日');
     replaceDirectLabelText(accountForm.elements.quantity?.closest('label'), '数量（分拆时＝拆分前持仓）');
     const intro = accountDialog.querySelector('.dialog-intro');
-    if (intro) intro.textContent = '账户内部事件不会写入外部现金流。红利按实际到账日生效；ETF 分拆的数量填写拆分前持仓数量。';
+    if (intro) intro.textContent = '红利按实际到账日记录；ETF 分拆填写拆分前持仓数量。';
   }
 
   const reconciliationDialog = document.querySelector('[data-asset-snapshot-dialog]');
@@ -648,17 +678,17 @@ function normalizeWorkspaceIa() {
     const submit = reconciliationForm.querySelector('button[type="submit"]');
     if (eyebrow) eyebrow.textContent = 'ASSET RECONCILIATION';
     if (title) title.textContent = '记录资产对账';
-    if (intro) intro.textContent = '对账是券商或人工观测证据，不是历史曲线数据源。观测总资产 = 证券市值 + Broker Cash + 其他账户资产。';
+    if (intro) intro.textContent = '填写券商页面当前显示的证券市值、可用现金和其他账户资产。';
     if (submit) submit.textContent = '保存资产对账';
     replaceDirectLabelText(reconciliationForm.elements.snapshot_at?.closest('label'), '对账时间');
-    replaceDirectLabelText(reconciliationForm.elements.holdings_value?.closest('label'), '已核验证券市值');
+    replaceDirectLabelText(reconciliationForm.elements.holdings_value?.closest('label'), '证券市值');
     replaceDirectLabelText(reconciliationForm.elements.cash_value?.closest('label'), 'Broker Cash');
-    replaceDirectLabelText(reconciliationForm.elements.incomplete_reason?.closest('label'), '对账缺口说明（不完整时必填）');
+    replaceDirectLabelText(reconciliationForm.elements.incomplete_reason?.closest('label'), '缺口说明（不完整时必填）');
     const source = reconciliationForm.elements.source;
     if (source) source.placeholder = '例如：券商账户截图';
     const completeness = reconciliationForm.elements.is_complete?.closest('label');
     const completenessText = completeness?.querySelector('span');
-    if (completenessText) completenessText.textContent = '本次账户观测完整，可作为 reconciliation anchor';
+    if (completenessText) completenessText.textContent = '本次账户数据完整';
     installOtherAssetsField(reconciliationForm);
   }
 }
@@ -686,11 +716,11 @@ function replaceDirectLabelText(label, text) {
   else label.prepend(document.createTextNode(text));
 }
 
-function renderPortfolioAccountStateUnavailable(error) {
+function renderPortfolioAccountStateUnavailable() {
   if (!portfolioTotal || !portfolioStatus) return;
   portfolioTotal.textContent = '待核验';
   portfolioTotal.dataset.numeric = 'false';
-  portfolioStatus.textContent = `账户状态暂时无法读取${error?.message ? ` · ${error.message}` : ''}`;
+  portfolioStatus.textContent = '账户状态暂时无法读取，请稍后刷新。';
   portfolioTotal.closest('.metric')?.querySelector('[data-account-breakdown]')?.remove();
   renderPortfolioAllocation(null);
   renderPortfolioHoldings();
@@ -698,7 +728,7 @@ function renderPortfolioAccountStateUnavailable(error) {
 
 function normalizePortfolioHistoryCopy() {
   if (portfolioHistoryEmpty) {
-    portfolioHistoryEmpty.textContent = '尚无完整的历史估值。曲线只使用事实记录与 canonical raw close 重建出的完整数据。';
+    portfolioHistoryEmpty.textContent = '还没有可用于曲线的历史估值。';
   }
   if (!portfolioHistoryState) return;
   const match = portfolioHistoryState.textContent?.match(/^(\d+)/);

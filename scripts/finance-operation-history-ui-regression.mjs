@@ -169,7 +169,7 @@ try {
   assert.deepEqual(adminBeforeOpen, {
     activityTitle: '账户动态', activityFirst: '资产对账', changeLogVisible: true, changeLogCollapsed: true,
     securityAccessVisible: true, securityAccessCollapsed: true, legacyReviewHidden: true,
-    valuationText: '2026-08-20 已写入 1 个完整估值日；本页只读取已持久化结果。',
+    valuationText: '2026-08-20 已更新 1 个估值日。',
   });
   const adminCapabilityRequests = requests.filter((item) => item.mode === 'admin' && item.pathname === '/api/change-log');
   assert.equal(adminCapabilityRequests.length, 1, 'collapsed Data Change Log performs only its own minimal capability probe');

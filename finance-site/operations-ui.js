@@ -23,7 +23,7 @@
       node('div', {}, node('p', { className: 'eyebrow', textContent: 'ACCOUNT ACTIVITY' }), node('h2', { id: 'account-activity-title', textContent: '账户动态' })),
       node('span', { className: 'data-state', 'data-activity-state': '', textContent: '等待读取' }),
     ),
-    node('p', { className: 'panel-copy', textContent: '按业务发生时间查看真实账户事实：交易、外部现金流、账户事件和人工/券商对账。这里不展示“后来谁改了数据库”，也不展示登录记录。' }),
+    node('p', { className: 'panel-copy', textContent: '按发生时间查看交易、现金流、账户事件和账户对账。' }),
   );
   const activityFilters = node('form', { className: 'record-filters activity-filters', 'data-activity-filters': '' },
     selectLabel('类型', 'kind', [['', '全部'], ...Object.entries(activityLabels).map(([value, label]) => [value, label])]),
@@ -59,7 +59,7 @@
       node('div', {}, node('p', { className: 'eyebrow', textContent: 'IMPORT REVIEW' }), node('h2', { id: 'canonical-import-review-title', textContent: '导入异常审阅' })),
       node('span', { className: 'data-state', 'data-canonical-review-state': '', textContent: '等待读取' }),
     ),
-    node('p', { className: 'panel-copy', textContent: '异常导入继续使用 canonical Workbook Review 处理。旧 Import Review 只保留兼容路径，不再作为正常产品入口。' }),
+    node('p', { className: 'panel-copy', textContent: '在这里处理导入异常并填写结案说明。' }),
   );
   const reviewList = node('div', { className: 'import-review-list', 'data-canonical-review-list': '' });
   const reviewEmpty = node('p', { className: 'empty-state', 'data-canonical-review-empty': '', textContent: '没有待处理的导入异常。' });
@@ -73,7 +73,7 @@
     node('span', { className: 'data-state', 'data-operation-state': '', textContent: '管理员审计' }),
   );
   changeLogPanel.setAttribute('aria-labelledby', 'operation-history-title');
-  const changeLogCopy = node('p', { className: 'panel-copy', textContent: '这里只回答“谁修改了什么数据”。它不是账户流水；登录与 session 仍在下方安全访问记录中。' });
+  const changeLogCopy = node('p', { className: 'panel-copy', textContent: '查看数据修改时间、操作人和修改内容。' });
   const filters = node('form', { className: 'record-filters operation-filters', 'data-operation-filters': '' },
     selectLabel('对象', 'entity_type', [['', '全部'], ...Object.entries(entityLabels).map(([value, label]) => [value, label])]),
     selectLabel('动作', 'action', [['', '全部'], ...Object.entries(actionLabels).map(([value, label]) => [value, label])]),
@@ -159,19 +159,19 @@
       const latest = body.latest;
       if (!latest) {
         state.textContent = '尚未运行';
-        valuationRefreshCopy.textContent = '自动历史估值将在收盘后写入；页面刷新不会触发数据采集。';
+        valuationRefreshCopy.textContent = '收盘后更新历史估值。';
         return;
       }
       if (body.status === 'succeeded') {
         state.textContent = '已完成';
-        valuationRefreshCopy.textContent = `${latest.business_date ?? '—'} 已写入 ${latest.valuation_rows_written} 个完整估值日；本页只读取已持久化结果。`;
+        valuationRefreshCopy.textContent = `${latest.business_date ?? '—'} 已更新 ${latest.valuation_rows_written} 个估值日。`;
       } else if (body.status === 'skipped') {
         state.textContent = '无新增交易日';
-        valuationRefreshCopy.textContent = '最近一次检查没有新的可用交易日；页面刷新不会触发数据采集。';
+        valuationRefreshCopy.textContent = '暂时没有新的估值数据。';
       } else {
         state.textContent = body.status === 'review_required' ? '需要审阅' : '更新失败';
         const missing = Array.isArray(latest.missing_tickers) && latest.missing_tickers.length ? `缺少：${latest.missing_tickers.join('、')}。` : '';
-        valuationRefreshCopy.textContent = `${latest.business_date ?? '—'} 自动历史估值未写入。${missing}${latest.error_summary ?? '下一个计划任务会重试。'}`;
+        valuationRefreshCopy.textContent = `${latest.business_date ?? '—'} 历史估值更新失败。${missing}请稍后重试。`;
       }
     } catch (error) {
       if (epoch !== sessionEpoch || app.hidden) return;
@@ -295,7 +295,7 @@
         );
         body.append(changeList);
       } else {
-        body.append(node('p', { className: 'operation-no-diff', textContent: '这条审计记录没有可展开的字段差异。' }));
+        body.append(node('p', { className: 'operation-no-diff', textContent: '这条变更没有可展开的字段差异。' }));
       }
       details.append(summary, body);
       return details;

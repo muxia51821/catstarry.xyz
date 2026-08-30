@@ -92,7 +92,7 @@ try {
       memoOrder:getComputedStyle(memo).order, reviewOrder:getComputedStyle(review).order, confirmOrder:getComputedStyle(confirm).order,
       memoColumn:getComputedStyle(memo).gridColumn, cashColumn:getComputedStyle(cash).gridColumn,
       eventsColumn:getComputedStyle(events).gridColumn, reconciliationColumn:getComputedStyle(reconciliation).gridColumn,
-      memoNote:memo.textContent, monthly:document.querySelector('[aria-labelledby="monthly-title"] .panel-copy').textContent,
+      memoNote:memo.querySelector('[data-memo-workspace-note]')?.textContent ?? '', monthly:document.querySelector('[aria-labelledby="monthly-title"] .panel-copy').textContent,
       reconciliationTitle:reconciliation.textContent, accountHeader:events.querySelector('th').textContent,
       accountDialog:document.querySelector('[data-account-event-dialog]').textContent,
       reconciliationDialog:document.querySelector('[data-asset-snapshot-dialog]').textContent,
@@ -107,12 +107,12 @@ try {
   assert.equal(desktop.cashColumn, '1 / -1');
   assert.equal(desktop.eventsColumn, '1 / -1');
   assert.equal(desktop.reconciliationColumn, '1 / -1');
-  assert.match(desktop.memoNote, /独立的判断记录/);
-  assert.match(desktop.monthly, /历史估值分别由各自的事实记录提供/);
+  assert.equal(desktop.memoNote, '');
+  assert.equal(desktop.monthly, '按月记录投资总结与复盘。');
   assert.match(desktop.reconciliationTitle, /资产对账/);
   assert.equal(desktop.accountHeader, '财务生效日');
   assert.match(desktop.accountDialog, /拆分前持仓/);
-  assert.match(desktop.reconciliationDialog, /reconciliation anchor|账户观测完整/);
+  assert.match(desktop.reconciliationDialog, /本次账户数据完整/);
   assert.equal(desktop.otherName, 'other_assets_value');
   assert.equal(desktop.otherBefore, '0');
   assert.equal(desktop.otherAfterReset, '0', 'form.reset() must preserve the zero default for no open repo');

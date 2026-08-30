@@ -9,13 +9,17 @@
     <link rel="stylesheet" href="/styles.css">
     <link rel="stylesheet" href="/portfolio.css">
     <link rel="stylesheet" href="/operations.css">
+    <link rel="stylesheet" href="/motion.css">
   </head>
   <body>
+    <div class="ambient-canvas" aria-hidden="true">
+      <i></i><i></i><i></i>
+    </div>
     <section class="login-shell" data-login>
       <form class="login-card" data-login-form>
         <p class="eyebrow">PRIVATE FINANCE SPACE</p>
         <h1>投资记录</h1>
-        <p class="lede">这里读取真实的交易、持仓与行情快照。没有配置的数据会明确保持为空，不以模拟数据代替。</p>
+        <p class="lede">记录交易、持仓、资金变化与复盘。</p>
         <label>用户名<input name="username" autocomplete="username" required maxlength="64"></label>
         <label>密码<input name="password" type="password" autocomplete="current-password" required minlength="12" maxlength="72"></label>
         <button type="submit">进入面板</button>
@@ -24,8 +28,8 @@
     </section>
 
     <div class="app-shell" data-app hidden>
-      <header class="app-header">
-        <div>
+      <header class="app-header" data-motion-hero>
+        <div class="hero-copy">
           <p class="eyebrow">f.catstarry.xyz · PRIVATE LEDGER</p>
           <h1>投资工作台</h1>
           <p class="header-copy">先录入今天的操作，再核对持仓变化和风险。</p>
@@ -57,22 +61,24 @@
           <article class="metric metric--wide"><span>总资产</span><strong data-total-value>—</strong><small data-market-freshness>等待账户状态</small></article>
           <article class="metric"><span>A股行情</span><strong data-market-summary>—</strong><small data-market-freshness-copy>等待指数涨跌数据</small></article>
           <article class="metric"><span>风险状态</span><strong data-circuit-level>—</strong><small data-circuit-action>尚未读取</small></article>
+          <article class="metric metric--cash"><span>可用现金</span><strong data-cash-value>—</strong><small data-cash-state>等待账户状态</small></article>
+          <article class="metric metric--pnl"><span>累计盈亏</span><strong data-pnl-value>—</strong><small data-pnl-state>相对累计投入</small></article>
         </section>
 
         <section class="overview-grid" data-pane="overview" aria-label="数据面板详情">
           <section class="panel panel--span-2" aria-labelledby="net-worth-title">
             <header class="panel-header"><div><p class="eyebrow">TOTAL ASSETS</p><h2 id="net-worth-title">总资产</h2></div><div class="asset-view-switch" role="group" aria-label="总资产时间视角"><button class="button-secondary is-active" type="button" data-asset-view="month" aria-pressed="true">月</button><button class="button-secondary" type="button" data-asset-view="week" aria-pressed="false">周</button><span class="data-state" data-net-worth-state>等待数据</span></div></header>
             <div class="net-worth-chart" data-net-worth-chart tabindex="0" aria-label="总资产曲线"></div>
-            <p class="empty-state" data-net-worth-empty hidden>尚无完整的历史估值。曲线只使用事实记录与 canonical raw close 重建出的完整数据。</p>
+            <p class="empty-state" data-net-worth-empty hidden>还没有可用于曲线的历史估值。</p>
           </section>
           <section class="panel portfolio-allocation" data-portfolio-allocation aria-labelledby="portfolio-allocation-title">
-            <header class="panel-header"><div><p class="eyebrow">CURRENT ALLOCATION</p><h2 id="portfolio-allocation-title">Portfolio Allocation Map</h2></div><span class="data-state" data-portfolio-allocation-total>等待账户状态</span></header>
+            <header class="panel-header"><div><p class="eyebrow">CURRENT ALLOCATION</p><h2 id="portfolio-allocation-title">资产配置</h2></div><span class="data-state" data-portfolio-allocation-total>等待账户状态</span></header>
             <div class="portfolio-allocation__body" data-portfolio-allocation-body hidden>
-              <figure class="portfolio-allocation__figure"><div class="portfolio-allocation__plot" data-portfolio-allocation-plot></div><figcaption>面积表示当前角色占 authoritative Total Assets 的比例。</figcaption></figure>
+              <figure class="portfolio-allocation__figure"><div class="portfolio-allocation__plot" data-portfolio-allocation-plot></div><figcaption>面积表示各组合角色占总资产的比例。</figcaption></figure>
               <aside class="portfolio-allocation__detail" aria-live="polite"><p class="eyebrow">ROLE COMPOSITION</p><h3 data-portfolio-allocation-detail-title>选择角色</h3><div data-portfolio-allocation-detail></div></aside>
               <div class="portfolio-role-composition"><table><thead><tr><th>组合角色</th><th>当前价值</th><th>总资产占比</th><th>目标</th><th>偏离</th></tr></thead><tbody data-portfolio-role-composition-body></tbody></table></div>
             </div>
-            <p class="empty-state" data-portfolio-allocation-unavailable>总资产待核验，暂不展示资产配置比例。</p>
+            <p class="empty-state" data-portfolio-allocation-unavailable>总资产尚未完整，暂时无法计算资产配置。</p>
           </section>
           <section class="panel panel--span-3" aria-labelledby="overview-trades-title">
             <header class="panel-header"><div><p class="eyebrow">RECENT ACTIVITY</p><h2 id="overview-trades-title">最近交易</h2></div></header>
@@ -83,12 +89,12 @@
         <div class="dashboard-grid">
           <section class="panel panel--span-3" data-pane="holdings" aria-labelledby="holdings-summary-title">
             <header class="panel-header"><div><p class="eyebrow">HOLDINGS OVERVIEW</p><h2 id="holdings-summary-title">持仓摘要</h2></div><span class="data-state" data-holdings-summary-state>等待数据</span></header>
-            <div class="holdings-overview-grid"><section><h3>前三大标的</h3><div class="top-holdings-list" data-top-holdings></div><p class="empty-state" data-top-holdings-empty hidden>行情不完整时不展示持仓排名。</p></section><section><h3>仓位类别分布</h3><div class="category-distribution" data-category-distribution></div><p class="empty-state" data-category-distribution-empty hidden>行情不完整时不展示仓位占比。</p></section></div>
+            <div class="holdings-overview-grid"><section><h3>前三大标的</h3><div class="top-holdings-list" data-top-holdings></div><p class="empty-state" data-top-holdings-empty hidden>行情完整后显示持仓排名。</p></section><section><h3>仓位类别分布</h3><div class="category-distribution" data-category-distribution></div><p class="empty-state" data-category-distribution-empty hidden>行情完整后显示仓位占比。</p></section></div>
           </section>
           <section class="panel panel--span-2" data-pane="holdings" aria-labelledby="holdings-title">
             <header class="panel-header"><div><p class="eyebrow">HOLDINGS / P&L</p><h2 id="holdings-title">持仓与历史盈亏</h2></div></header>
             <div class="table-scroll"><table><thead><tr><th>标的</th><th>数量</th><th>成本</th><th>现价</th><th>市值</th><th>盈亏</th></tr></thead><tbody data-holdings-body></tbody></table></div>
-            <p class="empty-state" data-holdings-empty hidden>还没有可展示的持仓快照。先录入一笔交易，或通过受审阅的导入流程写入快照。</p>
+            <p class="empty-state" data-holdings-empty hidden>还没有持仓。录入交易或导入持仓后会显示在这里。</p>
           </section>
 
           <section class="panel portfolio-legacy-position" data-pane="holdings" aria-labelledby="positions-title">
@@ -98,7 +104,7 @@
 
           <section class="panel" data-pane="holdings" aria-labelledby="pe-title">
             <header class="panel-header"><div><p class="eyebrow">VALUATION</p><h2 id="pe-title">PE 温度</h2></div></header>
-            <div class="pe-list" data-pe-list></div><p class="empty-state" data-pe-empty hidden>行情供应商尚未写入 PE-TTM。</p>
+            <div class="pe-list" data-pe-list></div><p class="empty-state" data-pe-empty hidden>暂无 PE-TTM 数据。</p>
           </section>
 
           <section class="panel panel--span-3" data-pane="entry" aria-labelledby="trades-title">
@@ -121,7 +127,7 @@
 
           <section class="panel" data-pane="planning" aria-labelledby="monthly-title">
             <header class="panel-header"><div><p class="eyebrow">MONTHLY SUMMARY</p><h2 id="monthly-title">月度总结与历史记录</h2></div><div class="panel-actions"><button class="button-secondary" type="button" data-open-monthly hidden>维护</button></div></header>
-            <p class="panel-copy">保留既有月度总结；真实资金流与账户总资产分别记录在下方。</p>
+            <p class="panel-copy">按月记录投资总结与复盘。</p>
             <div class="monthly-list" data-monthly-list></div><p class="empty-state" data-monthly-empty hidden>还没有月度记录。</p>
           </section>
 
@@ -155,7 +161,7 @@
 
           <section class="panel panel--span-2" data-pane="records" aria-labelledby="import-review-title" data-import-review-panel hidden>
             <header class="panel-header"><div><p class="eyebrow">IMPORT REVIEW</p><h2 id="import-review-title">导入异常审阅</h2></div></header>
-            <p class="panel-copy">异常行不会静默覆盖正式数据。请先在正式录入流程中完成修正，再用结案说明记录处理依据。</p><div class="import-review-list" data-import-review-list></div><p class="empty-state" data-import-review-empty hidden>没有待处理的导入异常。</p>
+            <p class="panel-copy">修正异常行后，填写结案说明。</p><div class="import-review-list" data-import-review-list></div><p class="empty-state" data-import-review-empty hidden>没有待处理的导入异常。</p>
           </section>
 
           <details class="panel panel--span-3 access-disclosure" data-pane="records" data-access-panel hidden>
@@ -176,6 +182,10 @@
         </div>
         <p class="dashboard-status" data-dashboard-status role="status"></p>
       </main>
+      <footer class="app-footer">
+        <div><strong>记录事实，保留判断。</strong><p>木下与 CATI 的私有投资记录。</p></div>
+        <button type="button" data-open-trade hidden>录入下一笔交易</button>
+      </footer>
     </div>
 
     <dialog class="trade-dialog" data-trade-dialog>
@@ -189,15 +199,15 @@
       </form>
     </dialog>
 
-    <dialog data-monthly-dialog><form method="dialog" class="dialog-card" data-monthly-form><header><div><p class="eyebrow">MONTHLY RECORD</p><h2>月度记录</h2></div><button class="icon-button" type="button" data-close-dialog aria-label="关闭">×</button></header><p class="dialog-intro">PE 与温度由行情接入写入；本月记录不手填这些数据。资产曲线请通过“记录资产快照”维护。</p><div class="form-grid"><label>月份<input name="year_month" type="month" required></label><label>木下投入<input name="muxia_invest" type="number" min="0" step="any" value="0"></label><label>CATI 投入<input name="cati_invest" type="number" min="0" step="any" value="0"></label><label>历史兼容月末字段<input name="end_total" type="number" min="0" step="any"></label><label class="form-span">月度总结<textarea name="summary" maxlength="8000"></textarea></label><label class="form-span">备注<textarea name="remark" maxlength="8000"></textarea></label></div><footer><p class="form-status" data-monthly-status role="status"></p><button type="submit">保存月度记录</button></footer></form></dialog>
+    <dialog data-monthly-dialog><form method="dialog" class="dialog-card" data-monthly-form><header><div><p class="eyebrow">MONTHLY RECORD</p><h2>月度记录</h2></div><button class="icon-button" type="button" data-close-dialog aria-label="关闭">×</button></header><p class="dialog-intro">填写本月总结，保存后可在月度记录中查看。</p><div class="form-grid"><label>月份<input name="year_month" type="month" required></label><label>木下投入<input name="muxia_invest" type="number" min="0" step="any" value="0"></label><label>CATI 投入<input name="cati_invest" type="number" min="0" step="any" value="0"></label><label>月末资产（历史记录）<input name="end_total" type="number" min="0" step="any"></label><label class="form-span">月度总结<textarea name="summary" maxlength="8000"></textarea></label><label class="form-span">备注<textarea name="remark" maxlength="8000"></textarea></label></div><footer><p class="form-status" data-monthly-status role="status"></p><button type="submit">保存月度记录</button></footer></form></dialog>
     <dialog data-cash-flow-dialog><form method="dialog" class="dialog-card" data-cash-flow-form><header><div><p class="eyebrow">ACTUAL CASH FLOW</p><h2>记录真实现金流</h2></div><button class="icon-button" type="button" data-close-dialog aria-label="关闭">×</button></header><p class="dialog-intro">计划基准只用于预测；此处只记录实际到账或实际取出的金额。木下年终奖可录入管理者份额抵扣。</p><div class="form-grid"><label>发生日期<input name="occurred_on" type="date" required></label><label>出资人<select name="contributor"><option value="muxia">木下</option><option value="cati">CATI</option></select></label><label>现金流类型<select name="flow_type"><option value="monthly_investment">月度投入</option><option value="bonus_investment">年终奖投入</option><option value="additional_investment">额外投入</option><option value="withdrawal">取出</option><option value="adjustment">调整</option></select></label><label>实际金额<input name="confirmed_amount" type="number" min="0" step="any" required></label><label>计划基准（选填）<input name="baseline_amount" type="number" min="0" step="any"></label><label>年终奖所属年度（仅年终奖）<input name="bonus_source_year" type="number" min="2000" max="2200" step="1"></label><label>管理者份额抵扣（仅木下年终奖）<input name="manager_share_offset" type="number" min="0" step="any" value="0"></label><label class="form-span">说明<textarea name="note" maxlength="2000"></textarea></label></div><footer><p class="form-status" data-cash-flow-status role="status"></p><button type="submit">保存现金流</button></footer></form></dialog>
-    <dialog data-account-event-dialog><form method="dialog" class="dialog-card" data-account-event-form><header><div><p class="eyebrow">ACCOUNT EVENT</p><h2>记录账户事件</h2></div><button class="icon-button" type="button" data-close-dialog aria-label="关闭">×</button></header><p class="dialog-intro">账户内部事件不会写入外部现金流。</p><div class="form-grid"><label>日期<input name="event_date" type="date" required></label><label>时间（选填）<input name="event_time" type="time"></label><label>类型<select name="event_type"><option value="dividend">红利</option><option value="dividend_tax">红利税</option><option value="split">ETF 分拆</option><option value="repo_start">逆回购发生</option><option value="repo_maturity">逆回购回款</option><option value="refund">退款</option><option value="other">其他</option></select></label><label>代码（选填）<input name="ticker" maxlength="24"></label><label>标的（选填）<input name="ticker_name" maxlength="100"></label><label>数量（选填）<input name="quantity" type="number" step="any"></label><label>参考值（选填）<input name="reference_value" type="number" step="any"></label><label>金额（选填）<input name="amount" type="number" step="any"></label><label>仓位类别（选填）<input name="position_category" maxlength="64"></label><label class="form-span">备注<textarea name="note" maxlength="2000"></textarea></label></div><footer><p class="form-status" data-account-event-status role="status"></p><button type="submit">保存账户事件</button></footer></form></dialog>
-    <dialog data-asset-snapshot-dialog><form method="dialog" class="dialog-card" data-asset-snapshot-form><header><div><p class="eyebrow">ASSET SNAPSHOT</p><h2>记录资产快照</h2></div><button class="icon-button" type="button" data-close-dialog aria-label="关闭">×</button></header><p class="dialog-intro">总资产 = 已核验持仓市值 + 现金。未完整数据可以保存，但不会进入周/月资产曲线。</p><div class="form-grid"><label>快照时间<input name="snapshot_at" type="datetime-local" required></label><label>数据来源<input name="source" maxlength="64" required placeholder="例如：账户对账单"></label><label>已核验持仓市值<input name="holdings_value" type="number" min="0" step="any" required></label><label>现金余额<input name="cash_value" type="number" min="0" step="any" required></label><label class="toggle-field"><input name="is_complete" type="checkbox" checked><span>数据完整，可进入资产曲线</span></label><label class="form-span">不完整原因（不完整时必填）<textarea name="incomplete_reason" maxlength="500"></textarea></label></div><footer><p class="form-status" data-asset-snapshot-status role="status"></p><button type="submit">保存资产快照</button></footer></form></dialog>
+    <dialog data-account-event-dialog><form method="dialog" class="dialog-card" data-account-event-form><header><div><p class="eyebrow">ACCOUNT EVENT</p><h2>记录账户事件</h2></div><button class="icon-button" type="button" data-close-dialog aria-label="关闭">×</button></header><p class="dialog-intro">记录红利、税费、分拆、逆回购或退款。</p><div class="form-grid"><label>日期<input name="event_date" type="date" required></label><label>时间（选填）<input name="event_time" type="time"></label><label>类型<select name="event_type"><option value="dividend">红利</option><option value="dividend_tax">红利税</option><option value="split">ETF 分拆</option><option value="repo_start">逆回购发生</option><option value="repo_maturity">逆回购回款</option><option value="refund">退款</option><option value="other">其他</option></select></label><label>代码（选填）<input name="ticker" maxlength="24"></label><label>标的（选填）<input name="ticker_name" maxlength="100"></label><label>数量（选填）<input name="quantity" type="number" step="any"></label><label>参考值（选填）<input name="reference_value" type="number" step="any"></label><label>金额（选填）<input name="amount" type="number" step="any"></label><label>仓位类别（选填）<input name="position_category" maxlength="64"></label><label class="form-span">备注<textarea name="note" maxlength="2000"></textarea></label></div><footer><p class="form-status" data-account-event-status role="status"></p><button type="submit">保存账户事件</button></footer></form></dialog>
+    <dialog data-asset-snapshot-dialog><form method="dialog" class="dialog-card" data-asset-snapshot-form><header><div><p class="eyebrow">ASSET SNAPSHOT</p><h2>记录资产快照</h2></div><button class="icon-button" type="button" data-close-dialog aria-label="关闭">×</button></header><p class="dialog-intro">填写当前证券市值、可用现金和其他账户资产。</p><div class="form-grid"><label>快照时间<input name="snapshot_at" type="datetime-local" required></label><label>数据来源<input name="source" maxlength="64" required placeholder="例如：账户对账单"></label><label>证券市值<input name="holdings_value" type="number" min="0" step="any" required></label><label>现金余额<input name="cash_value" type="number" min="0" step="any" required></label><label class="toggle-field"><input name="is_complete" type="checkbox" checked><span>本次账户数据完整</span></label><label class="form-span">缺口说明（不完整时必填）<textarea name="incomplete_reason" maxlength="500"></textarea></label></div><footer><p class="form-status" data-asset-snapshot-status role="status"></p><button type="submit">保存资产快照</button></footer></form></dialog>
     <dialog data-plan-dialog><form method="dialog" class="dialog-card" data-plan-form><header><div><p class="eyebrow">PLAN PARAMETERS</p><h2>共同投资计划</h2></div><button class="icon-button" type="button" data-close-dialog aria-label="关闭">×</button></header><p class="dialog-intro">年终奖金额仅用于基准情景预测，不是未来承诺；实际投入以奖金到账后的真实月度记录为准。</p><div class="form-grid"><label>初始资金<input name="initial_capital" type="number" min="0" step="any" required></label><label>共同月度投入<input name="monthly_invest" type="number" min="0" step="any" required></label><label>木下月度投入<input name="muxia_monthly_invest" type="number" min="0" step="any" required></label><label>CATI 月度投入<input name="cati_monthly_invest" type="number" min="0" step="any" required></label><label>第一年投入月数<input name="months_year1" type="number" min="0" max="12" required></label><label>后续每年投入月数<input name="months_year2plus" type="number" min="0" max="12" required></label><label>低情景年化<input name="rate_low" type="number" min="0" max="1" step="0.001" required></label><label>基准年化<input name="rate_base" type="number" min="0" max="1" step="0.001" required></label><label>高情景年化<input name="rate_high" type="number" min="0" max="1" step="0.001" required></label><label>木下首年年终奖投入基准<input name="muxia_bonus_year1" type="number" min="0" step="any" required></label><label>木下后续年度年终奖投入基准<input name="muxia_bonus_later" type="number" min="0" step="any" required></label><label>CATI 首年年终奖投入基准<input name="cati_bonus_year1" type="number" min="0" step="any" required></label><label>CATI 后续年度年终奖投入基准<input name="cati_bonus_later" type="number" min="0" step="any" required></label><label>首年年终奖投入合计基准<input name="bonus1" type="number" min="0" step="any" required></label><label>后续年度年终奖投入合计基准<input name="bonus2to4" type="number" min="0" step="any" required></label><label>起始年份<input name="start_year" type="number" min="2000" max="2200" required></label><label>结束年份<input name="end_year" type="number" min="2000" max="2200" required></label></div><footer><p class="form-status" data-plan-status role="status"></p><button type="submit">保存计划参数</button></footer></form></dialog>
     <dialog data-memo-dialog><form method="dialog" class="dialog-card" data-memo-form><header><div><p class="eyebrow">INVESTMENT MEMO</p><h2 data-memo-dialog-title>记录投资判断</h2></div><button class="icon-button" type="button" data-close-dialog aria-label="关闭">×</button></header><p class="dialog-intro" data-memo-dialog-copy>先关联一笔交易。交易信息会作为历史快照保存，不能在备忘录中修改。</p><div class="form-grid"><label class="form-span">关联交易<select name="trade_id" required data-memo-trade-select><option value="">请选择交易</option></select></label><div class="trade-snapshot form-span" data-memo-trade-snapshot hidden><span>交易日期<strong data-memo-trade-date>—</strong></span><span>标的<strong data-memo-trade-ticker>—</strong></span><span>买入或卖出<strong data-memo-trade-direction>—</strong></span><span>成交数量<strong data-memo-trade-quantity>—</strong></span><span>成交价格<strong data-memo-trade-price>—</strong></span><span>成交金额<strong data-memo-trade-total>—</strong></span><span>仓位类别<strong data-memo-trade-category>—</strong></span></div><label class="form-span">本次操作理由<textarea name="reason" required maxlength="8000"></textarea></label><label class="form-span">投资逻辑、主要风险与退出计划<textarea name="note" maxlength="8000"></textarea></label><label class="toggle-field"><input name="stop_loss_triggered" type="checkbox"><span>触发止损</span></label></div><footer><p class="form-status" data-memo-status role="status"></p><div class="dialog-actions"><button class="button-secondary" type="button" data-cancel-memo>取消</button><button type="submit" data-memo-submit>保存备忘录</button></div></footer></form></dialog>
-    <dialog data-rules-dialog><form method="dialog" class="dialog-card" data-rules-form><header><div><p class="eyebrow">RISK RULES</p><h2>风险规则</h2></div><button class="icon-button" type="button" data-close-dialog aria-label="关闭">×</button></header><p class="dialog-intro">仅调整已锁定的风控与 PE 温度边界；改动会写入 Finance 审计记录。</p><div class="form-grid"><label>主动仓单标的上限<input name="single_position_active_cap" type="number" min="0" max="1" step="0.01" required></label><label>亏损暂停加仓<input name="loss_pause_ratio" type="number" min="0" max="1" step="0.01" required></label><label>强制止损<input name="stop_loss_ratio" type="number" min="0" max="1" step="0.01" required></label><label>止盈参考<input name="take_profit_ratio" type="number" min="0" max="1" step="0.01" required></label><label>再平衡偏离<input name="rebalance_deviation" type="number" min="0" max="1" step="0.01" required></label><label>PE 冻结线<input name="freeze" type="number" min="0" step="0.1" required></label><label>PE 低温线<input name="low" type="number" min="0" step="0.1" required></label><label>PE 常态线<input name="normal" type="number" min="0" step="0.1" required></label><label>PE 高温线<input name="high" type="number" min="0" step="0.1" required></label></div><footer><p class="form-status" data-rules-status role="status"></p><button type="submit">保存风险规则</button></footer></form></dialog>
+    <dialog data-rules-dialog><form method="dialog" class="dialog-card" data-rules-form><header><div><p class="eyebrow">RISK RULES</p><h2>风险规则</h2></div><button class="icon-button" type="button" data-close-dialog aria-label="关闭">×</button></header><p class="dialog-intro">调整仓位、止损、再平衡和 PE 温度边界。</p><div class="form-grid"><label>主动仓单标的上限<input name="single_position_active_cap" type="number" min="0" max="1" step="0.01" required></label><label>亏损暂停加仓<input name="loss_pause_ratio" type="number" min="0" max="1" step="0.01" required></label><label>强制止损<input name="stop_loss_ratio" type="number" min="0" max="1" step="0.01" required></label><label>止盈参考<input name="take_profit_ratio" type="number" min="0" max="1" step="0.01" required></label><label>再平衡偏离<input name="rebalance_deviation" type="number" min="0" max="1" step="0.01" required></label><label>PE 冻结线<input name="freeze" type="number" min="0" step="0.1" required></label><label>PE 低温线<input name="low" type="number" min="0" step="0.1" required></label><label>PE 常态线<input name="normal" type="number" min="0" step="0.1" required></label><label>PE 高温线<input name="high" type="number" min="0" step="0.1" required></label></div><footer><p class="form-status" data-rules-status role="status"></p><button type="submit">保存风险规则</button></footer></form></dialog>
 
-    <dialog class="review-dialog" data-review-dialog><form method="dialog" class="dialog-card" data-review-form><header><div><p class="eyebrow">MODIFIED DIETZ</p><h2>计算年度复盘</h2></div><button class="icon-button" type="button" data-close-dialog aria-label="关闭">×</button></header><p class="dialog-intro">期初、期末、资金流和历史高水位均从已持久化的计划与月度记录派生。</p><div class="form-grid"><label>年度<input name="year" type="number" min="2000" max="2200" required></label><label class="form-span">年度总结<textarea name="summary" maxlength="20000"></textarea></label></div><footer><p class="form-status" data-review-status role="status"></p><button type="submit" value="default">计算并保存</button></footer></form></dialog>
+    <dialog class="review-dialog" data-review-dialog><form method="dialog" class="dialog-card" data-review-form><header><div><p class="eyebrow">MODIFIED DIETZ</p><h2>计算年度复盘</h2></div><button class="icon-button" type="button" data-close-dialog aria-label="关闭">×</button></header><p class="dialog-intro">选择年度并填写总结，系统会计算并保存年度复盘。</p><div class="form-grid"><label>年度<input name="year" type="number" min="2000" max="2200" required></label><label class="form-span">年度总结<textarea name="summary" maxlength="20000"></textarea></label></div><footer><p class="form-status" data-review-status role="status"></p><button type="submit" value="default">计算并保存</button></footer></form></dialog>
     <dialog class="risk-dialog" data-risk-dialog><form method="dialog" class="dialog-card" data-risk-form><header><div><p class="eyebrow">CIRCUIT EVALUATION</p><h2>风险与熔断评估</h2></div><button class="icon-button" type="button" data-close-dialog aria-label="关闭">×</button></header><p class="dialog-intro">这是手动核查入口：依据年度回撤、月度回撤和单标的最大亏损判断。提交可能写入正式熔断状态；系统尚未自动计算这些数值。</p><div class="form-grid"><label>年度回撤（手动核查）<input name="annualDrawdown" type="number" min="0" max="1" step="0.001" required></label><label>月度回撤（手动核查）<input name="monthlyDrawdown" type="number" min="0" max="1" step="0.001" required></label><label>单标的最大亏损（手动核查）<input name="maximumPositionLoss" type="number" min="0" max="1" step="0.001" required></label></div><footer><p class="form-status" data-risk-status role="status"></p><button type="submit" value="default">提交评估</button></footer></form></dialog>
     <dialog class="notification-dialog" data-notification-dialog><form method="dialog" class="dialog-card"><header><div><p class="eyebrow">MONTHLY CONFIRMATION</p><h2>月度查阅确认</h2></div></header><p data-notification-copy></p><footer><p class="form-status" data-notification-status role="status"></p><button type="button" data-confirm-notification>确认已查阅</button></footer></form></dialog>
     <dialog class="objection-dialog" data-objection-dialog><form method="dialog" class="dialog-card" data-objection-form><header><div><p class="eyebrow">BLACK CIRCUIT</p><h2>提出重大异议</h2></div><button class="icon-button" type="button" data-close-dialog aria-label="关闭">×</button></header><p>提交后所有操作应立即暂停，直到双方确认新的计划参数。</p><label>异议说明<textarea name="reason" required maxlength="2000"></textarea></label><footer><p class="form-status" data-objection-status role="status"></p><button class="button-danger" type="submit" value="default">确认并触发</button></footer></form></dialog>
@@ -205,5 +215,8 @@
     <script src="/app.js" defer></script>
     <script src="/portfolio-ui.js" defer></script>
     <script src="/operations-ui.js" defer></script>
+    <script src="/vendor/gsap.min.js" defer></script>
+    <script src="/vendor/ScrollTrigger.min.js" defer></script>
+    <script src="/motion-ui.js" defer></script>
   </body>
 </html>

@@ -20,11 +20,11 @@ function svgEl(tag, { className, text, attrs } = {}, ...children) {
 }
 function replace(node, children) { node.replaceChildren(...children); }
 const CATEGORY_PRESENTATION = [
-  { key: '主动操作仓（A股）', label: '主动操作仓', color: '#6685ff' },
-  { key: 'A股宽基指数底仓', label: 'A股宽基指数', color: '#d4c94e' },
-  { key: '美股ETF（A股跨境ETF）', label: '美股 ETF', color: '#b782f2' },
-  { key: '黄金ETF', label: '黄金 ETF', color: '#d9a441' },
-  { key: '机动仓（货币ETF）', label: '机动仓', color: '#5eaf9e' },
+  { key: '主动操作仓（A股）', label: '主动操作仓', color: '#7e92ff' },
+  { key: 'A股宽基指数底仓', label: 'A股宽基指数', color: '#a48ac7' },
+  { key: '美股ETF（A股跨境ETF）', label: '美股 ETF', color: '#69a99d' },
+  { key: '黄金ETF', label: '黄金 ETF', color: '#d4af37' },
+  { key: '机动仓（货币ETF）', label: '机动仓', color: '#7f8da3' },
   { key: '其他', label: '其他', color: '#848e9c' },
 ];
 const CATEGORY_ALIASES = new Map([
@@ -123,7 +123,7 @@ function showApp() {
 async function loadDashboard() {
   const dashboard = $('[data-dashboard]');
   dashboard.setAttribute('aria-busy', 'true');
-  setStatus($('[data-dashboard-status]'), '正在读取已持久化的 Finance 数据…');
+  setStatus($('[data-dashboard-status]'), '正在读取 Finance 数据…');
   try {
     const calls = [
       request('/api/holdings'), request('/api/trades'), request('/api/pe'), request('/api/circuit'), request('/api/review'),
@@ -218,13 +218,43 @@ for (const button of $$('[data-asset-view]')) button.addEventListener('click', a
 
 function renderNetWorthChart(node, records) {
   const width = 760; const height = 240; const padding = { top: 20, right: 20, bottom: 32, left: 54 };
-  const values = records.map((row) => Number(row.end_total)); const min = Math.min(...values); const max = Math.max(...values); const range = max - min || Math.max(max * .1, 1);
+  const values = records.map((row) => Number(row.end_total));
+  const rawMin = Math.min(...values); const rawMax = Math.max(...values);
+  const rawRange = rawMax - rawMin; const domainPadding = rawRange ? rawRange * .12 : Math.max(Math.abs(rawMax) * .05, 1);
+  const min = rawMin - domainPadding; const max = rawMax + domainPadding; const range = max - min;
   const x = (index) => padding.left + (records.length === 1 ? (width - padding.left - padding.right) / 2 : index * (width - padding.left - padding.right) / (records.length - 1));
   const y = (value) => padding.top + (max - value) * (height - padding.top - padding.bottom) / range;
-  const points = values.map((value, index) => `${x(index).toFixed(1)},${y(value).toFixed(1)}`).join(' ');
-  const area = `${padding.left},${height - padding.bottom} ${points} ${x(records.length - 1).toFixed(1)},${height - padding.bottom}`;
+  const coordinates = values.map((value, index) => ({ x: x(index), y: y(value) }));
+  const line = coordinates.slice(1).reduce((path, point, index) => {
+    const previous = coordinates[index]; const midpoint = (previous.x + point.x) / 2;
+    return `${path} C ${midpoint.toFixed(1)},${previous.y.toFixed(1)} ${midpoint.toFixed(1)},${point.y.toFixed(1)} ${point.x.toFixed(1)},${point.y.toFixed(1)}`;
+  }, `M ${coordinates[0].x.toFixed(1)},${coordinates[0].y.toFixed(1)}`);
+  const baseline = height - padding.bottom;
+  const area = `${line} L ${coordinates.at(-1).x.toFixed(1)},${baseline} L ${coordinates[0].x.toFixed(1)},${baseline} Z`;
+  const grid = [0, .5, 1].flatMap((ratio) => {
+    const gridY = padding.top + ratio * (height - padding.top - padding.bottom);
+    const gridValue = max - ratio * range;
+    return [
+      svgEl('line', { className: 'net-worth-grid', attrs: { 'data-chart-grid': '', x1: padding.left, x2: width - padding.right, y1: gridY, y2: gridY } }),
+      svgEl('text', { className: 'net-worth-axis-label', text: money.format(gridValue), attrs: { x: padding.left - 8, y: gridY + 3, 'text-anchor': 'end' } }),
+    ];
+  });
+  const labelEvery = Math.max(1, Math.ceil(records.length / 6));
+  const dateLabels = records.flatMap((row, index) => (index === 0 || index === records.length - 1 || index % labelEvery === 0)
+    ? [svgEl('text', { className: 'net-worth-label', text: row.year_month, attrs: { x: x(index), y: height - 10, 'text-anchor': 'middle' } })]
+    : []);
   const gradientId = 'net-worth-gradient';
-  replace(node, [svgEl('svg', { attrs: { viewBox: `0 0 ${width} ${height}`, role: 'img', 'aria-label': '月度总资产趋势' } }, svgEl('defs', {}, svgEl('linearGradient', { attrs: { id: gradientId, x1: 0, x2: 0, y1: 0, y2: 1 } }, svgEl('stop', { attrs: { offset: '0%', 'stop-color': 'var(--blue)', 'stop-opacity': '.34' } }), svgEl('stop', { attrs: { offset: '100%', 'stop-color': 'var(--blue)', 'stop-opacity': '0' } }))), svgEl('polygon', { className: 'net-worth-area', attrs: { points: area, fill: `url(#${gradientId})` } }), svgEl('polyline', { attrs: { points } }), ...records.map((row, index) => svgEl('circle', { className: 'net-worth-dot', attrs: { cx: x(index), cy: y(values[index]), r: 4, tabindex: 0, 'aria-label': `${row.year_month} ${money.format(values[index])}` } }, svgEl('title', { text: `${row.year_month} ${money.format(values[index])}` }))), ...records.map((row, index) => svgEl('text', { className: 'net-worth-label', text: row.year_month, attrs: { x: x(index), y: height - 10, 'text-anchor': 'middle' } })))]);
+  replace(node, [svgEl('svg', { attrs: { viewBox: `0 0 ${width} ${height}`, role: 'img', 'aria-label': '月度总资产趋势' } },
+    svgEl('defs', {}, svgEl('linearGradient', { attrs: { id: gradientId, x1: 0, x2: 0, y1: 0, y2: 1 } },
+      svgEl('stop', { attrs: { offset: '0%', 'stop-color': 'var(--blue)', 'stop-opacity': '.26' } }),
+      svgEl('stop', { attrs: { offset: '72%', 'stop-color': 'var(--blue)', 'stop-opacity': '.06' } }),
+      svgEl('stop', { attrs: { offset: '100%', 'stop-color': 'var(--blue)', 'stop-opacity': '0' } }))),
+    ...grid,
+    svgEl('path', { className: 'net-worth-area', attrs: { d: area, fill: `url(#${gradientId})` } }),
+    svgEl('path', { className: 'net-worth-line', attrs: { d: line } }),
+    ...records.map((row, index) => svgEl('circle', { className: 'net-worth-dot', attrs: { cx: x(index), cy: y(values[index]), r: 4, tabindex: 0, 'aria-label': `${row.year_month} ${money.format(values[index])}` } }, svgEl('title', { text: `${row.year_month} ${money.format(values[index])}` }))),
+    ...dateLabels,
+    svgEl('text', { className: 'net-worth-current-value', text: money.format(values.at(-1)), attrs: { x: coordinates.at(-1).x - 8, y: Math.max(16, coordinates.at(-1).y - 12), 'text-anchor': 'end' } }))]);
 }
 
 function renderHoldings() {
@@ -556,7 +586,7 @@ function openTradeEdit(id) {
   const trade = state.trades.find((item) => Number(item.id) === id); if (!trade) return; state.editingTrade = trade; for (const [key, value] of Object.entries(trade)) if (tradeForm.elements[key]) tradeForm.elements[key].value = value ?? ''; $('[data-trade-dialog-title]').textContent = '修改最新交易'; $('[data-trade-dialog-copy]').textContent = '只允许修改最新且独立的线上交易，以避免重写导入历史或后续持仓。'; $('[data-trade-submit]').textContent = '保存修改'; setTradeTotal(Number(trade.quantity) * Number(trade.price)); setTradeCategoryIndicator(); openDialog(tradeDialog, document.querySelector(`[data-edit-trade="${id}"]`)); tradeForm.elements.ticker.focus();
 }
 async function deleteTrade(id) {
-  if (!window.confirm('删除后会保留审计记录，并回滚这一笔最新交易形成的持仓快照。是否继续？')) return;
+  if (!window.confirm('删除后，这笔交易形成的持仓会同步回滚。是否继续？')) return;
   try { await request(`/api/trades/${id}`, { method: 'DELETE', body: '{}' }); setStatus($('[data-dashboard-status]'), '交易已删除，持仓已回滚。', 'success'); await loadDashboard(); }
   catch (error) { setStatus($('[data-dashboard-status]'), error.message, 'error'); }
 }
@@ -597,7 +627,7 @@ cashFlowForm.addEventListener('submit', async (event) => {
   catch (error) { setStatus(status, error.message, 'error'); } finally { submit.disabled = false; }
 });
 async function deleteCashFlow(id) {
-  if (!window.confirm('删除后会保留审计记录，是否继续？')) return;
+  if (!window.confirm('确定删除这条现金流记录吗？')) return;
   try { await request(`/api/cash-flows/${id}`, { method: 'DELETE', body: '{}' }); await loadDashboard(); setStatus($('[data-dashboard-status]'), '现金流已删除。', 'success'); }
   catch (error) { setStatus($('[data-dashboard-status]'), error.message, 'error'); }
 }
@@ -606,7 +636,7 @@ function openAccountEventNew(trigger) { state.editingAccountEvent = null; accoun
 function openAccountEventEdit(id, trigger) { const event = state.accountEvents.find((row) => Number(row.id) === id); if (!event) return; state.editingAccountEvent = event; accountEventForm.reset(); for (const [key, value] of Object.entries(event)) if (accountEventForm.elements[key]) accountEventForm.elements[key].value = value ?? ''; $('h2', accountEventDialog).textContent = '编辑账户事件'; $('button[type="submit"]', accountEventForm).textContent = '保存修改'; setStatus($('[data-account-event-status]'), ''); openDialog(accountEventDialog, trigger); }
 for (const trigger of $$('[data-open-account-event]')) trigger.addEventListener('click', (event) => openAccountEventNew(event.currentTarget));
 accountEventForm.addEventListener('submit', async (event) => { event.preventDefault(); const submit = $('button[type="submit"]', accountEventForm); submit.disabled = true; try { const editing = state.editingAccountEvent; await request(editing ? `/api/account-events/${editing.id}` : '/api/account-events', { method: editing ? 'PATCH' : 'POST', body: JSON.stringify(Object.fromEntries(new FormData(accountEventForm))) }); setDialogOpen(accountEventDialog, false); await loadDashboard(); } catch (error) { setStatus($('[data-account-event-status]'), error.message, 'error'); } finally { submit.disabled = false; } });
-async function deleteAccountEvent(id) { if (!window.confirm('删除后会保留审计记录，是否继续？')) return; try { await request(`/api/account-events/${id}`, { method: 'DELETE', body: '{}' }); await loadDashboard(); setStatus($('[data-dashboard-status]'), '账户事件已删除。', 'success'); } catch (error) { setStatus($('[data-dashboard-status]'), error.message, 'error'); } }
+async function deleteAccountEvent(id) { if (!window.confirm('确定删除这条账户事件吗？')) return; try { await request(`/api/account-events/${id}`, { method: 'DELETE', body: '{}' }); await loadDashboard(); setStatus($('[data-dashboard-status]'), '账户事件已删除。', 'success'); } catch (error) { setStatus($('[data-dashboard-status]'), error.message, 'error'); } }
 connectPostDialog('[data-asset-snapshot-dialog]', '[data-open-asset-snapshot]', (form) => { form.elements.snapshot_at.value = shanghaiWallClockInput(); form.elements.is_complete.checked = true; }, '/api/assets/snapshots', (data, form) => ({ ...data, is_complete: form.elements.is_complete.checked }));
 const memoDialog = $('[data-memo-dialog]'); const memoForm = $('[data-memo-form]');
 $('[data-open-memo]').addEventListener('click', (event) => openMemoNew(event.currentTarget));
