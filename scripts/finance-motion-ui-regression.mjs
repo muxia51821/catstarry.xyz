@@ -31,6 +31,21 @@ try {
     }
   });
   const { send, evaluate, waitFor } = cdp;
+  const settleVisibleMotion = async (tab) => {
+    await delay(100);
+    await evaluate('window.gsap?.globalTimeline?.getChildren?.().forEach((animation) => animation.progress(1))');
+    await waitFor(
+      '(() => {'
+      + 'const panels = [...document.querySelectorAll(\'[data-pane="' + tab + '"]\')].filter((node) => !node.hidden && node.getClientRects().length);'
+      + 'return panels.length > 0 && panels.every((node) => {'
+      + 'const style = getComputedStyle(node);'
+      + 'const transform = style.transform;'
+      + 'return style.opacity === "1" && (transform === "none" || Math.abs(new DOMMatrixReadOnly(transform).m42) < 0.1);'
+      + '});'
+      + '})()',
+      'Finance ' + tab + ' panel motion',
+    );
+  };
   await send('Runtime.enable');
   await send('Page.enable');
   await send('Emulation.setDeviceMetricsOverride', { width: 1600, height: 1000, deviceScaleFactor: 1, mobile: false });
@@ -132,9 +147,7 @@ try {
   for (const width of [3440, 2560, 2000, 1920, 1600, 1440, 1366, 1101, 1100, 1024, 900, 899, 768, 681, 680, 430, 390, 360]) {
     await send('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: width <= 680 });
     await evaluate(`document.querySelector('[data-tab="overview"]').click()`);
-    await delay(55);
-    await evaluate(`window.gsap?.globalTimeline?.getChildren?.().forEach((animation) => animation.progress(1))`);
-    await delay(10);
+    await settleVisibleMotion('overview');
     const overviewGeometry = await evaluate(`(() => {
       const tolerance = 1.5;
       const box = (node) => { const rect = node.getBoundingClientRect(); return { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom, width: rect.width, height: rect.height }; };
@@ -178,9 +191,7 @@ try {
     const workspaceGeometry = [];
     for (const tab of ['entry', 'holdings', 'review', 'planning', 'records']) {
       await evaluate(`document.querySelector('[data-tab="${tab}"]').click()`);
-      await delay(55);
-      await evaluate(`window.gsap?.globalTimeline?.getChildren?.().forEach((animation) => animation.progress(1))`);
-      await delay(10);
+      await settleVisibleMotion(tab);
       workspaceGeometry.push(await evaluate(`(() => {
         const tolerance = 1.5;
         const near = (left, right) => Math.abs(left - right) <= tolerance;
@@ -302,13 +313,15 @@ try {
     { tab: 'overview', activeRgb: [53, 86, 253] },
   ], 'Finance tabs must preserve their original workspace colors');
   assert.deepEqual(diagnostics.desktop.chart, { gradients: 1, gridLines: 3, usesCurve: true, linecap: 'round' }, 'the total-assets chart must keep its polished visual structure');
-  assert.equal(diagnostics.responsive.every((viewport) => viewport.noHorizontalOverflow
+  const responsiveFailures = diagnostics.responsive.filter((viewport) => !(viewport.noHorizontalOverflow
     && viewport.shellCentered
     && viewport.sharedOuterEdges
     && viewport.metricRowsAligned
     && viewport.headerAligned
     && viewport.overviewAligned
-    && viewport.workspaces.every((workspace) => workspace.panelCount > 0 && workspace.aligned)), true, 'Finance panels must share the same responsive grid at every breakpoint');
+    && viewport.workspaces.every((workspace) => workspace.panelCount > 0 && workspace.aligned)));
+  assert.equal(responsiveFailures.length, 0,
+    'Finance panels must share the same responsive grid at every breakpoint: ' + JSON.stringify(responsiveFailures));
   assert.equal(diagnostics.responsive.every((viewport) => viewport.allocationEmptyBand <= 2), true,
     `Allocation Map must not leave an empty band below the SVG: ${JSON.stringify(diagnostics.responsive.map(({ width, allocationEmptyBand }) => ({ width, allocationEmptyBand })))}`);
   assert.deepEqual(diagnostics.responsive.map(({ width, summaryColumns }) => ({ width, summaryColumns })), [
