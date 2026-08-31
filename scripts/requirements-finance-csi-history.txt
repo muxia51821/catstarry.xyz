@@ -1,2 +1,0 @@
-# CSI is the valuation authority. AKShare is only the version-pinned transport adapter.
-akshare==1.18.40

@@ -36,7 +36,7 @@ export class SqliteD1 {
   }
 }
 
-export async function applyMigrations(database, directory = 'workers/finance-api/migrations') {
+export async function applyMigrations(database, directory = 'workers/feed-api/migrations') {
   for (const file of (await readdir(directory)).filter((name) => name.endsWith('.sql')).sort()) {
     database.exec(await readFile(path.join(directory, file), 'utf8'));
   }

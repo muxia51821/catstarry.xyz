@@ -40,14 +40,12 @@ function portFromEnv(name, fallback) {
 
 let sitePort = portFromEnv('SITE_PREVIEW_PORT', '4321');
 let feedPort = portFromEnv('FEED_PREVIEW_PORT', '8787');
-let financePort = portFromEnv('FINANCE_PREVIEW_PORT', '8788');
-const configuredPorts = [sitePort, feedPort, financePort].filter((port) => port !== 0);
+const configuredPorts = [sitePort, feedPort].filter((port) => port !== 0);
 if (new Set(configuredPorts).size !== configuredPorts.length) {
-  throw new Error('SITE_PREVIEW_PORT, FEED_PREVIEW_PORT, and FINANCE_PREVIEW_PORT must be different');
+  throw new Error('SITE_PREVIEW_PORT and FEED_PREVIEW_PORT must be different');
 }
 let siteOrigin = `http://127.0.0.1:${sitePort}`;
 let feedOrigin = `http://127.0.0.1:${feedPort}`;
-let financeOrigin = `http://127.0.0.1:${financePort}`;
 const serviceReadyTimeoutMs = 60_000;
 const serviceReadyPollMs = 250;
 const migrationPollMs = 250;
@@ -96,8 +94,7 @@ async function recoverAbandonedLocalPreviewState() {
 function previewPortsMatch(owner) {
   const ports = owner?.ports;
   return Number(ports?.site) === sitePort
-    && Number(ports?.feed) === feedPort
-    && Number(ports?.finance) === financePort;
+    && Number(ports?.feed) === feedPort;
 }
 
 async function processCommandLine(pid) {
@@ -183,7 +180,7 @@ async function stopLocalPreview() {
   }
   await stopProcessTree(pid);
   await waitForPreviewCleanup(directory, pid);
-  console.log(`[local-preview] Stopped local preview on ports ${sitePort}/${feedPort}/${financePort}.`);
+  console.log(`[local-preview] Stopped local preview on ports ${sitePort}/${feedPort}.`);
   return 0;
 }
 
@@ -529,9 +526,7 @@ async function runQuickVerification() {
   const env = { ...process.env };
   delete env.SITE_PREVIEW_PORT;
   delete env.FEED_PREVIEW_PORT;
-  delete env.FINANCE_PREVIEW_PORT;
   await runCommand(npmRunner.command, [...npmRunner.prefix, 'run', 'test:feed:page'], 'Feed page quick verification', env);
-  await runCommand(npmRunner.command, [...npmRunner.prefix, 'run', 'test:finance:preview'], 'Finance preview quick verification', env);
 }
 
 async function main() {
@@ -562,13 +557,12 @@ async function main() {
     await runQuickVerification();
     if (stopRequested) return 0;
 
-    reservations = await reservePorts([sitePort, feedPort, financePort]);
-    [sitePort, feedPort, financePort] = reservations.map((reservation) => reservation.port);
-    const ports = new Set([sitePort, feedPort, financePort]);
-    if (ports.size !== 3) throw new Error('SITE_PREVIEW_PORT, FEED_PREVIEW_PORT, and FINANCE_PREVIEW_PORT must be different');
+    reservations = await reservePorts([sitePort, feedPort]);
+    [sitePort, feedPort] = reservations.map((reservation) => reservation.port);
+    const ports = new Set([sitePort, feedPort]);
+    if (ports.size !== 2) throw new Error('SITE_PREVIEW_PORT and FEED_PREVIEW_PORT must be different');
     siteOrigin = `http://127.0.0.1:${sitePort}`;
     feedOrigin = `http://127.0.0.1:${feedPort}`;
-    financeOrigin = `http://127.0.0.1:${financePort}`;
 
     persist = await mkdtemp(path.join(os.tmpdir(), localPreviewDirectoryPrefix));
     const ownerPath = path.join(persist, localPreviewOwnerFile);
@@ -576,7 +570,7 @@ async function main() {
     const writeOwnerState = () => writeFile(ownerPath, JSON.stringify({
       pid: process.pid,
       created_at: createdAt,
-      ports: { site: sitePort, feed: feedPort, finance: financePort },
+      ports: { site: sitePort, feed: feedPort },
     }));
     await writeOwnerState();
     const feedEnv = {
@@ -634,24 +628,12 @@ async function main() {
     if (!await waitForHttp(`${feedOrigin}/api/feed`, 'Local Feed API', feed, () => stopRequested)) return 0;
     await prepareLocalBlogLifecycle(feedOrigin);
 
-    await releasePort(reservations[2]);
-    const finance = startService('Finance preview', node, ['scripts/finance-preview.mjs'], {
-      ...process.env,
-      FINANCE_PREVIEW_PORT: String(financePort),
-    });
-    services.push(finance);
-
-    const ready = await Promise.all([
-      waitForHttp(siteOrigin, 'Astro site', site, () => stopRequested),
-      waitForHttp(financeOrigin, 'Finance preview', finance, () => stopRequested),
-    ]);
-    if (stopRequested || ready.includes(false)) return 0;
+    if (!await waitForHttp(siteOrigin, 'Astro site', site, () => stopRequested)) return 0;
     const sourceIdentity = await gitIdentity();
 
     console.log('');
     console.log('Local previews are ready:');
     console.log(`  catstarry.xyz  ${siteOrigin}/`);
-    console.log(`  f.catstarry.xyz ${financeOrigin}/`);
     console.log(`  Feed API       ${feedOrigin}/api/feed`);
     console.log(`  Source checkout: ${root}`);
     console.log(`  Git branch / HEAD: ${sourceIdentity}`);
@@ -664,8 +646,7 @@ async function main() {
     console.log('');
     console.log('Next steps:');
     console.log(`  1. Open ${siteOrigin}/, /blog/, /feed/, /learn/, or /projects/`);
-    console.log(`  2. Open ${financeOrigin}/ for the Finance representative preview`);
-    console.log('  3. Login with the LOCAL PREVIEW ONLY credentials above for owner previews');
+    console.log('  2. Login with the LOCAL PREVIEW ONLY credentials above for owner previews');
     console.log('The visual fixture is temporary and read-only: it never performs Learn Publish or a production release. Press Ctrl+C to stop all previews and clean temporary state.');
 
     if (process.env.LOCAL_PREVIEW_TEST_STOP_AFTER_READY === 'SIGINT') onSignal('SIGINT');
