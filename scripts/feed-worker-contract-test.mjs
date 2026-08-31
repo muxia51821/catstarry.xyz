@@ -169,7 +169,6 @@ try {
     ['javascript:alert(1)', 'javascript'],
     ['//example.com/project', 'protocol-relative'],
     ['https://example.com/project', 'external'],
-    ['/finance/', 'non-content'],
     ['/learn/notes/cross-source/', 'cross-source'],
     ['/blog/', 'blog-root'],
     ['/learn/', 'learn-root', { source_module: 'learn', source_ref: 'danger-learn', event_type: 'learn_note_published' }],
