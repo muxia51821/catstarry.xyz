@@ -1,24 +1,13 @@
 import type { SessionStatus } from './types';
 
-export type FinanceRole = 'admin' | 'viewer';
-
 export interface SessionRecord {
   username: string;
   expires_at: string;
-  role?: FinanceRole;
 }
 
 export interface MainSiteAuthBindings {
   sessions: KVNamespace;
   database: D1Database;
-}
-
-export interface FinanceAuthBindings {
-  sessions: KVNamespace;
-}
-
-export interface FinanceSessionStatus extends SessionStatus {
-  role?: FinanceRole;
 }
 
 export function getSessionToken(request: Request): string | null {
@@ -71,28 +60,4 @@ export async function getMainSiteSession(
   if (!persisted || !isCurrentSession(persisted)) return anonymousSession();
 
   return { authenticated: true, username: persisted.username };
-}
-
-export async function getFinanceSession(
-  request: Request,
-  bindings: FinanceAuthBindings,
-): Promise<FinanceSessionStatus> {
-  const token = getSessionToken(request);
-  if (!token) return anonymousSession();
-
-  const record = await readKvSession(token, bindings.sessions);
-  if (!record || !isCurrentSession(record)) return anonymousSession();
-
-  return {
-    authenticated: true,
-    username: record.username,
-    role: record.role,
-  };
-}
-
-export function hasRole(
-  session: FinanceSessionStatus,
-  allowedRoles: readonly FinanceRole[],
-): boolean {
-  return session.authenticated && !!session.role && allowedRoles.includes(session.role);
 }

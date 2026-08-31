@@ -9,8 +9,7 @@ GLOSSARY 只记录跨模块、跨 Phase、容易被误解或存在命名漂移�
 | 术语 | 定义 |
 | --- | --- |
 | **木下** | 项目所有者和最终决策者。 |
-| **cati** | Finance workspace 的指定只读协作者，不是公开站点角色。 |
-| **访客** | 公开主站访问者，不包含 Finance workspace 使用者。 |
+| **访客** | 公开主站访问者，不包含私有 Finance workspace 使用者。 |
 
 ## 公开主站与板块
 
@@ -22,7 +21,7 @@ GLOSSARY 只记录跨模块、跨 Phase、容易被误解或存在命名漂移�
 | **Feed (`/feed`)** | 公开时间线模块，呈现原生 Feed 内容和 Public Footprint。 |
 | **Learn (`/learn`)** | 公开学习笔记模块；不指本地私有学习区、课程生成 workspace 或 draft preview 工具。 |
 | **Projects (`/projects`)** | 公开项目展示模块。 |
-| **Finance workspace** | `f.catstarry.xyz` 的内部私密财务工作区，不属于公开主站、Home 导航或公开 Content Family。 |
+| **Finance workspace** | `f.catstarry.xyz` 的内部私密财务工作区；current authority 在独立私有仓库，本仓库不维护其代码、部署、数据或认证。它不属于公开主站、Home 导航或公开 Content Family。 |
 
 ## Home 导航与交互词汇
 
@@ -71,18 +70,6 @@ GLOSSARY 只记录跨模块、跨 Phase、容易被误解或存在命名漂移�
 | **Public Footprint（公开足迹）** | 足迹来源事件固化形成的独立历史记录，保存事件时的来源身份和展示快照，并拥有独立可见性；不等于整个 Feed，也不包含碎碎念和剪藏。 |
 | **Public Timeline（公开时间线）** | Feed 将原生碎碎念、剪藏与可公开 Footprint 统一排序形成的读取投影，也是 `/feed` 面向访客的呈现；不是数据库表，不是 Public Footprint 的别名，也不被 Home 使用。 |
 
-## Finance workspace（内部）
-
-以下术语仅适用于内部 Finance workspace，不属于公开主站 Content / navigation。
-
-| 术语 | 简短定义 |
-| --- | --- |
-| **修正迪茨法** | Finance 用于处理期间现金流影响的收益率计算方法。 |
-| **高水位线** | Finance 用于判断历史净值和超额分成基准的参考线。 |
-| **PE 温度计** | 将受支持指数的 PE-TTM 映射为离散估值温度和操作提示的 Finance 估值视图。 |
-| **仓位偏离预警** | 当持仓相对目标范围发生重要偏离时，Finance 提供的状态提示和再平衡提醒。 |
-| **三级熔断** | Finance 的分级风险保护机制；具体级别、触发、解除和沟通规则不在本词汇表定义。 |
-
 ## Canonical naming
 
 | Canonical term | 允许的语境名称 | 弃用或禁止误读 |
@@ -95,6 +82,6 @@ GLOSSARY 只记录跨模块、跨 Phase、容易被误解或存在命名漂移�
 | Content Click Feedback | Content 点击反馈 | Content cursor meteor |
 | Planet Focus | Focus | 星球详情页 |
 | Entry Display | — | Hero Display |
-| 上海时钟（`shared/shanghai-time.ts`） | Finance 域 `lib/dates.ts` 的 `shanghaiDay` 等；无构建静态脚本可就地镜像同一 Intl 语义 | 手动 +8 小时算术、UTC/设备本地时区充当业务日期 |
+| 上海时钟（`shared/shanghai-time.ts`） | 无构建静态脚本可就地镜像同一 Intl 语义 | 手动 +8 小时算术、UTC/设备本地时区充当业务日期 |
 
 术语语义发生变化时，由对应 Product / Architecture / Design authority 先形成新的事实，再同步 canonical naming；GLOSSARY 不自行创造新的产品、架构、设计或实现规则。

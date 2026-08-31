@@ -20,11 +20,9 @@
 | 前端框架 | Astro hybrid (SSG + SSR) | Cloudflare Site Worker | 主站页面渲染 |
 | 交互组件 | React 19 + Astro / 自定义组件 | Astro islands / Site Worker | Home、Feed 与 owner UI |
 | 主站 API | `feed-api` Cloudflare Worker | Cloudflare Workers | Feed、auth、views、Blog/Learn lifecycle、Home activity projection |
-| Finance API | `finance-api` Cloudflare Worker | Cloudflare Workers | Finance 数据、认证、行情与 scheduled tasks |
-| 数据库 | D1 (`catstarry-db`, `finance-db`) | Cloudflare | 主站与 Finance 持久数据 |
-| KV | AUTH / VIEW / Finance auth 等 namespaces | Cloudflare | session、去重/限流、publication metadata 等 |
+| 数据库 | D1 (`catstarry-db`) | Cloudflare | 主站持久数据 |
+| KV | AUTH / VIEW namespaces | Cloudflare | session、去重/限流、publication metadata 等 |
 | 文件存储 | R2 | Cloudflare | Feed media、Home activity projection |
-| Finance 前端 | Cloudflare Pages | `f.catstarry.xyz` | 内部 Finance workspace |
 | Validation / Release | GitHub Actions + explicit PowerShell / wrangler runners | GitHub / operator environment | CI validation、production deploy、deploy-success publication sync |
 
 ---
@@ -55,20 +53,6 @@
        └───────┬────────┬────────┬────┘
                │        │        │
               D1       KV       R2
-
-
-              f.catstarry.xyz
-       ┌──────────────────────────────┐
-       │ Cloudflare Pages            │
-       └──────────────┬───────────────┘
-                      │ same-origin API
-       ┌──────────────▼───────────────┐
-       │ finance-api Worker           │
-       │ auth / records / market      │
-       │ risk / scheduled refresh     │
-       └────────────┬─────────┬───────┘
-                    │         │
-                   D1        KV
 ```
 
 Astro Site source 与 Worker source 不直接互相 import。Site SSR 需要主站 API 时通过 `FEED_API` transport 调用 Feed Worker；浏览器继续使用同源 `/api/*`。
@@ -175,50 +159,18 @@ Activity Signal 的生成链路：
 
 ADR-007 记录这一静态投影决策；具体 query / storage seam 见 `docs/architecture/modules.md` 与 `docs/architecture/data-model.md`。
 
-### Finance current-state 数据流
-
-```text
-f.catstarry.xyz (Cloudflare Pages)
-    → same-origin Finance API
-    → finance-api Worker
-         ├─ auth
-         ├─ trades
-         ├─ monthly / plan / cash-flow / asset records
-         ├─ risk / memo / rebalance / workbook review
-         └─ dashboard / market reads
-    → finance D1 + FINANCE_AUTH_KV
-```
-
-行情刷新是独立 scheduled flow：
-
-```text
-Cron: `*/15 * * * *` 或 `30 7 * * 1-5`
-    → finance-api scheduled handler
-    → refreshMarketData()
-         ├─ 如配置 MARKET_PROVIDER_URL：使用受控 HTTPS provider
-         └─ 否则使用内置 provider path
-              ├─ Tencent：A 股/ETF、上证指数与支持的 PE-TTM
-              ├─ TradingView：NASDAQ-100 指数快照
-              └─ Sina：疑似 stale A 股 / 上证报价 fallback
-    → 读取 active holdings 以确定需要刷新的持仓 ticker
-    → 写入 market_data / finance_market_indexes
-```
-
-部分 provider 数据缺失时记录 missing items 并保留可用结果；刷新整体失败时不清空既有市场数据，继续保留上一份有效快照。Finance 的业务记录、行情、审计和认证均留在独立 Finance 边界，不进入 Content Family 数据链路。逐表结构见 `docs/architecture/data-model.md`。
-
 ### Authentication
 
-主站 owner session 由 Feed Worker 管理，Site SSR owner routes 通过 `FEED_API` transport 验证；浏览器通过同源 auth routes 登录。Finance 使用独立 session storage 与 cookie，不与主站共享认证状态。完整 session / cookie / role 规则见 `docs/architecture/auth.md`。
+主站 owner session 由 Feed Worker 管理，Site SSR owner routes 通过 `FEED_API` transport 验证；浏览器通过同源 auth routes 登录。完整 session / cookie 规则见 `docs/architecture/auth.md`。
 
 ---
 
 ## 架构边界
 
-- 主站 deployment unit 是 Cloudflare Site Worker；Finance frontend 是独立 Cloudflare Pages deployment。
+- Finance 已迁移至独立私有仓库；本仓库不维护其 runtime、deployment、数据或认证，也不建立跨仓库运行连接。
 - Site SSR 与 Feed Worker 通过 Request boundary 解耦，不直接 import Worker implementation。
 - Blog / Learn source presence 不等于 public visibility；两者的公开 route 都受 runtime publication lifecycle 约束。
 - Public Footprint 与原生 Feed 记录分存；Public Timeline 是统一读取 projection。
 - Learn Markdown 是 canonical source；runtime publication state 不存 Note 正文；deployed relation metadata 不构成 relation database。
 - Home 只消费最小 Activity Signal static projection；projection failure 不改变来源事实，也不恢复跨模块内容聚合。
-- 主站与 Finance 保持独立 runtime、数据和认证边界；Finance scheduled market refresh 不属于主站 Content pipeline。
 - Durable architecture decisions 由 `docs/adr/` 记录；current implementation details 由对应 architecture child、source 和 tests 负责。

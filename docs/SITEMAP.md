@@ -188,15 +188,15 @@
 
 | 属性       | 值                                                                                 |
 | ---------- | ---------------------------------------------------------------------------------- |
-| 公开性     | 项目内非公开工作区，不属于公开主站模块                                             |
-| 访问范围   | 通过 `f.catstarry.xyz` 独立域名访问；Finance session required，木下 admin、cati viewer |
-| 与主站关系 | 不出现在 Home 或公开 `sitemap.xml`；使用独立认证系统                                |
+| 公开性     | 内部私有工作区，不属于公开主站模块                                                 |
+| 仓库职责   | current authority 在独立私有仓库；本仓库不维护其代码、部署、数据或认证             |
+| 与主站关系 | 不出现在 Home 或公开 `sitemap.xml`，也不与主站数据或认证连接                        |
 
 ### `poker.catstarry.xyz` — Poker PWA
 
 | 属性 | 值                    |
 | ---- | --------------------- |
-| 范围 | 独立站点，不属于公开主站内容或 Finance workspace |
+| 范围 | 独立站点，不属于公开主站内容或私有 Finance workspace |
 
 ---
 
@@ -219,9 +219,3 @@
 | `/api/learn/complete` | feed-api | POST | 已认证的 legacy writer retirement boundary；固定返回 `410 legacy_writer_retired` |
 
 Production-like Site SSR 通过 `FEED_API` Service Binding 调用这些 Feed Worker contracts；Local Preview 使用 localhost HTTP fallback。浏览器公开 API 仍通过同源 `/api/*` 访问。
-
-### 非公开 Finance API
-
-| 前缀                         | Worker      | 访问控制                 | 主要能力                                                                                  |
-| ---------------------------- | ----------- | ------------------------ | ------------------------------------------------------------------------------------------- |
-| `f.catstarry.xyz/api/*`      | finance-api | Finance session required | auth、trades、monthly、plan、cash-flows、assets、holdings、market、PE、risk、circuit、review、import-review、archive、stewardship |

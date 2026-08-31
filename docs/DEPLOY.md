@@ -7,21 +7,20 @@
 | 环境 | 站点 | API 路由 | 资源 |
 | --- | --- | --- | --- |
 | staging | `https://staging.catstarry.xyz` → `catstarry-site-staging` Site Worker | `/api/*`、`/activity-signals.json` → `catstarry-feed-api-staging` | Site `SESSION` KV（Astro 自动 provisioning）+ `FEED_API` Service Binding + staging D1/KV/R2 |
-| finance staging | `https://f-staging.catstarry.xyz` → `catstarry-finance-staging` Pages | `/api/*` → `catstarry-finance-api-staging` | 独立 Finance D1/KV |
 | production | `https://catstarry.xyz` → `catstarry-site-production` Site Worker | `/api/*`、`/activity-signals.json` → production Feed Worker；Site SSR 使用 `FEED_API` Service Binding | Site `SESSION` KV（由 production Worker 名称确定）+ production D1/KV/R2 |
-| finance production | `https://f.catstarry.xyz` | `/api/*` → production Finance Worker | 独立 Finance D1/KV |
 
-Feed 与 Finance browser API 均使用同源 `/api/*` 路由。Production-like Site SSR 调用 Feed Worker 时使用 `FEED_API` Service Binding；Local Preview 的 server-side owner/publication helper 才允许 localhost HTTP fallback。Session Cookie 当前合同保持 host-only；不要为了跨 `workers.dev` 请求设置共享 Domain。
+Feed browser API 使用同源 `/api/*` 路由。Production-like Site SSR 调用 Feed Worker 时使用 `FEED_API` Service Binding；Local Preview 的 server-side owner/publication helper 才允许 localhost HTTP fallback。Session Cookie 当前合同保持 host-only；不要为了跨 `workers.dev` 请求设置共享 Domain。
+
+Finance 已迁移至独立私有仓库；本仓库不维护其部署、资源、数据、认证或操作命令。本次 repository separation 不改变任何既有 Cloudflare 运行侧资源。
 
 ## Production Worker inventory（只记录合同，不记录 secret）
 
-仓库没有版本化的 production Feed/Finance Wrangler 配置；下表记录 repository 可以证明的 production wiring contract，以及仍需从 Cloudflare 账户只读核验的环境事实。不得把 staging config 直接当作 production inventory。
+仓库没有版本化的 production Feed Wrangler 配置；下表记录 repository 可以证明的 production wiring contract，以及仍需从 Cloudflare 账户只读核验的环境事实。不得把 staging config 直接当作 production inventory。
 
 | Worker | Route | 预期 binding / resource | 预期 Cron | 外部 vars / secret 名称 | Repository 可证明的边界 |
 | --- | --- | --- | --- | --- | --- |
 | Production Site Worker | `catstarry.xyz/*` | generated `SESSION` KV + `FEED_API` → `catstarry-feed-api-production` | — | build/runtime 所需的 Site vars（如有）；仅 Learn publication source release 的 runner 进程另需 `FOOTPRINT_INGEST_TOKEN` | `scripts/deploy-site-production.ps1` 以 `catstarry-site-production` 部署，并在 deploy 前校验 generated `SESSION` + `FEED_API` bindings 与 scoped publication transition guardrails |
 | Production Feed Worker | `catstarry.xyz/api/*`、`/activity-signals.json`；Site `FEED_API` Service Binding target | `DB` → `catstarry-db`；`VIEW_KV`、`AUTH_KV`；`MEDIA_BUCKET` → `catstarry-media`；`HOME_PROJECTIONS` → `home-projections` | repository contract 为 `0 * * * *` | `SITE_ORIGIN`、`CLIP_PREVIEW_ALLOWED_HOSTS`、`FOOTPRINT_INGEST_TOKEN` | Site production runner 会把 generated binding target 改为 `catstarry-feed-api-production`；实际 account IDs/routes/secrets 现场核验 |
-| Production Finance Worker | `f.catstarry.xyz/api/*` | `DB` → `finance-db`；`FINANCE_AUTH_KV` | repository contract 为 `*/15 * * * *`、`30 7 * * 1-5` | `FINANCE_SITE_ORIGIN`、可选 `MARKET_PROVIDER_URL`、`MARKET_PROVIDER_TOKEN` | Worker 名称、实际 IDs、Cron、observability 和 routes 需账户核验 |
 
 Versioned staging configs 固定 `2026-07-22` compatibility date、observability 与 binding/cron contract；production 是否完全一致仍需独立 Cloudflare 只读盘点。不要在文档写入 secret 值。
 
@@ -59,17 +58,15 @@ GitHub `validate.yml` 负责 PR / main validation；它不是 production deploy 
 - Feed D1：`catstarry-db`
 - Feed KV：`VIEW_KV`、`AUTH_KV`
 - Feed R2：`catstarry-media`、`home-projections`
-- Finance D1：`finance-db`
-- Finance KV：`FINANCE_AUTH_KV`
 
 主站 Site Worker 的 `SESSION` KV 由 `@astrojs/cloudflare` 自动注入。生成的
 `dist/server/wrangler.json` 必须包含 `SESSION` binding 与 `FEED_API` Service Binding；
 `SESSION` 不包含手工 `id` 是自动 provisioning 的预期行为。Versioned root `wrangler.jsonc`
 定义 staging `FEED_API` target；production deploy runner 会在 generated config 中校验该
-binding 并把 target 改为 `catstarry-feed-api-production`。这些 Site bindings 与 Feed / Finance
+binding 并把 target 改为 `catstarry-feed-api-production`。这些 Site bindings 与 Feed
 自身的 KV bindings 是不同资源，不得互相替换。
 
-Versioned Feed / Finance Worker `wrangler.jsonc` 中的 `REPLACE_WITH_*` 是明确的资源插槽，不是可部署值。替换位置分别是对应 `database_id` 或 namespace `id`；值来自账户侧资源盘点。
+Versioned Feed Worker `wrangler.jsonc` 中的 `REPLACE_WITH_*` 是明确的资源插槽，不是可部署值。替换位置分别是对应 `database_id` 或 namespace `id`；值来自账户侧资源盘点。
 
 ## Staging / Local Preview 非 secret 配置
 
@@ -84,7 +81,7 @@ PUBLIC_ACTIVITY_SIGNALS_URL=/activity-signals.json  # 已有同值默认，可�
 
 `FEED_API_URL` 当前主要用于 **Local Preview 的 server-side localhost transport override**。`scripts/local-preview.mjs` 会把它和 `PUBLIC_FEED_API_URL` 注入为本地 Feed Worker origin；不要把这个本地机制误写成 staging/production Site SSR 的公网调用方式。
 
-`npm run preview:local` 是唯一的本地视觉验收入口。它在每次启动时于临时 D1 / R2 中准备固定的 Blog、Feed、Learn、Home 代表性状态，同时保留 Projects 的静态数据与 Finance 的代表性 preview；停止后删除临时状态。该 fixture 不调用 Learn lifecycle，也不代表 production 数据或发布结果。
+`npm run preview:local` 是唯一的本地视觉验收入口。它启动主站与 Feed Worker，并在临时 D1 / R2 中准备固定的 Blog、Feed、Learn、Home 代表性状态，同时保留 Projects 静态数据；停止后删除临时状态。该 fixture 不调用 Learn lifecycle，也不代表 production 数据或发布结果。
 
 Feed Worker 环境配置：
 
@@ -93,20 +90,10 @@ SITE_ORIGIN=https://staging.catstarry.xyz
 CLIP_PREVIEW_ALLOWED_HOSTS=github.com,developer.mozilla.org
 ```
 
-Finance Worker 环境配置：
-
-```text
-FINANCE_SITE_ORIGIN=https://f-staging.catstarry.xyz
-MARKET_PROVIDER_URL=<approved HTTPS adapter endpoint; omit until selected>
-```
-
-`MARKET_PROVIDER_URL` 未配置时，Finance 继续使用当前内置 provider/fallback 路径；不要为了配置完整性强制添加外部 adapter。
-
 ## Secrets 与用户记录
 
 - Feed Worker secret：`FOOTPRINT_INGEST_TOKEN`
 - Learn publication source release 的 Site runner 进程：`FOOTPRINT_INGEST_TOKEN`（仅用于 authenticated publication release prepare / abort；不是 Site Worker binding）
-- 可选 Finance 行情：`MARKET_PROVIDER_TOKEN`
 - GitHub production environment secret：`FOOTPRINT_INGEST_TOKEN`
 - GitHub production environment variable：`FEED_API_URL=https://catstarry.xyz`
 
@@ -118,9 +105,6 @@ MARKET_PROVIDER_URL=<approved HTTPS adapter endpoint; omit until selected>
 $env:FEED_PASSWORD = '<enter interactively; do not save>'
 npm run feed:user -- muxia
 
-$env:FINANCE_PASSWORD = '<enter interactively; do not save>'
-npm run finance:user -- muxia admin
-npm run finance:user -- cati viewer
 ```
 
 把命令输出的 `key` / `value` 写入相应环境的 KV；不要把输出提交到 Git。
@@ -147,15 +131,12 @@ Staging migration/deployment 的 repository-level 命令路径：
 
 ```powershell
 npx wrangler d1 migrations apply catstarry-db --remote --config workers/feed-api/wrangler.jsonc
-npx wrangler d1 migrations apply finance-db --remote --config workers/finance-api/wrangler.jsonc
 npx wrangler deploy --config workers/feed-api/wrangler.jsonc
-npx wrangler deploy --config workers/finance-api/wrangler.jsonc
-npx wrangler pages deploy finance-site --project-name catstarry-finance-staging
 npm run build
 npx wrangler deploy --config dist/server/wrangler.json
 ```
 
-域名 routes / custom domains 属于 Cloudflare 环境 wiring；执行 staging release 时应现场核验 `staging.catstarry.xyz`、`f-staging.catstarry.xyz` 与对应 Site/API deployment 的实际映射，不把本文件当作账户 inventory。
+域名 routes / custom domains 属于 Cloudflare 环境 wiring；执行 staging release 时应现场核验 `staging.catstarry.xyz` 与对应 Site/API deployment 的实际映射，不把本文件当作账户 inventory。
 
 Production Site 的正式 runner 是 `scripts/deploy-site-production.ps1`。它要求 clean tracked worktree 与 `HEAD == origin/main`，并从最新成功的 publication sync 到 exact deploy SHA 的完整 diff 计算 release scope。所有 Site release 都完成 build / scoped validation、generated `SESSION` + `FEED_API` binding 检查和 Wrangler dry-run；只有 Blog source scope 才执行 Blog published-source survival preflight，只有 Learn source scope 才要求进程环境中的 `FOOTPRINT_INGEST_TOKEN`、建立 exact Learn pending release，并在 lifecycle 已冻结时执行 Learn production transition preflight。没有 publication source scope 的 Site release 不建立 Learn barrier。若 Learn preflight 在真实 deploy 开始前失败，runner 可以精确 abort 自己刚建立的 pending release；若真实 Wrangler deploy 返回失败或结果不明确，不得自动 abort，必须先确认 production Site 是否已经切换到该 SHA。
 
@@ -198,19 +179,15 @@ Learn 的首次正式 Publish 由 Owner Admin lifecycle mutation 完成：produc
 
 1. **code-only**：上传只含代码与既定绑定；`routes`、`triggers.crons`、vars/secrets 不出现在配置中
 2. **资源身份现查**：绑定用的 D1/KV/R2 标识在上传前经只读命令从账户取得，禁止沿用 staging 占位符或历史文档数值
-3. **上传后复核**：deployments 状态确认新版本 100% 流量、绑定无意外，并在首个计划刻度后实证 Cron 存活（例：finance 查 `market_data` 最新写入越过 `*/15`）
+3. **上传后复核**：deployments 状态确认新版本 100% 流量、绑定无意外，并在首个计划刻度后实证相关 scheduled lifecycle 存活
 4. **冒烟最小面**：只覆盖本次变更路径
-
-最近一次完整实证（临时配置形态、逐条输出、Cron 存活证据，wrangler 4.113.0）：
-`.scratch/deployment-feed-finance-refactor/deployment-evidence-20260825.md` —— 该记录是示例，不是规程。
 
 ### D1 导出备份
 
-Time Travel 是恢复锚点，不替代导出备份。finance-db 建议周期性导出归档于仓库外目录；迁移前的手动备份规则维持不变。
+Time Travel 是恢复锚点，不替代导出备份。主站 D1 migration 前的手动备份规则维持不变。
 
 ## 回滚
 
 1. Worker：在 Cloudflare Versions 选中上一验证版本并回滚；不要回退 D1 migration。
-2. Finance Pages：回滚到上一 deployment。
-3. 若新 API 不可用：先移除对应 `/api/*` route，使未依赖该 runtime API 的静态页面继续可读；依赖 runtime publication/auth 的 SSR 页面应保持明确 503/不可用边界，而不是把不可用状态误当作 public。
-4. R2/KV/D1 staging 资源仅在确认不再使用后删除；先导出 D1 并记录资源 ID。
+2. 若新 API 不可用：先移除对应 `/api/*` route，使未依赖该 runtime API 的静态页面继续可读；依赖 runtime publication/auth 的 SSR 页面应保持明确 503/不可用边界，而不是把不可用状态误当作 public。
+3. R2/KV/D1 staging 资源仅在确认不再使用后删除；先导出 D1 并记录资源 ID。

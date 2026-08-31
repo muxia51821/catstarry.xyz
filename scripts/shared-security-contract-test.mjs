@@ -1,8 +1,7 @@
 import assert from 'node:assert/strict';
-import { getSessionToken } from '../shared/auth.ts';
+import { getMainSiteSession, getSessionToken } from '../shared/auth.ts';
 import { timingSafeEqualText } from '../shared/security.ts';
 import { readBoundedJson } from '../shared/request.ts';
-import { getFinanceSession, getMainSiteSession } from '../shared/auth.ts';
 import { summarizeBatchResults } from '../src/lib/batch-results.ts';
 
 assert.equal(getSessionToken(new Request('https://example.test', { headers: { Cookie: 'token=%GG' } })), null);
@@ -37,12 +36,6 @@ const expiredSessions = {
     };
   },
 };
-assert.deepEqual(
-  await getFinanceSession(new Request('https://example.test', {
-    headers: { Cookie: `token=${expiredToken}` },
-  }), { sessions: expiredSessions }),
-  { authenticated: false, username: null },
-);
 assert.deepEqual(
   await getMainSiteSession(new Request('https://example.test', {
     headers: { Cookie: `token=${expiredToken}` },

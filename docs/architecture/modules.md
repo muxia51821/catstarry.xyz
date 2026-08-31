@@ -17,12 +17,11 @@ Layer 1 — Astro Site Worker
           ▼
 Layer 2 — Cloudflare Workers
   feed-api
-  finance-api
           │
           │ adapters / shared contracts
           ▼
 Layer 3 — Storage / external services
-  D1 / KV / R2 / market providers
+  D1 / KV / R2
 ```
 
 ### Site ↔ Feed Worker
@@ -34,11 +33,11 @@ Layer 3 — Storage / external services
 
 ### Worker ↔ shared contracts
 
-`shared/` 承载跨 runtime 的 contract / utility，例如 session helpers、security、CORS 和 shared types。Feed / Finance 各自的存储逻辑留在拥有它的 Worker 内。
+`shared/` 承载 Site 与 Feed Worker 跨 runtime 的 contract / utility，例如 session helpers、security、CORS 和 shared types。存储逻辑留在拥有它的 Worker 内。
 
 ### Worker ↔ infrastructure
 
-D1、KV、R2 和 external provider 都在 Worker boundary 之后。页面组件不直接持有这些 binding。
+D1、KV 与 R2 都在 Worker boundary 之后。页面组件不直接持有这些 binding。
 
 ---
 
@@ -76,9 +75,6 @@ catstarry.xyz/
 │  │     ├─ modules/
 │  │     ├─ adapters/
 │  │     └─ tasks/
-│  └─ finance-api/
-│     ├─ migrations/
-│     └─ src/
 ├─ docs/
 ├─ .scratch/
 ├─ teach/
@@ -117,10 +113,6 @@ Site 不直接访问 Feed Worker implementation；server-side API seam 统一走
 - Home Activity Signal Projection；
 - 主站 D1 / KV / R2 访问；
 - hourly activity refresh、temporary media cleanup 与 Blog view visitor cleanup。
-
-### `finance-api` Worker
-
-负责 Finance 的认证、交易与资产数据、行情、风险、review / stewardship 和 scheduled market refresh。Finance 使用独立 D1 / KV，不共享主站 session 或 Content lifecycle。
 
 ### Public Timeline
 
@@ -255,47 +247,17 @@ Cron `0 * * * *`
 
 三个任务通过 `ctx.waitUntil(Promise.all(...))` 进入 Worker lifecycle；每个任务单独记录错误。它们分别维护派生 Activity projection、未引用临时 Feed media 与 Blog view visitor 去重记录。
 
-### Finance request flow
-
-```text
-Finance Pages
-  → same-origin Finance API
-  → finance-api Worker
-      ├─ /api/auth/*                → auth
-      ├─ /api/trades*               → trades
-      ├─ monthly / plan / cash-flow / assets → records
-      ├─ risk / memos / rebalance / workbook review → stewardship
-      └─ remaining dashboard / market reads → dashboard
-  → finance D1 / FINANCE_AUTH_KV
-```
-
-### Finance scheduled market flow
-
-```text
-Cron `*/15 * * * *` 或 `30 7 * * 1-5`
-  → finance-api scheduled handler
-  → refreshMarketData(env)
-      ├─ configured MARKET_PROVIDER_URL（如存在）
-      └─ built-in path
-          ├─ Tencent：A 股/ETF、上证指数、支持的 PE-TTM
-          ├─ TradingView：NASDAQ-100
-          └─ Sina：stale A 股 / 上证报价 fallback
-  → market_data + finance_market_indexes
-```
-
-Built-in path 从 `holdings_snapshots` 读取当前 active holdings，以决定持仓 ticker 刷新集合。部分 item 缺失时返回 missing list 并记录 warning；整体 refresh 失败时保留上一份有效市场快照，不做 destructive clear。
-
 ---
 
 ## 5. 边界约束
 
-- Site、Feed Worker、Finance Worker 是独立 runtime / deployment units。
+- Site 与 Feed Worker 是独立 runtime / deployment units。
 - Site SSR → Feed 使用 Request seam；不要通过 source import 绕过 Worker ownership。
 - Browser API 保持同源；server-side transport 与 browser transport 可以不同。
-- 主站与 Finance 的认证和数据必须保持隔离。
+- Finance 已迁移至独立私有仓库；本仓库不维护其代码、部署、数据或认证，也不建立跨仓库运行连接。
 - Public Timeline 是读取 projection，不是新的持久表。
 - Home Activity Signal 是最小静态 projection，不是 Public Timeline 缩略版；其 source query、阈值、freshness 与失败恢复留在 Feed Worker 内。
 - Blog / Learn public visibility 由 source + runtime lifecycle 共同决定。
 - Feed media 由 Worker 代理访问 R2；浏览器不直接拥有 storage binding。
-- Feed hourly maintenance 与 Finance market refresh 都属于 Worker scheduled lifecycle，不应移入页面请求路径。
+- Feed hourly maintenance 属于 Worker scheduled lifecycle，不应移入页面请求路径。
 - 具体 schema 读 `data-model.md`；认证读 `auth.md`；部署 wiring 读 `DEPLOY.md`。

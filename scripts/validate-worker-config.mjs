@@ -13,17 +13,6 @@ const configs = [
       crons: ['0 * * * *'],
     },
   },
-  {
-    path: 'workers/finance-api/wrangler.jsonc',
-    expected: {
-      name: 'catstarry-finance-api-staging',
-      database: 'finance-db',
-      d1Binding: 'DB',
-      kvBindings: ['FINANCE_AUTH_KV'],
-      r2Bindings: [],
-      crons: ['*/15 * * * *', '0,20 8,9,12 * * 1-5'],
-    },
-  },
 ];
 
 function fail(message) {
@@ -97,11 +86,6 @@ for (const { path, expected } of configs) {
     fail(`${path} has an unexpected cron schedule`);
   }
 }
-
-const financeSite = await readConfig('finance-site/wrangler.jsonc');
-if (financeSite.name !== 'catstarry-finance-staging') fail('finance-site must use its staging Pages project name');
-if (financeSite.compatibility_date !== '2026-07-22') fail('finance-site compatibility date is out of baseline');
-if (financeSite.pages_build_output_dir !== '.') fail('finance-site must deploy only its own directory');
 
 const site = await readConfig('wrangler.jsonc');
 if (site.name !== 'catstarry-site-staging') fail('root site config must use the staging Worker name');

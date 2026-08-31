@@ -6,14 +6,13 @@
 
 ---
 
-## 架构决策：数据库拆分
+## 架构决策：数据库边界
 
 | 数据库 | D1 Binding | 用途 |
 | --- | --- | --- |
 | `catstarry-db` | `env.DB`（主站 Worker） | Feed、Public Footprint、Learn publication、Blog views、主站 session |
-| `finance-db` | `env.DB`（Finance Worker） | Finance 交易、资产、行情、风险与审计数据 |
 
-财务数据保持独立数据库（ADR-001）。Home 页面不直接访问主站 D1；Home Activity Signal 由 Feed Worker 内部 projection module 计算后发布为静态资源。
+Finance 已迁移至独立私有仓库；本仓库不维护其 schema、migration 或数据。ADR-001 保留为数据必须隔离的历史决策。Home 页面不直接访问主站 D1；Home Activity Signal 由 Feed Worker 内部 projection module 计算后发布为静态资源。
 
 ---
 
@@ -237,95 +236,7 @@ Repository migration `0004_learn_publications.sql` 定义该表；远端环境�
 
 ---
 
-## 2. Finance D1 — `finance-db`
-
-Finance schema 已跨 `0001`–`0006` migrations 演进。本节维护当前概念表族与关键核心表；逐列定义、index、trigger 与 migration order 仍以 Finance migrations 为准。
-
-### 2.1 `trades`
-
-A 股 / ETF 交易业务字段：
-
-```sql
-CREATE TABLE IF NOT EXISTS trades (
-  id               INTEGER PRIMARY KEY AUTOINCREMENT,
-  trade_date       TEXT NOT NULL,
-  ticker           TEXT NOT NULL,
-  ticker_name      TEXT,
-  direction        TEXT NOT NULL CHECK(direction IN ('buy','sell')),
-  quantity         REAL NOT NULL,
-  price            REAL NOT NULL,
-  position_category TEXT NOT NULL,
-  reason           TEXT,
-  needs_review     INTEGER DEFAULT 0
-);
-```
-
-Current migrations 另包含 creator/updater、soft-delete、review metadata，并由 `finance_trade_audit` 保存交易重要变更。
-
-### 2.2 `holdings_snapshots`
-
-```sql
-CREATE TABLE IF NOT EXISTS holdings_snapshots (
-  id               INTEGER PRIMARY KEY AUTOINCREMENT,
-  snapshot_date    TEXT NOT NULL,
-  ticker           TEXT NOT NULL,
-  quantity         REAL NOT NULL,
-  avg_cost         REAL NOT NULL,
-  position_category TEXT NOT NULL,
-  UNIQUE(snapshot_date, ticker)
-);
-```
-
-`refreshMarketData()` 使用最新正数量持仓快照确定 built-in provider 需要刷新的 active holding tickers。
-
-### 2.3 `market_data`
-
-```sql
-CREATE TABLE IF NOT EXISTS market_data (
-  id         INTEGER PRIMARY KEY AUTOINCREMENT,
-  ticker     TEXT NOT NULL,
-  price      REAL,
-  pe_ttm     REAL,
-  fetched_at TEXT NOT NULL,
-  UNIQUE(ticker, fetched_at)
-);
-```
-
-保存持仓报价与 PE-TTM records；指数展示快照使用独立 `finance_market_indexes`。
-
-### 2.4 `circuit_breaker_log`
-
-```sql
-CREATE TABLE IF NOT EXISTS circuit_breaker_log (
-  id           INTEGER PRIMARY KEY AUTOINCREMENT,
-  level        TEXT NOT NULL CHECK(level IN ('yellow','red','black')),
-  reason       TEXT NOT NULL,
-  triggered_at TEXT NOT NULL,
-  resolved_at  TEXT
-);
-```
-
-### 2.5 Current Finance table-family registry
-
-| Family | Current tables | 职责 |
-| --- | --- | --- |
-| Trading / holdings | `trades`, `holdings_snapshots`, `finance_trade_audit` | 交易、持仓快照与交易审计 |
-| Market | `market_data`, `finance_market_indexes` | 持仓/PE records 与指数快照 |
-| Limits / reviews | `position_limits`, `annual_reviews`, `monthly_confirmations`, `finance_review_confirmations`, `finance_circuit_resolution_confirmations` | 仓位约束、年度/月度确认与熔断解除确认 |
-| Monthly / plan | `monthly_records`, `plan_params`, `finance_plan_audit` | 月度记录、长期计划参数与计划审计 |
-| Cash / assets | `finance_cash_flows`, `finance_asset_snapshots`, `finance_cash_flow_audit` | 真实现金流、资产快照与现金流审计 |
-| Stewardship | `finance_investment_rules`, `finance_rule_audit`, `finance_memos`, `finance_rebalance_records` | 投资规则、备忘录与再平衡记录 |
-| Access / import | `finance_access_log`, `finance_import_batches`, `finance_import_review` | 访问记录与基础导入/review |
-| Workbook import | `finance_workbook_imports`, `finance_workbook_review`, `finance_workbook_review_audit` | workbook 导入、待复核行与 resolution audit |
-| Circuit | `circuit_breaker_log` | 熔断触发与 resolved state |
-
-`finance_accounts` 曾在 `0003_candidate_parity.sql` 创建，但 `0004_financial_stewardship.sql` 明确删除；它不是 current Finance table。
-
-这个 registry 用于让维护者知道某个 Finance 数据概念应去哪个表族查找；它不替代 migrations 的逐表 schema，也不表示 repository migration 文件已经在某个远端环境应用。
-
----
-
-## 3. KV Namespace
+## 2. KV Namespace
 
 | Namespace | Key Pattern | 用途 | TTL |
 | --- | --- | --- | --- |
@@ -336,13 +247,9 @@ CREATE TABLE IF NOT EXISTS circuit_breaker_log (
 | `AUTH_KV` | `ratelimit:login:{ip}` | 主站 login rate limit | 5min |
 | `AUTH_KV` | `blog:lifecycle-manifest:v1` / `blog:published-manifest` | Blog runtime lifecycle / public projection | no TTL |
 | `AUTH_KV` | `learn:relation-manifest` | deployed Learn relation metadata | no TTL |
-| `FINANCE_AUTH_KV` | `user:{username}` | Finance user / role | permanent |
-| `FINANCE_AUTH_KV` | `session:{token}` | Finance session | 12h |
-| `FINANCE_AUTH_KV` | `ratelimit:login:{hash}` | Finance login rate limit | 5min |
-
 ---
 
-## 4. R2
+## 3. R2
 
 | Bucket | Key | 用途 |
 | --- | --- | --- |
@@ -353,9 +260,9 @@ Account-level delivery / CORS configuration belongs to Cloudflare environment wi
 
 ---
 
-## 5. Astro Content Collections
+## 4. Astro Content Collections
 
-### 5.1 Blog
+### 4.1 Blog
 
 `src/content.config.ts` loads `src/data/blog` Markdown / MDX。
 
@@ -363,7 +270,7 @@ Account-level delivery / CORS configuration belongs to Cloudflare environment wi
 
 `publication_id` 是当前不参与 publication identity 的 optional field；publication lifecycle 由 runtime Blog state 与 current sync contract 决定。
 
-### 5.2 Learn
+### 4.2 Learn
 
 `src/content.config.ts` loads canonical Markdown from `src/data/learn`。
 
@@ -377,7 +284,7 @@ ADR-008 规定 Public Learn canonical source 为 Markdown；Blog 的 MDX capabil
 
 ---
 
-## 6. Blog lifecycle sync
+## 5. Blog lifecycle sync
 
 ```text
 Blog source
@@ -401,7 +308,7 @@ Blog lifecycle 与 Learn lifecycle 保持不同 storage / transition model，不
 
 ---
 
-## 7. Shared API type ownership
+## 6. Shared API type ownership
 
 跨 Site / Worker 的 canonical declarations 位于 `shared/types.ts`。本节只维护职责索引，不复制完整 TypeScript shape。
 
@@ -413,13 +320,13 @@ Blog lifecycle 与 Learn lifecycle 保持不同 storage / transition model，不
 | `BlogLifecycleState` / `BlogLifecycleEntry` | Blog runtime lifecycle 与 Site / Feed Worker 间的 publication contract |
 | `LearnPublicationVisibility` / `LearnPublicationRecord` | Learn runtime public / hidden lifecycle contract |
 | `ActivityState` / `ActivitySignalsManifest` | Home Activity Signal 固定静态 projection contract |
-| auth request / response / session types | 主站与 Finance 各自认证 API 的跨层 payload / status contract |
+| auth request / response / session types | 主站认证 API 的跨层 payload / status contract |
 
 具体字段、union 成员和新增类型以 `shared/types.ts` 为准。修改跨层 shape 时应更新该 canonical declaration 及其真实 consumers；本数据模型只在类型 family 的职责发生变化时同步。
 
 ---
 
-## 8. 关系摘要
+## 7. 关系摘要
 
 ```text
 catstarry-db
@@ -440,12 +347,4 @@ AUTH / VIEW KV
 R2
   Feed media
   Home activity projection
-
-finance-db
-  trades / holdings_snapshots
-  market_data / finance_market_indexes
-  monthly_records / plan_params
-  finance_cash_flows / finance_asset_snapshots
-  position_limits / finance_investment_rules / finance_memos / finance_rebalance_records
-  access / import / workbook-review / audit families
 ```

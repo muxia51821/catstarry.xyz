@@ -1,8 +1,0 @@
-{
-  "extends": "../../tsconfig.worker.base.json",
-  "include": [
-    "../../shared/**/*.ts",
-    "src/**/*.ts",
-    "worker-configuration.d.ts"
-  ]
-}
