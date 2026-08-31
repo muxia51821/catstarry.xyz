@@ -340,6 +340,7 @@ try {
   await waitFor(`document.querySelector('[data-learn-graph]').dataset.expanded === 'true'`, 'Learn graph touch Explore view');
   await pressKey('Escape', 'Escape', 27);
   await waitFor(`document.querySelector('[data-learn-graph]').dataset.expanded === 'false'`, 'Learn graph touch Explore close');
+  await delay(260);
   const touchGraphPoint = await evaluate(`(() => {
     const viewport = document.querySelector('[data-graph-viewport]');
     const box = viewport.getBoundingClientRect();
