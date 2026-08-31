@@ -10,13 +10,12 @@
 - Learn：公开学习笔记
 - Projects：项目展示
 
-Finance 是独立的内部工作区，不属于公开 Content Family。
+Finance 已迁移至独立私有仓库；本仓库不再维护其代码、部署、数据或认证，也不提供其仓库入口。它仍不属于公开 Content Family。
 
 ## 技术基线
 
 - 主站：Astro hybrid + React，运行于 Cloudflare Site Worker
 - 主站 API：Cloudflare Feed Worker
-- Finance：独立 Cloudflare Pages + Finance Worker
 - 数据与存储：D1 + KV + R2
 
 具体版本、binding、route 和部署方式以当前 `package.json`、Wrangler 配置、代码及架构文档为准。

@@ -13,8 +13,8 @@
 | `catstarry-feed-api-staging` | `AUTH_KV` | 部署前必须在账户中核实 | `REPLACE_WITH_AUTH_KV_NAMESPACE_ID` |
 | `catstarry-feed-api-staging` | `MEDIA_BUCKET` | `catstarry-media` R2 | R2 按 bucket name 绑定 |
 | `catstarry-feed-api-staging` | `HOME_PROJECTIONS` | `home-projections` R2 | R2 按 bucket name 绑定 |
-| `catstarry-finance-api-staging` | `DB` | `finance-db` D1 | `REPLACE_WITH_FINANCE_DB_ID` |
-| `catstarry-finance-api-staging` | `FINANCE_AUTH_KV` | 部署前必须在账户中核实 | `REPLACE_WITH_FINANCE_AUTH_KV_NAMESPACE_ID` |
+
+Finance 已迁移至独立私有仓库；本文件不记录其 Worker、binding 或资源。
 
 占位符是有意保留的：本地类型生成、本地 D1 验证和 dry-run 打包都可使用它；
 只有核实对应账户资源后才能替换为真实 ID。`account_id` 由已认证的 Wrangler 或
@@ -26,7 +26,7 @@ CI context 提供，不提交到仓库。
 `.dev.vars`，已部署的 Worker 使用 `wrangler secret put`。不得把 secret、API
 token、password 或账户凭据写入仓库。
 
-`npm run worker:migrate:local` 始终使用 `--local`，并在各 Worker 下写入已
+`npm run worker:migrate:local` 始终使用 `--local`，并在 Feed Worker 下写入已
 忽略的 Miniflare state。仓库脚本始终传入 `--config`，因此不会回退到遗留 TOML。
 生产部署、资源创建、远程 migration 和 CI 凭据仍属于 Phase 7。
 

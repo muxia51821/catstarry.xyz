@@ -39,3 +39,7 @@ The site has two distinct API domains: public content APIs (feed CRUD, blog view
 - `workers/feed-api/src/routes/` contains 5 route files — manageable
 - `shared/auth.ts` is imported by both Workers
 - `workers/finance-api/src/tasks/` isolates Cron handler logic
+
+## Repository separation note
+
+Finance 后续已迁移至独立私有仓库。本 ADR 保留为历史架构决策；本仓库现在只维护 Site Worker 与 Feed Worker，Finance runtime 与 deployment current authority 在私有仓库。

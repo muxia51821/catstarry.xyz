@@ -1,7 +1,7 @@
 # 鉴权方案 (Auth)
 
-> catstarry.xyz 全站认证与权限控制方案 — /feed 登录 + /learn 管理后台 + f.catstarry.xyz 角色鉴权
-> 当前认证、session、cookie 和角色边界；端点以当前 Worker route handlers 为准。
+> catstarry.xyz 主站认证与权限控制方案 — /feed 登录 + Blog / Learn 管理与预览。
+> 当前认证、session 和 cookie 边界；端点以当前 Worker route handlers 为准。
 
 ---
 
@@ -11,15 +11,13 @@
 | ------------------------ | ------------------- | -------------------------------- | -------------- | ------------------------ |
 | /feed（发布+管理）       | 用户名 + 密码       | `AUTH_KV`（用户与 session）+ D1 `auth_sessions` fallback | 12h | 木下（唯一发布者） |
 | /learn/admin（草稿管理） | 共用 /feed 认证     | 同上                             | 12h            | 木下                     |
-| f.catstarry.xyz          | 独立用户名 + 密码 + 角色 | `FINANCE_AUTH_KV`（用户与 session）；D1 仅写 `finance_access_log` | 12h | 木下（admin）+ cati（viewer） |
 
 **设计原则**：
 
 - 木下是唯一的管理/发布者——不需要注册、没有多用户
 - 访客无需认证即可浏览 /feed、/blog、/learn、/projects、Home
-- 密码存储：主站与 Finance 都使用 KV 中的 bcrypt hash；Finance 实现使用 `bcryptjs`
+- 密码存储：主站使用 KV 中的 bcrypt hash
 - 主站 session：随机 token → `AUTH_KV` + D1 `auth_sessions` 双写；读取时 KV 优先、D1 fallback
-- Finance session：随机 token → 独立 `FINANCE_AUTH_KV`；D1 只记录访问行为，不作为 session store
 
 ---
 
@@ -91,56 +89,21 @@ Set-Cookie: token=xxx; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=43200
 
 ---
 
-## 2. 财务面板认证（f.catstarry.xyz）
+## 2. 安全措施
 
-### 2.1 架构
-
-独立认证系统（与主站隔离），同样是用户名+密码。**两个用户，不同角色**。
-
-```
-f.catstarry.xyz
-├── index.html      → 登录表单与认证后的 Finance workspace shell
-└── /api/*          → finance-api Worker 路由
-```
-
-### 2.2 角色定义
-
-| 用户 | 密码                           | 角色     | 权限                                    |
-| ---- | ------------------------------ | -------- | --------------------------------------- |
-| 木下 | bcrypt hash in KV `user:muxia` | `admin`  | 读 + 写（录入交易、查看全部）           |
-| cati | bcrypt hash in KV `user:cati`  | `viewer` | 只读（查看持仓、PE 温度计，无交易入口） |
-
-### 2.3 角色验证
-
-Finance route handlers 通过 `shared/auth.ts` 的 `getFinanceSession` 读取
-`FINANCE_AUTH_KV` 中的 session，并用 `hasRole` 检查 `admin` / `viewer`。Finance
-登录、登出和 session route 位于 `workers/finance-api/src/routes/auth.ts`。
-
-### 2.4 财务面板隔离
-
-- 财务 Worker 使用独立的 `FINANCE_AUTH_KV` namespace
-- 财务 D1 `finance-db` 不存储 auth_sessions（session 存 KV）
-- f.catstarry.xyz 完全不在主站 Home 显示
+| 措施         | 当前实现 |
+| ------------ | -------- |
+| 密码哈希     | `AUTH_KV` 保存 bcrypt hash；比较逻辑在 `modules/passwords.ts` |
+| Session storage | `AUTH_KV` + D1 `auth_sessions` fallback |
+| Session TTL   | 12h，并由 KV TTL 与读取时的 `expires_at` 检查共同约束 |
+| Cookie 安全  | HttpOnly + Secure + SameSite=Lax |
+| 登录限流     | KV 计数器，5 分钟窗口、10 次上限 |
+| State-changing origin | 共享 CORS helper 拒绝不受信任 Origin 的 POST/PUT/PATCH/DELETE |
+| 权限     | 主站只有木下 owner / publisher |
 
 ---
 
-## 3. 安全措施
-
-| 措施         | 当前实现                                                | 范围        |
-| ------------ | ------------------------------------------------------- | ----------- |
-| 密码哈希     | KV 中保存 bcrypt hash；主站比较逻辑在 `modules/passwords.ts`，Finance 使用 `bcryptjs` | 主站 + Finance |
-| Session storage | 主站 `AUTH_KV` + D1 fallback；Finance 仅 `FINANCE_AUTH_KV` | 分离 |
-| Session TTL   | 两套 session 都按 12h 创建和 KV TTL 过期 | 主站 + Finance |
-| Cookie 安全  | 主站 HttpOnly + Secure + SameSite=Lax；Finance HttpOnly + Secure + SameSite=Strict | 主站 + Finance |
-| 登录限流     | KV 计数器，5 分钟窗口、10 次上限；Finance 使用哈希后的 IP key | 主站 + Finance |
-| State-changing origin | 共享 CORS helper 拒绝不受信任 Origin 的 POST/PUT/PATCH/DELETE | 主站 + Finance |
-| 角色权限     | Finance `admin` 可写，`viewer` 只读；主站只有木下发布者 | 主站 + Finance |
-
----
-
-## 4. Admin 页面路由保护
-
-### 主站
+## 3. Admin 页面路由保护
 
 | 路径           | 保护方式                                                      | 未认证行为     |
 | -------------- | ------------------------------------------------------------- | -------------- |
@@ -148,34 +111,21 @@ Finance route handlers 通过 `shared/auth.ts` 的 `getFinanceSession` 读取
 | `/learn/admin` / `/learn/preview/*` | 与 Feed Admin 共用 Site SSR owner-auth adapter 和 `FEED_API` Service Binding | 302 → `/feed/`；binding/backend failure → 503 |
 | `/blog/preview/*` | 与 Feed Admin 共用 Site SSR owner-auth adapter 和 `FEED_API` Service Binding；预览不记录公开阅读量或活动 | 302 → `/feed/`；binding/backend failure → 503 |
 
-### 财务
-
-| 路径                    | 保护方式                      | 未认证行为     |
-| ----------------------- | ----------------------------- | -------------- |
-| `f.catstarry.xyz`       | Finance 页面调用 `/api/auth/session`；未认证时显示登录 shell | 显示登录表单 |
-| `f.catstarry.xyz`       | 认证后按 `admin` / `viewer` 控制 workspace actions | 保留页面 shell |
-
----
-
-## 5. KV Key 设计
+## 4. KV Key 设计
 
 ```
 # 主站 AUTH_KV
 user:muxia              → { password_hash, role: "admin" }
 session:{token}         → { username, created_at, expires_at }  TTL: 12h
 ratelimit:login:{ip}    → counter  TTL: 5min
-
-# 财务 AUTH_KV（独立 namespace）
-user:muxia              → { password_hash, role: "admin" }
-user:cati               → { password_hash, role: "viewer" }
-session:{token}         → { username, role, expires_at }  TTL: 12h
-ratelimit:login:{hash}  → counter  TTL: 5min
 ```
 
 ---
 
-## 6. Current-state boundary
+## 5. Current-state boundary
 
 本文件只记录当前认证端点、session 存储、cookie 属性、角色和页面保护边界。
 密码初始化、部署 secrets、Cloudflare 资源配置和未来 MFA 选择属于部署或安全运营事实，
 不在 current-state architecture 中维护。
+
+Finance 已迁移至独立私有仓库；其认证 current authority 在私有仓库。本仓库不维护、连接或复述 Finance 用户、角色、session、secret 或数据边界。

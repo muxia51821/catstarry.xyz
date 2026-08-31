@@ -6,6 +6,8 @@ description: catstarry.xyz 视觉与交互设计系统。Home 是从远处接近
 
 # catstarry.xyz 设计系统
 
+> Finance 已迁移至独立私有仓库。本文件保留 Finance token 与画布语义，仅作为跨属性视觉边界；Finance 实现与 current design authority 不在本仓库维护。
+
 > 本文件定义当前 durable visual / interaction truth。Product semantics 以对应 Product authority 为准；前端施工与 runtime implementation 见 `docs/agents/frontend-rules.md` 和 current source。
 
 ---

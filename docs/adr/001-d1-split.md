@@ -42,3 +42,7 @@ catstarry.xyz has two distinct domains: public-facing content (blog, feed, learn
 - Two `wrangler.toml` bindings to configure
 - Two `schema.sql` files to maintain
 - Finance Worker must use separate `env.DB` binding
+
+## Repository separation note
+
+Finance 后续已迁移至独立私有仓库。本 ADR 保留为“主站与 Finance 数据必须物理隔离”的历史决策；本仓库不再维护 Finance schema、binding 或 migration，current authority 在私有仓库。

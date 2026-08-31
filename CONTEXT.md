@@ -18,7 +18,7 @@ catstarry.xyz 是木下的个人网站，由 AI agent 协助开发和维护。�
 - **Learn**：从私人学习中选择性公开的 durable knowledge surface。
 - **Projects**：项目展示。
 
-`f.catstarry.xyz` 是独立的内部 Finance workspace，不属于公开 Content Family。
+Finance 已迁移至独立私有仓库；本仓库不再维护其代码、部署、数据或认证。`f.catstarry.xyz` 仍是内部私有边界，不属于公开 Content Family。
 
 共享术语见 `GLOSSARY.md`，具体路由见 `docs/SITEMAP.md`。
 
@@ -28,8 +28,7 @@ catstarry.xyz 是木下的个人网站，由 AI agent 协助开发和维护。�
 | --- | --- |
 | 主站 | Astro hybrid + React，运行于 Cloudflare Site Worker |
 | 主站 API | 独立 `feed-api` Cloudflare Worker |
-| Finance | 独立 Cloudflare Pages + `finance-api` Worker |
-| 数据 | 主站与 Finance 使用独立 D1；另有 KV 与 R2 |
+| 数据 | 主站使用独立 D1、KV 与 R2 |
 | Site → Feed | server-side 调用使用 `FEED_API` Service Binding；本地预览可使用 localhost transport |
 
 版本、schema、binding inventory、route implementation 和 deployment wiring 由当前配置、代码与 Architecture / DEPLOY 文档负责，不在本文复制。
@@ -42,7 +41,7 @@ catstarry.xyz 是木下的个人网站，由 AI agent 协助开发和维护。�
 - Blog 与 Learn 都是 repository-authored content，但公开可见性具有 runtime lifecycle；source 文件存在不等于当前公开。
 - Feed 的 Public Timeline 统一呈现原生 Feed 内容与 Public Footprint；Home 不消费这条时间线。
 - Public Learn 的 canonical durable object 是 Public Note。Track 是 domain context / directory，不是 Public Note identity parent，也不等同于私人学习 workflow。
-- Home、Content、Finance 的视觉与交互边界由 `DESIGN.md` 负责；本文件不复制视觉参数或前端实现规则。
+- Home 与 Content 的视觉和交互边界由 `DESIGN.md` 负责；其中保留的 Finance 设计语义只用于跨属性视觉边界，不代表本仓库拥有 Finance 实现。
 
 ## 事实来源
 
