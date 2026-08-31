@@ -28,7 +28,8 @@ token、password 或账户凭据写入仓库。
 
 `npm run worker:migrate:local` 始终使用 `--local`，并在 Feed Worker 下写入已
 忽略的 Miniflare state。仓库脚本始终传入 `--config`，因此不会回退到遗留 TOML。
-生产部署、资源创建、远程 migration 和 CI 凭据仍属于 Phase 7。
+生产部署、资源创建、远程 migration 和 CI 凭据变更必须进入独立 Deployment
+task，并在执行前取得木下明确授权。
 
 ## 遗留生产 `feed-api`
 

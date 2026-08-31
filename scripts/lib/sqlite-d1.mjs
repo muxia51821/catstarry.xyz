@@ -1,6 +1,4 @@
 import assert from 'node:assert/strict';
-import { readFile, readdir } from 'node:fs/promises';
-import path from 'node:path';
 
 class SqliteD1Prepared {
   constructor(database, sql, values = []) { this.database = database; this.sql = sql; this.values = values; }
@@ -34,11 +32,4 @@ export class SqliteD1 {
       throw error;
     }
   }
-}
-
-export async function applyMigrations(database, directory = 'workers/feed-api/migrations') {
-  for (const file of (await readdir(directory)).filter((name) => name.endsWith('.sql')).sort()) {
-    database.exec(await readFile(path.join(directory, file), 'utf8'));
-  }
-  return database;
 }
