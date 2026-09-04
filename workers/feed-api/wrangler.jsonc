@@ -3,8 +3,12 @@
   "name": "catstarry-feed-api-staging",
   "main": "src/index.ts",
   "compatibility_date": "2026-07-22",
+  "compatibility_flags": ["global_fetch_strictly_public"],
   "observability": {
     "enabled": true
+  },
+  "ai": {
+    "binding": "AI"
   },
   "d1_databases": [
     {

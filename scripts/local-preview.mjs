@@ -619,7 +619,6 @@ async function main() {
       '--port', String(feedPort),
       '--var', `SITE_ORIGIN:${siteOrigin}`,
       '--var', 'FOOTPRINT_INGEST_TOKEN:local-preview-token',
-      '--var', 'CLIP_PREVIEW_ALLOWED_HOSTS:developer.mozilla.org',
       '--var', 'LOCAL_PREVIEW_AUTH:1',
       '--var', `LOCAL_PREVIEW_AUTH_USERNAME:${localAuth.username}`,
       '--var', `LOCAL_PREVIEW_AUTH_PASSWORD_HASH:${localAuth.passwordHash}`,

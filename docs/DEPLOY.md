@@ -20,7 +20,7 @@ Finance 已迁移至独立私有仓库；本仓库不维护其部署、资源、
 | Worker | Route | 预期 binding / resource | 预期 Cron | 外部 vars / secret 名称 | Repository 可证明的边界 |
 | --- | --- | --- | --- | --- | --- |
 | Production Site Worker | `catstarry.xyz/*` | generated `SESSION` KV + `FEED_API` → `catstarry-feed-api-production` | — | build/runtime 所需的 Site vars（如有）；仅 Learn publication source release 的 runner 进程另需 `FOOTPRINT_INGEST_TOKEN` | `scripts/deploy-site-production.ps1` 以 `catstarry-site-production` 部署，并在 deploy 前校验 generated `SESSION` + `FEED_API` bindings 与 scoped publication transition guardrails |
-| Production Feed Worker | `catstarry.xyz/api/*`、`/activity-signals.json`；Site `FEED_API` Service Binding target | `DB` → `catstarry-db`；`VIEW_KV`、`AUTH_KV`；`MEDIA_BUCKET` → `catstarry-media`；`HOME_PROJECTIONS` → `home-projections` | repository contract 为 `0 * * * *` | `SITE_ORIGIN`、`CLIP_PREVIEW_ALLOWED_HOSTS`、`FOOTPRINT_INGEST_TOKEN` | Site production runner 会把 generated binding target 改为 `catstarry-feed-api-production`；实际 account IDs/routes/secrets 现场核验 |
+| Production Feed Worker | `catstarry.xyz/api/*`、`/activity-signals.json`；Site `FEED_API` Service Binding target | `DB` → `catstarry-db`；`VIEW_KV`、`AUTH_KV`；`MEDIA_BUCKET` → `catstarry-media`；`HOME_PROJECTIONS` → `home-projections`；`AI` → Workers AI | repository contract 为 `0 * * * *` | `SITE_ORIGIN`、`FOOTPRINT_INGEST_TOKEN` | Site production runner 会把 generated binding target 改为 `catstarry-feed-api-production`；实际 account IDs/routes/secrets 现场核验 |
 
 Versioned staging configs 固定 `2026-07-22` compatibility date、observability 与 binding/cron contract；production 是否完全一致仍需独立 Cloudflare 只读盘点。不要在文档写入 secret 值。
 
@@ -87,8 +87,12 @@ Feed Worker 环境配置：
 
 ```text
 SITE_ORIGIN=https://staging.catstarry.xyz
-CLIP_PREVIEW_ALLOWED_HOSTS=github.com,developer.mozilla.org
 ```
+
+Feed Clip 接受任意正常的 public HTTP(S) article URL，不再使用站点 allowlist。Feed Worker
+通过 `global_fetch_strictly_public` compatibility flag 限制 global `fetch()` 不访问 private
+destination；应用层仍会在 initial URL 和每个 manual redirect hop 前拒绝明确的 local/private
+destination 与 non-web port。
 
 ## Secrets 与用户记录
 

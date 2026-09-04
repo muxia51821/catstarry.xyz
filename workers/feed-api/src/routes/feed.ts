@@ -5,6 +5,8 @@ import { readPublishedBlogSlugs } from '../modules/blog-publications';
 import { listPublicLearnSlugs } from '../modules/learn-publications';
 import { recordPublicFootprint, parseFootprintCandidate } from '../modules/footprints';
 import { refreshActivitySignals } from '../modules/activity-signals';
+import { captureClipArticle, parsePublicWebUrl } from '../modules/clip-capture';
+import { summarizeClipArticle } from '../modules/clip-summary';
 import { requireIngestAuth, requireMainSession } from './auth';
 import { logWorkerError } from '../../../../shared/worker-log';
 import { shanghaiUtcBoundary } from '../../../../shared/shanghai-time';
@@ -25,7 +27,6 @@ const LIMITS = {
 
 type FeedEnv = Env & {
   FOOTPRINT_INGEST_TOKEN?: string;
-  CLIP_PREVIEW_ALLOWED_HOSTS?: string;
 };
 
 export async function handleFeed(
@@ -194,39 +195,30 @@ async function previewClip(request: Request, env: FeedEnv): Promise<Response> {
   if (!previewRate) return apiError(429, 'rate_limited', 'Too many preview requests; try again later');
   const input = await readJson<{ link_url?: string }>(request, 4_096);
   if (input instanceof Response) return input;
-  const url = safeExternalUrl(input.link_url);
+  const url = parsePublicWebUrl(input.link_url);
   if (!url) return apiError(400, 'invalid_url', 'link_url must be a public http(s) URL');
-  const allowedHosts = new Set((env.CLIP_PREVIEW_ALLOWED_HOSTS ?? '').split(',').map((host) => host.trim().toLowerCase()).filter(Boolean));
-  if (!allowedHosts.has(url.hostname.toLowerCase())) {
-    return apiError(422, 'preview_unavailable', 'The link host is not available for previews');
-  }
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 5_000);
-    let response: Response;
-    try {
-      response = await fetch(url, {
-        headers: { Accept: 'text/html,application/xhtml+xml' },
-        redirect: 'manual',
-        signal: controller.signal,
-      });
-    } finally {
-      clearTimeout(timeout);
-    }
-    const length = Number(response.headers.get('content-length') ?? '0');
-    if (!response.ok || !response.headers.get('content-type')?.toLowerCase().includes('text/html') || (Number.isFinite(length) && length > 524_288)) {
-      return apiError(422, 'preview_unavailable', 'The link did not return an HTML preview');
-    }
-    const html = await readLimitedText(response, 524_288);
-    return json({
-      link_url: url.toString(),
-      link_title: metaContent(html, 'og:title') ?? titleContent(html),
-      link_summary: metaContent(html, 'og:description') ?? metaContent(html, 'description'),
-      link_image: metaContent(html, 'og:image'),
-    });
-  } catch {
-    return apiError(422, 'preview_unavailable', 'The link preview could not be fetched');
-  }
+  const capture = await captureClipArticle(url.toString());
+  const summary = capture.article
+    ? await summarizeClipArticle(env.AI, capture.article)
+    : { status: 'not_requested' as const, summary: null };
+  return json({
+    status: capture.status,
+    reason: capture.reason,
+    link_url: capture.originalUrl,
+    retrieval_url: capture.finalUrl,
+    link_title: capture.title,
+    link_summary: summary.summary,
+    link_image: capture.image,
+    metadata_description: capture.metadataDescription,
+    article: capture.article ? {
+      byline: capture.article.byline,
+      excerpt: capture.article.excerpt,
+      site_name: capture.article.siteName,
+      published_time: capture.article.publishedTime,
+      character_count: capture.article.textContent.length,
+    } : null,
+    summary_status: summary.status,
+  });
 }
 
 async function ingestFootprint(request: Request, env: FeedEnv, ctx: ExecutionContext): Promise<Response> {
@@ -297,10 +289,10 @@ async function validatePost(input: FeedPostInput, env: FeedEnv): Promise<string 
     return 'one or more media objects do not exist';
   }
   if (input.type === 'note' && !(input.content?.trim() || mediaKeys.length)) return 'note requires text or media';
-  const link = input.link_url ? safeExternalUrl(input.link_url) : null;
+  const link = input.link_url ? parsePublicWebUrl(input.link_url) : null;
   if (input.type === 'clip' && !link) return 'clip requires a valid link_url';
   if (input.type === 'clip' && !input.link_title?.trim()) return 'clip requires link_title';
-  if (input.link_image && !safeExternalUrl(input.link_image)) return 'link_image must be a valid URL';
+  if (input.link_image && !parsePublicWebUrl(input.link_image)) return 'link_image must be a valid URL';
   return null;
 }
 
@@ -331,69 +323,6 @@ async function limitPreview(env: FeedEnv, username: string): Promise<boolean> {
   if (!Number.isFinite(current) || current >= 10) return false;
   await env.AUTH_KV.put(key, String(current + 1), { expirationTtl: 60 });
   return true;
-}
-
-async function readLimitedText(response: Response, maximumBytes: number): Promise<string> {
-  if (!response.body) return '';
-
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let total = 0;
-  let output = '';
-
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      total += value.byteLength;
-      if (total > maximumBytes) throw new RangeError('preview_too_large');
-      output += decoder.decode(value, { stream: true });
-    }
-    output += decoder.decode();
-    return output;
-  } finally {
-    reader.releaseLock();
-  }
-}
-
-function safeExternalUrl(value: unknown): URL | null {
-  if (typeof value !== 'string') return null;
-  try {
-    const url = new URL(value);
-    const host = url.hostname.toLowerCase();
-    if (url.protocol !== 'https:' && url.protocol !== 'http:') return null;
-    if (url.username || url.password) return null;
-    if (isPrivateHost(host)) return null;
-    return url;
-  } catch {
-    return null;
-  }
-}
-
-function isPrivateHost(host: string): boolean {
-  const normalized = host.replace(/^\[|\]$/g, '');
-  if (normalized === 'localhost' || normalized.endsWith('.localhost') || normalized === '::' || normalized === '::1' || normalized === '0.0.0.0') return true;
-  if (/^(?:fc|fd)[0-9a-f]{2}:/i.test(normalized) || /^fe[89ab][0-9a-f]:/i.test(normalized) || normalized.startsWith('::ffff:')) return true;
-  const mappedIpv4 = normalized.match(/^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/i)?.[1];
-  const octets = (mappedIpv4 ?? normalized).split('.').map((part) => Number(part));
-  if (octets.length !== 4 || octets.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) return false;
-  const [first, second] = octets;
-  return first === 10
-    || first === 127
-    || first === 0
-    || (first === 169 && second === 254)
-    || (first === 172 && second >= 16 && second <= 31)
-    || (first === 192 && second === 168);
-}
-
-function metaContent(html: string, name: string): string | null {
-  const expression = new RegExp(`<meta[^>]+(?:property|name)=["']${name.replace(':', '\\:')}["'][^>]+content=["']([^"']+)["']`, 'i');
-  const reversed = new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["']${name.replace(':', '\\:')}["']`, 'i');
-  return html.match(expression)?.[1]?.trim() ?? html.match(reversed)?.[1]?.trim() ?? null;
-}
-
-function titleContent(html: string): string | null {
-  return html.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1]?.trim() ?? null;
 }
 
 async function idForIdempotencyKey(username: string | null, key: string): Promise<string> {

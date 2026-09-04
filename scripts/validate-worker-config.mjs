@@ -49,6 +49,9 @@ for (const { path, expected } of configs) {
   if (config.compatibility_flags?.includes('nodejs_compat')) {
     fail(`${path} must not add nodejs_compat without a Worker dependency need`);
   }
+  if (!config.compatibility_flags?.includes('global_fetch_strictly_public')) {
+    fail(`${path} must keep global fetch restricted to public destinations`);
+  }
   if ('vars' in config || 'secrets' in config) {
     fail(`${path} must not store variables or secrets in versioned Worker config`);
   }
@@ -76,6 +79,7 @@ for (const { path, expected } of configs) {
     fail(`${path} has an unexpected R2 binding set`);
   }
   if (path.includes('feed-api')) {
+    if (config.ai?.binding !== 'AI') fail(`${path} must bind Workers AI as AI`);
     const buckets = new Map((config.r2_buckets ?? []).map(({ binding, bucket_name }) => [binding, bucket_name]));
     if (buckets.get('MEDIA_BUCKET') !== 'catstarry-media') fail(`${path} must use catstarry-media`);
     if (buckets.get('HOME_PROJECTIONS') !== 'home-projections') fail(`${path} must use home-projections`);

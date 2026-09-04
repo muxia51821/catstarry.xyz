@@ -129,6 +129,21 @@ class MemoryProjectionBucket {
   }
 }
 
+const AI_SUMMARY = '文章说明了可靠网页剪藏如何在重定向、正文提取与资源限制之间建立边界，并强调每一跳都必须重新验证目标。它同时指出机器摘要只是可编辑草稿，作者保存后的内容才是最终发布依据。';
+
+class MemoryAi {
+  calls = [];
+  fail = false;
+
+  async run(model, input) {
+    this.calls.push({ model, input });
+    if (this.fail) throw new Error('injected AI failure');
+    return {
+      choices: [{ message: { content: AI_SUMMARY } }],
+    };
+  }
+}
+
 function createEnv() {
   const database = createDatabase();
   return {
@@ -138,6 +153,7 @@ function createEnv() {
     AUTH_KV: new MemoryKv(),
     MEDIA_BUCKET: new MemoryMediaBucket(),
     HOME_PROJECTIONS: new MemoryProjectionBucket(),
+    AI: new MemoryAi(),
     FOOTPRINT_INGEST_TOKEN: 'isolated-contract-token',
   };
 }
@@ -565,7 +581,6 @@ const browserMutation = await fetchWorker(env, 'https://api.test/api/feed', {
 assert.equal(browserMutation.status, 403, 'browser mutation without Origin remains rejected');
 
 const previewEnv = createEnv();
-previewEnv.CLIP_PREVIEW_ALLOWED_HOSTS = 'example.com';
 const previewToken = crypto.randomUUID();
 previewEnv.AUTH_KV.values.set(`session:${previewToken}`, {
   username: 'contract',
@@ -646,7 +661,7 @@ try {
 const originalFetch = globalThis.fetch;
 globalThis.fetch = async (_input, init) => {
   assert.equal(init.redirect, 'manual');
-  return new Response('<title>Contract preview</title><meta name="description" content="bounded">', {
+  return new Response(`<!doctype html><html><head><title>Contract preview</title><meta name="description" content="metadata evidence"></head><body><article><h1>Contract preview</h1>${'<p>This paragraph contains stable article evidence for the capture contract and Readability extraction.</p>'.repeat(20)}</article></body></html>`, {
     headers: { 'Content-Type': 'text/html; charset=utf-8' },
   });
 };
@@ -657,25 +672,66 @@ try {
     body: JSON.stringify({ link_url: 'https://example.com/article' }),
   });
   assert.equal(response.status, 200);
-  assert.equal((await response.json()).link_title, 'Contract preview');
+  const preview = await response.json();
+  assert.equal(preview.status, 'article');
+  assert.equal(preview.link_title, 'Contract preview');
+  assert.equal(preview.link_summary, AI_SUMMARY);
+  assert.equal(preview.metadata_description, 'metadata evidence');
+  assert.equal(preview.summary_status, 'generated');
+  assert.equal(previewEnv.AI.calls.length, 1);
+  assert.equal(previewEnv.AI.calls[0].model, '@cf/zai-org/glm-4.7-flash');
 
-  globalThis.fetch = async () => new Response(new Uint8Array(524_289), {
+  globalThis.fetch = async () => new Response('<html><head><title>Metadata title</title><meta name="description" content="metadata only"></head><body>Short shell</body></html>', {
     headers: { 'Content-Type': 'text/html' },
   });
-  assert.equal((await fetchWorker(previewEnv, 'https://api.test/api/feed/clip-preview', {
+  const metadataResponse = await fetchWorker(previewEnv, 'https://api.test/api/feed/clip-preview', {
+    method: 'POST', headers: previewHeaders, body: JSON.stringify({ link_url: 'https://different-public-host.example/card' }),
+  });
+  assert.equal(metadataResponse.status, 200, 'arbitrary public hosts must not require a product allowlist');
+  const metadata = await metadataResponse.json();
+  assert.equal(metadata.status, 'metadata');
+  assert.equal(metadata.link_summary, null, 'metadata description must never become the Feed summary');
+  assert.equal(metadata.summary_status, 'not_requested');
+  assert.equal(previewEnv.AI.calls.length, 1, 'metadata-only evidence must not invoke AI');
+
+  previewEnv.AI.fail = true;
+  globalThis.fetch = async () => new Response(`<!doctype html><html><head><title>AI failure article</title></head><body><article>${'<p>Reliable article evidence remains successful even when summary generation fails.</p>'.repeat(20)}</article></body></html>`, {
+    headers: { 'Content-Type': 'text/html' },
+  });
+  const aiFailureResponse = await fetchWorker(previewEnv, 'https://api.test/api/feed/clip-preview', {
+    method: 'POST', headers: previewHeaders, body: JSON.stringify({ link_url: 'https://example.com/ai-failure' }),
+  });
+  const aiFailure = await aiFailureResponse.json();
+  assert.equal(aiFailure.status, 'article');
+  assert.equal(aiFailure.summary_status, 'failed');
+  assert.equal(aiFailure.link_summary, null);
+  previewEnv.AI.fail = false;
+
+  globalThis.fetch = async () => new Response(new Uint8Array(1_048_577), {
+    headers: { 'Content-Type': 'text/html', 'Content-Length': '1' },
+  });
+  const oversized = await fetchWorker(previewEnv, 'https://api.test/api/feed/clip-preview', {
     method: 'POST',
     headers: previewHeaders,
     body: JSON.stringify({ link_url: 'https://example.com/oversized' }),
-  })).status, 422);
+  });
+  assert.equal(oversized.status, 200);
+  assert.deepEqual(await oversized.json(), {
+    status: 'failed', reason: 'content_too_large', link_url: 'https://example.com/oversized',
+    retrieval_url: null, link_title: null, link_summary: null, link_image: null,
+    metadata_description: null, article: null, summary_status: 'not_requested',
+  });
 
   globalThis.fetch = async () => {
     throw new DOMException('injected timeout', 'AbortError');
   };
-  assert.equal((await fetchWorker(previewEnv, 'https://api.test/api/feed/clip-preview', {
+  const unavailable = await fetchWorker(previewEnv, 'https://api.test/api/feed/clip-preview', {
     method: 'POST',
     headers: previewHeaders,
     body: JSON.stringify({ link_url: 'https://example.com/timeout' }),
-  })).status, 422);
+  });
+  assert.equal(unavailable.status, 200, 'external retrieval failure is a normal product outcome');
+  assert.equal((await unavailable.json()).reason, 'fetch_failed');
 } finally {
   globalThis.fetch = originalFetch;
 }
