@@ -252,7 +252,8 @@ function useModalDialog<T extends HTMLElement>(onClose: () => void) {
     const backgroundState = background.map((element) => ({ element, inert: element.inert, ariaHidden: element.getAttribute('aria-hidden') }));
     for (const element of background) { element.inert = true; element.setAttribute('aria-hidden', 'true'); }
     const focusables = () => Array.from(panel?.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), a[href]') ?? []);
-    focusables()[0]?.focus();
+    const firstFocusable = focusables()[0];
+    if (firstFocusable) firstFocusable.focus(); else panel?.focus();
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') { event.preventDefault(); closeRef.current(); return; }
       if (event.key !== 'Tab') return;
@@ -437,7 +438,7 @@ function ImageViewer({ image, onClose }: { image: string; onClose: () => void })
   return <div className="feed-dialog feed-viewer" role="dialog" aria-modal="true" aria-label="查看 Feed 图片" onClick={(event) => {
     if (event.target === event.currentTarget) onClose();
   }}>
-    <div ref={panelRef} className="feed-viewer-panel" onClick={(event) => {
+    <div ref={panelRef} className="feed-viewer-panel" tabIndex={-1} onClick={(event) => {
       if (event.target === event.currentTarget) onClose();
     }}><img src={image} alt="Feed 附图大图" /></div>
   </div>;

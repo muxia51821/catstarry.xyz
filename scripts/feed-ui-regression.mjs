@@ -53,6 +53,7 @@ try {
     const point = await evaluate(`(() => {
       const node = document.querySelector(${JSON.stringify(selector)});
       if (!node) return null;
+      node.scrollIntoView({ block: 'center', inline: 'center' });
       const box = node.getBoundingClientRect();
       return { x: box.left + box.width / 2, y: box.top + box.height / 2 };
     })()`);
@@ -235,7 +236,7 @@ try {
     return { count: grid?.querySelectorAll('.feed-media-button').length ?? 0 };
   })()`);
   await click('.feed-media-grid .feed-media-button');
-  await waitFor(`Boolean(document.querySelector('.feed-viewer[aria-label="查看 Feed 图片"]'))`, 'native image viewer');
+  await waitFor(`document.querySelector('.feed-viewer[aria-label="查看 Feed 图片"]')?.contains(document.activeElement) === true`, 'native image viewer');
   diagnostics.checks.imageViewer = await evaluate(`(() => {
     const viewer = document.querySelector('.feed-viewer[aria-label="查看 Feed 图片"]');
     return { open: Boolean(viewer), activeInside: viewer?.contains(document.activeElement) ?? false };
@@ -285,7 +286,7 @@ try {
       body: JSON.stringify({ type: 'note', content, media_keys }),
     }));
     const manifest = await fetch(apiOrigin + '/api/blog/internal/publications', {
-      method: 'POST', headers, body: JSON.stringify({ entries: [{ slug: 'browser-acceptance', title: 'Browser acceptance Blog', summary: 'Public source projection.' }], deployed_at: new Date().toISOString() }),
+      method: 'POST', headers, body: JSON.stringify({ entries: [{ slug: 'browser-acceptance', title: 'Browser acceptance Blog', summary: 'Public source projection.', state: 'published' }], deployed_at: new Date().toISOString() }),
     });
     const eventKinds = [
       ['blog', 'blog_published', 'browser-acceptance', '/blog/browser-acceptance/'],
@@ -408,9 +409,10 @@ try {
   await evaluate(`(() => {
     const destinations = [...document.querySelectorAll('.feed-destination')];
     destinations[0]?.setAttribute('data-focus-target', 'true');
-    destinations[1]?.focus();
+    destinations[0]?.focus();
   })()`);
   await key('Tab', 8);
+  await key('Tab');
   diagnostics.checks.destinationFocus = await evaluate(`(() => {
     const destination = document.querySelector('[data-focus-target="true"]');
     const style = destination ? getComputedStyle(destination) : null;
@@ -490,7 +492,12 @@ try {
   }
 
   await send('Page.navigate', { url: `${baseUrl}/feed/admin/` });
-  await waitFor(`document.readyState === 'complete'`, 'admin page', 10_000);
+  await waitFor(
+    `document.readyState === 'complete' && location.pathname === '/feed/admin/' && Boolean(document.querySelector('.feed-admin'))`,
+    'admin page',
+    10_000,
+  );
+  await waitFor(`!document.querySelector('astro-island[ssr]')`, 'admin hydration', 10_000);
   diagnostics.checks.adminReturn = await evaluate(`(() => {
     const link = [...document.querySelectorAll('a')].find((node) => node.textContent?.trim() === '← 返回 Feed');
     if (!link) return null;
@@ -515,13 +522,13 @@ try {
   assert.ok(footprintTitleForVisibility, 'Manage must expose a public Footprint for hide/restore verification');
   await evaluate(`(() => {
     const title = ${JSON.stringify(footprintTitleForVisibility)};
-    const row = [...document.querySelectorAll('.feed-admin-row')].find((entry) => entry.querySelector('p')?.textContent === title);
+    const row = [...document.querySelectorAll('.feed-admin-row')].find((entry) => entry.querySelector('p')?.textContent === title && entry.querySelector('.feed-eyebrow')?.textContent.includes('系统足迹'));
     [...(row?.querySelectorAll('button') ?? [])].find((button) => button.textContent.trim() === '隐藏')?.click();
   })()`);
   await waitFor(`[...document.querySelectorAll('.feed-admin-row')].some((entry) => entry.querySelector('p')?.textContent === ${JSON.stringify(footprintTitleForVisibility)} && entry.querySelector('.feed-eyebrow')?.textContent.includes('仅我可见'))`, 'Footprint hide', 10_000);
   await evaluate(`(() => {
     const title = ${JSON.stringify(footprintTitleForVisibility)};
-    const row = [...document.querySelectorAll('.feed-admin-row')].find((entry) => entry.querySelector('p')?.textContent === title);
+    const row = [...document.querySelectorAll('.feed-admin-row')].find((entry) => entry.querySelector('p')?.textContent === title && entry.querySelector('.feed-eyebrow')?.textContent.includes('系统足迹'));
     [...(row?.querySelectorAll('button') ?? [])].find((button) => button.textContent.trim() === '恢复')?.click();
   })()`);
   await waitFor(`[...document.querySelectorAll('.feed-admin-row')].some((entry) => entry.querySelector('p')?.textContent === ${JSON.stringify(footprintTitleForVisibility)} && !entry.querySelector('.feed-eyebrow')?.textContent.includes('仅我可见'))`, 'Footprint restore', 10_000);
