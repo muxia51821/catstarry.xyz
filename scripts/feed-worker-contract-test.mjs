@@ -84,7 +84,7 @@ try {
   const boundaryHash = await hash('密'.repeat(24), 10);
   await command('kv', 'key', 'put', '--local', '--persist-to', persist, '--binding', 'AUTH_KV', 'user:contract', JSON.stringify({ password_hash: passwordHash, role: 'admin' }), '--config', config);
   await command('kv', 'key', 'put', '--local', '--persist-to', persist, '--binding', 'AUTH_KV', 'user:boundary', JSON.stringify({ password_hash: boundaryHash, role: 'admin' }), '--config', config);
-  server = spawn(process.execPath, [wrangler, 'dev', '--local', '--persist-to', persist, '--config', config, '--port', String(port), '--var', `FOOTPRINT_INGEST_TOKEN:${footprintToken}`, '--var', 'CLIP_PREVIEW_ALLOWED_HOSTS:developer.mozilla.org'], { cwd, windowsHide: true, stdio: 'pipe', env: childEnv });
+  server = spawn(process.execPath, [wrangler, 'dev', '--local', '--persist-to', persist, '--config', config, '--port', String(port), '--var', `FOOTPRINT_INGEST_TOKEN:${footprintToken}`], { cwd, windowsHide: true, stdio: 'pipe', env: childEnv });
   server.stdout?.on('data', (chunk) => { serverOutput += chunk.toString(); });
   server.stderr?.on('data', (chunk) => { serverOutput += chunk.toString(); });
   try { await waitForWorker(); } catch (error) { throw new Error(`${error instanceof Error ? error.message : 'Feed Worker did not start'}\n${serverOutput}`); }
@@ -336,7 +336,6 @@ try {
   assert.equal(mixedMedia.status, 400);
   const tooManyImages = await request('/api/feed', { method: 'POST', headers: authHeaders, body: JSON.stringify({ type: 'note', content: 'too many images', media_keys: Array(7).fill(uploadedMedia.key) }) });
   assert.equal(tooManyImages.status, 400);
-  assert.equal((await request('/api/feed/clip-preview', { method: 'POST', headers: { Cookie: cookie, 'Content-Type': 'application/json' }, body: JSON.stringify({ link_url: 'https://example.com/' }) })).status, 422);
   assert.equal((await request('/api/feed/clip-preview', { method: 'POST', headers: { Cookie: cookie, 'Content-Type': 'application/json' }, body: JSON.stringify({ link_url: 'http://172.16.0.1/' }) })).status, 400);
   assert.equal((await request('/api/feed/clip-preview', { method: 'POST', headers: { Cookie: cookie, 'Content-Type': 'application/json' }, body: JSON.stringify({ link_url: 'http://[::1]/' }) })).status, 400);
   assert.equal((await request('/api/feed/clip-preview', { method: 'POST', headers: { Cookie: cookie, 'Content-Type': 'application/json' }, body: JSON.stringify({ link_url: 'http://[fc00::1]/' }) })).status, 400);

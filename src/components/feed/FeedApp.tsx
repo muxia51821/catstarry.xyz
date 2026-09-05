@@ -7,10 +7,11 @@ import {
   type FormEvent,
 } from 'react';
 import { createPortal } from 'react-dom';
-import type { FeedPost, PaginatedResponse, SessionStatus, TimelineEntry } from '../../../shared/types';
+import type { ClipPreview, FeedPost, PaginatedResponse, SessionStatus, TimelineEntry } from '../../../shared/types';
 import { loadPublicTimeline, normalizeApiBase, previewCandidateUrl } from '../../lib/feed-api';
 import { appendDedupedById, parseFootprintSnapshot } from '../../lib/feed-entries';
 import { groupTimelineByShanghai } from '../../lib/feed-chronology';
+import { applyClipCapture, createClipDraft, editClipField, invalidateMachineFieldsForUrlChange } from '../../lib/feed-clip-draft';
 
 interface FeedAppProps {
   apiBase: string;
@@ -251,7 +252,8 @@ function useModalDialog<T extends HTMLElement>(onClose: () => void) {
     const backgroundState = background.map((element) => ({ element, inert: element.inert, ariaHidden: element.getAttribute('aria-hidden') }));
     for (const element of background) { element.inert = true; element.setAttribute('aria-hidden', 'true'); }
     const focusables = () => Array.from(panel?.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), a[href]') ?? []);
-    focusables()[0]?.focus();
+    const firstFocusable = focusables()[0];
+    if (firstFocusable) firstFocusable.focus(); else panel?.focus();
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') { event.preventDefault(); closeRef.current(); return; }
       if (event.key !== 'Tab') return;
@@ -302,14 +304,14 @@ function PublishDialog({ apiBase, onClose, onAuthExpired }: { apiBase: string; o
   const [type, setType] = useState<'note' | 'clip'>('note');
   const [content, setContent] = useState('');
   const [linkUrl, setLinkUrl] = useState('');
-  const [title, setTitle] = useState('');
-  const [summary, setSummary] = useState('');
-  const [image, setImage] = useState('');
+  const [clipDraft, setClipDraft] = useState(createClipDraft);
   const [uploads, setUploads] = useState<UploadItem[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState('');
   const idempotency = useRef<string | null>(null);
   const publishing = useRef(false);
+  const previewVersion = useRef(0);
+  const { title, summary, image } = clipDraft.values;
   const successfulKeys = uploads.flatMap((item) => item.status === 'success' && item.key ? [item.key] : []);
   const hasSubstantialDraft = Boolean(content.trim() || linkUrl.trim() || title.trim() || summary.trim() || image.trim() || uploads.length);
   const closeSafely = useCallback(() => {
@@ -325,15 +327,31 @@ function PublishDialog({ apiBase, onClose, onAuthExpired }: { apiBase: string; o
 
   async function preview() {
     const candidate = previewCandidateUrl(linkUrl); if (!candidate) return;
+    const version = ++previewVersion.current;
     setMessage('');
-    const response = await fetch(`${normalizeApiBase(apiBase)}/api/feed/clip-preview`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ link_url: candidate }) });
-    if (!response.ok) {
-      if (response.status === 401) onAuthExpired();
-      setMessage(response.status === 401 ? '登录已过期，请重新认证；当前内容已保留。' : '无法获取链接信息，请手动填写。');
-      return;
+    try {
+      const response = await fetch(`${normalizeApiBase(apiBase)}/api/feed/clip-preview`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ link_url: candidate }) });
+      if (version !== previewVersion.current) return;
+      if (!response.ok) {
+        if (response.status === 401) onAuthExpired();
+        setMessage(response.status === 401 ? '登录已过期，请重新认证；当前内容已保留。' : '无法自动读取该页面，可继续手动填写');
+        return;
+      }
+      const data = await response.json() as ClipPreview;
+      if (version !== previewVersion.current) return;
+      setClipDraft((current) => applyClipCapture(current, data));
+      setMessage(data.status === 'failed'
+        ? '无法自动读取该页面，可继续手动填写'
+        : data.status === 'metadata'
+          ? '已获取基本信息，正文未能可靠读取'
+          : data.summary_status === 'generated'
+            ? '已读取文章并生成摘要'
+            : data.summary_status === 'failed'
+              ? '已读取文章，但摘要生成失败，可手动填写'
+              : '已读取文章');
+    } catch {
+      if (version === previewVersion.current) setMessage('无法自动读取该页面，可继续手动填写');
     }
-    const data = await response.json() as { link_title: string | null; link_summary: string | null; link_image: string | null };
-    setTitle(data.link_title ?? ''); setSummary(data.link_summary ?? ''); setImage(data.link_image ?? '');
   }
 
   async function startUpload(item: UploadItem) {
@@ -397,7 +415,12 @@ function PublishDialog({ apiBase, onClose, onAuthExpired }: { apiBase: string; o
     <button type="button" className="feed-close" onClick={closeSafely} aria-label="关闭">×</button>
     <h2>发布</h2>
     <div className="feed-tabs" role="tablist"><button type="button" aria-pressed={type === 'note'} onClick={() => setType('note')}>碎碎念</button><button type="button" aria-pressed={type === 'clip'} onClick={() => setType('clip')}>剪藏</button></div>
-    {type === 'clip' && <><label>链接<input type="url" value={linkUrl} onBlur={() => void preview()} onChange={(event) => setLinkUrl(event.target.value)} required /></label><label>标题<input value={title} onChange={(event) => setTitle(event.target.value)} required /></label><label>摘要<textarea value={summary} onChange={(event) => setSummary(event.target.value)} /></label><label>封面图 URL（可选）<input type="url" value={image} onChange={(event) => setImage(event.target.value)} /></label></>}
+    {type === 'clip' && <><label>链接<input type="url" value={linkUrl} onBlur={() => void preview()} onChange={(event) => {
+      previewVersion.current += 1;
+      setClipDraft((current) => invalidateMachineFieldsForUrlChange(current));
+      setMessage('');
+      setLinkUrl(event.target.value);
+    }} required /></label><label>标题<input value={title} onChange={(event) => setClipDraft((current) => editClipField(current, 'title', event.target.value))} required /></label><label>摘要{clipDraft.sources.summary === 'machine' && summary && <span className="feed-field-note">自动生成，可编辑</span>}<textarea value={summary} onChange={(event) => setClipDraft((current) => editClipField(current, 'summary', event.target.value))} /></label><label>封面图 URL（可选）<input type="url" value={image} onChange={(event) => setClipDraft((current) => editClipField(current, 'image', event.target.value))} /></label></>}
     <label>{type === 'clip' ? '点评（可选）' : '文字'}<textarea value={content} onChange={(event) => setContent(event.target.value)} required={!successfulKeys.length && type === 'note'} /></label>
     <label>图片或视频<input type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,video/mp4,video/webm,video/quicktime" multiple onChange={(event) => { void chooseFiles(event.target.files); event.currentTarget.value = ''; }} /></label>
     {uploads.length > 0 && <ul className="feed-upload-list">{uploads.map((item) => <li key={item.id}>
@@ -415,7 +438,7 @@ function ImageViewer({ image, onClose }: { image: string; onClose: () => void })
   return <div className="feed-dialog feed-viewer" role="dialog" aria-modal="true" aria-label="查看 Feed 图片" onClick={(event) => {
     if (event.target === event.currentTarget) onClose();
   }}>
-    <div ref={panelRef} className="feed-viewer-panel" onClick={(event) => {
+    <div ref={panelRef} className="feed-viewer-panel" tabIndex={-1} onClick={(event) => {
       if (event.target === event.currentTarget) onClose();
     }}><img src={image} alt="Feed 附图大图" /></div>
   </div>;

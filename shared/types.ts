@@ -109,10 +109,22 @@ export interface FeedMediaUploadResponse {
 }
 
 export interface ClipPreview {
+  status: 'article' | 'metadata' | 'failed';
+  reason: 'fetch_failed' | 'non_html' | 'content_too_large' | 'article_unavailable' | 'extraction_failed' | null;
   link_url: string;
+  retrieval_url: string | null;
   link_title: string | null;
   link_summary: string | null;
   link_image: string | null;
+  metadata_description: string | null;
+  article: {
+    byline: string | null;
+    excerpt: string | null;
+    site_name: string | null;
+    published_time: string | null;
+    character_count: number;
+  } | null;
+  summary_status: 'generated' | 'failed' | 'not_requested';
 }
 
 export interface PublicFootprintCandidate {
