@@ -7,6 +7,7 @@ import {
   applyClipCapture,
   createClipDraft,
   editClipField,
+  invalidateMachineFieldsForUrlChange,
 } from '../src/lib/feed-clip-draft.ts';
 
 const [page, app, admin] = await Promise.all([
@@ -88,6 +89,26 @@ assert.deepEqual(machineDraft.values, {
 });
 assert.deepEqual(machineDraft.sources, { title: 'machine', summary: 'machine', image: 'machine' });
 
+const invalidatedMachineDraft = invalidateMachineFieldsForUrlChange(machineDraft);
+assert.deepEqual(invalidatedMachineDraft.values, {
+  title: '', summary: '', image: '',
+}, 'URL change must clear every machine-derived field');
+assert.deepEqual(invalidatedMachineDraft.sources, machineDraft.sources, 'URL change must preserve machine provenance');
+
+const ownerSummaryDraft = editClipField(machineDraft, 'summary', 'Owner summary');
+const invalidatedOwnerSummaryDraft = invalidateMachineFieldsForUrlChange(ownerSummaryDraft);
+assert.deepEqual(invalidatedOwnerSummaryDraft.values, {
+  title: '', summary: 'Owner summary', image: '',
+}, 'URL change must preserve owner-edited fields while clearing machine evidence');
+assert.deepEqual(invalidatedOwnerSummaryDraft.sources, ownerSummaryDraft.sources, 'URL change must not reset owner provenance');
+
+const failedAfterUrlChange = applyClipCapture(invalidatedMachineDraft, {
+  status: 'failed', link_title: null, link_summary: null, link_image: null,
+});
+assert.deepEqual(failedAfterUrlChange.values, {
+  title: '', summary: '', image: '',
+}, 'failed recapture must not restore machine evidence from the previous URL');
+
 const ownerDraft = editClipField(
   editClipField(editClipField(machineDraft, 'title', 'Owner title'), 'summary', 'Owner summary'),
   'image',
@@ -116,6 +137,8 @@ const metadataDraft = applyClipCapture(createClipDraft(), {
 });
 assert.equal(metadataDraft.values.summary, '', 'metadata description must not populate the summary field');
 
+assert.match(app, /onChange=\{\(event\) => \{[\s\S]*previewVersion\.current \+= 1;[\s\S]*invalidateMachineFieldsForUrlChange[\s\S]*setMessage\(''\)[\s\S]*setLinkUrl\(event\.target\.value\)/, 'URL change must invalidate machine evidence and stale capture messaging');
+assert.match(app, /const data = await response\.json\(\) as ClipPreview;\s*if \(version !== previewVersion\.current\) return;\s*setClipDraft/, 'late capture responses from a previous URL must be rejected immediately before mutating the draft');
 assert.match(app, /已获取基本信息，正文未能可靠读取/);
 assert.match(app, /无法自动读取该页面，可继续手动填写/);
 assert.match(app, /已读取文章并生成摘要/);

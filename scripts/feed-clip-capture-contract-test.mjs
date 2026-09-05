@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { Readability } from '@mozilla/readability';
 
 import {
   captureClipArticle,
@@ -102,6 +103,32 @@ assert.equal(parsePublicWebUrl('https://[2606:4700:4700::1111]/article')?.hostna
   assert.equal(metadataOnly.title, 'Card title');
   assert.equal(metadataOnly.metadataDescription, 'Card description');
   assert.equal(metadataOnly.article, null);
+}
+
+{
+  const originalParse = Readability.prototype.parse;
+  Readability.prototype.parse = () => { throw new Error('injected article extraction failure'); };
+  try {
+    const metadataFallback = await captureClipArticle('https://example.com/extraction-failure', async () => htmlResponse(`
+      <html><head><title>Preserved title</title><meta name="description" content="Preserved description"><meta property="og:image" content="/preserved.jpg"></head><body><main>Body</main></body></html>`));
+    assert.equal(metadataFallback.status, 'metadata');
+    assert.equal(metadataFallback.reason, 'extraction_failed');
+    assert.equal(metadataFallback.title, 'Preserved title');
+    assert.equal(metadataFallback.metadataDescription, 'Preserved description');
+    assert.equal(metadataFallback.image, 'https://example.com/preserved.jpg');
+    assert.equal(metadataFallback.article, null);
+
+    const failedExtraction = await captureClipArticle('https://example.com/extraction-failure-empty', async () => htmlResponse(`
+      <html><head></head><body><main>Body</main></body></html>`));
+    assert.equal(failedExtraction.status, 'failed');
+    assert.equal(failedExtraction.reason, 'extraction_failed');
+    assert.equal(failedExtraction.title, null);
+    assert.equal(failedExtraction.metadataDescription, null);
+    assert.equal(failedExtraction.image, null);
+    assert.equal(failedExtraction.article, null);
+  } finally {
+    Readability.prototype.parse = originalParse;
+  }
 }
 
 {

@@ -11,7 +11,7 @@ import type { ClipPreview, FeedPost, PaginatedResponse, SessionStatus, TimelineE
 import { loadPublicTimeline, normalizeApiBase, previewCandidateUrl } from '../../lib/feed-api';
 import { appendDedupedById, parseFootprintSnapshot } from '../../lib/feed-entries';
 import { groupTimelineByShanghai } from '../../lib/feed-chronology';
-import { applyClipCapture, createClipDraft, editClipField } from '../../lib/feed-clip-draft';
+import { applyClipCapture, createClipDraft, editClipField, invalidateMachineFieldsForUrlChange } from '../../lib/feed-clip-draft';
 
 interface FeedAppProps {
   apiBase: string;
@@ -338,6 +338,7 @@ function PublishDialog({ apiBase, onClose, onAuthExpired }: { apiBase: string; o
         return;
       }
       const data = await response.json() as ClipPreview;
+      if (version !== previewVersion.current) return;
       setClipDraft((current) => applyClipCapture(current, data));
       setMessage(data.status === 'failed'
         ? '无法自动读取该页面，可继续手动填写'
@@ -414,7 +415,12 @@ function PublishDialog({ apiBase, onClose, onAuthExpired }: { apiBase: string; o
     <button type="button" className="feed-close" onClick={closeSafely} aria-label="关闭">×</button>
     <h2>发布</h2>
     <div className="feed-tabs" role="tablist"><button type="button" aria-pressed={type === 'note'} onClick={() => setType('note')}>碎碎念</button><button type="button" aria-pressed={type === 'clip'} onClick={() => setType('clip')}>剪藏</button></div>
-    {type === 'clip' && <><label>链接<input type="url" value={linkUrl} onBlur={() => void preview()} onChange={(event) => { previewVersion.current += 1; setLinkUrl(event.target.value); }} required /></label><label>标题<input value={title} onChange={(event) => setClipDraft((current) => editClipField(current, 'title', event.target.value))} required /></label><label>摘要{clipDraft.sources.summary === 'machine' && summary && <span className="feed-field-note">自动生成，可编辑</span>}<textarea value={summary} onChange={(event) => setClipDraft((current) => editClipField(current, 'summary', event.target.value))} /></label><label>封面图 URL（可选）<input type="url" value={image} onChange={(event) => setClipDraft((current) => editClipField(current, 'image', event.target.value))} /></label></>}
+    {type === 'clip' && <><label>链接<input type="url" value={linkUrl} onBlur={() => void preview()} onChange={(event) => {
+      previewVersion.current += 1;
+      setClipDraft((current) => invalidateMachineFieldsForUrlChange(current));
+      setMessage('');
+      setLinkUrl(event.target.value);
+    }} required /></label><label>标题<input value={title} onChange={(event) => setClipDraft((current) => editClipField(current, 'title', event.target.value))} required /></label><label>摘要{clipDraft.sources.summary === 'machine' && summary && <span className="feed-field-note">自动生成，可编辑</span>}<textarea value={summary} onChange={(event) => setClipDraft((current) => editClipField(current, 'summary', event.target.value))} /></label><label>封面图 URL（可选）<input type="url" value={image} onChange={(event) => setClipDraft((current) => editClipField(current, 'image', event.target.value))} /></label></>}
     <label>{type === 'clip' ? '点评（可选）' : '文字'}<textarea value={content} onChange={(event) => setContent(event.target.value)} required={!successfulKeys.length && type === 'note'} /></label>
     <label>图片或视频<input type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,video/mp4,video/webm,video/quicktime" multiple onChange={(event) => { void chooseFiles(event.target.files); event.currentTarget.value = ''; }} /></label>
     {uploads.length > 0 && <ul className="feed-upload-list">{uploads.map((item) => <li key={item.id}>

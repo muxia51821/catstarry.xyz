@@ -28,6 +28,14 @@ export function editClipField(draft: ClipDraft, field: ClipFieldName, value: str
   };
 }
 
+export function invalidateMachineFieldsForUrlChange(draft: ClipDraft): ClipDraft {
+  const values = { ...draft.values };
+  for (const field of ['title', 'summary', 'image'] as const) {
+    if (draft.sources[field] === 'machine') values[field] = '';
+  }
+  return { values, sources: draft.sources };
+}
+
 export function applyClipCapture(draft: ClipDraft, capture: ClipCaptureFields): ClipDraft {
   if (capture.status === 'failed') return draft;
   const incoming: Record<ClipFieldName, string> = {

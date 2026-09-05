@@ -230,13 +230,25 @@ export async function captureClipArticle(input: string, fetchImpl: FetchImplemen
     return emptyResult(originalUrl.toString(), error instanceof CaptureFailure ? error.reason : 'fetch_failed');
   }
 
+  let metadataDocument: ReturnType<typeof createDocument>;
+  let metadataTitle: string | null;
+  let metadataDescription: string | null;
+  let image: string | null;
   try {
-    const metadataDocument = createDocument(retrieval.html, retrieval.finalUrl.toString());
-    const metadataTitle = meta(metadataDocument, ['og:title'])
+    metadataDocument = createDocument(retrieval.html, retrieval.finalUrl.toString());
+    metadataTitle = meta(metadataDocument, ['og:title'])
       ?? metadataDocument.querySelector('title')?.textContent?.trim()
       ?? null;
-    const metadataDescription = meta(metadataDocument, ['og:description', 'description']);
-    const image = safeImageUrl(meta(metadataDocument, ['og:image']), retrieval.finalUrl);
+    metadataDescription = meta(metadataDocument, ['og:description', 'description']);
+    image = safeImageUrl(meta(metadataDocument, ['og:image']), retrieval.finalUrl);
+  } catch {
+    return {
+      ...emptyResult(originalUrl.toString(), 'extraction_failed'),
+      finalUrl: retrieval.finalUrl.toString(),
+    };
+  }
+
+  try {
     const parsed = new Readability(createDocument(retrieval.html, retrieval.finalUrl.toString())).parse();
     const articleText = parsed?.textContent?.trim() ?? '';
     const extractedTitle = parsed?.title?.trim() || metadataTitle;
@@ -267,9 +279,16 @@ export async function captureClipArticle(input: string, fetchImpl: FetchImplemen
       article,
     };
   } catch {
+    const hasMetadata = Boolean(metadataTitle || metadataDescription || image);
     return {
-      ...emptyResult(originalUrl.toString(), 'extraction_failed'),
+      status: hasMetadata ? 'metadata' : 'failed',
+      reason: 'extraction_failed',
+      originalUrl: originalUrl.toString(),
       finalUrl: retrieval.finalUrl.toString(),
+      title: metadataTitle,
+      metadataDescription,
+      image,
+      article: null,
     };
   }
 }

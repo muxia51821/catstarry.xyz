@@ -3,6 +3,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { Readability } from '@mozilla/readability';
 
 import { SqliteD1 } from './lib/sqlite-d1.mjs';
 import worker from '../workers/feed-api/src/index.ts';
@@ -693,6 +694,29 @@ try {
   assert.equal(metadata.link_summary, null, 'metadata description must never become the Feed summary');
   assert.equal(metadata.summary_status, 'not_requested');
   assert.equal(previewEnv.AI.calls.length, 1, 'metadata-only evidence must not invoke AI');
+
+  const originalReadabilityParse = Readability.prototype.parse;
+  Readability.prototype.parse = () => { throw new Error('injected article extraction failure'); };
+  try {
+    globalThis.fetch = async () => new Response('<html><head><title>Fallback title</title><meta name="description" content="Fallback description"><meta property="og:image" content="/fallback.jpg"></head><body>Body</body></html>', {
+      headers: { 'Content-Type': 'text/html' },
+    });
+    const extractionFailureResponse = await fetchWorker(previewEnv, 'https://api.test/api/feed/clip-preview', {
+      method: 'POST', headers: previewHeaders, body: JSON.stringify({ link_url: 'https://example.com/extraction-failure' }),
+    });
+    const extractionFailure = await extractionFailureResponse.json();
+    assert.equal(extractionFailure.status, 'metadata');
+    assert.equal(extractionFailure.reason, 'extraction_failed');
+    assert.equal(extractionFailure.link_title, 'Fallback title');
+    assert.equal(extractionFailure.metadata_description, 'Fallback description');
+    assert.equal(extractionFailure.link_image, 'https://example.com/fallback.jpg');
+    assert.equal(extractionFailure.article, null);
+    assert.equal(extractionFailure.link_summary, null);
+    assert.equal(extractionFailure.summary_status, 'not_requested');
+    assert.equal(previewEnv.AI.calls.length, 1, 'article extraction failure must not invoke AI');
+  } finally {
+    Readability.prototype.parse = originalReadabilityParse;
+  }
 
   previewEnv.AI.fail = true;
   globalThis.fetch = async () => new Response(`<!doctype html><html><head><title>AI failure article</title></head><body><article>${'<p>Reliable article evidence remains successful even when summary generation fails.</p>'.repeat(20)}</article></body></html>`, {
