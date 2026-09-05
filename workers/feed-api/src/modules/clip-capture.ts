@@ -37,6 +37,9 @@ export type ClipCaptureResult = {
 
 type FetchImplementation = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 
+const CHALLENGE_TITLE_PATTERN = /^\s*(?:just a moment(?:\.{3}|…)?|checking (?:your )?browser|verify (?:you are|that you are) human|attention required|security (?:check|verification)|access denied)(?:\s*[|·—-]\s*.+)?\s*$/i;
+const CHALLENGE_TEXT_PATTERN = /(?:verify (?:you are|that you are) human|checking your browser|enable javascript(?: and cookies)? to continue|complete the security check|security verification)/i;
+
 class CaptureFailure extends Error {
   constructor(readonly reason: ClipCaptureReason) {
     super(reason);
@@ -206,6 +209,10 @@ function safeImageUrl(value: string | null, finalUrl: URL): string | null {
   }
 }
 
+function looksLikeChallenge(title: string | null, text: string): boolean {
+  return Boolean(title && CHALLENGE_TITLE_PATTERN.test(title) && CHALLENGE_TEXT_PATTERN.test(text.slice(0, 4_000)));
+}
+
 function emptyResult(originalUrl: string, reason: ClipCaptureReason): ClipCaptureResult {
   return {
     status: 'failed', reason, originalUrl, finalUrl: null,
@@ -231,7 +238,11 @@ export async function captureClipArticle(input: string, fetchImpl: FetchImplemen
     const metadataDescription = meta(metadataDocument, ['og:description', 'description']);
     const image = safeImageUrl(meta(metadataDocument, ['og:image']), retrieval.finalUrl);
     const parsed = new Readability(createDocument(retrieval.html, retrieval.finalUrl.toString())).parse();
-    const article = parsed?.textContent?.trim() && parsed.textContent.trim().length >= CLIP_CAPTURE_LIMITS.minimumArticleCharacters
+    const articleText = parsed?.textContent?.trim() ?? '';
+    const extractedTitle = parsed?.title?.trim() || metadataTitle;
+    const article = parsed
+      && articleText.length >= CLIP_CAPTURE_LIMITS.minimumArticleCharacters
+      && !looksLikeChallenge(extractedTitle, articleText)
       ? {
           title: parsed.title?.trim() || null,
           byline: parsed.byline?.trim() || null,
@@ -240,7 +251,7 @@ export async function captureClipArticle(input: string, fetchImpl: FetchImplemen
           publishedTime: parsed.publishedTime?.trim()
             || meta(metadataDocument, ['article:published_time'])
             || null,
-          textContent: parsed.textContent.trim(),
+          textContent: articleText,
         }
       : null;
     const title = article?.title || metadataTitle;

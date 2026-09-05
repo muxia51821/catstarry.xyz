@@ -1,4 +1,4 @@
-import type { FeedPostInput, PublicFootprint, PublicFootprintCandidate, TimelineEntry, Visibility } from '../../../../shared/types';
+import type { ClipPreview, FeedPostInput, PublicFootprint, PublicFootprintCandidate, TimelineEntry, Visibility } from '../../../../shared/types';
 import { FeedStore, decodeCursor } from '../adapters/feed-store';
 import { apiError, json, parseBoundedLimit, readJson } from '../lib/http';
 import { readPublishedBlogSlugs } from '../modules/blog-publications';
@@ -201,7 +201,7 @@ async function previewClip(request: Request, env: FeedEnv): Promise<Response> {
   const summary = capture.article
     ? await summarizeClipArticle(env.AI, capture.article)
     : { status: 'not_requested' as const, summary: null };
-  return json({
+  const preview: ClipPreview = {
     status: capture.status,
     reason: capture.reason,
     link_url: capture.originalUrl,
@@ -218,7 +218,8 @@ async function previewClip(request: Request, env: FeedEnv): Promise<Response> {
       character_count: capture.article.textContent.length,
     } : null,
     summary_status: summary.status,
-  });
+  };
+  return json(preview);
 }
 
 async function ingestFootprint(request: Request, env: FeedEnv, ctx: ExecutionContext): Promise<Response> {

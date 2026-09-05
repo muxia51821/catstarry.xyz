@@ -112,6 +112,21 @@ assert.equal(parsePublicWebUrl('https://[2606:4700:4700::1111]/article')?.hostna
 }
 
 {
+  const challengeBody = 'Verify you are human. Just a moment while we check your browser. '.repeat(30);
+  const longChallenge = await captureClipArticle('https://example.com/long-challenge', async () => htmlResponse(`
+    <html><head><title>Just a moment</title></head><body><article><h1>Verify you are human</h1><p>${challengeBody}</p></article></body></html>`));
+  assert.equal(longChallenge.status, 'metadata');
+  assert.equal(longChallenge.article, null, 'a long challenge page must not become article evidence');
+}
+
+{
+  const realArticle = await captureClipArticle('https://example.com/challenge-analysis', async () => htmlResponse(`
+    <html><head><title>How Just a moment challenge pages work</title></head><body><article><h1>How challenge pages work</h1><p>Verify you are human is a common challenge message.</p><p>${ARTICLE_TEXT}</p></article></body></html>`));
+  assert.equal(realArticle.status, 'article');
+  assert.ok(realArticle.article, 'an article discussing challenge pages must remain article evidence');
+}
+
+{
   const malformed = await captureClipArticle('https://example.com/broken', async () => htmlResponse(
     `<html><head><meta property="og:title" content="Broken but useful"></head><body><article><h1>Broken</h1><p>${ARTICLE_TEXT}`,
   ));

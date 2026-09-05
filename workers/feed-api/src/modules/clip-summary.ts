@@ -12,9 +12,12 @@ export type ClipSummaryResult =
   | { status: 'failed'; summary: null };
 
 function isUsableSummary(value: string): boolean {
-  const compactLength = Array.from(value.replace(/\s/g, '')).length;
+  const compact = value.replace(/\s/g, '');
+  const compactLength = Array.from(compact).length;
+  const hanCharacters = compact.match(/[\u3400-\u9fff]/gu)?.length ?? 0;
   const sentences = value.match(/[。！？!?]/g)?.length ?? 0;
-  return /[\u3400-\u9fff]/u.test(value)
+  return hanCharacters >= 60
+    && hanCharacters / compactLength >= 0.6
     && compactLength >= 60
     && compactLength <= 220
     && sentences >= 2

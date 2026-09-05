@@ -80,7 +80,7 @@
 .feed-panel { position: relative; display: grid; gap: var(--space-md); width: min(100%, 36rem); max-height: calc(100svh - 2 * var(--space-lg)); padding: var(--space-xl); overflow: auto; background: var(--bg-base); border: 1px solid var(--border-default); border-radius: var(--radius-md); }
 .feed-panel h2 { margin: 0; font: 500 1.875rem/1.2 var(--font-display); }
 .feed-panel label { display: grid; gap: var(--space-xs); color: var(--text-secondary); }
-.feed-field-note { font-size: 0.78rem; color: var(--text-muted); }
+.feed-field-note { font-size: 0.78rem; line-height: 1.65; color: var(--text-muted); }
 .feed-panel input, .feed-panel textarea { width: 100%; padding: var(--field-padding-block) var(--field-padding-inline); font: inherit; color: var(--text-primary); background: var(--bg-surface-card); border: 1px solid var(--border-default); border-radius: var(--field-radius); }
 .feed-panel textarea { min-height: 7rem; resize: vertical; }
 .feed-close { position: absolute; top: var(--space-sm); right: var(--space-sm); width: var(--interaction-hit-size); min-height: var(--interaction-hit-size); cursor: pointer; background: transparent; border: 0; font-size: 1.5rem; }

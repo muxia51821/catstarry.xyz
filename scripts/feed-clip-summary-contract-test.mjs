@@ -48,4 +48,13 @@ const invalidOutput = await summarizeClipArticle({
 });
 assert.deepEqual(invalidOutput, { status: 'failed', summary: null }, 'obviously out-of-contract model output must not populate Feed');
 
+const mostlyEnglishOutput = await summarizeClipArticle({
+  async run() {
+    return { choices: [{ message: { content: `中${'A'.repeat(75)}。${'B'.repeat(75)}。` } }] };
+  },
+}, {
+  title: 'Wrong language', byline: null, excerpt: null, siteName: null, publishedTime: null, textContent: 'article'.repeat(100),
+});
+assert.deepEqual(mostlyEnglishOutput, { status: 'failed', summary: null }, 'summary output must be predominantly Chinese');
+
 console.log('Feed Clip summary contract passed.');

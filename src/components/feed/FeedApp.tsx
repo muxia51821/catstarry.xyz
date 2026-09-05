@@ -7,7 +7,7 @@ import {
   type FormEvent,
 } from 'react';
 import { createPortal } from 'react-dom';
-import type { FeedPost, PaginatedResponse, SessionStatus, TimelineEntry } from '../../../shared/types';
+import type { ClipPreview, FeedPost, PaginatedResponse, SessionStatus, TimelineEntry } from '../../../shared/types';
 import { loadPublicTimeline, normalizeApiBase, previewCandidateUrl } from '../../lib/feed-api';
 import { appendDedupedById, parseFootprintSnapshot } from '../../lib/feed-entries';
 import { groupTimelineByShanghai } from '../../lib/feed-chronology';
@@ -337,13 +337,7 @@ function PublishDialog({ apiBase, onClose, onAuthExpired }: { apiBase: string; o
         setMessage(response.status === 401 ? '登录已过期，请重新认证；当前内容已保留。' : '无法自动读取该页面，可继续手动填写');
         return;
       }
-      const data = await response.json() as {
-        status: 'article' | 'metadata' | 'failed';
-        link_title: string | null;
-        link_summary: string | null;
-        link_image: string | null;
-        summary_status: 'generated' | 'failed' | 'not_requested';
-      };
+      const data = await response.json() as ClipPreview;
       setClipDraft((current) => applyClipCapture(current, data));
       setMessage(data.status === 'failed'
         ? '无法自动读取该页面，可继续手动填写'
