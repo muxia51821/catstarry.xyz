@@ -1,8 +1,10 @@
 ﻿# Issue Tracker
 
 - **Type**: Local markdown
-- **Location**: `.scratch/<feature-slug>/` — each feature request and bug gets its own directory
-- **Lifecycle**: every directory carries a lifecycle label in its `spec.md` — see the Lifecycle section below
+- **Location**: `.scratch/<feature-slug>/` — 使用持久 ticket 时，一项 feature / bug 一个目录
+- **Lifecycle**: 使用 ticket 的目录在 `spec.md` 中维护生命周期；其他 scratch 工件不因此要求补建 spec
+
+是否需要持久 ticket，由 `docs/workflow-orchestration.md` 的“按任务补充记录与检查”或具体 handoff 决定。以下格式适用于已选择使用 ticket 的任务。
 
 ## Conventions
 
@@ -29,28 +31,18 @@ Create a new file under `.scratch/<feature-slug>/` (creating the directory if ne
 
 Read the file at the referenced path. The user will normally pass the path or the issue number directly.
 
-## Wayfinding operations
-
-Used by `/wayfinder`. The **map** is a file with one **child** file per ticket.
-
-- **Map**: `.scratch/<effort>/map.md` — the Notes / Decisions-so-far / Fog body.
-- **Child ticket**: `.scratch/<effort>/issues/NN-<slug>.md`, numbered from `01`, with the question in the body. A `Type:` line records the ticket type (`research`/`prototype`/`grilling`/`task`); a `Status:` line records `claimed`/`resolved`.
-- **Blocking**: a `Blocked by: NN, NN` line near the top. A ticket is unblocked when every file it lists is `resolved`.
-- **Frontier**: scan `.scratch/<effort>/issues/` for files that are open, unblocked, and unclaimed; first by number wins.
-- **Claim**: set `Status: claimed` and save before any work.
-- **Resolve**: append the answer under an `## Answer` heading, set `Status: resolved`, then append a context pointer (gist + link) to the map's Decisions-so-far in `map.md`.
-
 ## Lifecycle（目录生命周期）
 
-每个 `.scratch/<feature>/` 目录在其 `spec.md` 头部维护一行 `Lifecycle:` 字段，取值：
+使用 ticket 的目录在其 `spec.md` 头部维护一行 `Lifecycle:` 字段，取值：
 
 - `active` — 工作未结束或待裁决
 - `closed-keep-evidence` — 已完结，且含生产操作证据、备份等需长期留存的工件
-- `closed-safe-to-archive` — 已完结，PR 描述即完整记录，磁盘清理时可随目录移除
+- `closed-safe-to-archive` — 已完结，PR 描述即完整记录，可提议归档或清理；该标签本身不授予删除权限
 
 规则：
 
-- 实施方在对应 PR 合并收尾时自标本目录的 Lifecycle；跨会话清点时对无法定性的目录保守标 `active`
-- 合并后的清点是只读动作：扫描各 spec.md 的 Lifecycle 汇总即可，**永不自动删除**任何目录；是否清理由木下逐项决定
+- 实施方在使用 ticket 的任务合并收尾时更新已有 spec 的 Lifecycle。
+- 清点是只读动作：汇总已有 Lifecycle；缺少 spec / 字段或无法定性的目录，在报告中列为待确认并按 `active` 保守处理，不写回文件。
+- **永不自动删除**任何目录；生产操作证据、备份等工件必须保留，是否清理由木下逐项决定。
 - 本字段是目录级生命周期，与单个 issue 的 `Status:`（triage 流转）互不影响
-- 缺少 spec.md 的历史目录在清点时补最小 spec（标题 + Lifecycle + 一句话来源）
+- 需要给历史目录补 spec / Lifecycle 时，放到明确授权的整理任务中执行，不作为清点的附带写入。

@@ -1,62 +1,39 @@
 # AGENTS.md
 
-## Behavioral Principles
+## 工作原则
 
-These rules apply to coding, implementation, testing, and repository tasks.
+- 明确当前任务、模块和允许修改的范围；以满足需求的最小改动完成任务，不扩展产品要求或修改无关内容。
+- 只有缺失信息会实质影响实现、风险或验收时才澄清；授权范围内安全、可逆的歧义，说明假设后继续。
+- 按受影响行为验证：Bug 确认复现与修复，重构确认行为等价；执行相关检查，明确未完成的验证，不虚报通过。验证强度见 `docs/workflow-orchestration.md` 的“验证与验收”。
 
-### 1. Think Before Coding
+## 事实来源与冲突处理
 
-- Prefer existing code and project documents over assumptions.
-- Ask only when missing information materially changes implementation, risk, or acceptance.
-- For safe and reversible ambiguity, state the assumption and continue.
-- Do not invent unrequested product requirements.
+按问题职责选择真源，不建立跨所有维度的单线优先级：
 
-### 2. Simplicity First
+| 职责 | 事实来源 |
+| --- | --- |
+| Agent 行为、Git 权限、仓库与 production 安全 | `AGENTS.md` |
+| Phase 8 执行调度、Touch-on-Conflict、高风险任务流程 | `docs/workflow-orchestration.md` |
+| 快速定向与少量长期事实 | `CONTEXT.md`；不承担完整 Product / Architecture / Design 状态复制 |
+| 共享命名、别名、术语边界 | `GLOSSARY.md` |
+| 路由、页面职责、公开／非公开范围 | `docs/SITEMAP.md` |
+| 产品行为 | Content Family 从 `docs/content/README.md` 进入，按需读取 Family Contract / Master Ledger；其他模块使用仍明确有效的 Product Closure、验收基线或当前任务裁决 |
+| 架构决策与技术事实 | `docs/adr/`、current `docs/architecture*.md` |
+| 设计事实 | `DESIGN.md` |
+| 实现与 production 状态 | 当前代码、测试，以及按需获取的 live / deployment evidence |
+| Issue 存储与状态 | 需要持久 ticket 时使用 `.scratch/<feature>/`，格式见 `docs/agents/issue-tracker.md`；状态见 `docs/agents/triage-labels.md`，labels 不具备执行调度权 |
 
-- Prefer the smallest implementation that satisfies the requirement.
-- Do not introduce unrequested abstractions, configuration, or extensibility.
-- Do not refactor unrelated code in pursuit of a cleaner design.
-
-### 3. Surgical Changes
-
-- Modify only files directly relevant to the current task.
-- Do not format, fix, delete, or reorganize unrelated content.
-- Every change must be traceable to a stated requirement.
-
-### 4. Verify the Result
-
-- Bugs: reproduce -> fix -> verify.
-- Refactors: verify behavioral equivalence.
-- Run relevant tests, builds, or static checks.
-- Report unperformed verification explicitly; never claim it passed.
-
-## Agent Operating Context
-
-- Issue tracker：`.scratch/<feature>/`，见 `docs/agents/issue-tracker.md`。
-- Triage labels：见 `docs/agents/triage-labels.md`。
-- `CONTEXT.md`：Agent 快速上下文和少量长期事实摘要。
-- `GLOSSARY.md`：共享命名、别名和术语边界。
-- `docs/SITEMAP.md`：路由、页面职责和公开／非公开范围。
-- Content Family 产品事实：从 `docs/content/README.md` 进入，按需读取 Family Contract / Master Ledger；其他模块使用仍明确有效的 Product Closure、验收基线或当前任务裁决。
-- 历史 requirements / acceptance：只作为历史证据，除非文件或当前任务明确说明其仍是现行 authority。
-- `docs/adr/`、`docs/architecture*.md`：架构决策与技术事实。
-- `DESIGN.md`：设计事实。
-- 当前代码和测试：已实现行为的直接证据，但不能自行推翻明确的 Product Closure、架构决策或用户裁决。
-- Git HEAD、部署 source、production 状态等易过期事实：需要时现场核验，不从长期文档猜测。
+- 当前代码和测试不能自行推翻明确的 Product Closure、架构决策或用户裁决。
+- 历史 requirements / acceptance 只作为历史证据，除非文件或当前任务明确说明其仍是现行 authority。`docs/_archive/` 不属于正常 current-truth reading path，只有历史追溯或 rationale 需要时再读取。
+- Git HEAD、部署 source、production 状态等易过期事实按需现场核验，不从长期文档猜测。
+- 如果 Glossary 的命名与上游事实发生冲突，停止并报告冲突，不得擅自选一份覆盖另一份。其他无法判断的 authority 冲突同样应说明来源，不自行覆盖已有决策。
 
 ## 项目与流程
 
 - 所有项目文档和与木下的对话使用中文。
 - 代码标识符、文件名和 Git commit message 使用英文 ASCII。
 - 木下是非程序员用户；说明改动时应使用可理解的语言，并提供精确命令。
-- `AGENTS.md` 负责 Agent 行为、权限和仓库安全。
-- `docs/workflow-orchestration.md` 负责 Phase 8 执行调度、Touch-on-Conflict 和高风险任务流程。
-- `CONTEXT.md` 负责快速定向，不承担完整 Product / Architecture / Design 状态复制。
-- Triage labels 只表示 Issue 状态，不具备执行调度权。
-- 执行前明确当前任务、模块和允许修改的范围。
-- 不得修改未经授权的模块。
 - 生产发布、架构变更和依赖主版本升级必须单独立项。
-- `docs/_archive/` 用于保存版本化的历史或已 superseded 证据；它不属于正常 current-truth reading path，只有历史追溯或 rationale 需要时再读取。
 
 ## Production 安全
 
@@ -105,18 +82,3 @@ git log -1 --oneline
 - 只同步直接受影响、且仍承担 current authority 的文档。
 - 历史文档与当前实现不同通常不是 Bug；只有它会误导当前任务时，才补边界或归档。
 - 完整 Touch-on-Conflict 规则见 `docs/workflow-orchestration.md`。
-
-## 冲突处理
-
-- Agent 行为、权限和仓库安全：以 `AGENTS.md` 为准。
-- 执行调度、Touch-on-Conflict 和高风险流程：以 `docs/workflow-orchestration.md` 为准。
-- 共享命名、别名和术语边界：以 `GLOSSARY.md` 为准。
-- 路由、页面职责和公开／非公开范围：以 `docs/SITEMAP.md` 为准。
-- 产品行为：以当前有效的 Product Closure / Contract / 明确用户裁决为准；历史 requirements / acceptance 不自动拥有 current authority。
-- 架构：以 ADR 和 current `docs/architecture*.md` 为准。
-- 设计：以 `DESIGN.md` 为准。
-- 实现状态：以当前代码、测试和必要的 production evidence 为准。
-- Issue 状态：以 triage labels 为准。
-- 不存在一份文档可以跨职责维度覆盖所有其他文档。
-- 如果 Glossary 的命名与上游事实发生冲突，Agent 必须停止并报告冲突，不得擅自选一份覆盖另一份。
-- 无法判断时，说明冲突来源，不得自行覆盖已有决策。
