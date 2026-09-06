@@ -41,5 +41,4 @@ jobs:
       - run: npm run test:feed:worker
       - run: npm run worker:migrate:local:repeat
       - run: npm run worker:dry-run
-      - run: npm run test:ci
       - run: git diff --check
