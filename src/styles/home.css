@@ -582,12 +582,14 @@
         left: calc(100% + 13px);
         width: max-content;
         max-width: 18ch;
-        opacity: var(--label-visible, 0);
-        color: rgb(232 237 255 / 0.43);
-        font-size: 11px;
+        opacity: clamp(0, calc(var(--label-visible, 0) * 2), 1);
+        color: color-mix(in srgb, var(--star-map-label-focus) 80%, transparent);
+        font-size: var(--text-xs);
         letter-spacing: 0.13em;
         text-align: left;
-        transform: translateY(-50%);
+        /* Keep navigation text readable at every planet depth. */
+        transform: translateY(-50%) scale(calc(1 / var(--scale, 1)));
+        transform-origin: left center;
         transition:
           color var(--navigation),
           translate var(--navigation);
@@ -596,6 +598,7 @@
         right: calc(100% + 13px);
         left: auto;
         text-align: right;
+        transform-origin: right center;
       }
       .planet-label small {
         display: block;
@@ -1658,13 +1661,14 @@
         .planet {
           width: clamp(94px, 28vw, 152px);
         }
-        .planet-label {
-          font-size: 9px;
-        }
+        .planet-label,
         .planet.reverse .planet-label {
+          top: -12px;
           right: auto;
-          left: calc(100% + 10px);
-          text-align: left;
+          left: 50%;
+          text-align: center;
+          transform: translate(-50%, -100%) scale(calc(1 / var(--scale, 1)));
+          transform-origin: center bottom;
         }
         .planet-label small {
           display: none;

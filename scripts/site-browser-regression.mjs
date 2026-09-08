@@ -295,6 +295,7 @@ try {
   await waitFor(`document.querySelector('[data-learn-graph]').dataset.expanded === 'true'`, 'Learn graph keyboard Explore view');
   await pressKey('Escape', 'Escape', 27);
   await waitFor(`document.querySelector('[data-learn-graph]').dataset.expanded === 'false'`, 'Learn graph keyboard Explore close');
+  assert.equal(await evaluate(`document.activeElement === document.querySelector('[data-graph-expand]')`), true, 'Keyboard Explore close must restore focus to the visible expand button');
   await evaluate(`document.querySelector('[data-learn-graph]').dispatchEvent(new KeyboardEvent('keydown', { key: ' ', code: 'Space', bubbles: true }))`);
   await waitFor(`document.querySelector('[data-learn-graph]').dataset.expanded === 'true'`, 'Learn graph Space Explore view');
   await pressKey('Escape', 'Escape', 27);
@@ -312,6 +313,16 @@ try {
     return null;
   })()`);
   assert.ok(graphPoint, 'Learn graph must expose a blank interactive field');
+  const collapsedZoom = await evaluate(`document.querySelector('[data-learn-graph]').dataset.zoom`);
+  const scrollBeforeGraphWheel = await evaluate('scrollY');
+  await send('Input.dispatchMouseEvent', { type: 'mouseWheel', x: graphPoint.x, y: graphPoint.y, deltaX: 0, deltaY: 160, pointerType: 'mouse' });
+  await delay(350);
+  assert.ok(await evaluate('scrollY') > scrollBeforeGraphWheel + 50, 'Collapsed Learn graph must allow ordinary page scrolling');
+  assert.equal(await evaluate(`document.querySelector('[data-learn-graph]').dataset.zoom`), collapsedZoom, 'Ordinary page scrolling must not zoom the collapsed graph');
+  await evaluate(`window.scrollTo({ top: ${scrollBeforeGraphWheel}, behavior: 'instant' })`);
+  await delay(100);
+  await evaluate(`document.querySelector('[data-graph-expand]').click()`);
+  await delay(300);
   await send('Input.dispatchMouseEvent', { type: 'mouseWheel', x: graphPoint.x, y: graphPoint.y, deltaX: 0, deltaY: -100, pointerType: 'mouse' });
   await waitFor(`Number(document.querySelector('[data-learn-graph]').dataset.zoom) > 100`, 'Learn graph wheel zoom');
   const transformBeforeDrag = await evaluate(`document.querySelector('[data-graph-world]').style.transform`);
@@ -320,6 +331,8 @@ try {
   await waitFor(`document.querySelector('[data-learn-graph]').dataset.dragging === 'true'`, 'Learn graph drag state');
   await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: graphPoint.x + 72, y: graphPoint.y + 48, button: 'left', buttons: 0, clickCount: 1, pointerType: 'mouse' });
   assert.notEqual(await evaluate(`document.querySelector('[data-graph-world]').style.transform`), transformBeforeDrag, 'Learn graph drag must pan the world');
+  await pressKey('Escape', 'Escape', 27);
+  await delay(300);
   await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: graphPoint.x, y: graphPoint.y, button: 'left', buttons: 1, clickCount: 1, pointerType: 'mouse' });
   await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: graphPoint.x, y: graphPoint.y, button: 'left', buttons: 0, clickCount: 1, pointerType: 'mouse' });
   await waitFor(`document.querySelector('[data-learn-graph]').dataset.expanded === 'true'`, 'Learn graph Explore view');
@@ -340,6 +353,13 @@ try {
   await waitFor(`document.querySelector('[data-learn-graph]').dataset.expanded === 'true'`, 'Learn graph touch Explore view');
   await pressKey('Escape', 'Escape', 27);
   await waitFor(`document.querySelector('[data-learn-graph]').dataset.expanded === 'false'`, 'Learn graph touch Explore close');
+  assert.ok(await evaluate(`getComputedStyle(document.querySelector('[data-graph-viewport]')).touchAction.includes('pan-y')`), 'Collapsed graph must allow native vertical touch scrolling');
+  await evaluate(`(() => {
+    const viewport = document.querySelector('[data-graph-viewport]');
+    viewport.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 42, pointerType: 'touch', clientX: 100, clientY: 100 }));
+    viewport.dispatchEvent(new PointerEvent('pointercancel', { bubbles: true, pointerId: 42, pointerType: 'touch', clientX: 100, clientY: 100 }));
+  })()`);
+  assert.equal(await evaluate(`document.querySelector('[data-learn-graph]').dataset.expanded`), 'false', 'Cancelled touch gestures must not expand the graph');
   await delay(260);
   const touchGraphPoint = await evaluate(`(() => {
     const viewport = document.querySelector('[data-graph-viewport]');
@@ -353,6 +373,8 @@ try {
     return null;
   })()`);
   assert.ok(touchGraphPoint, 'Learn graph must expose a blank touch field after panning');
+  await evaluate(`document.querySelector('[data-graph-expand]').click()`);
+  await delay(300);
   await send('Input.dispatchMouseEvent', { type: 'mouseWheel', x: touchGraphPoint.x, y: touchGraphPoint.y, deltaX: 0, deltaY: -100, pointerType: 'mouse' });
   await waitFor(`Number(document.querySelector('[data-learn-graph]').dataset.zoom) > 100`, 'Learn graph touch drag zoom precondition');
   const transformBeforeTouchDrag = await evaluate(`document.querySelector('[data-graph-world]').style.transform`);
@@ -618,6 +640,30 @@ try {
         10_000,
       );
       await delay(100);
+      if (route === '/learn/') {
+        await waitFor(`document.querySelectorAll('.learn-graph__edges line').length === 6`, 'responsive Learn graph layout');
+        const controls = await evaluate(`(() => {
+          const viewport = document.querySelector('[data-graph-viewport]').getBoundingClientRect();
+          return [...document.querySelectorAll('.learn-graph__controls button')].map((button) => button.getBoundingClientRect()).filter((box) => box.width > 0).map((box) => ({
+            width: box.width, height: box.height,
+            clearOfGraph: box.bottom <= viewport.top,
+            inView: box.left >= 0 && box.right <= document.documentElement.clientWidth,
+          }));
+        })()`);
+        assert.equal(controls.length, 4, 'Learn graph must expose four controls');
+        for (const control of controls) {
+          assert.ok(control.width >= 44 && control.height >= 44, `Learn graph control must have a 44px touch target at ${width}px`);
+          assert.ok(control.clearOfGraph && control.inView, `Learn graph controls must not cover nodes or leave the viewport at ${width}px`);
+        }
+        if (width === 390) {
+          const labelsDoNotOverlap = await evaluate(`(() => {
+            const boxes = [...document.querySelectorAll('.learn-graph__label')].map((label) => label.getBoundingClientRect());
+            return boxes.every((box, index) => boxes.slice(index + 1).every((other) =>
+              box.right <= other.left || box.left >= other.right || box.bottom <= other.top || box.top >= other.bottom));
+          })()`);
+          assert.ok(labelsDoNotOverlap, 'Larger graph controls must preserve readable mobile node spacing');
+        }
+      }
       matrix.push(await evaluate(`({
         route: ${JSON.stringify(route)},
         width: ${width},
