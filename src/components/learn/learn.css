@@ -203,15 +203,16 @@
 .learn-track-directory a:is(:hover, :focus-visible) .learn-track-directory__count { opacity: 1; }
 
 .learn-graph {
+  --learn-graph-controls-space: calc(var(--interaction-hit-size) + 14px);
   position: relative;
-  height: clamp(520px, 42vw, 620px);
+  height: calc(clamp(520px, 42vw, 620px) + var(--learn-graph-controls-space));
   overflow: clip;
   isolation: isolate;
   background: var(--learn-field-deep);
   border-block: 1px solid color-mix(in srgb, var(--content-hairline) 82%, transparent);
   transition: height 200ms var(--ease-hover);
 }
-.learn-graph[data-expanded="true"] { height: min(80svh, 760px); }
+.learn-graph[data-expanded="true"] { height: calc(min(80svh, 760px) + var(--learn-graph-controls-space)); }
 .learn-graph:focus-visible {
   outline: 2px solid var(--klein-500);
   outline-offset: 4px;
@@ -239,13 +240,13 @@
 }
 .learn-graph__controls button {
   display: inline-flex;
-  min-inline-size: 22px;
-  min-block-size: 22px;
+  min-inline-size: var(--interaction-hit-size);
+  min-block-size: var(--interaction-hit-size);
   padding: 0;
   align-items: center;
   justify-content: center;
   color: var(--content-text-secondary);
-  font: 500 11px/1 var(--font-sans-display);
+  font: 500 var(--text-sm)/1 var(--font-sans-display);
   cursor: pointer;
   background: transparent;
   border: 0;
@@ -257,11 +258,11 @@
 .learn-graph[data-expanded="true"] .learn-graph__controls [data-graph-collapse] { display: inline-flex; }
 .learn-graph__viewport {
   position: absolute;
-  inset: 0;
+  inset: var(--learn-graph-controls-space) 0 0;
   overflow: clip;
-  cursor: grab;
-  touch-action: none;
+  touch-action: pan-y pinch-zoom;
 }
+.learn-graph[data-expanded="true"] .learn-graph__viewport { cursor: grab; touch-action: none; }
 .learn-graph[data-dragging="true"] .learn-graph__viewport { cursor: grabbing; }
 .learn-graph__world {
   position: absolute;
@@ -566,10 +567,9 @@
   .learn-track-directory { gap: 4px 22px; padding-block: 10px 4px; }
   .learn-track-directory a { grid-template-columns: auto auto; font-size: 16px; }
   .learn-track-directory__count { display: none; }
-  .learn-graph { height: clamp(520px, 72svh, 680px); }
-  .learn-graph[data-expanded="true"] { height: min(80svh, 820px); }
+  .learn-graph { height: calc(clamp(520px, 72svh, 680px) + var(--learn-graph-controls-space)); }
+  .learn-graph[data-expanded="true"] { height: calc(min(80svh, 820px) + var(--learn-graph-controls-space)); }
   .learn-graph__controls { inset: 5px 5px auto auto; }
-  .learn-graph__controls button { min-inline-size: 22px; min-block-size: 22px; padding: 0; }
   .learn-graph__region-label { inset: var(--graph-region-y, var(--mobile-y)) auto auto var(--graph-region-x, 0); transform: translateX(-50%); }
   .learn-graph__node { grid-template-columns: 16px minmax(90px, 160px); }
   .learn-graph__label { font-size: 13px; }

@@ -24,7 +24,7 @@ const trackCount = Math.max(tracks.length, 1);
   data-learn-graph
   data-relations={JSON.stringify(relations)}
   tabindex="0"
-  aria-label="知识图谱。点击空白区域展开，滚轮缩放，拖动平移。"
+  aria-label="知识图谱。点击空白区域展开后，可滚轮缩放、拖动平移。按 Escape 收起。"
 >
   <div class="learn-graph__controls" aria-label="知识图谱控制">
     <button type="button" data-graph-zoom-out aria-label="缩小知识图谱">−</button>
@@ -205,12 +205,14 @@ const trackCount = Math.max(tracks.length, 1);
     };
     const setExpanded = (nextExpanded, focusControl = false) => {
       if (expanded === nextExpanded) return;
+      const restoreFocus = !nextExpanded && document.activeElement === controls.collapse;
       expanded = nextExpanded;
       graph.dataset.expanded = String(expanded);
       if (isButton(controls.expand)) controls.expand.setAttribute('aria-expanded', String(expanded));
       announce(expanded ? '知识图谱已展开。' : '知识图谱已收起。');
       window.setTimeout(scheduleLayout, 220);
       if (expanded && focusControl && isButton(controls.collapse)) controls.collapse.focus();
+      if (restoreFocus && isButton(controls.expand)) controls.expand.focus();
     };
     const setNodeActive = (slug, active) => {
       graph.dataset.activeNode = active ? slug : '';
@@ -241,6 +243,7 @@ const trackCount = Math.max(tracks.length, 1);
     if (isButton(controls.collapse)) controls.collapse.addEventListener('click', () => setExpanded(false));
 
     graph.addEventListener('wheel', (event) => {
+      if (!expanded) return;
       event.preventDefault();
       const box = viewportBox();
       setScale(scale + (event.deltaY < 0 ? 0.1 : -0.1), { x: event.clientX - box.left, y: event.clientY - box.top });
@@ -248,14 +251,14 @@ const trackCount = Math.max(tracks.length, 1);
     graph.addEventListener('pointerdown', (event) => {
       if (event.target instanceof Element && event.target.closest('a, button')) return;
       pointer = { id: event.pointerId, x: event.clientX, y: event.clientY, panX, panY, moved: false };
-      graph.setPointerCapture(event.pointerId);
+      if (expanded) graph.setPointerCapture(event.pointerId);
     });
     graph.addEventListener('pointermove', (event) => {
       if (!pointer || pointer.id !== event.pointerId) return;
       const deltaX = event.clientX - pointer.x;
       const deltaY = event.clientY - pointer.y;
       if (Math.hypot(deltaX, deltaY) > 5) pointer.moved = true;
-      if (!pointer.moved) return;
+      if (!pointer.moved || !expanded) return;
       panX = pointer.panX + deltaX;
       panY = pointer.panY + deltaY;
       graph.dataset.dragging = 'true';
@@ -263,7 +266,8 @@ const trackCount = Math.max(tracks.length, 1);
     });
     const endPointer = (event) => {
       if (!pointer || pointer.id !== event.pointerId) return;
-      const shouldExpand = !pointer.moved && !expanded;
+      // Native page scrolling cancels the pointer; cancellation must not open Explore.
+      const shouldExpand = event.type === 'pointerup' && !pointer.moved && !expanded;
       pointer = null;
       delete graph.dataset.dragging;
       if (graph.hasPointerCapture(event.pointerId)) graph.releasePointerCapture(event.pointerId);

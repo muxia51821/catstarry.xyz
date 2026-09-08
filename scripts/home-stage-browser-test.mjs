@@ -45,6 +45,34 @@ try {
 
   const reloaded = await snapshot(`${origin}/?stage=overview`);
   assert.ok(reloaded.y > 100, `overview reload must preserve the initial stage; received ${reloaded.y}`);
+
+  for (const reducedMotion of [false, true]) {
+    await cdp.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: reducedMotion ? 'reduce' : 'no-preference' }] });
+    for (const width of [320, 390, 768, 1440]) {
+      await cdp.send('Emulation.setDeviceMetricsOverride', { width, height: 900, deviceScaleFactor: 1, mobile: width < 600 });
+      await snapshot(`${origin}/?stage=overview`);
+      await cdp.waitFor(`document.querySelectorAll('.planet[data-planet-state="ready"]').length === 5`, 'interactive overview');
+      const labels = await cdp.evaluate(`Array.from(document.querySelectorAll('.planet-label'), (label) => {
+        const style = getComputedStyle(label);
+        const box = label.getBoundingClientRect();
+        const rgba = style.color.match(/[\\d.]+/g).map(Number);
+        let opacity = rgba.length === 4 ? rgba[3] : 1;
+        for (let element = label; element; element = element.parentElement) opacity *= Number(getComputedStyle(element).opacity);
+        return {
+          name: label.firstChild.textContent,
+          fontSize: parseFloat(style.fontSize) * box.height / label.offsetHeight,
+          opacity,
+          inView: box.left >= 0 && box.right <= document.documentElement.clientWidth && box.top >= 0 && box.bottom <= innerHeight,
+        };
+      })`);
+      for (const label of labels) {
+        const context = `${label.name} at ${width}px (reduced motion: ${reducedMotion})`;
+        assert.ok(label.fontSize >= 11.9, `${context}: rendered label must be at least 12px, received ${label.fontSize}`);
+        assert.ok(label.opacity >= 0.6, `${context}: label must remain readable without hover, received opacity ${label.opacity}`);
+        assert.ok(label.inView, `${context}: label must stay inside the viewport`);
+      }
+    }
+  }
   console.log('Home initial stage browser contract passed.');
 } catch (error) {
   console.error(output);
