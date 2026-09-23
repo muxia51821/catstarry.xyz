@@ -1,5 +1,20 @@
 # 更新记录
 
+## 2026-09-08 — 星图标签可读性与 Learn 图谱导航修复
+
+- Home 星图的行星标签在任意深度保持可读：透明度按导航状态加强并钳制，颜色改用聚焦色 token 混色，字号改用 `--text-xs`；通过反向缩放 `scale(1 / var(--scale))` 抵消星球景深缩放，左右标签各自锚定外侧原点，移动端标签改为星球上方居中。`test:home-stage` 在 320/390/768/1440 宽度与 reduced-motion 双态下断言标签有效字号、有效透明度与可见范围。
+- Learn Knowledge Graph 修复导航边界：滚轮缩放与拖拽只在图谱展开后生效；页面原生滚动取消手势时不再误触展开；收起后焦点回到展开按钮，`aria-label` 补充 Escape 收起说明；`test:site:browser` 增加键盘焦点回归与收起态缩放守卫。
+- 已发布 production；2026-09-23 生产核验（首页 CSS 构建产物包含本次标签修复标记）。
+
+## 2026-09-05 — Feed Clip 可靠捕捉与 AI 摘要
+
+- Feed Clip 捕捉升级为受限 article 抓取：10 秒超时、1 MiB 正文上限、最多 5 跳手动 redirect（每跳重新做目标安全校验）、HTML-only；以 `@mozilla/readability` + `linkedom` 提取标题、作者、站点、发布时间与正文，并识别反爬挑战页；结果区分 `article` / `metadata` / `failed` 三态。
+- 摘要由 Workers AI（`@cf/zai-org/glm-4.7-flash`，temperature 0.2、固定 seed、关闭 thinking）生成 2–4 句简体中文，输出经质量校验（≥60 汉字、汉字占比 ≥60%、60–220 字、2–4 句），不合格即判失败；抓取或摘要失败时保留手动填写路径，不阻塞保存。
+- 安全边界调整：移除 `CLIP_PREVIEW_ALLOWED_HOSTS` 站点 allowlist，改为 `global_fetch_strictly_public` compatibility flag 加应用层逐跳拒绝 private/local 目标与非常规端口；Feed Worker 新增 `AI` binding，DEPLOY.md binding inventory 同步。
+- 前端新增 Clip 草稿模型（机器字段 / 手写字段来源标记；链接变更时机器字段自动失效），编辑器标注「自动生成，可编辑」。
+- 新增 `test:feed:clip-capture` 与 `test:feed:clip-summary` 契约套件，扩展 feed HTTP / page / UI / worker 契约，并纳入 `test:contracts`。
+- 已发布 production；2026-09-23 生产核验（Feed 前端构建产物包含 `/api/feed/clip-preview` 与编辑器标记）。
+
 ## 2026-08-30 — Finance Dashboard 界面更新
 
 - Finance Dashboard 完成现代化动效与响应式布局更新，保留各工作区 Tab 的独立配色；总资产曲线、资产配置图、最近交易和页面文案同步优化。
