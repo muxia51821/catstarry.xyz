@@ -1,6 +1,7 @@
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { assertValidLearnPublicRelations, extractLearnWikilinkSlugs } from '../../shared/learn-relations.ts';
+import { formatLearnTitle } from '../../shared/learn-title.mjs';
 
 export async function readLearnPublicationEntries(root = 'src/data/learn') {
   const entries = [];
@@ -12,6 +13,7 @@ export async function readLearnPublicationEntries(root = 'src/data/learn') {
     if (state === 'withdrawn' || state === 'superseded') continue;
     const slug = scalar(frontmatter, 'slug');
     const title = scalar(frontmatter, 'title');
+    const subtitle = scalar(frontmatter, 'subtitle');
     const excerpt = scalar(frontmatter, 'excerpt') ?? '';
     const revisedAt = scalar(frontmatter, 'revisedAt');
     if (!slug || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug) || !title) {
@@ -19,7 +21,7 @@ export async function readLearnPublicationEntries(root = 'src/data/learn') {
     }
     entries.push({
       slug,
-      title,
+      title: formatLearnTitle({ title, subtitle }),
       excerpt,
       revised_at: revisedAt ? new Date(revisedAt).toISOString() : null,
       links: extractLearnWikilinkSlugs(source),

@@ -7,6 +7,7 @@ import {
   getTrackDefinition,
 } from './learn-data';
 import { serializeJsonForInlineScript } from '../../lib/safe-json.mjs';
+import { formatLearnTitle } from '../../../shared/learn-title.mjs';
 
 interface Props {
   note: LearnNote;
@@ -20,7 +21,7 @@ const { note, allNotes, Content, headings = [], preview = false } = Astro.props;
 const track = getTrackDefinition(note.track);
 const related = getRelatedNotes(note, allNotes);
 const previewData = Object.fromEntries(allNotes.map((item) => [item.slug, {
-  title: item.title,
+  title: formatLearnTitle(item),
   excerpt: item.excerpt,
 }]));
 const previewJson = serializeJsonForInlineScript(previewData);
@@ -54,6 +55,7 @@ const showChapters = chapters.length >= 2;
       {note.revisedAt && <time datetime={note.revisedAt}>修订于 {formatLearnDate(note.revisedAt)}</time>}
     </div>
     <h1>{note.title}</h1>
+    {note.subtitle && <p class="learn-detail-page__subtitle">{note.subtitle}</p>}
     <p class="learn-detail-page__excerpt">{note.excerpt}</p>
   </header>
 
@@ -70,7 +72,7 @@ const showChapters = chapters.length >= 2;
             const itemTrack = getTrackDefinition(item.track);
             return (
               <li>
-                <a href={`/learn/notes/${item.slug}/`}>{item.title}</a>
+                <a href={`/learn/notes/${item.slug}/`}>{formatLearnTitle(item)}</a>
                 {item.track !== note.track && <span>{itemTrack.name}</span>}
               </li>
             );

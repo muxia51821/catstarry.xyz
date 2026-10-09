@@ -10,6 +10,8 @@
 4. 保留读者需要的概念、边界、示例和参考链接；删除学习者诊断、检索题、课程编号、私有路径与会话记录。格式与 frontmatter 规则见 [ADR-008](../adr/008-learn-markdown-canonical-content-format.md)。
 5. 新源文件默认是 Hidden 候选。不要用 `state: published` 或 `publishedAt` 代替 runtime Admin Publish。
 
+系列文章可以用共同的`title`和可选`subtitle`保留篇名，`excerpt`继续承担摘要。独立副标题由正文页展示；列表、搜索、关联提示、发布清单与首次发布足迹使用主／副标题组合，已有无副标题笔记保持原显示。字段定义见`src/content.config.ts`的Learn schema，组合规则见`shared/learn-title.mjs`。
+
 ## 2. 关系与验证
 
 1. 只在确有读者关系时加入 `[[wikilink]]`；不要因同 Track 自动建立关系。

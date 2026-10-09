@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import type { LearnPublicationRecord } from '../../../shared/types';
+import { formatLearnTitle } from '../../../shared/learn-title.mjs';
 
 export interface LearnAdminEntry {
   slug: string;
   title: string;
+  subtitle?: string;
   trackLabel: string;
   section?: string;
   excerpt: string;
@@ -33,7 +35,7 @@ export default function LearnLifecycleAdmin({ initial, mutationEnabled = true }:
         body: JSON.stringify({
           slug: entry.slug,
           visibility,
-          title: entry.title,
+          title: formatLearnTitle(entry),
           excerpt: entry.excerpt,
           revised_at: entry.revisedAt ?? null,
         }),
@@ -64,6 +66,7 @@ export default function LearnLifecycleAdmin({ initial, mutationEnabled = true }:
       return <article className="learn-admin-row" data-note-slug={entry.slug} key={entry.slug}>
         <div>
           <h2>{entry.title}</h2>
+          {entry.subtitle && <p className="learn-admin-row__subtitle">{entry.subtitle}</p>}
           <p className="learn-admin-row__context">{entry.trackLabel}{entry.section ? ` · ${entry.section}` : ''}</p>
           <p className="learn-admin-row__excerpt">{entry.excerpt}</p>
         </div>

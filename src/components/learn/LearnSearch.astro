@@ -29,6 +29,7 @@ const searchJson = serializeJsonForInlineScript(searchNotes);
 </form>
 
 <script>
+  import { formatLearnTitle } from '../../../shared/learn-title.mjs';
   for (const root of document.querySelectorAll('[data-learn-search]')) {
     if (!(root instanceof HTMLFormElement)) continue;
     const input = root.querySelector('input');
@@ -38,7 +39,7 @@ const searchJson = serializeJsonForInlineScript(searchNotes);
     const notes = JSON.parse(indexNode?.textContent ?? '[]');
     let active = -1;
     const normalize = (value) => String(value ?? '').trim().toLocaleLowerCase('zh-CN');
-    const matches = (note, query) => [note.title, note.track, note.trackName, note.section, ...(note.tags ?? [])]
+    const matches = (note, query) => [note.title, note.subtitle, note.track, note.trackName, note.section, ...(note.tags ?? [])]
       .some((value) => normalize(value).includes(query));
     const clear = () => {
       suggestions.replaceChildren();
@@ -57,7 +58,7 @@ const searchJson = serializeJsonForInlineScript(searchNotes);
         link.id = `learn-suggestion-${index}`;
         link.role = 'option';
         const title = document.createElement('strong');
-        title.textContent = note.title;
+        title.textContent = formatLearnTitle(note);
         const context = document.createElement('span');
         context.textContent = [note.trackName, note.section].filter(Boolean).join(' · ');
         link.append(title, context);

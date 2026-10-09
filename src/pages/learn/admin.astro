@@ -10,6 +10,7 @@ import {
 } from '../../components/learn/learn-data';
 import { loadOwnerLearnPublications, mergeOwnerLearnNotes } from '../../lib/server/learn-publications';
 import '../../components/learn/learn.css';
+import { formatLearnTitle } from '../../../shared/learn-title.mjs';
 
 Astro.response.headers.set('Cache-Control', 'private, no-store');
 Astro.response.headers.set('Pragma', 'no-cache');
@@ -36,6 +37,7 @@ const notes: LearnAdminEntry[] = records ? mergeOwnerLearnNotes(sourceEntries, r
   .map((note) => ({
     slug: note.slug,
     title: note.title,
+    subtitle: note.subtitle,
     trackLabel: getTrackDefinition(note.track).name,
     section: note.section,
     excerpt: note.excerpt,
@@ -43,7 +45,7 @@ const notes: LearnAdminEntry[] = records ? mergeOwnerLearnNotes(sourceEntries, r
     state: note.state,
     everPublished: recordSlugs.has(note.slug),
   }))
-  .sort((a, b) => a.title.localeCompare(b.title, 'zh-CN')) : [];
+  .sort((a, b) => formatLearnTitle(a).localeCompare(formatLearnTitle(b), 'zh-CN')) : [];
 ---
 
 <Base title="Learn 管理" description="管理公开 Learn Note 的预览与状态。">
