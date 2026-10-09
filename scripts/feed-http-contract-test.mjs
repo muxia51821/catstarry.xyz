@@ -366,6 +366,7 @@ assert.equal(footprintCount(blogEnv), 1, 'withdraw and restore must preserve one
 
 const learnEnv = createEnv();
 const learnLifecycleUrl = 'https://api.test/api/learn/admin/publications';
+const learnLifecycleBatchUrl = 'https://api.test/api/learn/admin/publications/batch';
 const learnDeployUrl = 'https://api.test/api/learn/internal/publications';
 learnEnv.AUTH_KV.values.set('learn:relation-manifest', [
   { slug: 'runtime-note', links: [] },
@@ -513,6 +514,100 @@ assert.equal((await fetchWorker(relationEnv, learnLifecycleUrl, {
   body: JSON.stringify({ slug: 'relation-target', visibility: 'hidden' }),
 })).status, 409, 'Hide must reject removal of a public wikilink target');
 assert.equal(learnPublicationRow(relationEnv, 'relation-target').visibility, 'public');
+
+const batchEnv = createEnv();
+const batchToken = crypto.randomUUID();
+batchEnv.AUTH_KV.values.set(`session:${batchToken}`, {
+  username: 'contract-owner',
+  expires_at: new Date(Date.now() + 60_000).toISOString(),
+});
+batchEnv.AUTH_KV.values.set('learn:relation-manifest', [
+  { slug: 'cycle-a', links: ['cycle-b'] },
+  { slug: 'cycle-b', links: ['cycle-a'] },
+  { slug: 'missing-source', links: ['missing-target'] },
+  { slug: 'pending-note', links: [] },
+]);
+const batchHeaders = {
+  Cookie: `token=${batchToken}`,
+  Origin: 'https://catstarry.xyz',
+  'Content-Type': 'application/json',
+};
+const batchEntry = (slug) => ({ slug, title: `Title ${slug}`, excerpt: `Excerpt ${slug}` });
+assert.equal((await fetchWorker(batchEnv, learnLifecycleBatchUrl, {
+  method: 'POST', headers: { Origin: 'https://catstarry.xyz', 'Content-Type': 'application/json' },
+  body: JSON.stringify({ entries: [batchEntry('cycle-a')] }),
+})).status, 401, 'batch first Publish requires an owner session');
+assert.equal((await fetchWorker(batchEnv, learnLifecycleUrl, {
+  method: 'PATCH', headers: batchHeaders,
+  body: JSON.stringify({ slug: 'cycle-a', visibility: 'public', title: 'Title cycle-a' }),
+})).status, 409, 'single first Publish must still reject a cycle whose target is Hidden');
+assert.equal((await fetchWorker(batchEnv, learnLifecycleBatchUrl, {
+  method: 'POST', headers: batchHeaders, body: JSON.stringify({ entries: [batchEntry('cycle-a')] }),
+})).status, 409, 'batch first Publish must still reject a relation target omitted from the batch');
+assert.equal(learnPublicationRow(batchEnv, 'cycle-a'), null, 'failed relation validation must write no publication');
+assert.equal(footprintCount(batchEnv), 0, 'failed relation validation must write no footprint');
+assert.equal((await fetchWorker(batchEnv, learnLifecycleBatchUrl, {
+  method: 'POST', headers: batchHeaders,
+  body: JSON.stringify({ entries: [batchEntry('cycle-a'), batchEntry('cycle-a')] }),
+})).status, 400, 'batch first Publish must reject duplicate slugs');
+const cycleBatch = await fetchWorker(batchEnv, learnLifecycleBatchUrl, {
+  method: 'POST', headers: batchHeaders,
+  body: JSON.stringify({ entries: [batchEntry('cycle-a'), batchEntry('cycle-b')] }),
+}).then((response) => response.json());
+assert.equal(cycleBatch.created, 2, 'valid mutually-linked notes publish as one batch');
+assert.deepEqual(cycleBatch.entries.map((entry) => entry.slug).sort(), ['cycle-a', 'cycle-b']);
+assert.equal(footprintCount(batchEnv), 2, 'batch first Publish writes one footprint per note');
+assert.deepEqual(footprintsAll(batchEnv).map((entry) => entry.source_ref).sort(), ['cycle-a', 'cycle-b']);
+assert.equal((await fetchWorker(batchEnv, learnLifecycleBatchUrl, {
+  method: 'POST', headers: batchHeaders,
+  body: JSON.stringify({ entries: [batchEntry('cycle-a'), batchEntry('cycle-b')] }),
+}).then((response) => response.json()).then((result) => result.created)), 0, 'batch retries are idempotent');
+assert.equal(footprintCount(batchEnv), 2, 'batch retry must not duplicate first-publication footprints');
+const batchReleaseHeaders = {
+  Authorization: `Bearer ${batchEnv.FOOTPRINT_INGEST_TOKEN}`,
+  'Content-Type': 'application/json',
+};
+assert.equal((await fetchWorker(batchEnv, 'https://api.test/api/learn/internal/release/prepare', {
+  method: 'POST', headers: batchReleaseHeaders,
+  body: JSON.stringify({ release: { sha: '3'.repeat(40), generation: 301 } }),
+})).status, 200);
+assert.equal((await fetchWorker(batchEnv, learnLifecycleBatchUrl, {
+  method: 'POST', headers: batchHeaders, body: JSON.stringify({ entries: [batchEntry('pending-note')] }),
+})).status, 503, 'pending production release must freeze batch first Publish');
+assert.equal(learnPublicationRow(batchEnv, 'pending-note'), null, 'pending barrier must leave batch notes unpublished');
+
+const atomicBatchEnv = createEnv();
+const atomicBatchToken = crypto.randomUUID();
+atomicBatchEnv.AUTH_KV.values.set(`session:${atomicBatchToken}`, {
+  username: 'contract-owner',
+  expires_at: new Date(Date.now() + 60_000).toISOString(),
+});
+atomicBatchEnv.AUTH_KV.values.set('learn:relation-manifest', [
+  { slug: 'atomic-a', links: ['atomic-b'] },
+  { slug: 'atomic-b', links: ['atomic-a'] },
+]);
+atomicBatchEnv.database.exec(`CREATE TRIGGER fail_second_learn_footprint
+  BEFORE INSERT ON public_footprints
+  WHEN NEW.source_module = 'learn' AND NEW.source_ref = 'atomic-b'
+  BEGIN SELECT RAISE(ABORT, 'Injected batch footprint failure'); END;`);
+const atomicBatchHeaders = {
+  Cookie: `token=${atomicBatchToken}`,
+  Origin: 'https://catstarry.xyz',
+  'Content-Type': 'application/json',
+};
+const originalBatchConsoleError = console.error;
+console.error = () => {};
+try {
+  assert.equal((await fetchWorker(atomicBatchEnv, learnLifecycleBatchUrl, {
+    method: 'POST', headers: atomicBatchHeaders,
+    body: JSON.stringify({ entries: [batchEntry('atomic-a'), batchEntry('atomic-b')] }),
+  })).status, 500, 'a failed batch write must surface as a server error');
+} finally {
+  console.error = originalBatchConsoleError;
+}
+assert.equal(atomicBatchEnv.database.prepare('SELECT COUNT(*) AS count FROM learn_publications').get().count, 0,
+  'a failed batch transaction must roll back every publication');
+assert.equal(footprintCount(atomicBatchEnv), 0, 'a failed batch transaction must roll back every footprint');
 
 const publicationFootprint = footprintsAll(learnEnv).find((entry) => entry.event_type === 'learn_note_published');
 await learnEnv.database.prepare('UPDATE public_footprints SET visibility = ? WHERE id = ?')

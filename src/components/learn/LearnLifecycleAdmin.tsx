@@ -19,9 +19,21 @@ interface Props {
   mutationEnabled?: boolean;
 }
 
+async function lifecycleError(response: Response, fallback: string): Promise<string> {
+  try {
+    const body = await response.json() as { error?: { message?: unknown } };
+    if (typeof body.error?.message === 'string') return body.error.message;
+  } catch {
+    // Keep the local message when the lifecycle service has no JSON error body.
+  }
+  return fallback;
+}
+
 export default function LearnLifecycleAdmin({ initial, mutationEnabled = true }: Props) {
   const [entries, setEntries] = useState(initial);
   const [busy, setBusy] = useState<string | null>(null);
+  const [selectedSlugs, setSelectedSlugs] = useState<string[]>([]);
+  const [batchBusy, setBatchBusy] = useState(false);
   const [error, setError] = useState('');
 
   const update = async (entry: LearnAdminEntry, visibility: 'public' | 'hidden') => {
@@ -40,11 +52,12 @@ export default function LearnLifecycleAdmin({ initial, mutationEnabled = true }:
           revised_at: entry.revisedAt ?? null,
         }),
       });
-      if (!response.ok) throw new Error('Learn 发布状态更新失败');
+      if (!response.ok) throw new Error(await lifecycleError(response, 'Learn 发布状态更新失败'));
       const result = await response.json() as { entry: LearnPublicationRecord };
       setEntries((current) => current.map((candidate) => candidate.slug === entry.slug
         ? { ...candidate, state: result.entry.visibility, everPublished: true }
         : candidate));
+      setSelectedSlugs((current) => current.filter((slug) => slug !== entry.slug));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Learn 发布状态更新失败');
     } finally {
@@ -52,8 +65,53 @@ export default function LearnLifecycleAdmin({ initial, mutationEnabled = true }:
     }
   };
 
+  const publishSelected = async () => {
+    const selected = entries.filter((entry) => selectedSlugs.includes(entry.slug)
+      && !entry.everPublished && entry.state === 'hidden');
+    if (!selected.length) return;
+    setBatchBusy(true);
+    setError('');
+    try {
+      const response = await fetch('/learn/admin/lifecycle', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          entries: selected.map((entry) => ({
+            slug: entry.slug,
+            title: formatLearnTitle(entry),
+            excerpt: entry.excerpt,
+            revised_at: entry.revisedAt ?? null,
+          })),
+        }),
+      });
+      if (!response.ok) throw new Error(await lifecycleError(response, 'Learn 批量首次发布失败'));
+      const result = await response.json() as { entries: LearnPublicationRecord[]; created: number };
+      const bySlug = new Map(result.entries.map((entry) => [entry.slug, entry]));
+      setEntries((current) => current.map((entry) => {
+        const publication = bySlug.get(entry.slug);
+        return publication
+          ? { ...entry, state: publication.visibility, everPublished: true }
+          : entry;
+      }));
+      setSelectedSlugs([]);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Learn 批量首次发布失败');
+    } finally {
+      setBatchBusy(false);
+    }
+  };
+
+  const batchCandidates = entries.filter((entry) => !entry.everPublished && entry.state === 'hidden');
+
   return <section className="learn-admin-list" aria-label="Learn Note 管理列表">
     {error && <p className="learn-admin-error" role="alert">{error}</p>}
+    {mutationEnabled && batchCandidates.length > 0 && <div className="learn-admin-batch">
+      <p>勾选未发布的笔记后可一起首次公开。系统会先核验这批笔记与当前公开笔记之间的全部关系；校验失败时不会写入。</p>
+      <button type="button" disabled={selectedSlugs.length === 0 || busy !== null || batchBusy} onClick={() => void publishSelected()}>
+        批量首次发布（{selectedSlugs.length}）
+      </button>
+    </div>}
     {entries.map((entry) => {
       const historical = entry.state === 'withdrawn' || entry.state === 'superseded';
       const stateLabel = entry.state === 'public'
@@ -73,9 +131,23 @@ export default function LearnLifecycleAdmin({ initial, mutationEnabled = true }:
         <span className="learn-admin-row__state">{stateLabel}</span>
         <div className="learn-admin-row__actions">
           <a className="learn-admin-row__preview" href={`/learn/preview/${encodeURIComponent(entry.slug)}/`}>预览</a>
+          {mutationEnabled && !entry.everPublished && entry.state === 'hidden' && <label className="learn-admin-row__batch-select">
+            <input
+              type="checkbox"
+              checked={selectedSlugs.includes(entry.slug)}
+              disabled={busy !== null || batchBusy}
+              onChange={(event) => {
+                const checked = event.currentTarget.checked;
+                setSelectedSlugs((current) => checked
+                  ? [...new Set([...current, entry.slug])]
+                  : current.filter((slug) => slug !== entry.slug));
+              }}
+            />
+            批量首次发布
+          </label>}
           {mutationEnabled && !historical && (entry.state === 'public'
-            ? <button type="button" disabled={busy === entry.slug} onClick={() => void update(entry, 'hidden')}>Hide</button>
-            : <button type="button" disabled={busy === entry.slug} onClick={() => void update(entry, 'public')}>{entry.everPublished ? 'Show' : 'Publish'}</button>)}
+            ? <button type="button" disabled={busy === entry.slug || batchBusy} onClick={() => void update(entry, 'hidden')}>Hide</button>
+            : <button type="button" disabled={busy === entry.slug || batchBusy} onClick={() => void update(entry, 'public')}>{entry.everPublished ? 'Show' : 'Publish'}</button>)}
         </div>
       </article>;
     })}

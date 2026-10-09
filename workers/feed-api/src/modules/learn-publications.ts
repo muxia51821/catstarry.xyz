@@ -46,6 +46,18 @@ export function insertLearnPublicationStatement(
     )`).bind(row.slug, row.publishedAt, row.revisedAt, row.publishedAt, LEARN_PENDING_RELEASE_KEY);
 }
 
+export function insertLearnPublicationBatchStatement(
+  database: D1Database,
+  row: LearnFirstPublicationRow,
+): D1PreparedStatement {
+  return database.prepare(`INSERT INTO learn_publications (
+      slug, visibility, published_at, last_revised_at, updated_at
+    ) SELECT ?, 'public', ?, ?, ?
+    WHERE NOT EXISTS (
+      SELECT 1 FROM publication_release_guards WHERE guard_key = ?
+    )`).bind(row.slug, row.publishedAt, row.revisedAt, row.publishedAt, LEARN_PENDING_RELEASE_KEY);
+}
+
 export interface LearnPublicationVisibilityUpdate {
   slug: string;
   visibility: LearnPublicationVisibility;

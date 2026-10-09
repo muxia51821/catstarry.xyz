@@ -15,7 +15,7 @@
 ## 2. 关系与验证
 
 1. 只在确有读者关系时加入 `[[wikilink]]`；不要因同 Track 自动建立关系。
-2. 每个链接目标都必须是 production 时可公开解析的 Note。若同一批次存在依赖，先发布目标 Note；已公开的目标不阻塞新 Note。
+2. 每个链接目标都必须是 production 时可公开解析的 Note。普通依赖可先发布目标，再发布引用它的 Note；互相引用的首次发布循环，可在 Owner 管理列表中将尚未公开的相关 Note 一起批量发布。未公开且未选入本批的目标仍会被完整关系校验拒绝。
 3. 运行 `npm run test:learn:authoring`、`npm run test:learn:preview`、relation integrity 与 repository Validate / CI，并在 Preview 逐篇检查正文、章节导航和 wikilink。
 
 ## 3. PR、生产发布与首次 Publish
@@ -23,9 +23,9 @@
 1. 创建 PR，待 CI 通过后合并到 `main`。
 2. 从 exact、clean、最新的 `main` 核对当前 production SHA 到 `main` 的完整 release diff，再按 [DEPLOY](../DEPLOY.md) 执行 Site production release。
 3. 生产部署确认成功后运行 `npm run release:dispatch-sync`；若结果不明或 lifecycle 暂不可用，先运行 `npm run release:status` 核对 exact release，不重复发送或点击 Publish。
-4. Sync 全绿后进入 `/learn/admin/`，逐篇打开 Production Preview。首次 Publish 由木下亲自执行；它才创建 runtime public projection 和首次 Learn Footprint。
+4. Sync 全绿后进入 `/learn/admin/`，逐篇打开 Production Preview。首次 Publish 由木下亲自执行：普通依赖按顺序逐篇发布；互引循环则勾选全部相关未公开 Note 后使用“批量首次发布”。系统先校验当前公开 Note 与所选集合的完整关系，全部通过后才创建各篇 runtime publication 与首次 Learn Footprint。
 
 ## 4. 异常边界
 
-- `409`：公开 wikilink integrity 不成立。修正依赖或内容后，重新完成 PR、production release 与 exact sync。
+- `409`：所提公开集合的 wikilink integrity 不成立，或批量选择包含已发布条目。确认所有目标已经公开或已纳入本批后再试；不要绕过校验。
 - `503`：pending release 还未被 exact sync 激活。先检查 `npm run release:status`，不要重复点击 Publish。
