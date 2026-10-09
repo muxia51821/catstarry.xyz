@@ -530,7 +530,6 @@
 .learn-admin-batch button:disabled { cursor: wait; opacity: .65; }
 .learn-admin-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 20px 32px; align-items: start; padding-block: 22px; border-block-end: 1px solid var(--content-hairline); }
 .learn-admin-row h2 { margin: 0; font-size: clamp(17px, 2vw, 21px); font-weight: 500; }
-.learn-admin-row__subtitle { margin: 6px 0 0; color: var(--content-text-primary); font-weight: 500; line-height: 1.6; text-wrap: pretty; overflow-wrap: anywhere; }
 .learn-admin-row__context,
 .learn-admin-row__excerpt { color: var(--content-text-secondary); overflow-wrap: anywhere; }
 .learn-admin-row__context { margin: 6px 0 0; font-size: var(--text-xs); }

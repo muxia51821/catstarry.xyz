@@ -123,8 +123,7 @@ export default function LearnLifecycleAdmin({ initial, mutationEnabled = true }:
             : 'Superseded';
       return <article className="learn-admin-row" data-note-slug={entry.slug} key={entry.slug}>
         <div>
-          <h2>{entry.title}</h2>
-          {entry.subtitle && <p className="learn-admin-row__subtitle">{entry.subtitle}</p>}
+          <h2>{formatLearnTitle(entry)}</h2>
           <p className="learn-admin-row__context">{entry.trackLabel}{entry.section ? ` · ${entry.section}` : ''}</p>
           <p className="learn-admin-row__excerpt">{entry.excerpt}</p>
         </div>
