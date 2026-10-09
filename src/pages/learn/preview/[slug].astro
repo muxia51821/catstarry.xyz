@@ -8,6 +8,7 @@ import { noteFromEntry } from '../../../components/learn/learn-data';
 import { readOwnerSession } from '../../../lib/server/owner-auth';
 import { loadOwnerLearnPublications, mergeOwnerLearnNotes } from '../../../lib/server/learn-publications';
 import '../../../components/learn/learn.css';
+import { formatLearnTitle } from '../../../../shared/learn-title.mjs';
 
 const previewHeaders = {
   'Cache-Control': 'private, no-store',
@@ -38,7 +39,7 @@ const headings = rendered?.headings ?? [];
 if (unavailable) Astro.response.status = 503;
 ---
 
-<Base title={note ? `${note.title} · Private Preview` : 'Learn Private Preview'} description={note?.excerpt ?? '私有 Learn 内容预览。'}>
+<Base title={note ? `${formatLearnTitle(note)} · Private Preview` : 'Learn Private Preview'} description={note?.excerpt ?? '私有 Learn 内容预览。'}>
   <meta slot="head" name="robots" content="noindex,nofollow,noarchive" />
   {unavailable ? (
     <main class="learn-page learn-private-state" data-canvas="content"><h1>预览服务暂时不可用</h1><p>认证服务暂时不可用，请稍后重试。</p></main>

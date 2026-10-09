@@ -2,6 +2,7 @@
 import type { TrackDefinition, LearnNote } from './learn-data';
 import { getNormalizedRelations } from './learn-data';
 import { layoutLearnGraph } from '../../lib/learn-graph-layout';
+import { formatLearnTitle } from '../../../shared/learn-title.mjs';
 
 interface Props {
   tracks: TrackDefinition[];
@@ -57,7 +58,7 @@ const trackCount = Math.max(tracks.length, 1);
             style={`--graph-x:${position.x / 10}%;--graph-y:${position.y / 6}%;`}
           >
             <span class="learn-graph__hit" aria-hidden="true"><span class="learn-graph__dot"></span></span>
-            <span class="learn-graph__label">{note.title}</span>
+            <span class="learn-graph__label">{formatLearnTitle(note)}</span>
           </a>
         );
       })}

@@ -4,6 +4,7 @@ import {
   extractLearnWikilinkSlugs,
 } from '../../../shared/learn-relations';
 import { formatShanghaiLongDate, formatShanghaiShortDate } from '../../../shared/shanghai-time';
+import { formatLearnTitle } from '../../../shared/learn-title.mjs';
 
 export interface TrackDefinition {
   slug: string;
@@ -26,6 +27,7 @@ export type LearnLifecycleState = 'hidden' | 'public' | 'superseded' | 'withdraw
 export interface LearnNote {
   slug: string;
   title: string;
+  subtitle?: string;
   track: string;
   section?: string;
   tags: string[];
@@ -52,6 +54,7 @@ export function noteFromEntry(entry: LearnEntry): LearnNote {
   return {
     slug: entry.data.slug,
     title: entry.data.title,
+    subtitle: entry.data.subtitle,
     track: entry.data.track,
     section: entry.data.section,
     tags: entry.data.tags,
@@ -142,7 +145,7 @@ export function lifecycleLabel(state: LearnLifecycleState) {
 }
 
 function compareNotesByTitle(a: LearnNote, b: LearnNote) {
-  return a.title.localeCompare(b.title, 'zh-CN');
+  return formatLearnTitle(a).localeCompare(formatLearnTitle(b), 'zh-CN');
 }
 
 function plainExcerpt(markdown: string): string {

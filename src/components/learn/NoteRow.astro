@@ -1,6 +1,7 @@
 ---
 import type { LearnNote } from './learn-data';
 import { formatLearnShortDate, getTrackDefinition } from './learn-data';
+import { formatLearnTitle } from '../../../shared/learn-title.mjs';
 
 interface Props { note: LearnNote; showEvent?: boolean; }
 const { note, showEvent = false } = Astro.props;
@@ -15,7 +16,7 @@ const eventDate = note.revisedAt ?? note.publishedAt;
     </p>
   )}
   <div class="learn-note-row__content">
-    <h3><a href={`/learn/notes/${note.slug}/`}>{note.title}</a></h3>
+    <h3><a href={`/learn/notes/${note.slug}/`}>{formatLearnTitle(note)}</a></h3>
     <p class="learn-note-row__excerpt">{note.excerpt}</p>
     {showEvent && <p class="learn-note-row__context">{track.name}{note.section ? ` · ${note.section}` : ''}</p>}
   </div>

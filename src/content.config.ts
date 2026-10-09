@@ -30,6 +30,7 @@ const learn = defineCollection({
   schema: z.object({
     slug: z.string().regex(SLUG_PATTERN),
     title: z.string(),
+    subtitle: z.string().optional(),
     track: z.string().regex(SLUG_PATTERN),
     section: z.string().optional(),
     tags: z.array(z.string()).default([]),

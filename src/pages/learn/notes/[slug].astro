@@ -7,6 +7,7 @@ import LearnNoteView from '../../../components/learn/LearnNoteView.astro';
 import { noteFromEntry } from '../../../components/learn/learn-data';
 import { loadPublicLearnNotes } from '../../../lib/server/learn-publications';
 import '../../../components/learn/learn.css';
+import { formatLearnTitle } from '../../../../shared/learn-title.mjs';
 
 const entries = await getCollection('learn');
 const entry = entries.find((candidate) => candidate.data.slug === Astro.params.slug);
@@ -25,7 +26,7 @@ if (sourceNote.state !== 'withdrawn') {
 const { Content, headings } = await render(entry);
 ---
 
-<Base title={`${note.title} · Learn`} description={note.excerpt}>
+<Base title={`${formatLearnTitle(note)} · Learn`} description={note.excerpt}>
   <main class="learn-detail-page" data-canvas="content">
     {note.state === 'withdrawn' && (
       <p class="learn-withdrawn-notice" role="status">此笔记已退出当前 Learn corpus；页面暂时保留用于历史链接。</p>
