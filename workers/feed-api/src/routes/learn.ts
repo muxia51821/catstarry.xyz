@@ -19,6 +19,7 @@ import { apiError, json, readJson } from '../lib/http';
 import { refreshActivitySignals } from '../modules/activity-signals';
 import {
   getLearnPublication,
+  insertLearnPublicationBatchStatement,
   insertLearnPublicationStatement,
   interpretGuardedLearnWrite,
   listLearnPublications,
@@ -82,6 +83,12 @@ export async function handleLearn(
     }
     return updatePublication(request, env, ctx);
   }
+  if (pathname === '/api/learn/admin/publications/batch' && request.method === 'POST') {
+    if (env.LOCAL_PREVIEW_AUTH === '1') {
+      return apiError(403, 'local_preview_read_only', 'Local Learn preview does not manage publication lifecycle');
+    }
+    return publishFirstPublications(request, env, ctx);
+  }
   if (pathname === '/api/learn/internal/release/prepare' && request.method === 'POST') {
     return updateReleaseBarrier(request, env, 'prepare');
   }
@@ -137,7 +144,7 @@ async function updatePublication(request: Request, env: LearnEnv, ctx: Execution
   if (await readLearnPendingRelease(env.DB)) {
     return releasePendingResponse();
   }
-  const relationFailure = await validateProposedPublicRelations(env, slug, visibility);
+  const relationFailure = await validateProposedPublicRelations(env, [slug], visibility);
   if (relationFailure) return relationFailure;
   if (!existing) {
     if (visibility !== 'public' || !title) {
@@ -177,6 +184,83 @@ async function updatePublication(request: Request, env: LearnEnv, ctx: Execution
   }
   refreshAfterMutation(env, ctx);
   return json({ entry: await getLearnPublication(env.DB, slug), created: false });
+}
+
+async function publishFirstPublications(request: Request, env: LearnEnv, ctx: ExecutionContext): Promise<Response> {
+  const session = await requireMainSession(request, env);
+  if (session instanceof Response) return session;
+  const body = await readJson<{ entries?: unknown }>(request, 64 * 1_024);
+  if (body instanceof Response) return body;
+  if (!Array.isArray(body.entries) || body.entries.length < 1 || body.entries.length > 20) {
+    return apiError(400, 'invalid_publication_batch', 'Learn first-publication batch must contain 1 to 20 notes');
+  }
+
+  const entries = body.entries.map((candidate) => {
+    if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) return null;
+    const record = candidate as Record<string, unknown>;
+    const slug = typeof record.slug === 'string' ? record.slug.trim() : '';
+    const title = typeof record.title === 'string' ? record.title.trim() : '';
+    const excerpt = typeof record.excerpt === 'string' ? record.excerpt.trim() : '';
+    const revisedAt = record.revised_at === null || record.revised_at === undefined
+      ? null
+      : normalizeTimestamp(record.revised_at);
+    if (
+      !SLUG_PATTERN.test(slug)
+      || !title
+      || title.length > 200
+      || excerpt.length > 2_000
+      || (record.revised_at !== null && record.revised_at !== undefined && !revisedAt)
+    ) return null;
+    return { slug, title, excerpt, revisedAt };
+  });
+  if (entries.some((entry) => entry === null)) {
+    return apiError(400, 'invalid_publication_batch', 'Learn first-publication batch contains an invalid note');
+  }
+  const normalized = entries as Array<{ slug: string; title: string; excerpt: string; revisedAt: string | null }>;
+  if (new Set(normalized.map((entry) => entry.slug)).size !== normalized.length) {
+    return apiError(400, 'invalid_publication_batch', 'Learn first-publication batch contains duplicate slugs');
+  }
+  if (await readLearnPendingRelease(env.DB)) return releasePendingResponse();
+
+  const publications = await listLearnPublications(env.DB);
+  const publicationBySlug = new Map(publications.map((entry) => [entry.slug, entry]));
+  const existing = normalized.map((entry) => publicationBySlug.get(entry.slug) ?? null);
+  const alreadyPublic = existing.every((entry) => entry?.visibility === 'public');
+  if (existing.some(Boolean) && !alreadyPublic) {
+    return apiError(409, 'publication_changed', 'Batch Publish accepts only never-published notes or an already-public retry');
+  }
+
+  const slugs = normalized.map((entry) => entry.slug);
+  const relationFailure = await validateProposedPublicRelations(env, slugs, 'public');
+  if (relationFailure) return relationFailure;
+  if (alreadyPublic) {
+    return json({ entries: existing, created: 0 });
+  }
+
+  const now = new Date().toISOString();
+  const statements = normalized.flatMap((entry) => [
+    insertLearnPublicationBatchStatement(env.DB, {
+      slug: entry.slug,
+      publishedAt: now,
+      revisedAt: entry.revisedAt,
+    }),
+    footprintInsertStatement(
+      env.DB,
+      firstPublicationCandidate(entry.slug, entry.title, entry.excerpt, now),
+      now,
+      { pendingReleaseGuardKey: LEARN_PENDING_RELEASE_KEY, onConflict: 'abort' },
+    ),
+  ]);
+  const results = await env.DB.batch(statements);
+  if (results.some((result) => (result.meta.changes ?? 0) === 0)) {
+    if (await readLearnPendingRelease(env.DB)) return releasePendingResponse();
+    return apiError(409, 'publication_changed', 'Learn publication changed while the batch was being applied');
+  }
+
+  const published = await Promise.all(slugs.map((slug) => getLearnPublication(env.DB, slug)));
+  if (published.some((entry) => !entry)) throw new Error('Learn batch publication was not persisted');
+  refreshAfterMutation(env, ctx);
+  return json({ entries: published, created: normalized.length });
 }
 
 async function updateReleaseBarrier(
@@ -358,7 +442,7 @@ function normalizeLinks(value: unknown): string[] | null {
 
 async function validateProposedPublicRelations(
   env: LearnEnv,
-  slug: string,
+  slugs: readonly string[],
   visibility: LearnPublicationVisibility,
 ): Promise<Response | null> {
   const authority = normalizeRelationAuthority(
@@ -377,8 +461,10 @@ async function validateProposedPublicRelations(
   }
 
   const publicSlugs = new Set((await listLearnPublications(env.DB, 'public')).map((entry) => entry.slug));
-  if (visibility === 'public') publicSlugs.add(slug);
-  else publicSlugs.delete(slug);
+  for (const slug of slugs) {
+    if (visibility === 'public') publicSlugs.add(slug);
+    else publicSlugs.delete(slug);
+  }
   const bySlug = new Map(authority.entries.map((entry) => [entry.slug, entry]));
   const proposed: LearnRelationEntry[] = [];
   for (const publicSlug of publicSlugs) {

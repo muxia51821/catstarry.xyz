@@ -14,6 +14,7 @@ const PAGE_BUFFER = 1;
 
 export interface FootprintInsertOptions {
   pendingReleaseGuardKey?: string;
+  onConflict?: 'ignore' | 'abort';
 }
 
 export function footprintInsertStatement(
@@ -33,13 +34,14 @@ export function footprintInsertStatement(
     candidate.idempotency_key,
     createdAt,
   ];
+  const insert = options.onConflict === 'abort' ? 'INSERT' : 'INSERT OR IGNORE';
   if (!options.pendingReleaseGuardKey) {
-    return database.prepare(`INSERT OR IGNORE INTO public_footprints (
+    return database.prepare(`${insert} INTO public_footprints (
       id, source_module, source_ref, source_version, event_type, snapshot_json,
       occurred_at, visibility, idempotency_key, created_at
     ) VALUES (?, ?, ?, ?, ?, ?, ?, 'public', ?, ?)`).bind(...values);
   }
-  return database.prepare(`INSERT OR IGNORE INTO public_footprints (
+  return database.prepare(`${insert} INTO public_footprints (
       id, source_module, source_ref, source_version, event_type, snapshot_json,
       occurred_at, visibility, idempotency_key, created_at
     ) SELECT ?, ?, ?, ?, ?, ?, ?, 'public', ?, ?
