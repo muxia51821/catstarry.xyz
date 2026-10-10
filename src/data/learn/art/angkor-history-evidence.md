@@ -1,6 +1,6 @@
 ---
 slug: angkor-history-evidence
-title: 从暹罗到吴哥
+title: 从暹罗到吴哥 08
 subtitle: 从碑铭到修复：今天的吴哥是怎样留下来的
 track: art
 section: 吴哥历史与图像

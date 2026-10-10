@@ -1,6 +1,6 @@
 ---
 slug: bangkok-temple-knowledge
-title: 从暹罗到吴哥
+title: 从暹罗到吴哥 01
 subtitle: 曼谷寺院里的知识与中国物件，分别做了什么
 track: art
 section: 吴哥历史与图像

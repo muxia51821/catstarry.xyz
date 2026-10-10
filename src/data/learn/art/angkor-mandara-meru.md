@@ -1,6 +1,6 @@
 ---
 slug: angkor-mandara-meru
-title: 从暹罗到吴哥
+title: 从暹罗到吴哥 04
 subtitle: 从搅乳海读吴哥：神话、须弥山与建筑
 track: art
 section: 吴哥历史与图像

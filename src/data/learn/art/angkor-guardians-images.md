@@ -1,6 +1,6 @@
 ---
 slug: angkor-guardians-images
-title: 从暹罗到吴哥
+title: 从暹罗到吴哥 05
 subtitle: 神守在哪里：方位、门口与造像的几种关系
 track: art
 section: 吴哥历史与图像

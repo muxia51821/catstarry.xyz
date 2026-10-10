@@ -1,6 +1,6 @@
 ---
 slug: angkor-banteay-srei-stories
-title: 从暹罗到吴哥
+title: 从暹罗到吴哥 06
 subtitle: 女王宫的故事如何读在一起：湿婆、黑天与猴王兄弟
 track: art
 section: 吴哥历史与图像

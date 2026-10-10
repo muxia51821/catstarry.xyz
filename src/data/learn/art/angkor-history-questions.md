@@ -1,6 +1,6 @@
 ---
 slug: angkor-history-questions
-title: 从暹罗到吴哥
+title: 从暹罗到吴哥 02
 subtitle: 吴哥怎样成为吴哥，又怎样继续存在
 track: art
 section: 吴哥历史与图像
