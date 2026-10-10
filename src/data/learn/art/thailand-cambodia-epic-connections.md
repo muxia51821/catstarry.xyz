@@ -1,6 +1,6 @@
 ---
 slug: thailand-cambodia-epic-connections
-title: 从暹罗到吴哥
+title: 从暹罗到吴哥 03
 subtitle: 从两部史诗到曼谷与吴哥：人物、故事与表演
 track: art
 section: 吴哥历史与图像

@@ -1,6 +1,6 @@
 ---
 slug: angkor-modern-history
-title: 从暹罗到吴哥
+title: 从暹罗到吴哥 07
 subtitle: 周达观之后：战争、考古与保护怎样改变吴哥
 track: art
 section: 吴哥历史与图像
