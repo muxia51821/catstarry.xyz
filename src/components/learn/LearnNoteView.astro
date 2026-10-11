@@ -72,7 +72,7 @@ const showChapters = chapters.length >= 2;
             const itemTrack = getTrackDefinition(item.track);
             return (
               <li>
-                <a href={`/learn/notes/${item.slug}/`}>{formatLearnTitle(item)}</a>
+                <a href={`/learn/${preview ? 'preview' : 'notes'}/${item.slug}/`} target="_blank" rel="noopener noreferrer">{formatLearnTitle(item)}</a>
                 {item.track !== note.track && <span>{itemTrack.name}</span>}
               </li>
             );
@@ -81,7 +81,7 @@ const showChapters = chapters.length >= 2;
       </aside>
     )}
 
-    <article class="learn-note-body" data-wikilinks>
+    <article class="learn-note-body" data-wikilinks data-preview={preview ? 'true' : undefined}>
       <Content />
     </article>
     {showChapters && (
@@ -106,6 +106,23 @@ const showChapters = chapters.length >= 2;
   if (root instanceof HTMLElement) {
     const dataNode = document.getElementById('learn-preview-data');
     const previews = JSON.parse(dataNode?.textContent ?? '{}');
+    for (const link of root.querySelectorAll('a[href]')) {
+      if (!(link instanceof HTMLAnchorElement)) continue;
+      const destination = new URL(link.href, window.location.href);
+      const noteRoute = destination.pathname.match(/^\/learn\/notes\/([a-z0-9]+(?:-[a-z0-9]+)*)\/?$/);
+      if (root.dataset.preview === 'true'
+        && destination.origin === window.location.origin
+        && noteRoute && Object.hasOwn(previews, noteRoute[1])) {
+        destination.pathname = `/learn/preview/${noteRoute[1]}/`;
+        link.href = destination.href;
+      }
+      const samePage = destination.origin === window.location.origin
+        && destination.pathname === window.location.pathname
+        && destination.search === window.location.search;
+      if (samePage || !['http:', 'https:'].includes(destination.protocol)) continue;
+      link.target = '_blank';
+      link.relList.add('noopener', 'noreferrer');
+    }
     for (const trigger of root.querySelectorAll('[data-wikilink-trigger]')) {
       if (!(trigger instanceof HTMLAnchorElement)) continue;
       const target = previews[trigger.dataset.wikilinkSlug ?? ''];
