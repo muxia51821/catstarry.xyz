@@ -71,8 +71,14 @@ try {
   ];
 
   async function load(route, label) {
-    await send('Page.navigate', { url: `${baseUrl}${route}` });
-    await waitFor(`document.readyState === 'complete'`, label);
+    const previousTimeOrigin = await evaluate('performance.timeOrigin');
+    const url = `${baseUrl}${route}`;
+    await send('Page.navigate', { url });
+    // Navigation can return while the previous document is still complete.
+    // Require a new document even when reloading the same route.
+    await waitFor(`performance.timeOrigin !== ${previousTimeOrigin}
+      && location.href === ${JSON.stringify(url)}
+      && document.readyState === 'complete'`, label);
   }
 
   const contentRoutes = ['/blog/', '/learn/', '/projects/'];
@@ -80,6 +86,11 @@ try {
   for (const route of contentRoutes) {
     await send('Emulation.setEmulatedMedia', { media: '', features: desktopFinePointerMedia });
     await load(route, `${route} desktop load`);
+    // Chromium can expose the fine pointer only after the first mouse input.
+    await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 340, y: 180, pointerType: 'mouse' });
+    await delay(40);
+    await waitFor(`!matchMedia('(hover: hover) and (pointer: fine)').matches
+      || document.querySelector('.content-meteor-canvas') instanceof HTMLCanvasElement`, `${route} Content runtime ready`);
     await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 360, y: 180, pointerType: 'mouse' });
     await delay(40);
     const beforeClick = await evaluate(`(() => {

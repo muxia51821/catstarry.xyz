@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import sharp from 'sharp';
 import {
   isCredentialFreeHttpsUrl,
   isIsoCalendarDate,
@@ -29,11 +30,12 @@ assert.deepEqual(
 
 for (const project of publicProjects) {
   assert.match(project.url, /^https:\/\//);
-  assert.match(project.screenshot, /^\/assets\/projects\/[a-z0-9-]+\.png$/, `${project.projectId} needs a real screenshot`);
-  const bytes = await readFile(`public${project.screenshot}`);
-  assert.deepEqual([...bytes.subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10], `${project.projectId} screenshot must be a PNG`);
-  assert.ok(bytes.readUInt32BE(16) >= 1200, `${project.projectId} screenshot is too narrow`);
-  assert.ok(bytes.readUInt32BE(20) >= 700, `${project.projectId} screenshot is too short`);
+  assert.match(project.screenshot, /^\/assets\/projects\/[a-z0-9-]+\.(?:webp|png|jpe?g)$/, `${project.projectId} needs a real screenshot`);
+  const { format, width, height } = await sharp(`public${project.screenshot}`).metadata();
+  const extension = project.screenshot.split('.').at(-1).replace('jpg', 'jpeg');
+  assert.equal(format, extension, `${project.projectId} screenshot format must match its extension`);
+  assert.ok(width >= 1200, `${project.projectId} screenshot is too narrow`);
+  assert.ok(height >= 700, `${project.projectId} screenshot is too short`);
 }
 
 console.log('Projects data and screenshot contracts passed.');

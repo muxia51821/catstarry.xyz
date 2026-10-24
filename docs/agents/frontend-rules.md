@@ -40,8 +40,6 @@ Pointer enhancement 只在合适的 fine-pointer 环境启用，并尊重 `prefe
 
 `src/styles/main.css` 是主站 canonical global style entry；`src/layouts/Base.astro` 当前从该入口加载主站全局 CSS。当前 global chain 从 `variables.css`、`typography.css`、`components.css` 进入，并另外加载 Content pointer styles；维护 current import graph，不创建第二套全局入口。
 
-`src/styles/global.css` 仍存在于仓库，但 current production source 没有 consumer。它保存的是早期 Slice 的独立色板、Card、680px 等旧样式，不属于当前 global style graph；不得因为文件存在而重新 import 或把其中 token / component treatment 当作 current Design authority。
-
 ### 3.1 三层 token implementation contract
 
 `src/styles/variables.css` 当前实现三层结构：

@@ -17,15 +17,3 @@ export function logWorkerError(
 ): void {
   console.error({ event, ...fields, error: describeWorkerError(error) });
 }
-
-export function logWorkerWarning(
-  event: string,
-  fields: Record<string, unknown>,
-  error?: unknown,
-): void {
-  console.warn({
-    event,
-    ...fields,
-    ...(error === undefined ? {} : { error: describeWorkerError(error) }),
-  });
-}

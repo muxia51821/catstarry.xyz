@@ -72,11 +72,6 @@ export interface PaginatedResponse<T> {
   has_more: boolean;
 }
 
-export interface BlogViewCount {
-  slug: string;
-  count: number;
-}
-
 export interface LoginRequest {
   username: string;
   password: string;

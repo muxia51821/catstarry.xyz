@@ -49,7 +49,7 @@ const PROTOTYPE_VISUAL_PARAMETERS = {
   },
 
   camera: {
-    journeyVh: { orbit: 400, drift: 430, mobile: 350 },
+    journeyVh: { desktop: 430, mobile: 350 },
     entryEnd: 0.18,
     approachEnd: 0.62,
     approachStart: 0.10,
@@ -134,10 +134,7 @@ const PROTOTYPE_VISUAL_PARAMETERS = {
 
   planet: {
     overviewSizePx: { min: 112, preferredVw: 16, max: 244 },
-    overviewScale: {
-      orbit: { about: 1.08, blog: 0.83, feed: 0.71, learn: 0.8, projects: 0.92 },
-      drift: { about: 0.88, blog: 0.94, feed: 1, learn: 0.91, projects: 0.94 }
-    },
+    overviewScale: { about: 0.88, blog: 0.94, feed: 1, learn: 0.91, projects: 0.94 },
     depthScale: { about: 0.72, blog: 0.9, feed: 1, projects: 0.86, learn: 0.84 },
     emergence: {
       targetStart: 0.015,
@@ -284,14 +281,8 @@ const PROTOTYPE_VISUAL_PARAMETERS = {
   },
 
   layout: {
-    orbit: {
-      origin: [52, 51],
-      planets: { about: [77, 18, 5], blog: [23, 29, 2], feed: [65, 38, 1], projects: [23, 74, 4], learn: [73, 73, 3] }
-    },
-    drift: {
-      origin: [48, 47],
-      planets: { about: [77, 18, 5], blog: [25, 27, 2], feed: [61, 43, 1], projects: [21, 73, 4], learn: [75, 71, 3] }
-    }
+    origin: [48, 47],
+    planets: { about: [77, 18, 5], blog: [25, 27, 2], feed: [61, 43, 1], projects: [21, 73, 4], learn: [75, 71, 3] }
   }
 };
 
@@ -325,8 +316,7 @@ const P = PROTOTYPE_VISUAL_PARAMETERS,
           projects: "/projects/",
         };
         const focusMeta = homeCopy.planets;
-        let variant = "drift",
-          catState = "rest",
+        let catState = "rest",
           activeFocus = null,
           focusTrigger = null,
           focusMode = null,
@@ -1182,7 +1172,7 @@ const P = PROTOTYPE_VISUAL_PARAMETERS,
           const mobile = innerWidth <= 760,
             baseJourneyVh = mobile
               ? P.camera.journeyVh.mobile
-              : P.camera.journeyVh[variant],
+              : P.camera.journeyVh.desktop,
             stepVh = mobile
               ? P.camera.focusSequence.stepVh.mobile
               : P.camera.focusSequence.stepVh.desktop,
@@ -1236,9 +1226,8 @@ const P = PROTOTYPE_VISUAL_PARAMETERS,
             Math.max(P.camera.approachEnd, latestPlanetThreshold),
           );
         }
-        function setVariant(next) {
-          variant = next;
-          body.dataset.variant = next;
+        function refreshJourney() {
+          body.dataset.variant = "drift";
           root.style.setProperty(
             "--journey",
             `${cameraMetrics().totalJourneyVh}vh`,
@@ -1559,9 +1548,9 @@ const P = PROTOTYPE_VISUAL_PARAMETERS,
           );
           planets.forEach((planet) => {
             const key = planet.dataset.planet,
-              [tx, ty, z] = P.layout[variant].planets[key],
+              [tx, ty, z] = P.layout.planets[key],
               ts =
-                P.planet.overviewScale[variant][key] * P.planet.depthScale[key],
+                P.planet.overviewScale[key] * P.planet.depthScale[key],
               depth = emergence.depthOffset[key],
               sphereStart = emergence.sphereStart + depth.progress,
               sphereEnd = emergence.sphereEnd + depth.progress * 0.22,
@@ -2532,14 +2521,14 @@ const P = PROTOTYPE_VISUAL_PARAMETERS,
         addEventListener("resize", () => {
           cancelManualAnimation();
           drawStarfield();
-          setVariant(variant);
+          refreshJourney();
           updateScene();
         });
         reduce.addEventListener("change", () => {
           if (reduce.matches) resetCatToRest();
           cancelManualAnimation();
           drawStarfield();
-          setVariant(variant);
+          refreshJourney();
           applyActivityProjection();
           document.getElementById("meteor-canvas").hidden =
             reduce.matches || !finePointer.matches;
@@ -2549,7 +2538,7 @@ const P = PROTOTYPE_VISUAL_PARAMETERS,
         setupCatConstellation();
         applyParameters();
         drawStarfield();
-        setVariant(variant);
+        refreshJourney();
         applyActivityProjection();
         setupMeteor();
         applyInitialStage();
