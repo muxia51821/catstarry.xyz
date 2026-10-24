@@ -17,7 +17,7 @@ const { project } = Astro.props;
 >
   <div class="project-card__visual">
     {project.screenshot ? (
-      <img src={project.screenshot} alt={`${project.name} 项目截图`} loading="lazy" />
+      <img src={project.screenshot} alt={`${project.name} 项目配图`} loading="lazy" />
     ) : (
       <div class="project-card__visual-placeholder" aria-hidden="true"></div>
     )}

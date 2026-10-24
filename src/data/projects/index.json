@@ -1,5 +1,19 @@
 [
   {
+    "projectId": "daily-training",
+    "name": "日常训练",
+    "description": "一个连接 AI Coach 与实际训练的个人应用，保存训练安排、执行记录与反馈，让下一次训练接着上一次继续。",
+    "url": "https://training.catstarry.xyz/app/",
+    "screenshot": "/assets/projects/daily-training.png",
+    "tags": [
+      "React",
+      "MCP",
+      "Cloudflare"
+    ],
+    "date": "2026-10-25",
+    "visibility": "public"
+  },
+  {
     "projectId": "underwoods-table-agent",
     "name": "Underwood's table agent",
     "description": "一个面向 Poker 场景的 PWA 应用。",
