@@ -57,7 +57,7 @@ try {
     if (message.method === 'Runtime.exceptionThrown') consoleProblems.push(message.params.exceptionDetails.text);
     if (message.method === 'Runtime.consoleAPICalled' && message.params.type === 'error') consoleProblems.push('console error');
   });
-  const { send, evaluate, waitFor } = cdp;
+  const { send, evaluate, waitFor, navigate } = cdp;
   await send('Runtime.enable');
   await send('Page.enable');
   await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
@@ -70,22 +70,12 @@ try {
     { name: 'pointer', value: 'fine' },
   ];
 
-  async function load(route, label) {
-    const previousTimeOrigin = await evaluate('performance.timeOrigin');
-    const url = `${baseUrl}${route}`;
-    await send('Page.navigate', { url });
-    // Navigation can return while the previous document is still complete.
-    // Require a new document even when reloading the same route.
-    await waitFor(`performance.timeOrigin !== ${previousTimeOrigin}
-      && location.href === ${JSON.stringify(url)}
-      && document.readyState === 'complete'`, label);
-  }
-
   const contentRoutes = ['/blog/', '/learn/', '/projects/'];
   const desktop = [];
   for (const route of contentRoutes) {
     await send('Emulation.setEmulatedMedia', { media: '', features: desktopFinePointerMedia });
-    await load(route, `${route} desktop load`);
+    await navigate(`${baseUrl}${route}`, `${route} desktop load`);
+    assert.equal(await evaluate('location.pathname'), route);
     // Chromium can expose the fine pointer only after the first mouse input.
     await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 340, y: 180, pointerType: 'mouse' });
     await delay(40);
@@ -139,7 +129,8 @@ try {
   const feedSource = await readFile('src/layouts/FeedLayout.astro', 'utf8');
   assert.match(feedSource, /data-canvas="content"/, 'Feed must retain its Content canvas marker');
 
-  await load('/', 'Home load');
+  await navigate(`${baseUrl}/`, 'Home load');
+  assert.equal(await evaluate('location.pathname'), '/');
   const home = await evaluate(`({ homeMeteor: Boolean(document.getElementById('meteor-canvas')), contentMeteor: Boolean(document.querySelector('.content-meteor-canvas')) })`);
   assert.deepEqual(home, { homeMeteor: true, contentMeteor: false }, 'Home runtime must remain isolated');
 
@@ -147,7 +138,8 @@ try {
     media: '',
     features: [...desktopFinePointerMedia, { name: 'prefers-reduced-motion', value: 'reduce' }],
   });
-  await load('/blog/', 'reduced motion Blog load');
+  await navigate(`${baseUrl}/blog/`, 'reduced motion Blog load');
+  assert.equal(await evaluate('location.pathname'), '/blog/');
   const reducedMotion = await evaluate(`Boolean(document.querySelector('.content-meteor-canvas'))`);
   assert.equal(reducedMotion, false, 'reduced motion must not mount Content meteor');
 
@@ -160,7 +152,8 @@ try {
   });
   await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
   await send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 1 });
-  await load('/blog/', 'mobile Blog load');
+  await navigate(`${baseUrl}/blog/`, 'mobile Blog load');
+  assert.equal(await evaluate('location.pathname'), '/blog/');
   const coarsePointer = await evaluate(`(() => {
     const canvas = document.querySelector('.content-meteor-canvas');
     return !canvas || getComputedStyle(canvas).display === 'none';

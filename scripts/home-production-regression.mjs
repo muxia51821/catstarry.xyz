@@ -366,13 +366,13 @@ try {
       }
     }
   });
-  const { send, evaluate, waitFor } = cdp;
+  const { send, evaluate, waitFor, navigate } = cdp;
   const load = async () => {
     phase = 'page navigation';
-    await send('Page.navigate', { url: baseUrl });
     try {
+      await navigate(baseUrl, 'Home load', 10_000);
       await waitFor(
-        `document.readyState === 'complete' && document.body.dataset.variant === 'drift'`,
+        `document.body.dataset.variant === 'drift'`,
         'Home runtime',
         10_000,
       );
