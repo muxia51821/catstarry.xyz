@@ -1,4 +1,5 @@
 import type { ActivitySignalsManifest, FootprintSource } from '../../../../shared/types';
+import { FOOTPRINT_SOURCE_ELIGIBILITY } from './footprint-projection';
 
 type LatestActivity = Partial<Record<'feed' | FootprintSource, string | null>>;
 
@@ -18,10 +19,7 @@ export class ActivitySignalStore {
   ) {}
 
   async readLatestActivity(publishedBlogSlugs: string[], publishedLearnSlugs: string[]): Promise<LatestActivity> {
-    const publicFootprint = `(visibility = 'public'
-      AND (source_module != 'blog' OR source_ref IN (SELECT value FROM json_each(?)))
-      AND (source_module != 'learn' OR event_type = 'learn_section_completed'
-        OR source_ref IN (SELECT value FROM json_each(?))))`;
+    const publicFootprint = `(visibility = 'public' AND ${FOOTPRINT_SOURCE_ELIGIBILITY})`;
     const [feedPost, footprints] = await Promise.all([
       this.database
         .prepare(

@@ -1,4 +1,4 @@
-import type { ClipPreview, FeedPostInput, PublicFootprint, PublicFootprintCandidate, TimelineEntry, Visibility } from '../../../../shared/types';
+import type { ClipPreview, FeedPostInput, PublicFootprint, PublicFootprintCandidate, Visibility } from '../../../../shared/types';
 import { FeedStore, decodeCursor } from '../adapters/feed-store';
 import { apiError, json, parseBoundedLimit, readJson } from '../lib/http';
 import { readPublishedBlogSlugs } from '../modules/blog-publications';
@@ -87,40 +87,17 @@ async function listAdmin(request: Request, env: FeedEnv, store: FeedStore): Prom
   if (from === null || to === null || (from && to && from >= to)) {
     return apiError(400, 'invalid_date_range', 'from and to must be valid dates with from before to');
   }
-  const [page, publishedBlogSlugs, publishedLearnSlugs] = await Promise.all([store.listAdmin({
+  const [publishedBlogSlugs, publishedLearnSlugs] = await Promise.all([
+    readPublishedBlogSlugs(env), listPublicLearnSlugs(env.DB),
+  ]);
+  return json(await store.listAdmin({
     visibility: visibility ?? undefined,
     type: type ?? undefined,
     from: from ?? undefined,
     to: to ?? undefined,
     cursor,
     limit,
-  }), readPublishedBlogSlugs(env), listPublicLearnSlugs(env.DB)]);
-  const publishedBlogSlugSet = new Set(publishedBlogSlugs);
-  const publishedLearnSlugSet = new Set(publishedLearnSlugs);
-  return json({
-    ...page,
-    items: page.items.map((entry) => withProjectionState(entry, publishedBlogSlugSet, publishedLearnSlugSet)),
-  });
-}
-
-function withProjectionState(
-  entry: TimelineEntry,
-  publishedBlogSlugs: Set<string>,
-  publishedLearnSlugs: Set<string>,
-): TimelineEntry {
-  if (entry.visibility === 'private') return { ...entry, projection_state: 'own_private' };
-  const footprint = entry.kind === 'system_footprint' ? entry.payload as PublicFootprint : null;
-  if (footprint?.source_module === 'blog' && !publishedBlogSlugs.has(footprint.source_ref)) {
-    return { ...entry, projection_state: 'source_hidden' };
-  }
-  if (
-    footprint?.source_module === 'learn'
-    && footprint.event_type !== 'learn_section_completed'
-    && !publishedLearnSlugs.has(footprint.source_ref)
-  ) {
-    return { ...entry, projection_state: 'source_hidden' };
-  }
-  return { ...entry, projection_state: 'public' };
+  }, publishedBlogSlugs, publishedLearnSlugs));
 }
 
 async function createPost(
