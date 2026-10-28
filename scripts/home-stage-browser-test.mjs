@@ -25,8 +25,7 @@ try {
   await cdp.send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 800, deviceScaleFactor: 1, mobile: false });
 
   const snapshot = async (url) => {
-    await cdp.send('Page.navigate', { url });
-    await cdp.waitFor('document.readyState === "complete"', `load ${url}`, 15_000);
+    await cdp.navigate(url, `load ${url}`, 15_000);
     await delay(250);
     return cdp.evaluate('({ y: scrollY, search: location.search, height: document.documentElement.scrollHeight })');
   };

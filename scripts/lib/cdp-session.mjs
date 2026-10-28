@@ -9,6 +9,7 @@ export async function connectCdp(target, onEvent = () => {}) {
 
   let commandId = 0;
   const pending = new Map();
+  const loadedDocuments = new Map();
 
   socket.addEventListener('message', (event) => {
     const message = JSON.parse(event.data);
@@ -21,6 +22,10 @@ export async function connectCdp(target, onEvent = () => {}) {
       else item.resolve(message.result);
       return;
     }
+    if (message.method === 'Page.lifecycleEvent' && message.params.name === 'load') {
+      loadedDocuments.set(message.params.frameId, message.params.loaderId);
+    }
+    if (message.method === 'Page.frameDetached') loadedDocuments.delete(message.params.frameId);
     if (message.method) onEvent(message);
   });
 
@@ -70,10 +75,41 @@ export async function connectCdp(target, onEvent = () => {}) {
     throw new Error(`Timed out waiting for ${label}`);
   }
 
+  async function navigate(url, label = url, timeoutMs = DEFAULT_TIMEOUT_MS) {
+    const deadline = Date.now() + timeoutMs;
+    const remaining = () => {
+      const milliseconds = deadline - Date.now();
+      if (milliseconds <= 0) throw new Error(`Timed out waiting for ${label} (${url})`);
+      return milliseconds;
+    };
+    try {
+      await send('Page.enable', {}, remaining());
+      await send('Page.setLifecycleEventsEnabled', { enabled: true }, remaining());
+      const previous = (await send('Page.getFrameTree', {}, remaining())).frameTree.frame;
+      const navigation = await send('Page.navigate', { url }, remaining());
+      if (navigation.errorText) throw new Error(navigation.errorText);
+      if (navigation.isDownload) throw new Error('Navigation started a download');
+      // Same-document navigation has no new loader. A dev-server reload may
+      // replace the requested document before it loads, so follow the current
+      // document while excluding the one that existed before this navigation.
+      if (!navigation.loaderId) return;
+      while (true) {
+        if (socket.readyState !== WebSocket.OPEN) throw new Error('CDP socket closed during navigation');
+        const current = (await send('Page.getFrameTree', {}, remaining())).frameTree.frame;
+        if (current.id === navigation.frameId && current.loaderId !== previous.loaderId
+          && loadedDocuments.get(current.id) === current.loaderId) return;
+        await delay(Math.min(25, remaining()));
+      }
+    } catch (error) {
+      throw new Error(`Navigation failed for ${label} (${url}): ${error.message}`, { cause: error });
+    }
+  }
+
   return {
     send,
     evaluate,
     waitFor,
+    navigate,
     close() {
       if (socket.readyState === WebSocket.OPEN) socket.close();
     },

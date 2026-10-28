@@ -203,7 +203,7 @@ try {
       });
     }
   });
-  const { send, evaluate, waitFor } = cdp;
+  const { send, evaluate, waitFor, navigate } = cdp;
   const pressKey = async (key, code, keyCode) => {
     await send('Input.dispatchKeyEvent', { type: 'keyDown', key, code, windowsVirtualKeyCode: keyCode, nativeVirtualKeyCode: keyCode });
     await send('Input.dispatchKeyEvent', { type: 'keyUp', key, code, windowsVirtualKeyCode: keyCode, nativeVirtualKeyCode: keyCode });
@@ -219,8 +219,8 @@ try {
     deviceScaleFactor: 1,
     mobile: false,
   });
-  await send('Page.navigate', { url: `${baseUrl}/learn/` });
-  await waitFor(`document.readyState === 'complete' && document.querySelectorAll('[data-graph-node]').length === 7`, 'Learn graph load');
+  await navigate(`${baseUrl}/learn/`, 'Learn graph load');
+  await waitFor(`document.querySelectorAll('[data-graph-node]').length === 7`, 'Learn graph load');
   assert.equal(await evaluate(`!document.querySelector('astro-dev-toolbar')`), true, 'Browser regression must disable the Astro dev toolbar');
   await waitFor(`document.querySelectorAll('.learn-graph__edges line').length === 6`, 'Learn graph relation edges');
   await delay(250);
@@ -386,8 +386,7 @@ try {
   await evaluate(`document.querySelector('[data-graph-node="git-commit-graph-branch-ref-head"]').click()`);
   await waitFor(`location.pathname === '/learn/notes/git-commit-graph-branch-ref-head/'`, 'Learn graph node destination');
 
-  await send('Page.navigate', { url: `${baseUrl}/blog/` });
-  await waitFor(`document.readyState === 'complete'`, 'Blog archive load');
+  await navigate(`${baseUrl}/blog/`, 'Blog archive load');
   await waitFor(`!document.fonts || document.fonts.status === 'loaded'`, 'Blog archive fonts', 10_000);
   const archiveDefault = await evaluate(`(() => {
     const entry = document.querySelector('.blog-post-entry');
@@ -459,8 +458,8 @@ try {
   })()`);
   assert.ok(archiveFocus);
 
-  await send('Page.navigate', { url: `${baseUrl}/projects/` });
-  await waitFor(`document.readyState === 'complete' && Boolean(document.querySelector('.project-card'))`, 'Projects load');
+  await navigate(`${baseUrl}/projects/`, 'Projects load');
+  await waitFor(`Boolean(document.querySelector('.project-card'))`, 'Projects load');
   await evaluate(`(() => {
     const style = document.createElement('style');
     style.id = 'projects-browser-regression-control';
@@ -524,8 +523,7 @@ try {
     deviceScaleFactor: 1,
     mobile: true,
   });
-  await send('Page.navigate', { url: `${baseUrl}/blog/` });
-  await waitFor(`document.readyState === 'complete'`, 'Mobile Blog archive load');
+  await navigate(`${baseUrl}/blog/`, 'Mobile Blog archive load');
   const archiveMobile = await evaluate(`(() => {
     const date = document.querySelector('.blog-post-entry__date');
     const mobileMeta = document.querySelector('.blog-post-entry__mobile-meta');
@@ -545,8 +543,7 @@ try {
     deviceScaleFactor: 1,
     mobile: false,
   });
-  await send('Page.navigate', { url: `${baseUrl}/blog/start-writing/` });
-  await waitFor(`document.readyState === 'complete'`, 'Blog article load');
+  await navigate(`${baseUrl}/blog/start-writing/`, 'Blog article load');
   await delay(500);
   const articleDesktop = await evaluate(`(() => {
     const paper = document.querySelector('.blog-article__paper');
@@ -575,8 +572,7 @@ try {
     deviceScaleFactor: 1,
     mobile: true,
   });
-  await send('Page.navigate', { url: `${baseUrl}/blog/start-writing/` });
-  await waitFor(`document.readyState === 'complete'`, 'Mobile Blog article load');
+  await navigate(`${baseUrl}/blog/start-writing/`, 'Mobile Blog article load');
   await delay(500);
   const articleMobile = await evaluate(`(() => {
     const paper = document.querySelector('.blog-article__paper');
@@ -608,8 +604,7 @@ try {
     deviceScaleFactor: 1,
     mobile: false,
   });
-  await send('Page.navigate', { url: `${baseUrl}/blog/start-writing/` });
-  await waitFor(`document.readyState === 'complete'`, 'Owner Blog article load');
+  await navigate(`${baseUrl}/blog/start-writing/`, 'Owner Blog article load');
   await waitFor(`document.querySelector('.post-views')?.textContent?.trim() === '73 次阅读'`, 'Owner Blog view count');
   const ownerArticle = await evaluate(`(() => ({
     viewText: document.querySelector('.post-views')?.textContent?.trim() ?? null,
@@ -628,17 +623,12 @@ try {
       mobile: width < 768,
     });
     for (const route of routes) {
-      const navigation = await send('Page.navigate', { url: `${baseUrl}${route}` });
-      assert.equal(
-        navigation.errorText,
-        undefined,
-        `${route} navigation failed (Astro exitCode=${site.exitCode}, signalCode=${site.signalCode})\n${siteOutput}`,
-      );
-      await waitFor(
-        `document.readyState === 'complete' && location.pathname === ${JSON.stringify(route)}`,
-        `${route} load`,
-        10_000,
-      );
+      try {
+        await navigate(`${baseUrl}${route}`, `${route} load`, 10_000);
+        assert.equal(await evaluate('location.pathname'), route, 'matrix navigation must reach the expected route');
+      } catch (error) {
+        throw new Error(`${error.message} (Astro exitCode=${site.exitCode}, signalCode=${site.signalCode})\n${siteOutput}`, { cause: error });
+      }
       await delay(100);
       if (route === '/learn/') {
         await waitFor(`document.querySelectorAll('.learn-graph__edges line').length === 6`, 'responsive Learn graph layout');
@@ -686,8 +676,7 @@ try {
     deviceScaleFactor: 1,
     mobile: true,
   });
-  await send('Page.navigate', { url: `${baseUrl}/learn/notes/vibe-coding-mission/` });
-  await waitFor(`document.readyState === 'complete'`, 'Learn detail load');
+  await navigate(`${baseUrl}/learn/notes/vibe-coding-mission/`, 'Learn detail load');
   await evaluate(`document.documentElement.style.fontSize = '200%'`);
   await delay(100);
   const textZoom = await evaluate(`({
@@ -716,21 +705,20 @@ try {
     `matchMedia('(prefers-reduced-motion: reduce)').matches`,
   );
 
-  await send('Page.navigate', { url: `${baseUrl}/blog/` });
+  await navigate(`${baseUrl}/blog/`, 'Blog history origin');
   await waitFor(`location.pathname === '/blog/'`, 'Blog history origin');
   const archiveReducedMotion = await evaluate(`(() => {
     const summary = document.querySelector('.blog-post-entry__description');
     return summary.getBoundingClientRect().height > 0 && getComputedStyle(summary).opacity === '1';
   })()`);
-  await send('Page.navigate', { url: `${baseUrl}/learn/` });
+  await navigate(`${baseUrl}/learn/`, 'Learn history destination');
   await waitFor(`location.pathname === '/learn/'`, 'Learn history destination');
   await evaluate('history.back()');
   await waitFor(`location.pathname === '/blog/'`, 'history back');
   await evaluate('history.forward()');
   await waitFor(`location.pathname === '/learn/'`, 'history forward');
 
-  await send('Page.navigate', { url: `${baseUrl}/missing-contract-route/` });
-  await waitFor(`document.readyState === 'complete'`, '404 load');
+  await navigate(`${baseUrl}/missing-contract-route/`, '404 load');
   const notFound = await evaluate(`({
     title: document.title,
     hasMain: Boolean(document.querySelector('main')),
