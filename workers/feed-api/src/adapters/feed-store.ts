@@ -9,6 +9,7 @@ import type {
   Visibility,
 } from '../../../../shared/types';
 import type { FootprintWrite } from '../modules/footprints';
+import { FOOTPRINT_SOURCE_ELIGIBILITY } from './footprint-projection';
 
 const PAGE_BUFFER = 1;
 
@@ -65,6 +66,7 @@ export interface AdminFilters {
 }
 
 interface TimelineRow {
+  projection_state: TimelineEntry['projection_state'];
   kind: 'native_post' | 'system_footprint';
   id: string;
   occurred_at: string;
@@ -143,12 +145,13 @@ export class FeedStore {
       { cursor, limit, visibility: 'public' },
       publishedBlogSlugs,
       publishedLearnSlugs,
+      true,
     );
     return page;
   }
 
-  async listAdmin(filters: AdminFilters): Promise<PaginatedResponse<TimelineEntry>> {
-    return this.listTimeline(filters);
+  async listAdmin(filters: AdminFilters, publishedBlogSlugs: string[], publishedLearnSlugs: string[]): Promise<PaginatedResponse<TimelineEntry>> {
+    return this.listTimeline(filters, publishedBlogSlugs, publishedLearnSlugs, false);
   }
 
   async createPost(input: FeedPostInput, now: string, id: string = crypto.randomUUID()): Promise<FeedPost> {
@@ -252,25 +255,16 @@ export class FeedStore {
 
   private async listTimeline(
     filters: AdminFilters,
-    publishedBlogSlugs?: string[],
-    publishedLearnSlugs?: string[],
+    publishedBlogSlugs: string[],
+    publishedLearnSlugs: string[],
+    publicOnly: boolean,
   ): Promise<PaginatedResponse<TimelineEntry>> {
     const where: string[] = [];
-    const values: (string | number)[] = [];
+    const values: (string | number)[] = [JSON.stringify(publishedBlogSlugs), JSON.stringify(publishedLearnSlugs)];
+    if (publicOnly) where.push("projection_state = 'public'");
     if (filters.visibility) {
       where.push('visibility = ?');
       values.push(filters.visibility);
-    }
-    if (publishedBlogSlugs) {
-      where.push(`(kind != 'system_footprint' OR source_module != 'blog'
-        OR source_ref IN (SELECT value FROM json_each(?)))`);
-      values.push(JSON.stringify(publishedBlogSlugs));
-    }
-    if (publishedLearnSlugs) {
-      where.push(`(kind != 'system_footprint' OR source_module != 'learn'
-        OR event_type = 'learn_section_completed'
-        OR source_ref IN (SELECT value FROM json_each(?)))`);
-      values.push(JSON.stringify(publishedLearnSlugs));
     }
     if (filters.type && ['note', 'clip'].includes(filters.type)) {
       where.push("(kind = 'native_post' AND type = ?)");
@@ -294,13 +288,20 @@ export class FeedStore {
       values.push(filters.cursor.occurred_at, filters.cursor.occurred_at, filters.cursor.id);
     }
 
-    const query = `SELECT * FROM (${TIMELINE_SELECT})${where.length ? ` WHERE ${where.join(' AND ')}` : ''}
+    const projection = `SELECT *, CASE
+      WHEN visibility = 'private' THEN 'own_private'
+      WHEN kind = 'native_post' OR ${FOOTPRINT_SOURCE_ELIGIBILITY} THEN 'public'
+      ELSE 'source_hidden' END AS projection_state
+      FROM (${TIMELINE_SELECT})`;
+    const query = `SELECT * FROM (${projection})${where.length ? ` WHERE ${where.join(' AND ')}` : ''}
       ORDER BY occurred_at DESC, id DESC LIMIT ?`;
     values.push(filters.limit + PAGE_BUFFER);
     const result = await this.database.prepare(query).bind(...values).all<TimelineRow>();
     const rows = result.results;
     const hasMore = rows.length > filters.limit;
-    const items = rows.slice(0, filters.limit).map(entryFromRow);
+    const items = rows.slice(0, filters.limit).map((row) => publicOnly
+      ? entryFromRow(row)
+      : { ...entryFromRow(row), projection_state: row.projection_state });
     const last = items.at(-1);
     return {
       items,

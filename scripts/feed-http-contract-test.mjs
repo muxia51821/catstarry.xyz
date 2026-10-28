@@ -7,6 +7,8 @@ import { Readability } from '@mozilla/readability';
 
 import { SqliteD1 } from './lib/sqlite-d1.mjs';
 import worker from '../workers/feed-api/src/index.ts';
+import { FeedStore, decodeCursor } from '../workers/feed-api/src/adapters/feed-store.ts';
+import { ActivitySignalStore } from '../workers/feed-api/src/adapters/activity-signal-store.ts';
 import { refreshActivitySignals } from '../workers/feed-api/src/modules/activity-signals.ts';
 
 const feedMigrationDirectory = path.join(
@@ -977,5 +979,67 @@ insertFootprintRow(unpublishedLearnSignalEnv, {
 await refreshActivitySignals(unpublishedLearnSignalEnv);
 assert.equal(JSON.parse(unpublishedLearnSignalEnv.HOME_PROJECTIONS.value).signals.learn.state, 'dormant',
   'unpublished learn_note_published must stay behind the projection gate');
+
+// One state matrix exercises all three SQL consumers through their normal reads.
+const projectionCases = [
+  ['blog', 'blog_published', 'visible', 'public', 'public'],
+  ['blog', 'blog_published', 'hidden', 'public', 'source_hidden'],
+  ['blog', 'blog_published', 'visible', 'private', 'own_private'],
+  ['blog', 'blog_published', 'hidden', 'private', 'own_private'],
+  ['learn', 'learn_note_published', 'visible', 'public', 'public'],
+  ['learn', 'learn_note_revised', 'visible', 'public', 'public'],
+  ['learn', 'learn_note_published', 'hidden', 'public', 'source_hidden'],
+  ['learn', 'learn_note_revised', 'hidden', 'public', 'source_hidden'],
+  ['learn', 'learn_note_published', 'visible', 'private', 'own_private'],
+  ['learn', 'learn_section_completed', 'hidden', 'public', 'public'],
+  ['learn', 'learn_section_completed', 'hidden', 'private', 'own_private'],
+  ['projects', 'project_updated', 'hidden', 'public', 'public'],
+  ['projects', 'project_updated', 'hidden', 'private', 'own_private'],
+  [null, null, null, 'public', 'public'],
+  [null, null, null, 'private', 'own_private'],
+];
+const mixedProjectionEnv = createEnv();
+const publicProjectionIds = [];
+for (const [index, [source, eventType, sourceRef, visibility, state]] of projectionCases.entries()) {
+  const projectionEnv = createEnv();
+  const id = crypto.randomUUID();
+  const occurredAt = new Date(Date.UTC(2026, 7, 18, 0, index)).toISOString();
+  for (const target of [projectionEnv, mixedProjectionEnv]) {
+    if (source) insertFootprintRow(target, {
+      id, source_module: source, source_ref: sourceRef, source_version: id,
+      event_type: eventType, visibility, occurred_at: occurredAt,
+      snapshot_json: JSON.stringify({ title: 'Historical snapshot' }),
+    });
+    else target.database.prepare(`INSERT INTO feed_posts
+      (id, type, content, visibility, created_at, updated_at) VALUES (?, 'note', 'Native note', ?, ?, ?)`)
+      .run(id, visibility, occurredAt, occurredAt);
+  }
+  const store = new FeedStore(projectionEnv.DB);
+  const page = await store.listPublic(undefined, 1, ['visible'], ['visible']);
+  assert.deepEqual(page.items.map((entry) => entry.id), state === 'public' ? [id] : [], `public projection case ${index}`);
+  assert.ok(page.items.every((entry) => !('projection_state' in entry)), 'public response shape must remain unchanged');
+  const admin = await store.listAdmin({ limit: 1 }, ['visible'], ['visible']);
+  assert.equal(admin.items[0].projection_state, state, `admin projection case ${index}`);
+  const latest = await new ActivitySignalStore(projectionEnv.DB, projectionEnv.HOME_PROJECTIONS)
+    .readLatestActivity(['visible'], ['visible']);
+  assert.equal(latest.feed, state === 'public' ? occurredAt : null, `Feed activity case ${index}`);
+  if (source) assert.equal(latest[source] ?? null, state === 'public' ? occurredAt : null, `source activity case ${index}`);
+  if (source) assert.equal(footprintsAll(projectionEnv)[0].snapshot_json, JSON.stringify({ title: 'Historical snapshot' }));
+  if (state === 'public') publicProjectionIds.unshift(id);
+}
+const mixedStore = new FeedStore(mixedProjectionEnv.DB);
+const seen = [];
+let cursor;
+do {
+  const page = await mixedStore.listPublic(cursor, 2, ['visible'], ['visible']);
+  assert.ok(page.items.length > 0 && page.items.length <= 2);
+  seen.push(...page.items.map((entry) => entry.id));
+  assert.ok(seen.length <= publicProjectionIds.length, 'pagination must advance without repeating records');
+  cursor = page.has_more ? decodeCursor(page.cursor) : undefined;
+  if (page.has_more) assert.ok(cursor, 'public pagination cursor must remain valid');
+} while (cursor);
+assert.deepEqual(seen, publicProjectionIds, 'source filtering must happen before LIMIT and preserve chronology');
+const allAdmin = await mixedStore.listAdmin({ limit: 50 }, ['visible'], ['visible']);
+assert.equal(allAdmin.items.length, projectionCases.length, 'admin must retain all source-hidden and private history');
 
 console.log('Feed HTTP contract passed.');
