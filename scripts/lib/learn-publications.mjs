@@ -1,5 +1,6 @@
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
+import { parseFrontmatter } from '@astrojs/markdown-remark';
 import { assertValidLearnPublicRelations, extractLearnWikilinkSlugs } from '../../shared/learn-relations.ts';
 import { formatLearnTitle } from '../../shared/learn-title.mjs';
 
@@ -8,15 +9,13 @@ export async function readLearnPublicationEntries(root = 'src/data/learn') {
   for (const file of await walk(root)) {
     if (!file.endsWith('.md')) continue;
     const source = await readFile(file, 'utf8');
-    const frontmatter = source.match(/^---\r?\n([\s\S]*?)\r?\n---/)?.[1] ?? '';
-    const state = scalar(frontmatter, 'state');
+    const { frontmatter } = parseFrontmatter(source);
+    const { state, slug, title, subtitle, excerpt = '', revisedAt } = frontmatter;
     if (state === 'withdrawn' || state === 'superseded') continue;
-    const slug = scalar(frontmatter, 'slug');
-    const title = scalar(frontmatter, 'title');
-    const subtitle = scalar(frontmatter, 'subtitle');
-    const excerpt = scalar(frontmatter, 'excerpt') ?? '';
-    const revisedAt = scalar(frontmatter, 'revisedAt');
-    if (!slug || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug) || !title) {
+    if (typeof slug !== 'string' || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)
+      || typeof title !== 'string' || !title
+      || (subtitle !== undefined && typeof subtitle !== 'string')
+      || typeof excerpt !== 'string') {
       throw new Error(`Learn file has invalid deployment metadata: ${file}`);
     }
     entries.push({
@@ -44,12 +43,6 @@ export function assertLearnProductionTransition(publicSlugs, candidateEntries) {
     return { slug: candidate.slug, links: candidate.links };
   });
   assertValidLearnPublicRelations(publicEntries);
-}
-
-function scalar(frontmatter, key) {
-  const value = frontmatter.match(new RegExp(`^${key}:\\s*(.+?)\\s*$`, 'm'))?.[1];
-  if (!value) return undefined;
-  return value.replace(/^['"]|['"]$/g, '');
 }
 
 async function walk(root) {

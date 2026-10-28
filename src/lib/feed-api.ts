@@ -4,10 +4,6 @@ export function normalizeApiBase(value: string): string {
   return value.replace(/\/$/, '');
 }
 
-export function feedApiBase(origin: string): string {
-  return normalizeApiBase(import.meta.env.FEED_API_URL ?? origin);
-}
-
 export function publicFeedApiBase(): string {
   return normalizeApiBase(import.meta.env.PUBLIC_FEED_API_URL ?? '');
 }

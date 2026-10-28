@@ -10,10 +10,3 @@ export async function comparePassword(password: string, passwordHash: string): P
   if (!hasValidBcryptPasswordLength(password)) return false;
   return bcrypt.compare(password, passwordHash);
 }
-
-export async function hashPassword(password: string): Promise<string> {
-  if (!hasValidBcryptPasswordLength(password)) {
-    throw new RangeError('Password must not exceed 72 UTF-8 bytes');
-  }
-  return bcrypt.hash(password, 10);
-}
