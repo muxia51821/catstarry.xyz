@@ -4,7 +4,7 @@
 
 ## 项目是什么
 
-catstarry.xyz 是木下的个人网站，由 AI agent 协助开发和维护。木下负责产品、架构与体验裁决，并决定 merge、deployment 和 production mutation。
+catstarry.xyz 是木下的个人网站，由 AI agent 协助开发和维护。木下负责产品、架构与体验裁决，并授权 deployment 和 production mutation；Agent 按 `AGENTS.md` 完成已授权任务的 Git 交付。
 
 项目当前处于 **Phase 8 长期维护**：围绕真实使用中的问题持续修复、更新内容，并在确有需要时重新进入 Product / Architecture / Design 裁决。
 

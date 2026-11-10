@@ -21,7 +21,7 @@ Phase 8 的目标是：
 
 Governance 不是所有小修的 mandatory gate，也不负责为了流程完整而制造额外流程。
 
-Codex / implementation session 负责明确授权范围内的实现与验证；是否可 commit / push 由任务 handoff 明确说明。Git 与 production authority 见 `AGENTS.md`。
+Codex / implementation session 负责明确授权范围内的实现、验证与 Git 交付。默认 Git 权限、合并条件及独立的 production authority 见 `AGENTS.md`；handoff 只需补充任务特有的权限限制或发布授权。
 
 ---
 
@@ -159,7 +159,7 @@ current repo evidence
 - 允许修改 / 禁止修改；
 - 关键 current evidence；
 - 验证与 acceptance boundary；
-- Git / deployment authority。
+- Git 默认权限之外的任务限制，以及是否包含 deployment / production mutation 授权。
 
 判断层已经完成时，不要求 Codex 再做一遍同样的治理判断。
 
@@ -173,15 +173,7 @@ current repo evidence
 
 ## 6. Git 与分支
 
-Git authority 以 `AGENTS.md` 为准，本文件不复制完整规则。
-
-Phase 8 的默认工作方式：
-
-- 有意义的功能、Bug、架构或复杂文档任务使用独立 `task/*` 或 `codex/*` branch；
-- 同一任务分支单机独占；
-- `main` 不是日常开发工作区；
-- 是否授权 Agent commit / push 由具体 handoff 明确说明；
-- 不允许 Agent 直接 push `main` 或自行 merge。
+任务分支、单机独占、同步方式、Agent Git 交付权限与合并条件统一按 `AGENTS.md` 的“Git 约束”执行。Git 交付过程中发现范围、产品裁决或验收缺口时，回到相应职责处理；已授予的权限不因步骤切换失效。
 
 ---
 
@@ -277,7 +269,7 @@ Phase 8 中木下主要负责：
 - 提出真实使用中的问题和需求；
 - 裁决 Product / Architecture / Design 分歧；
 - 验收重要用户体验；
-- 决定 merge / deployment / production mutation；
+- 决定任务范围与特有限制，授权 deployment / production mutation；默认 Git 交付由 Agent 按 `AGENTS.md` 完成；
 - 决定哪些问题值得继续、哪些暂时 Observe。
 
 Agent 负责尽量降低完成这些判断所需的技术负担，而不是增加新的治理负担。
