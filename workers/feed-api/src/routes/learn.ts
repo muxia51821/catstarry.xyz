@@ -25,6 +25,7 @@ import {
   listLearnPublications,
   updateLearnPublicationVisibilityStatement,
   updateLearnRevisionStatement,
+  type LearnRelationGuard,
 } from '../modules/learn-publications';
 import { buildSourceFootprintCandidate, FIRST_PRODUCTION_VERSION } from '../modules/footprints';
 import {
@@ -144,8 +145,8 @@ async function updatePublication(request: Request, env: LearnEnv, ctx: Execution
   if (await readLearnPendingRelease(env.DB)) {
     return releasePendingResponse();
   }
-  const relationFailure = await validateProposedPublicRelations(env, [slug], visibility);
-  if (relationFailure) return relationFailure;
+  const relations = await validateProposedPublicRelations(env, [slug], visibility);
+  if (relations instanceof Response) return relations;
   if (!existing) {
     if (visibility !== 'public' || !title) {
       return apiError(409, 'never_published', 'A never-published Learn note can only be published');
@@ -153,15 +154,19 @@ async function updatePublication(request: Request, env: LearnEnv, ctx: Execution
     const now = new Date().toISOString();
     const candidate = firstPublicationCandidate(slug, title, excerpt, now);
     const [publicationWrite, footprintWrite] = await env.DB.batch([
-      insertLearnPublicationStatement(env.DB, { slug, publishedAt: now, revisedAt }),
-      footprintInsertStatement(env.DB, candidate, now, { pendingReleaseGuardKey: LEARN_PENDING_RELEASE_KEY }),
+      insertLearnPublicationStatement(env.DB, { slug, publishedAt: now, revisedAt }, relations),
+      footprintInsertStatement(env.DB, candidate, now, {
+        pendingReleaseGuardKey: LEARN_PENDING_RELEASE_KEY, learnRelations: relations,
+      }),
     ]);
     const creation = await interpretGuardedLearnWrite(env.DB, publicationWrite.meta.changes ?? 0);
     if (!creation.written && creation.blockedByPendingRelease) {
       return releasePendingResponse();
     }
     const entry = await getLearnPublication(env.DB, slug);
-    if (!entry) throw new Error('Learn publication write was not persisted');
+    if (!entry || entry.visibility !== 'public') {
+      return apiError(409, 'publication_changed', 'Learn publication changed; reload and try again');
+    }
     if (creation.written && (footprintWrite.meta.changes ?? 0) === 0) {
       throw new Error('Learn first-publication footprint was not persisted');
     }
@@ -174,7 +179,7 @@ async function updatePublication(request: Request, env: LearnEnv, ctx: Execution
     slug,
     visibility,
     updatedAt,
-  }).run();
+  }, relations).run();
   const outcome = await interpretGuardedLearnWrite(env.DB, result.meta.changes ?? 0);
   if (!outcome.written) {
     if (outcome.blockedByPendingRelease) {
@@ -231,8 +236,8 @@ async function publishFirstPublications(request: Request, env: LearnEnv, ctx: Ex
   }
 
   const slugs = normalized.map((entry) => entry.slug);
-  const relationFailure = await validateProposedPublicRelations(env, slugs, 'public');
-  if (relationFailure) return relationFailure;
+  const relations = await validateProposedPublicRelations(env, slugs, 'public');
+  if (relations instanceof Response) return relations;
   if (alreadyPublic) {
     return json({ entries: existing, created: 0 });
   }
@@ -243,12 +248,12 @@ async function publishFirstPublications(request: Request, env: LearnEnv, ctx: Ex
       slug: entry.slug,
       publishedAt: now,
       revisedAt: entry.revisedAt,
-    }),
+    }, relations),
     footprintInsertStatement(
       env.DB,
       firstPublicationCandidate(entry.slug, entry.title, entry.excerpt, now),
       now,
-      { pendingReleaseGuardKey: LEARN_PENDING_RELEASE_KEY, onConflict: 'abort' },
+      { pendingReleaseGuardKey: LEARN_PENDING_RELEASE_KEY, onConflict: 'abort', learnRelations: relations },
     ),
   ]);
   const results = await env.DB.batch(statements);
@@ -444,7 +449,7 @@ async function validateProposedPublicRelations(
   env: LearnEnv,
   slugs: readonly string[],
   visibility: LearnPublicationVisibility,
-): Promise<Response | null> {
+): Promise<Response | LearnRelationGuard> {
   const authority = normalizeRelationAuthority(
     await env.AUTH_KV.get<unknown>(LEARN_RELATION_MANIFEST_KEY, 'json'),
   );
@@ -476,7 +481,7 @@ async function validateProposedPublicRelations(
   }
   try {
     assertValidLearnPublicRelations(proposed);
-    return null;
+    return { entries: authority.entries, slugs, visibility, release: authority.release };
   } catch (error) {
     return apiError(409, 'broken_public_relation', error instanceof Error ? error.message : 'Broken public Learn relation');
   }
