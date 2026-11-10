@@ -232,6 +232,7 @@ function FeedOwnerControls(props: {
       apiBase={apiBase}
       onClose={() => setShowPublish(false)}
       onAuthExpired={() => setSession({ authenticated: false, username: null })}
+      onAuthenticated={setSession}
     />}
   </>;
 }
@@ -251,16 +252,18 @@ function useModalDialog<T extends HTMLElement>(onClose: () => void) {
       : [];
     const backgroundState = background.map((element) => ({ element, inert: element.inert, ariaHidden: element.getAttribute('aria-hidden') }));
     for (const element of background) { element.inert = true; element.setAttribute('aria-hidden', 'true'); }
-    const focusables = () => Array.from(panel?.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), a[href]') ?? []);
+    const focusables = () => Array.from(panel?.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), a[href]') ?? [])
+      .filter((element) => !element.matches(':disabled') && element.getClientRects().length > 0);
     const firstFocusable = focusables()[0];
     if (firstFocusable) firstFocusable.focus(); else panel?.focus();
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') { event.preventDefault(); closeRef.current(); return; }
       if (event.key !== 'Tab') return;
       const items = focusables();
-      if (!items.length) return;
+      if (!items.length) { event.preventDefault(); panel?.focus(); return; }
       const first = items[0]; const last = items.at(-1)!;
-      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      if (!panel?.contains(document.activeElement)) { event.preventDefault(); (event.shiftKey ? last : first).focus(); }
+      else if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
       else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
     };
     document.addEventListener('keydown', onKeyDown);
@@ -278,29 +281,39 @@ function useModalDialog<T extends HTMLElement>(onClose: () => void) {
 }
 
 function LoginDialog({ apiBase, onClose, onLoggedIn }: { apiBase: string; onClose: () => void; onLoggedIn: (session: SessionStatus) => void }) {
+  const panelRef = useModalDialog<HTMLDivElement>(onClose);
+  return <div className="feed-dialog" role="dialog" aria-modal="true" aria-label="登录"><div ref={panelRef} className="feed-panel" tabIndex={-1}>
+    <button type="button" className="feed-close" onClick={onClose} aria-label="关闭">×</button><h2>管理 Feed</h2>
+    <LoginForm apiBase={apiBase} onLoggedIn={onLoggedIn} />
+  </div></div>;
+}
+
+function LoginForm({ apiBase, onLoggedIn }: { apiBase: string; onLoggedIn: (session: SessionStatus) => void }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const panelRef = useModalDialog<HTMLFormElement>(onClose);
+  const loggingIn = useRef(false);
+  const active = useRef(true);
+  useEffect(() => { active.current = true; return () => { active.current = false; }; }, []);
   async function login(event: FormEvent) {
-    event.preventDefault(); setBusy(true); setError('');
+    event.preventDefault(); if (loggingIn.current) return;
+    loggingIn.current = true; setBusy(true); setError('');
     try {
       const response = await fetch(`${apiBase}/api/auth/login`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) });
       if (!response.ok) throw new Error((await response.json() as { error?: { message?: string } }).error?.message ?? '登录失败');
-      onLoggedIn({ authenticated: true, username });
+      if (active.current) onLoggedIn({ authenticated: true, username });
     } catch (cause) { setError(cause instanceof Error ? cause.message : '登录失败'); }
-    finally { setBusy(false); }
+    finally { loggingIn.current = false; setBusy(false); }
   }
-  return <div className="feed-dialog" role="dialog" aria-modal="true" aria-label="登录"><form ref={panelRef} className="feed-panel" onSubmit={login}>
-    <button type="button" className="feed-close" onClick={onClose} aria-label="关闭">×</button><h2>管理 Feed</h2>
-    <label>用户名<input value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="username" required /></label>
+  return <form onSubmit={login}>
+    <label>用户名<input value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="username" autoFocus required /></label>
     <label>密码<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" required /></label>
     {error && <p className="feed-state--error" role="alert">{error}</p>}<button className="feed-button" disabled={busy}>{busy ? '验证中…' : '登录'}</button>
-  </form></div>;
+  </form>;
 }
 
-function PublishDialog({ apiBase, onClose, onAuthExpired }: { apiBase: string; onClose: () => void; onAuthExpired: () => void }) {
+function PublishDialog({ apiBase, onClose, onAuthExpired, onAuthenticated }: { apiBase: string; onClose: () => void; onAuthExpired: () => void; onAuthenticated: (session: SessionStatus) => void }) {
   const [type, setType] = useState<'note' | 'clip'>('note');
   const [content, setContent] = useState('');
   const [linkUrl, setLinkUrl] = useState('');
@@ -308,21 +321,37 @@ function PublishDialog({ apiBase, onClose, onAuthExpired }: { apiBase: string; o
   const [uploads, setUploads] = useState<UploadItem[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState('');
-  const idempotency = useRef<string | null>(null);
+  const submission = useRef<{ key: string; body: string } | null>(null);
+  const [uncertain, setUncertain] = useState(false);
+  const [needsAuth, setNeedsAuth] = useState(false);
+  const active = useRef(true);
   const publishing = useRef(false);
   const previewVersion = useRef(0);
+  useEffect(() => { active.current = true; return () => { active.current = false; previewVersion.current += 1; }; }, []);
+  function authExpired() { setNeedsAuth(true); onAuthExpired(); }
   const { title, summary, image } = clipDraft.values;
   const successfulKeys = uploads.flatMap((item) => item.status === 'success' && item.key ? [item.key] : []);
   const hasSubstantialDraft = Boolean(content.trim() || linkUrl.trim() || title.trim() || summary.trim() || image.trim() || uploads.length);
   const closeSafely = useCallback(() => {
+    if (publishing.current) return;
+    if (submission.current) {
+      if (window.confirm('上次发布结果尚未确认。关闭后请先查看时间线，避免重复发布。确定关闭吗？')) onClose();
+      return;
+    }
     if (!hasSubstantialDraft || window.confirm('尚有未发布的内容，确定关闭吗？')) onClose();
   }, [hasSubstantialDraft, onClose]);
-  const panelRef = useModalDialog<HTMLFormElement>(closeSafely);
+  const panelRef = useModalDialog<HTMLDivElement>(closeSafely);
+  useEffect(() => {
+    if (needsAuth) return;
+    if (submitting) panelRef.current?.focus();
+    else if (uncertain) panelRef.current?.querySelector<HTMLButtonElement>('button[type="submit"]')?.focus();
+    else panelRef.current?.querySelector<HTMLTextAreaElement>('textarea')?.focus();
+  }, [needsAuth, submitting, uncertain]);
   const uploading = uploads.some((item) => item.status === 'uploading');
   const noteIsValid = Boolean(content.trim() || successfulKeys.length);
   const clipIsValid = Boolean(linkUrl.trim() && title.trim());
   const publishIsValid = type === 'note' ? noteIsValid : clipIsValid;
-  const canPublish = publishIsValid && !uploading && !submitting;
+  const canPublish = (uncertain || (publishIsValid && !uploading)) && !submitting && !needsAuth;
   const publishReason = !publishIsValid ? (type === 'note' ? '请输入文字，或上传图片或视频。' : '请填写链接和标题。') : uploading ? '上传完成后才能发布。' : submitting ? '正在发布，请稍候。' : '';
 
   async function preview() {
@@ -333,7 +362,7 @@ function PublishDialog({ apiBase, onClose, onAuthExpired }: { apiBase: string; o
       const response = await fetch(`${normalizeApiBase(apiBase)}/api/feed/clip-preview`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ link_url: candidate }) });
       if (version !== previewVersion.current) return;
       if (!response.ok) {
-        if (response.status === 401) onAuthExpired();
+        if (response.status === 401) authExpired();
         setMessage(response.status === 401 ? '登录已过期，请重新认证；当前内容已保留。' : '无法自动读取该页面，可继续手动填写');
         return;
       }
@@ -360,7 +389,7 @@ function PublishDialog({ apiBase, onClose, onAuthExpired }: { apiBase: string; o
       const result = await uploadFeedFile(apiBase, item.file, (progress) => setUploads((current) => current.map((known) => known.id === item.id ? { ...known, progress } : known)));
       setUploads((current) => current.map((known) => known.id === item.id ? { ...known, status: 'success', progress: 100, key: result.key } : known));
     } catch (cause) {
-      if (cause instanceof Error && cause.message.includes('登录已过期')) onAuthExpired();
+      if (active.current && cause instanceof Error && cause.message.includes('登录已过期')) authExpired();
       setUploads((current) => current.map((known) => known.id === item.id ? { ...known, status: 'failed', error: cause instanceof Error ? cause.message : '上传失败' } : known));
     }
   }
@@ -395,25 +424,36 @@ function PublishDialog({ apiBase, onClose, onAuthExpired }: { apiBase: string; o
 
   async function publish(event: FormEvent) {
     event.preventDefault(); if (!canPublish || publishing.current) return;
-    publishing.current = true; setSubmitting(true); setMessage(''); idempotency.current ??= crypto.randomUUID();
+    publishing.current = true; setSubmitting(true); setMessage('');
+    previewVersion.current += 1;
     try {
       const body = type === 'note'
         ? { type, content, media_keys: successfulKeys }
         : { type, content, media_keys: successfulKeys, link_url: linkUrl, link_title: title, link_summary: summary, link_image: image };
-      const response = await fetch(`${apiBase}/api/feed`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotency.current }, body: JSON.stringify(body) });
+      submission.current ??= { key: crypto.randomUUID(), body: JSON.stringify(body) };
+      const response = await fetch(`${apiBase}/api/feed`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': submission.current.key }, body: submission.current.body });
+      if (!active.current) return;
       if (!response.ok) {
-        if (response.status === 401) onAuthExpired();
-        setMessage(response.status === 401 ? '登录已过期，请重新认证；当前内容与已上传文件已保留。' : (await response.json() as { error?: { message?: string } }).error?.message ?? '发布失败');
+        if (response.status < 500 && !uncertain) { submission.current = null; setUncertain(false); }
+        else setUncertain(true);
+        if (response.status === 401) authExpired();
+        setMessage(response.status === 401 ? '登录已过期，请重新登录后继续；当前内容与已上传文件已保留。'
+          : response.status === 409 ? '本次提交已对应其他内容。请先检查时间线；当前草稿已保留。'
+          : response.status >= 500 ? '上次提交尚未确认，内容暂时锁定。请重试确认发布结果。'
+          : ((await response.json().catch(() => null)) as { error?: { message?: string } } | null)?.error?.message ?? '发布失败');
         return;
       }
       window.location.reload();
-    } catch (cause) { setMessage(cause instanceof Error ? cause.message : '发布失败'); }
+    } catch { if (active.current) { setUncertain(true); setMessage('上次提交尚未确认，内容暂时锁定。请重试确认发布结果。'); } }
     finally { publishing.current = false; setSubmitting(false); }
   }
 
-  return <div className="feed-dialog" role="dialog" aria-modal="true" aria-label="发布 Feed"><form ref={panelRef} className="feed-panel feed-publish-panel" onSubmit={publish}>
-    <button type="button" className="feed-close" onClick={closeSafely} aria-label="关闭">×</button>
+  return <div className="feed-dialog" role="dialog" aria-modal="true" aria-label="发布 Feed"><div ref={panelRef} className="feed-panel feed-publish-panel" tabIndex={-1}>
+    <button type="button" className="feed-close" disabled={submitting} onClick={closeSafely} aria-label="关闭">×</button>
     <h2>发布</h2>
+    {needsAuth && <><p role="status">登录已过期。重新登录后可继续，草稿和上传文件会保留。</p><LoginForm apiBase={apiBase} onLoggedIn={(session) => { setNeedsAuth(false); onAuthenticated(session); setMessage(uncertain ? '上次提交尚未确认，内容暂时锁定。请重试确认发布结果。' : '已重新登录，可继续发布。'); }} /></>}
+    <form onSubmit={publish} hidden={needsAuth}>
+    <fieldset className="feed-compose-fields" disabled={submitting || uncertain}>
     <div className="feed-tabs" role="tablist"><button type="button" aria-pressed={type === 'note'} onClick={() => setType('note')}>碎碎念</button><button type="button" aria-pressed={type === 'clip'} onClick={() => setType('clip')}>剪藏</button></div>
     {type === 'clip' && <><label>链接<input type="url" value={linkUrl} onBlur={() => void preview()} onChange={(event) => {
       previewVersion.current += 1;
@@ -428,9 +468,11 @@ function PublishDialog({ apiBase, onClose, onAuthExpired }: { apiBase: string; o
       {item.status === 'failed' && <button type="button" onClick={() => void startUpload(item)}>重试</button>}
       {item.status !== 'uploading' && <button type="button" onClick={() => void removeUpload(item)}>移除</button>}
     </li>)}</ul>}
+    </fieldset>
     {publishReason && <p className="feed-state" role="status">{publishReason}</p>}{message && <p className={message.includes('失败') || message.includes('过期') ? 'feed-state--error' : ''} role="status">{message}</p>}
-    <button className="feed-button" type="submit" disabled={!canPublish}>{submitting ? '正在发布…' : '发布'}</button>
-  </form></div>;
+    <button className="feed-button" type="submit" disabled={!canPublish}>{submitting ? '正在发布…' : uncertain ? '重试确认发布结果' : '发布'}</button>
+    </form>
+  </div></div>;
 }
 
 function ImageViewer({ image, onClose }: { image: string; onClose: () => void }) {

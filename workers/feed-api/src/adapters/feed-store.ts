@@ -10,12 +10,14 @@ import type {
 } from '../../../../shared/types';
 import type { FootprintWrite } from '../modules/footprints';
 import { FOOTPRINT_SOURCE_ELIGIBILITY } from './footprint-projection';
+import { learnRelationWriteCondition, type LearnRelationGuard } from '../modules/learn-publications';
 
 const PAGE_BUFFER = 1;
 
 export interface FootprintInsertOptions {
   pendingReleaseGuardKey?: string;
   onConflict?: 'ignore' | 'abort';
+  learnRelations?: LearnRelationGuard;
 }
 
 export function footprintInsertStatement(
@@ -36,6 +38,7 @@ export function footprintInsertStatement(
     createdAt,
   ];
   const insert = options.onConflict === 'abort' ? 'INSERT' : 'INSERT OR IGNORE';
+  const condition = options.learnRelations ? learnRelationWriteCondition(options.learnRelations) : null;
   if (!options.pendingReleaseGuardKey) {
     return database.prepare(`${insert} INTO public_footprints (
       id, source_module, source_ref, source_version, event_type, snapshot_json,
@@ -48,7 +51,8 @@ export function footprintInsertStatement(
     ) SELECT ?, ?, ?, ?, ?, ?, ?, 'public', ?, ?
     WHERE NOT EXISTS (
       SELECT 1 FROM publication_release_guards WHERE guard_key = ?
-    )`).bind(...values, options.pendingReleaseGuardKey);
+    )${condition ? ` AND ${condition.sql}` : ''}`).bind(...values, options.pendingReleaseGuardKey,
+      ...(condition?.values ?? []));
 }
 
 export interface Cursor {

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { PaginatedResponse, TimelineEntry } from '../../../shared/types';
 import { appendDedupedById, parseFootprintSnapshot } from '../../lib/feed-entries';
 import { summarizeBatchResults } from '../../lib/batch-results';
@@ -37,42 +37,67 @@ export default function FeedAdmin({ apiBase, initial, initialError = '' }: Props
   const [type, setType] = useState('');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
+  const [filtering, setFiltering] = useState(false);
+  const appliedQuery = useRef('limit=20');
+  const generation = useRef(0);
+  const reloading = useRef(false);
+  const paginating = useRef(false);
+  useEffect(() => () => { generation.current += 1; }, []);
   const selectedEntries = useMemo(() => page.items.filter((entry) => selected.has(entry.id)), [page.items, selected]);
 
-  const query = (cursor?: string) => new URLSearchParams({
+  const query = () => new URLSearchParams({
     limit: '20',
     ...(visibility ? { visibility } : {}),
     ...(type ? { type } : {}),
     ...(from ? { from } : {}),
     ...(to ? { to } : {}),
-    ...(cursor ? { cursor } : {}),
   }).toString();
 
-  const fetchPage = async (cursor?: string) => {
-    const response = await fetch(`${apiBase}/api/feed/admin?${query(cursor)}`, { credentials: 'include' });
+  const fetchPage = async (filters: string, cursor?: string) => {
+    const params = new URLSearchParams(filters);
+    if (cursor) params.set('cursor', cursor);
+    const response = await fetch(`${apiBase}/api/feed/admin?${params}`, { credentials: 'include' });
     if (!response.ok) throw new Error('无法读取管理列表');
     return response.json() as Promise<PaginatedResponse<TimelineEntry>>;
   };
 
-  const reload = async () => {
-    setPage(await fetchPage());
-    setSelected(new Set());
+  const reload = async (filters = appliedQuery.current) => {
+    const version = ++generation.current;
+    reloading.current = true;
+    paginating.current = false;
+    setFiltering(true);
+    setLoadingMore(false);
+    setError('');
+    try {
+      const next = await fetchPage(filters);
+      if (version !== generation.current) return;
+      appliedQuery.current = filters;
+      setPage(next);
+      setSelected(new Set());
+    } catch (cause) {
+      if (version === generation.current) setError(cause instanceof Error ? cause.message : '筛选失败');
+    } finally {
+      if (version === generation.current) { reloading.current = false; setFiltering(false); }
+    }
   };
 
   const loadMore = async () => {
-    if (!page.cursor || loadingMore) return;
+    if (!page.cursor || reloading.current || paginating.current) return;
+    const version = generation.current;
+    paginating.current = true;
     setLoadingMore(true);
     setError('');
     try {
-      const next = await fetchPage(page.cursor);
+      const next = await fetchPage(appliedQuery.current, page.cursor);
+      if (version !== generation.current) return;
       setPage((current) => ({
         ...next,
         items: appendDedupedById(current.items, next.items),
       }));
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : '无法加载更多记录');
+      if (version === generation.current) setError(cause instanceof Error ? cause.message : '无法加载更多记录');
     } finally {
-      setLoadingMore(false);
+      if (version === generation.current) { paginating.current = false; setLoadingMore(false); }
     }
   };
 
@@ -134,7 +159,7 @@ export default function FeedAdmin({ apiBase, initial, initialError = '' }: Props
         setError('起始日期不能晚于结束日期');
         return;
       }
-      void reload().catch((cause) => setError(cause instanceof Error ? cause.message : '筛选失败'));
+      void reload(query());
     }}>
       <label>状态<select value={visibility} onChange={(event) => setVisibility(event.target.value)}><option value="">全部</option><option value="public">公开</option><option value="private">仅我可见</option></select></label>
       <label>类型<select value={type} onChange={(event) => setType(event.target.value)}><option value="">全部</option><option value="note">碎碎念</option><option value="clip">剪藏</option><option value="system_footprint">系统足迹</option><option value="blog">Blog</option><option value="learn">Learn</option><option value="projects">Projects</option></select></label>
@@ -161,6 +186,6 @@ export default function FeedAdmin({ apiBase, initial, initialError = '' }: Props
         <div><button type="button" onClick={() => void update([entry], entry.visibility === 'public' ? 'private' : 'public')}>{entry.visibility === 'public' ? '隐藏' : '恢复'}</button>{entry.kind === 'native_post' && <button type="button" onClick={() => void remove(entry)}>删除</button>}</div>
       </article>)}
     </div>
-    {page.has_more && <button className="feed-button" type="button" onClick={() => void loadMore()} disabled={loadingMore}>{loadingMore ? '加载中…' : '加载更多'}</button>}
+    {page.has_more && <button className="feed-button" type="button" onClick={() => void loadMore()} disabled={loadingMore || filtering}>{loadingMore ? '加载中…' : '加载更多'}</button>}
   </section>;
 }

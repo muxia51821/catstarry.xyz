@@ -79,6 +79,8 @@
 .feed-dialog { position: fixed; inset: 0; z-index: 8; display: grid; place-items: center; padding: var(--space-lg); background: rgba(41, 31, 20, .38); }
 .feed-panel { position: relative; display: grid; gap: var(--space-md); width: min(100%, 36rem); max-height: calc(100svh - 2 * var(--space-lg)); padding: var(--space-xl); overflow: auto; background: var(--bg-base); border: 1px solid var(--border-default); border-radius: var(--radius-md); }
 .feed-panel h2 { margin: 0; font: 500 1.875rem/1.2 var(--font-display); }
+.feed-panel form:not([hidden]), .feed-compose-fields { display: grid; gap: var(--space-md); }
+.feed-compose-fields { min-width: 0; margin: 0; padding: 0; border: 0; }
 .feed-panel label { display: grid; gap: var(--space-xs); color: var(--text-secondary); }
 .feed-field-note { font-size: 0.78rem; line-height: 1.65; color: var(--text-muted); }
 .feed-panel input, .feed-panel textarea { width: 100%; padding: var(--field-padding-block) var(--field-padding-inline); font: inherit; color: var(--text-primary); background: var(--bg-surface-card); border: 1px solid var(--border-default); border-radius: var(--field-radius); }

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { BlogLifecycleEntry, BlogLifecycleState } from '../../../shared/types';
 
 interface Props {
@@ -16,8 +16,11 @@ export default function BlogLifecycleAdmin({ initial, initialError = '' }: Props
   const [entries, setEntries] = useState(initial);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState(initialError);
+  const updating = useRef(false);
 
   const update = async (slug: string, state: 'published' | 'withdrawn') => {
+    if (updating.current) return;
+    updating.current = true;
     setBusy(slug);
     setError('');
     try {
@@ -33,6 +36,7 @@ export default function BlogLifecycleAdmin({ initial, initialError = '' }: Props
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Blog 状态更新失败');
     } finally {
+      updating.current = false;
       setBusy(null);
     }
   };
@@ -48,8 +52,8 @@ export default function BlogLifecycleAdmin({ initial, initialError = '' }: Props
         <div>
           <a className="feed-button feed-admin-preview" href={`/blog/preview/${encodeURIComponent(entry.slug)}/`}>预览</a>
           {entry.state === 'published'
-            ? <button type="button" disabled={busy === entry.slug} onClick={() => void update(entry.slug, 'withdrawn')}>Withdraw</button>
-            : <button type="button" disabled={busy === entry.slug} onClick={() => void update(entry.slug, 'published')}>{entry.state === 'withdrawn' ? 'Restore' : 'Publish'}</button>}
+            ? <button type="button" disabled={busy !== null} onClick={() => void update(entry.slug, 'withdrawn')}>Withdraw</button>
+            : <button type="button" disabled={busy !== null} onClick={() => void update(entry.slug, 'published')}>{entry.state === 'withdrawn' ? 'Restore' : 'Publish'}</button>}
         </div>
       </article>)}
     </div>

@@ -2113,6 +2113,7 @@ const P = PROTOTYPE_VISUAL_PARAMETERS,
         function enterAboutFromCat() {
           clearTimeout(chargeTimer);
           clearTimeout(catBurstTimer);
+          clearTimeout(catRecoverTimer);
           catState = "burst";
           body.classList.add("cat-residue-visible");
           syncCatState();
@@ -2139,6 +2140,7 @@ const P = PROTOTYPE_VISUAL_PARAMETERS,
             return;
           }
           if (catState === "rest" || catState === "recover") {
+            clearTimeout(catRecoverTimer);
             catState = "charged";
             beginCatPhysics("charged");
             syncCatState();

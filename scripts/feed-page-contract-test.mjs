@@ -36,7 +36,7 @@ assert.match(app, /project_updated: '查看项目 →'/);
 assert.match(admin, /source_hidden[\s\S]*随来源隐藏/, 'Manage must distinguish source-hidden Blog footprints');
 assert.match(app, /try \{ duration = await videoDuration\(videoFiles\[0\]\); \}[\s\S]*catch \{ setMessage\('无法读取视频信息，请选择其他视频。'\); return; \}/, 'video metadata failures must become visible authoring errors');
 assert.match(app, /!Number\.isFinite\(duration\)/, 'non-finite video duration must be rejected');
-assert.match(app, /response\.status === 401\) onAuthExpired\(\)/, 'authoring 401 responses must clear misleading owner controls');
+assert.match(app, /response\.status === 401\) authExpired\(\)/, 'authoring 401 responses must enter reauthentication');
 assert.doesNotMatch(app, /items: \[entry, \.\.\.current\.items\]/, 'publish must not optimistically prepend an activity');
 assert.match(app, /window\.location\.reload\(\)/, 'publish success must return to the canonical Feed state');
 assert.match(app, /const candidate = previewCandidateUrl\(linkUrl\);[\s\S]*if \(!candidate\) return;/, 'Clip preview must ignore invalid URL candidates');

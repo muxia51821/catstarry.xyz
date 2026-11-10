@@ -1042,4 +1042,98 @@ assert.deepEqual(seen, publicProjectionIds, 'source filtering must happen before
 const allAdmin = await mixedStore.listAdmin({ limit: 50 }, ['visible'], ['visible']);
 assert.equal(allAdmin.items.length, projectionCases.length, 'admin must retain all source-hidden and private history');
 
+function holdLearnWrite(target, batch = false) {
+  let signalEntered;
+  let resume;
+  const entered = new Promise((resolve) => { signalEntered = resolve; });
+  const gate = new Promise((resolve) => { resume = resolve; });
+  let held = false;
+  const pause = async () => { held = true; signalEntered(); await gate; };
+  if (batch) {
+    const original = target.DB.batch.bind(target.DB);
+    target.DB.batch = async (statements) => { if (!held) await pause(); return original(statements); };
+  } else {
+    const original = target.DB.prepare.bind(target.DB);
+    target.DB.prepare = (sql) => {
+      const wrap = (statement) => new Proxy(statement, { get(object, key) {
+        if (key === 'bind') return (...values) => wrap(object.bind(...values));
+        if (key === 'run') return async () => {
+          if (!held && sql.startsWith('UPDATE learn_publications')) await pause();
+          return object.run();
+        };
+        const value = object[key];
+        return typeof value === 'function' ? value.bind(object) : value;
+      } });
+      return wrap(original(sql));
+    };
+  }
+  return { entered, resume };
+}
+
+for (const first of ['show', 'hide', 'publish', 'batch']) {
+  const concurrent = createEnv();
+  const token = crypto.randomUUID();
+  concurrent.AUTH_KV.values.set(`session:${token}`, { username: 'owner', expires_at: new Date(Date.now() + 60_000).toISOString() });
+  concurrent.AUTH_KV.values.set('learn:relation-manifest', [
+    { slug: 'source', links: ['target'] }, { slug: 'target', links: [] }, { slug: 'other', links: ['source'] },
+  ]);
+  const headers = { Cookie: `token=${token}`, Origin: 'https://catstarry.xyz', 'Content-Type': 'application/json' };
+  const now = new Date().toISOString();
+  concurrent.database.prepare('INSERT INTO learn_publications VALUES (?, ?, ?, NULL, ?)').run('target', 'public', now, now);
+  if (first === 'show' || first === 'hide') {
+    concurrent.database.prepare('INSERT INTO learn_publications VALUES (?, ?, ?, NULL, ?)').run('source', 'hidden', now, now);
+  }
+  const request = (slug, visibility) => fetchWorker(concurrent, learnLifecycleUrl, {
+    method: 'PATCH', headers, body: JSON.stringify({ slug, visibility, title: slug }),
+  });
+  const held = holdLearnWrite(concurrent, first === 'publish' || first === 'batch');
+  const delayed = first === 'batch'
+    ? fetchWorker(concurrent, learnLifecycleBatchUrl, { method: 'POST', headers,
+      body: JSON.stringify({ entries: [{ slug: 'source', title: 'Source' }, { slug: 'other', title: 'Other' }] }) })
+    : request(first === 'hide' ? 'target' : 'source', first === 'hide' ? 'hidden' : 'public');
+  await held.entered;
+  assert.equal((await request(first === 'hide' ? 'source' : 'target', first === 'hide' ? 'public' : 'hidden')).status, 200);
+  held.resume();
+  assert.equal((await delayed).status, 409, `${first} must reject a public set changed after validation`);
+  const publicRows = concurrent.database.prepare("SELECT slug FROM learn_publications WHERE visibility='public' ORDER BY slug").all();
+  assert.deepEqual(publicRows.map((row) => row.slug), first === 'hide' ? ['source', 'target'] : []);
+  assert.equal(footprintCount(concurrent), 0, 'rejected first Publish must not leave orphan footprints or partial batch records');
+}
+
+for (const guardKey of ['learn-active', 'learn-pending']) {
+  const changingRelease = createEnv();
+  const token = crypto.randomUUID();
+  const now = new Date().toISOString();
+  changingRelease.AUTH_KV.values.set(`session:${token}`, { username: 'owner', expires_at: new Date(Date.now() + 60_000).toISOString() });
+  changingRelease.AUTH_KV.values.set('learn:relation-manifest', [{ slug: 'source', links: [] }]);
+  changingRelease.database.prepare('INSERT INTO learn_publications VALUES (?, ?, ?, NULL, ?)').run('source', 'hidden', now, now);
+  const held = holdLearnWrite(changingRelease);
+  const delayed = fetchWorker(changingRelease, learnLifecycleUrl, { method: 'PATCH',
+    headers: { Cookie: `token=${token}`, Origin: 'https://catstarry.xyz', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ slug: 'source', visibility: 'public' }),
+  });
+  await held.entered;
+  changingRelease.database.prepare('INSERT INTO publication_release_guards VALUES (?, ?, ?, ?)')
+    .run(guardKey, 'a'.repeat(40), 1, now);
+  held.resume();
+  assert.equal((await delayed).status, guardKey === 'learn-pending' ? 503 : 409,
+    'release changes after validation must invalidate the write');
+  assert.equal(learnPublicationRow(changingRelease, 'source').visibility, 'hidden');
+}
+
+const retryEnv = createEnv();
+const retryToken = crypto.randomUUID();
+retryEnv.AUTH_KV.values.set(`session:${retryToken}`, { username: 'owner', expires_at: new Date(Date.now() + 60_000).toISOString() });
+const retryHeaders = { Cookie: `token=${retryToken}`, Origin: 'https://catstarry.xyz',
+  'Content-Type': 'application/json', 'Idempotency-Key': 'fixed-submission-identity' };
+const retryPost = (content) => fetchWorker(retryEnv, 'https://api.test/api/feed', {
+  method: 'POST', headers: retryHeaders, body: JSON.stringify({ type: 'note', content }),
+});
+assert.equal((await retryPost('Original')).status, 201);
+assert.equal((await retryPost(' Original ')).status, 200, 'equivalent normalized content is a safe retry');
+const changedRetry = await retryPost('Edited');
+assert.equal(changedRetry.status, 409, 'same identity with different content must not report old content as success');
+assert.equal((await changedRetry.json()).error.code, 'idempotency_conflict');
+assert.equal(retryEnv.database.prepare('SELECT COUNT(*) AS count FROM feed_posts').get().count, 1);
+
 console.log('Feed HTTP contract passed.');

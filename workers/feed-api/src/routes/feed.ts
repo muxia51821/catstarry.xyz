@@ -1,4 +1,4 @@
-import type { ClipPreview, FeedPostInput, PublicFootprint, PublicFootprintCandidate, Visibility } from '../../../../shared/types';
+import type { ClipPreview, FeedPost, FeedPostInput, PublicFootprint, PublicFootprintCandidate, Visibility } from '../../../../shared/types';
 import { FeedStore, decodeCursor } from '../adapters/feed-store';
 import { apiError, json, parseBoundedLimit, readJson } from '../lib/http';
 import { readPublishedBlogSlugs } from '../modules/blog-publications';
@@ -120,16 +120,26 @@ async function createPost(
   }
   const id = idempotencyKey ? await idForIdempotencyKey(session.username, idempotencyKey) : crypto.randomUUID();
   const existing = await store.getNativePost(id);
-  if (existing) return json({ post: existing, duplicate: true }, 200);
+  if (existing) return duplicatePostResponse(existing, normalizedInput);
   try {
     const post = await store.createPost(normalizedInput, new Date().toISOString(), id);
     refreshAfterMutation(env, ctx, 'feed post created');
     return json({ post }, 201);
   } catch (error) {
     const duplicate = await store.getNativePost(id);
-    if (duplicate) return json({ post: duplicate, duplicate: true }, 200);
+    if (duplicate) return duplicatePostResponse(duplicate, normalizedInput);
     throw error;
   }
+}
+
+function duplicatePostResponse(post: FeedPost, input: FeedPostInput): Response {
+  const same = post.type === input.type
+    && ['content', 'link_url', 'link_title', 'link_summary', 'link_image'].every((field) =>
+      post[field as keyof FeedPost] === (input[field as keyof FeedPostInput] ?? null))
+    && JSON.stringify(post.media_json ? JSON.parse(post.media_json) : []) === JSON.stringify(input.media_keys ?? []);
+  return same
+    ? json({ post, duplicate: true }, 200)
+    : apiError(409, 'idempotency_conflict', 'This submission already contains different content; check the timeline before publishing again');
 }
 
 async function mutatePost(
